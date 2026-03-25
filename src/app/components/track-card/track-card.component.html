@@ -1,0 +1,62 @@
+<!-- COMPOSANT TRACK-CARD
+     Reçoit : [track]  via @Input()
+     Émet   : (play)   via @Output()
+-->
+<div class="track-card">
+
+  <!-- Image + overlay play → émet l'événement @Output play vers la page parente -->
+  <div class="image-wrapper" (click)="onPlay()">
+    <img
+      [src]="getImageUrl()"
+      [alt]="track.title"
+      class="music-card-img"
+      onerror="this.onerror=null; this.src='assets/placeholder-track.png'">
+    <div class="play-overlay">
+      <div class="play-icon"></div>
+    </div>
+  </div>
+
+  <!-- Infos texte -->
+  <div class="track-info">
+    <h6>
+      <a [routerLink]="['/track', track.id]">{{ track.title }}</a>
+      <span class="badge-pending" *ngIf="!track.is_approved">En attente</span>
+    </h6>
+
+    <small class="track-artist">
+      <a [routerLink]="['/profile', track.composer_user.username]">
+        {{ track.composer_user.username }}
+      </a>
+    </small>
+
+    <em class="track-meta">
+      {{ track.style || 'Inconnu' }} | {{ track.bpm }} BPM | {{ track.key }}
+    </em>
+
+    <div class="track-tags">
+      <!--
+        [style.background-color]  →  fond très foncé  (factor 0.15, comme darken_color en Python)
+        [style.border-color]      →  bordure moins foncée  (factor 0.35)
+        [style.color]             →  texte dans la couleur d'origine de la catégorie
+      -->
+      <span
+        *ngFor="let tag of track.tags"
+        class="tag"
+        [attr.data-category]="tag.category"
+        [style.background-color]="tagBgColor(tag.color)"
+        [style.border-color]="tagBorderColor(tag.color)">
+        #{{ tag.name }}
+      </span>
+      <span class="no-tags" *ngIf="track.tags.length === 0">Pas de tags</span>
+    </div>
+
+  </div>
+
+  <!-- Bouton favori -->
+  <div class="track-actions">
+    <button class="btn-favorite" title="Ajouter aux favoris">
+      <i class="bi bi-heart"></i>
+    </button>
+  </div>
+
+</div>

@@ -1,0 +1,33 @@
+/* Styles de PAGE uniquement — le container et les états.
+   Les styles de la card sont dans track-card.component.scss */
+
+:host {
+  --card-bg:     #2c3034;
+  --border-color: #495057;
+
+  display: block;
+  padding: 1rem;
+}
+
+#tracks-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.state-loading,
+.state-error,
+.state-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6c757d;
+
+  i { font-size: 3rem; display: block; margin-bottom: 1rem; }
+  p { margin: 0; }
+}
+
+.state-error {
+  color: #f8d7da;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+}

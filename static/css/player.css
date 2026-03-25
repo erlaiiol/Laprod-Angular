@@ -1,0 +1,529 @@
+/* ========== PLAYER AUDIO FIXE (Mode Dark Bootstrap) ========== */
+#bottom-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #212529; /* Dark Bootstrap */
+    border-top: 1px solid #495057;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+    z-index: 1030;
+    transition: transform 0.3s ease;
+}
+
+#bottom-player.hidden {
+    transform: translateY(100%);
+}
+
+.player-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Répartir en 3 zones */
+    padding: 1rem 1.5rem;
+    padding-right: 60px; /* Espace pour le bouton fermer */
+    gap: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Groupe GAUCHE: Cover + Info */
+.player-left-group {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-shrink: 0;
+    min-width: 200px;
+}
+
+/* Empêcher la cover de rétrécir */
+.player-cover-wrapper {
+    flex-shrink: 0;
+}
+
+/* Les infos peuvent rétrécir pour laisser place à la waveform */
+.player-info {
+    flex-shrink: 2;
+    min-width: 100px;
+    max-width: 150px;
+    color: white;
+}
+
+/* Groupe CENTRE: Waveform au centre */
+.waveform-container {
+    flex: 0 0 500px; /* Largeur fixe pour uniformité */
+    width: 500px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0 0.5rem;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* Groupe DROITE: Contrôles */
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    min-width: 300px;
+    justify-content: flex-end;
+    color: white;
+}
+
+/* ========== COVER DU PLAYER ========== */
+.player-cover-wrapper {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.player-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.player-play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.player-cover-wrapper:hover .player-play-overlay {
+    background: rgba(0,0,0,0.6);
+}
+
+.player-play-icon {
+    width: 0;
+    height: 0;
+    border-left: 16px solid white;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    transition: all 0.3s;
+}
+
+.player-play-icon.playing {
+    border-left: 6px solid white;
+    border-right: 6px solid white;
+    border-top: 0;
+    border-bottom: 0;
+    width: 4px;
+    height: 20px;
+}
+
+/* ========== INFO DU PLAYER ========== */
+.player-title {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f8f9fa;
+}
+
+.player-artist {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #adb5bd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ========== WAVEFORM RESPONSIVE (Blanc → Noir) ========== */
+#waveform {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    height: 100%;
+    width: 100%;
+    justify-content: space-between; /* Répartir uniformément */
+}
+
+.wave-bar {
+    flex: 1 1 auto;
+    min-width: 2px;
+    max-width: 3px; /* Uniformisé avec track player */
+    background: white; /* Blanc pour non lu */
+    border-radius: 1px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.wave-bar:hover {
+    background: rgba(255,255,255,0.8);
+    transform: scaleY(1.1);
+}
+
+.wave-bar.active {
+    background: black; /* Noir pour lu */
+}
+
+/* ========== CONTRÔLES DU PLAYER ========== */
+.player-time {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #f8f9fa;
+    flex-shrink: 0;
+}
+
+/* Métadonnées du track (BPM, Key, Style, Prix) - Compactes */
+.player-metadata {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem; /* Très réduit */
+    flex-shrink: 2; /* Peuvent rétrécir pour laisser place à la waveform */
+    min-width: fit-content;
+}
+
+.player-meta-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.4rem; /* Encore plus réduit */
+    border-radius: 6px;
+    font-size: 0.7rem; /* Plus petit */
+    font-weight: 600;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8f9fa;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-meta-price {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem; /* Encore plus réduit */
+    border-radius: 6px;
+    font-size: 0.75rem; /* Plus petit */
+    font-weight: 700;
+    white-space: nowrap;
+    background: white;
+    color: #212529;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ========== VOLUME - Ultra compact ========== */
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem; /* Très réduit */
+    flex-shrink: 2; /* Peut rétrécir pour laisser place à la waveform */
+    min-width: 80px; /* Encore plus réduit */
+}
+
+.volume-icon {
+    color: #f8f9fa;
+    flex-shrink: 0;
+}
+
+.volume-slider {
+    width: 50px; /* Encore plus réduit */
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* ========== BOUTON FERMER ========== */
+.close-player-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: rgba(0, 0, 0, 0.9);
+    color: rgba(255,255,255,0.3);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 28px;
+    line-height: 0;
+    cursor: pointer;
+    z-index: 1031;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    font-weight: 300;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.close-player-btn:hover {
+    background: rgb(255, 255, 255);
+    color: black;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.close-player-btn:active {
+    transform: scale(0.95);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1400px) {
+    .player-info {
+        max-width: 200px;
+    }
+    
+    .waveform-container {
+        padding: 0 0.5rem;
+    }
+}
+
+@media (max-width: 1200px) {
+    .player-content {
+        gap: 1rem;
+    }
+    
+    .player-info {
+        max-width: 150px;
+    }
+    
+    .volume-slider {
+        width: 80px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .waveform-container {
+        flex: 0 0 400px;
+        width: 400px;
+    }
+}
+
+@media (max-width: 992px) {
+    .waveform-container {
+        flex: 0 0 300px;
+        width: 300px;
+    }
+
+    .player-controls {
+        gap: 0.8rem;
+    }
+
+    .volume-control {
+        min-width: 100px;
+    }
+
+    .volume-slider {
+        width: 50px;
+    }
+
+    .player-metadata {
+        gap: 0.3rem;
+    }
+
+    .player-meta-item {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .player-meta-price {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        color: #212529 !important;
+        background: #ffffff;
+    }
+}
+
+/* Breakpoint intermédiaire pour affichage sur 2 lignes jusqu'à 1330px */
+@media (max-width: 1330px) {
+    .player-content {
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        padding: 1rem 1.5rem;
+        padding-right: 60px;
+    }
+
+    .player-cover-wrapper {
+        width: 70px;
+        height: 70px;
+    }
+
+    .player-info {
+        flex: 1;
+        min-width: 150px;
+        max-width: none;
+    }
+
+    .waveform-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 100%;
+        order: 3;
+        padding: 0 0.25rem; /* Très peu de padding pour maximiser l'espace */
+        margin-top: 0.5rem;
+    }
+
+    .player-controls {
+        order: 4;
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 1rem;
+    }
+
+    .player-metadata {
+        order: 1;
+        width: auto;
+        justify-content: flex-start;
+    }
+
+    .player-time {
+        order: 2;
+    }
+
+    .volume-control {
+        order: 3;
+        display: flex;
+        min-width: auto;
+    }
+
+    .volume-slider {
+        width: 80px;
+    }
+
+    .close-player-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 28px;
+        top: 10px;
+        right: 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .player-content {
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        padding: 0.8rem;
+        padding-right: 50px;
+    }
+
+    .player-cover-wrapper {
+        width: 60px;
+        height: 60px;
+    }
+
+    .player-info {
+        flex: 1;
+        min-width: 120px;
+        max-width: none;
+    }
+
+    .waveform-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 100%;
+        order: 3;
+        padding: 0;
+        margin-top: 0.5rem;
+    }
+
+    .player-controls {
+        order: 4;
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .player-metadata {
+        order: 1;
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .player-time {
+        order: 2;
+    }
+
+    .volume-control {
+        order: 3;
+        display: flex;
+        min-width: auto;
+    }
+
+    .volume-slider {
+        width: 80px;
+    }
+
+    .close-player-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        top: 8px;
+        right: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .player-info {
+        min-width: 100px;
+    }
+
+    .player-title {
+        font-size: 0.9rem;
+    }
+
+    .player-artist {
+        font-size: 0.75rem;
+    }
+
+    /* Masquer le style sur très petits écrans, garder seulement BPM, Key et Prix */
+    .player-meta-item:nth-child(3) {
+        display: none;
+    }
+
+    .volume-control {
+        display: none; /* Masquer sur très petits écrans */
+    }
+}

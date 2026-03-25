@@ -1,0 +1,157 @@
+/* Styles du composant Navbar uniquement */
+
+:host {
+  display: block;
+}
+
+/* ── États de chargement/erreur inline ─────────────────────────────────────── */
+
+.state-loading-inline,
+.state-error-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+  background: #1a1d20;
+}
+
+.state-error-inline { color: #dc3545; }
+
+
+/* ── Barre de recherche ────────────────────────────────────────────────────── */
+
+.btn-clear-search {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+
+  &:hover { color: #f8f9fa; }
+}
+
+
+/* ── Popover backdrop ──────────────────────────────────────────────────────── */
+
+.popover-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+
+  &.active { display: block; }
+}
+
+
+/* ── Popover de filtres ────────────────────────────────────────────────────── */
+
+.filters-popover {
+  position: fixed;
+  top: 0;
+  right: -360px;          /* caché hors écran par défaut */
+  width: 340px;
+  height: 100vh;
+  background: #2c3034;
+  border-left: 1px solid #495057;
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s ease;
+  overflow-y: auto;
+
+  &.open { right: 0; }   /* [class.open]="filtersOpen()" déclenche ça */
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #495057;
+
+  h5 {
+    margin: 0;
+    color: #f8f9fa;
+    font-size: 1rem;
+  }
+}
+
+.btn-close-popover {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover { color: #f8f9fa; }
+}
+
+.filters-body {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.filter-section { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.filter-label {
+  color: #adb5bd;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bpm-inputs {
+  display: flex;
+  align-items: center;
+
+  input { width: 80px; background: #1a1d20; color: #f8f9fa; border-color: #495057; }
+  span  { color: #6c757d; }
+}
+
+.filter-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filter-tag {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8f9fa;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover,
+  &.selected {
+    background: rgba(13, 110, 253, 0.3);
+    border-color: #0d6efd;
+    color: #fff;
+  }
+}
+
+.no-tags { color: #6c757d; font-size: 0.8rem; }
+
+.filters-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #495057;
+}

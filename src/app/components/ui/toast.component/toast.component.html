@@ -1,0 +1,7 @@
+<div class="toast-container">
+    @for (toast of _toasts(); track toast) {
+      <div class="toast" [class]="toast.level">
+        {{ toast.message }}
+      </div>
+    }
+</div>

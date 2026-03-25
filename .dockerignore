@@ -1,0 +1,58 @@
+# =============================================================
+# .dockerignore - Fichiers exclus du contexte docker build
+# CRITIQUE : .env ne doit JAMAIS être dans l'image Docker
+# =============================================================
+
+# Secrets
+.env
+
+# Environnement virtuel Python (recréé dans l'image par uv sync)
+.venv/
+
+# Artefacts Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Git
+.git/
+.gitignore
+
+# Logs (bind-mountés depuis le serveur, pas dans l'image)
+logs/
+
+# Fichiers Docker (inutile de les copier dans l'image)
+Dockerfile
+.dockerignore
+docker-compose.yml
+nginx/
+
+# Uploads utilisateurs (bind-mountés depuis le serveur)
+static/audio/
+static/mixmaster/
+static/contracts/
+static/images/tracks/
+
+# Outils de développement
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts de refactoring ponctuels
+refactor_*.py
+
+# Documentation interne
+SECURITY_AUDIT*.md
+STRIPE_*.md
+SCRIPTS_README.md
+APPROVAL_SYSTEM_UPGRADE/
+CONTRACT_AND_REVISION_SYSTEM/
+NOTIFICATION_SYSTEM_TUTORIAL/
+STRIPE_COMPLETE_GUIDE/
+TAG_VALIDATION_SYSTEM/
+COURS/

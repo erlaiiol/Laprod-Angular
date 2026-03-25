@@ -1,0 +1,791 @@
+/* ========================================
+   SYSTÈME DE BADGES ET BOUTONS COLORÉS
+   Direction artistique: Bordure claire + fond foncé
+   Inspiré de contract_config.html (page /buy)
+   ======================================== */
+
+/* Définition des couleurs principales */
+:root {
+    /* Couleurs claires (bordures) */
+    --color-blue: #22d3ee;
+    --color-cyan: #06b6d4;  /* Info - cyan plus foncé/saturé */
+    --color-red: #ef4444;
+    --color-orange: #f97316;
+    --color-green: #10b981;
+    --color-yellow: #eab308;
+    --text-color-interactive: #fff894;
+
+    /* Couleurs foncées (backgrounds) */
+    --color-blue-dark: #0a1f28;
+    --color-cyan-dark: #083344;  /* Info dark - cyan foncé */
+    --color-red-dark: #250b0b;
+    --color-orange-dark: #221500;
+    --color-green-dark: #031f15;
+    --color-yellow-dark: #1f1a00;
+    --color-gray: #6b7280;
+    --color-gray-dark: #1a1a1a;
+}
+
+/* ========================================
+   BADGES (NON CLIQUABLES)
+   ======================================== */
+
+/* Badge Primary (Bleu) */
+.badge.bg-primary {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+}
+
+
+/* Badge Success (Vert) */
+.badge.bg-success {
+    background-color: var(--color-green-dark) !important;
+    border: 1px solid var(--color-green) !important;
+    color: var(--color-green) !important;
+    font-weight: 600 !important;
+}
+
+/* Badge Warning (Orange) */
+.badge.bg-warning {
+    background-color: var(--color-orange-dark) !important;
+    border: 1px solid var(--color-orange) !important;
+    color: var(--color-orange) !important;
+    font-weight: 600 !important;
+}
+
+/* Badge Danger (Rouge) */
+.badge.bg-danger {
+    background-color: var(--color-red-dark) !important;
+    border: 1px solid var(--color-red) !important;
+    color: var(--color-red) !important;
+    font-weight: 600 !important;
+}
+
+/* ========================================
+   CARTES COLORÉES (bg-primary, bg-success, etc.)
+   ======================================== */
+
+/* Card Primary (Bleu) */
+.card.bg-primary {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+}
+
+.bg-primary {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+}
+
+.card.bg-primary .card-header,
+.card.bg-primary .card-footer {
+    background-color: rgba(34, 211, 238, 0.1) !important;
+    border-color: var(--color-blue) !important;
+}
+
+.card.bg-primary .card-title,
+.card.bg-primary .card-text {
+    color: var(--color-blue) !important;
+}
+
+/* Card Success (Vert) */
+.card.bg-success {
+    background-color: var(--color-green-dark) !important;
+    border: 1px solid var(--color-green) !important;
+    color: var(--color-green) !important;
+}
+
+.card.bg-success .card-header,
+.card.bg-success .card-footer {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    border-color: var(--color-green) !important;
+}
+
+.card.bg-success .card-title,
+.card.bg-success .card-text {
+    color: var(--color-green) !important;
+}
+
+/* Card Warning (Orange) */
+.card.bg-warning {
+    background-color: var(--color-orange-dark) !important;
+    border: 1px solid var(--color-orange) !important;
+    color: var(--color-orange) !important;
+}
+
+.card.bg-warning .card-header,
+.card.bg-warning .card-footer {
+    background-color: rgba(249, 115, 22, 0.1) !important;
+    border-color: var(--color-orange) !important;
+}
+
+.card.bg-warning .card-title,
+.card.bg-warning .card-text {
+    color: var(--color-orange) !important;
+}
+
+/* Card Danger (Rouge) */
+.card.bg-danger {
+    background-color: var(--color-red-dark) !important;
+    border: 1px solid var(--color-red) !important;
+    color: var(--color-red) !important;
+}
+
+.card.bg-danger .card-header,
+.card.bg-danger .card-footer {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-color: var(--color-red) !important;
+}
+
+.card.bg-danger .card-title,
+.card.bg-danger .card-text {
+    color: var(--color-red) !important;
+}
+
+/* Card Info (Bleu - même que primary) */
+.card.bg-info {
+    background-color: var(--color-cyan-dark) !important;
+    border: 1px solid var(--color-cyan) !important;
+    color: var(--color-blue) !important;
+}
+
+.card.bg-info .card-header,
+.card.bg-info .card-footer {
+    background-color: rgba(34, 211, 238, 0.1) !important;
+    border-color: var(--color-cyan) !important;
+}
+
+.card.bg-info .card-title,
+.card.bg-info .card-text {
+    color: var(--color-cyan) !important;
+}
+
+/* Card Dark (reste sombre) */
+.card.bg-dark {
+    background-color: #1a1a1a !important;
+    border: 1px solid #343a40 !important;
+    color: #f8f9fa !important;
+}
+
+/* Badge Info (Bleu clair) */
+.badge.bg-info {
+    background-color: var(--color-cyan-dark) !important;
+    border: 1px solid var(--color-cyan) !important;
+    color: var(--color-cyan) !important;
+    font-weight: 600 !important;
+}
+
+/* Badge Secondary (Gris) */
+.badge.bg-secondary {
+    background-color: var(--color-gray-dark) !important;
+    border: 1px solid var(--color-gray) !important;
+    color: var(--color-gray) !important;
+    font-weight: 600 !important;
+}
+
+/* ========================================
+   BOUTONS (CLIQUABLES) - AVEC HOVER
+   ======================================== */
+
+/* Bouton Primary (Bleu) */
+.btn-primary, .btn.btn-primary {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-primary:hover, .btn.btn-primary:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+/* Bouton Success (Vert) */
+.btn-success, .btn.btn-success {
+    background-color: var(--color-green-dark) !important;
+    border: 1px solid var(--color-green) !important;
+    color: var(--color-green) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-success:hover, .btn.btn-success:hover {
+    background-color: var(--color-green) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Bouton Warning (Orange) */
+.btn-warning, .btn.btn-warning {
+    background-color: var(--color-orange-dark) !important;
+    border: 1px solid var(--color-orange) !important;
+    color: var(--color-orange) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-warning:hover, .btn.btn-warning:hover {
+    background-color: var(--color-orange) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(249, 115, 22, 0.4) !important;
+}
+
+/* Bouton Danger (Rouge) */
+.btn-danger, .btn.btn-danger {
+    background-color: var(--color-red-dark) !important;
+    border: 1px solid var(--color-red) !important;
+    color: var(--color-red) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-danger:hover, .btn.btn-danger:hover {
+    background-color: var(--color-red) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Bouton Info (Bleu clair) */
+.btn-info, .btn.btn-info {
+    background-color: var(--color-cyan-dark) !important;
+    border: 1px solid var(--color-cyan) !important;
+    color: var(--color-cyan) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-info:hover, .btn.btn-info:hover {
+    background-color: var(--color-cyan) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+/* Bouton Secondary (Gris) - Reste neutre */
+.btn-secondary, .btn.btn-secondary {
+    background-color: var(--color-gray-dark) !important;
+    border: 1px solid var(--color-gray) !important;
+    color: var(--color-gray) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-secondary:hover, .btn.btn-secondary:hover {
+    background-color: var(--color-gray) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(107, 114, 128, 0.4) !important;
+}
+
+/* Boutons Outline */
+.btn-outline-primary {
+    background-color: transparent !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+.btn-outline-secondary {
+    background-color: transparent !important;
+    border: 1px solid var(--color-gray) !important;
+    color: var(--color-gray) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--color-gray) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(107, 114, 128, 0.4) !important;
+}
+
+/* ========================================
+   BOUTON GUIDE MIXMASTER - EXTRA VISIBLE (ORANGE)
+   ======================================== */
+
+.btn-guide-mixmaster {
+    background: var(--color-orange-dark) !important;
+    border: 1px solid var(--color-orange) !important;
+    color: var(--color-orange) !important;
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+    padding: 1rem 2rem !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 0 3px rgba(249, 115, 22, 0.3) !important;
+}
+
+.btn-guide-mixmaster:hover {
+    background: var(--color-orange) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(249, 115, 22, 0.6) !important;
+}
+
+/* ========================================
+   CLASSES TEXT-* (couleurs de texte)
+   ======================================== */
+
+.text-primary {
+    color: var(--color-blue) !important;
+}
+
+.text-success {
+    color: var(--color-green) !important;
+}
+
+.text-warning {
+    color: var(--color-orange) !important;
+}
+
+.text-danger {
+    color: var(--color-red) !important;
+}
+
+.text-info {
+    color: var(--color-cyan) !important;
+}
+
+.text-secondary {
+    color: var(--color-gray) !important;
+}
+
+/* ========================================
+   BOUTONS DE TRACK (track.css)
+   ======================================== */
+
+/* Bouton REC (Rouge) */
+.track-rec-btn {
+    background-color: var(--color-red-dark) !important;
+    border: 1px solid var(--color-red) !important;
+    color: var(--color-red) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.track-rec-btn:hover:not(.disabled) {
+    background-color: var(--color-red) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Bouton Download (Vert) */
+.track-download-btn {
+    background-color: var(--color-green-dark) !important;
+    border: 1px solid var(--color-green) !important;
+    color: var(--color-green) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.track-download-btn:hover {
+    background-color: var(--color-green) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Bouton Purchase (Bleu) */
+.btn-purchase {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-purchase:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+/* Bouton Purchase Outline */
+.btn-purchase-outline {
+    background: transparent !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-purchase-outline:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+/* ========================================
+   PRIX EN NOIR ET BLANC (comme contract_config)
+   ======================================== */
+
+/* Boîte de prix (style contract_config.html) */
+.price-summary, .price-box {
+    background: #ffffff !important;
+    color: #212529 !important;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #dee2e6 !important;
+}
+
+.price-summary h4, .price-box h4 {
+    color: #212529 !important;
+    font-weight: 700;
+}
+
+.price-summary .text-muted, .price-box .text-muted {
+    color: #6c757d !important;
+}
+
+/* Prix dans les options (option-price) */
+.option-price {
+    color: #212529 !important;
+    font-weight: 700;
+    background: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.composer-link {
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+}
+
+/* ========================================
+   NAVIGATION
+   ======================================== */
+
+/* NAVBAR principale (base.html) - Style sobre */
+.navbar-nav .nav-link {
+    border-radius: 6px;
+    transition: all 0.3s ease !important;
+    border: 1px solid transparent !important;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.navbar-nav .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Navbar Toggler (bouton menu mobile) - Style comme btn-outline-light */
+.navbar-toggler {
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.55) !important;
+    border-radius: 6px !important;
+    padding: 0.35rem 0.5rem !important;
+    transition: all 0.3s ease !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.navbar-toggler:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25) !important;
+    outline: none !important;
+}
+
+/* État actif (menu ouvert) - devient blanc plein */
+.navbar-toggler[aria-expanded="true"] {
+    background: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.navbar-toggler[aria-expanded="true"]:hover {
+    background: #f8f9fa !important;
+    border-color: #f8f9fa !important;
+}
+
+/* Icône chevron down (menu déroulant) */
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23ffffff' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") !important;
+    width: 1.2em !important;
+    height: 1.2em !important;
+}
+
+/* Icône noire quand le menu est ouvert (fond blanc) */
+.navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23212529' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") !important;
+}
+
+/* Bouton X dans la barre de recherche */
+.btn-clear-search {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.btn-clear-search:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-clear-search:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+/* Responsive navbar - Mobile */
+@media (max-width: 991px) {
+    /* Container de la navbar doit wrapper */
+    .navbar .container-fluid {
+        flex-wrap: wrap !important;
+    }
+
+    /* Sur mobile, mettre la barre de recherche + filtres sur toute la largeur */
+    .navbar .d-flex.mx-auto {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0.5rem 0 0 0 !important;
+        padding: 0 !important;
+        order: 3 !important;
+        flex-basis: 100% !important;
+    }
+
+    /* Logo et toggler sur la même ligne */
+    .navbar-brand {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+    }
+
+    .navbar-toggler {
+        order: 2 !important;
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+    }
+
+    /* Input de recherche prend la place restante */
+    .navbar #search-input {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    /* Bouton filtres garde sa taille */
+    .navbar #filters-toggle-btn {
+        flex: 0 0 auto !important;
+        margin-left: 0.5rem !important;
+    }
+}
+
+/* Nav-tabs (onglets dans les pages) */
+.nav-tabs .nav-link {
+    border: 1px solid transparent !important;
+    color: var(--color-gray) !important;
+    transition: all 0.3s ease !important;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: var(--color-blue) !important;
+    color: var(--color-blue) !important;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    border-bottom-color: var(--color-blue-dark) !important;
+    color: var(--color-blue) !important;
+}
+
+/* Nav-pills (pilules dans les pages) */
+.nav-pills .nav-link {
+    color: var(--color-gray) !important;
+    transition: all 0.3s ease !important;
+}
+
+.nav-pills .nav-link:hover {
+    background-color: rgba(34, 211, 238, 0.1) !important;
+    color: var(--color-blue) !important;
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+}
+
+/* ========================================
+   TAGS COLORÉS (garde le système existant)
+   Ces styles ne s'appliquent PAS aux tags
+   car ils ont leur propre système via category_colors.js
+   ======================================== */
+
+/* Ne pas toucher aux .tag avec [data-category] */
+.tag[data-category] {
+    /* Géré par category_colors.js */
+}
+
+/* ========================================
+   BOUTONS DE LA MODALE D'ENREGISTREMENT
+   ======================================== */
+
+/* Bouton de démarrage (REC) */
+.recording-control-btn {
+    background-color: var(--color-blue-dark) !important;
+    border: 1px solid var(--color-blue) !important;
+    color: var(--color-blue) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.recording-control-btn:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+/* Bouton stop (Rouge) */
+.recording-control-btn.stop-btn {
+    background-color: var(--color-red-dark) !important;
+    border: 1px solid var(--color-red) !important;
+    color: var(--color-red) !important;
+}
+
+.recording-control-btn.stop-btn:hover {
+    background-color: var(--color-red) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Boutons de preview */
+.btn-preview-action {
+    border: 1px solid !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-preview-save {
+    background-color: var(--color-green-dark) !important;
+    border-color: var(--color-green) !important;
+    color: var(--color-green) !important;
+}
+
+.btn-preview-save:hover {
+    background-color: var(--color-green) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(16, 185, 129, 0.4) !important;
+}
+
+.btn-preview-download {
+    background-color: var(--color-blue-dark) !important;
+    border-color: var(--color-blue) !important;
+    color: var(--color-blue) !important;
+}
+
+.btn-preview-download:hover {
+    background-color: var(--color-blue) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 3px rgba(34, 211, 238, 0.5) !important;
+}
+
+.btn-preview-retry {
+    background-color: var(--color-gray-dark) !important;
+    border-color: var(--color-gray) !important;
+    color: var(--color-gray) !important;
+}
+
+.btn-preview-retry:hover {
+    background-color: var(--color-gray) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 3px rgba(107, 114, 128, 0.4) !important;
+}
+
+/* Barres de visualisation (visualizer) */
+.visualizer-bar {
+    background-color: var(--color-blue) !important;
+}
+
+.visualizer-bar.active {
+    animation: visualize 0.6s ease-in-out infinite;
+    background-color: var(--color-blue) !important;
+}
+
+@keyframes visualize {
+    0%, 100% { height: 20px; }
+    50% { height: 50px; }
+}
+
+.input-interactive-text {
+    color: var(--text-color-interactive) !important;
+}
+
+/* ========================================
+   RESPONSIVE - MOBILE
+   ======================================== */
+
+/* Navbar responsive - Mobile < 992px */
+@media (max-width: 991px) {
+    /* Permettre au container de wrapper sur plusieurs lignes */
+    .navbar .container-fluid {
+        flex-wrap: wrap !important;
+    }
+
+    /* Logo - première ligne à gauche */
+    .navbar-brand {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* Toggler - première ligne à droite */
+    .navbar-toggler {
+        order: 2 !important;
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+    }
+
+    /* Barre de recherche + filtres - deuxième ligne (100% largeur) */
+    .navbar .d-flex.mx-auto {
+        order: 3 !important;
+        flex-basis: 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0.5rem 0 0 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Input de recherche prend toute la largeur disponible */
+    #search-input {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    /* Bouton de filtre reste compact */
+    #filters-toggle-btn {
+        flex: 0 0 auto !important;
+        margin-left: 0.5rem !important;
+    }
+
+    /* Menu collapse - quatrième ligne */
+    .navbar-collapse {
+        order: 4 !important;
+        flex-basis: 100% !important;
+    }
+}

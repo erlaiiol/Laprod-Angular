@@ -42,3 +42,97 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+#old templates
+/templates/*
+/static/js/*
+
+# ====================================
+# SECRETS - NE JAMAIS COMMIT !
+# ====================================
+.env
+*.key
+*.pem
+
+# ====================================
+# BASE DE DONNÉES
+# ====================================
+*.db
+*.sqlite
+*.sqlite3
+instance/
+# migrations/ NE PAS ignorer — les scripts versions/ doivent être dans git
+# (flask db upgrade les utilise pour construire la BDD en production)
+
+# ====================================
+# PYTHON
+# ====================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+migrate_sqlite_to_postgres.py
+
+# ====================================
+# LOGS
+# ====================================
+*.log
+# logs/ : ignorer le contenu mais garder le dossier (nécessaire pour les bind mounts Docker)
+logs/*
+!logs/.gitkeep
+
+# ====================================
+# DOCKER - overrides locaux uniquement
+# ====================================
+docker-compose.override.yml
+
+# ====================================
+# SYSTÈME
+# ====================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ====================================
+# UPLOADS (optionnel)
+# ====================================
+static/audio/*.mp3
+static/audio/*.zip
+static/audio/*.wav
+static/audio/toplines/*.wav
+static/audio/toplines/*.webm
+static/images/*.png
+static/images/*.jpg
+static/images/track/*.png
+static/images/track/*.jpg
+static/images/tracks/*.png
+static/images/tracks/*.jpg
+static/contracts/*.pdf
+static/audio/audio/toplines/*
+static/mixmaster/*
+static/images/profile/*
+
+apppassword.txt

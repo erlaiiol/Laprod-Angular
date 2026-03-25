@@ -1,0 +1,127 @@
+# =============================================================================
+# LaProd - Docker Compose (production)
+# Stack : nginx + gunicorn (Flask) + PostgreSQL + Certbot (Let's Encrypt)
+#
+# TRANSITION DEPUIS SYSTEMCTL (à faire une seule fois sur le serveur) :
+#   sudo systemctl stop nginx postgresql
+#   sudo systemctl disable nginx postgresql
+#   # Arrêter aussi le service gunicorn si tu en as un :
+#   sudo systemctl stop laprod   # (ou le nom que tu lui as donné)
+#   sudo systemctl disable laprod
+#
+# PREMIER DÉMARRAGE :
+#   docker compose up -d
+#
+# MISE À JOUR DU CODE :
+#   git pull
+#   docker compose up -d --build
+#
+# LOGS EN DIRECT :
+#   docker compose logs -f
+#   docker compose logs -f web
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # BASE DE DONNÉES PostgreSQL
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    shm_size: 256mb
+    env_file: .env                        # charge DB_USER, DB_PASSWORD, DB_NAME depuis .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION Flask / Gunicorn
+  # ---------------------------------------------------------------------------
+  web:
+    build: .
+    restart: unless-stopped
+    mem_limit : 1g
+    env_file: .env
+    environment:
+      FLASK_ENV: production
+      FLASK_APP: app.py
+      # Pointe vers le service 'db' du compose (écrase DATABASE_URL du .env)
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+    volumes:
+      - ./static:/usr/src/app/static    # fichiers statiques + uploads persistants
+      - ./logs:/usr/src/app/logs        # logs persistants sur le serveur
+    expose:
+      - "5000"                          # port interne uniquement (nginx fait le relais)
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # curl est installé dans notre Dockerfile (apt-get install curl)
+      # -f : retourne un code d'erreur si HTTP >= 400 (fail silently sinon)
+      # -s : silencieux (pas d'affichage dans les logs)
+      # --max-time 3 : timeout de la requête healthcheck elle-même
+      test: ["CMD", "curl", "-fs", "--max-time", "3", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # start_period : délai avant le premier healthcheck (laisse le temps à gunicorn de démarrer)
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # REVERSE PROXY nginx
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/usr/src/app/static:ro           # fichiers statiques (lecture seule)
+      - certbot_www:/var/www/certbot:ro            # challenge Let's Encrypt
+      - certbot_conf:/etc/letsencrypt:ro           # certificats SSL
+    depends_on:
+      web :
+        condition : service_started
+
+
+  # ---------------------------------------------------------------------------
+  # CERTBOT - Let's Encrypt
+  # Usage : docker compose run --rm certbot certonly --webroot \
+  #           --webroot-path=/var/www/certbot \
+  #           -d laprod.net -d www.laprod.net \
+  #           --email contact@laprod.net --agree-tos --no-eff-email
+  #
+  # Renouvellement (à mettre en cron sur le serveur) :
+  #   0 3 * * * docker compose -f /chemin/vers/docker-compose.yml run --rm certbot renew \
+  #             && docker compose -f /chemin/vers/docker-compose.yml exec nginx nginx -s reload
+  # ---------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    # Ce service ne démarre pas automatiquement, on l'appelle manuellement.
+    profiles:
+      - certbot
+
+# -----------------------------------------------------------------------------
+# VOLUMES PERSISTANTS
+# postgres_data : données PostgreSQL (ne jamais supprimer en prod)
+# certbot_www   : fichiers de challenge HTTP-01 pour Let's Encrypt
+# certbot_conf  : certificats SSL et configuration Certbot
+# -----------------------------------------------------------------------------
+volumes:
+  postgres_data:
+  certbot_www:
+  certbot_conf:

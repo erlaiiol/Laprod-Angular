@@ -1,0 +1,213 @@
+/* ============================================
+   SYSTÈME DE TAGS AVANCÉ
+   ============================================ */
+
+.tags-input-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    background: #1a1d20;
+    border: 2px solid #495057;
+    border-radius: 8px;
+    min-height: 70px;
+    align-items: center;
+    transition: border-color 0.2s;
+}
+
+.tags-input-container:focus-within {
+    border-color: #adb5bd;
+}
+
+/* Badge de tag avec catégorie */
+.tag-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #6b7280;
+    color: #ffffff;
+    border-radius: 24px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.tag-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    filter: brightness(1.1);
+}
+
+.tag-name {
+    font-weight: 600;
+}
+
+.tag-category {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tag-remove {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s;
+    margin-left: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.tag-remove:hover {
+    background: rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+    transform: scale(1.1);
+}
+
+/* Input pour ajouter des tags */
+.tag-input {
+    flex: 1;
+    min-width: 180px;
+    border: none;
+    background: transparent;
+    color: #fff;
+    outline: none;
+    font-size: 0.95rem;
+    padding: 4px;
+}
+
+.tag-input::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* ============================================
+   DROPDOWN DE CATÉGORIES
+   ============================================ */
+
+.category-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: #212529;
+    border: 1px solid #495057;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    min-width: 200px;
+    overflow: hidden;
+    animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.category-dropdown-header {
+    padding: 10px 14px;
+    background: #1a1d20;
+    border-bottom: 1px solid #495057;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #adb5bd;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: #e9ecef;
+}
+
+.category-option:hover {
+    background: #2d3338;
+}
+
+.category-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.category-name {
+    font-size: 0.9rem;
+    text-transform: capitalize;
+}
+
+/* ============================================
+   LÉGENDE DES CATÉGORIES
+   ============================================ */
+
+.categories-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 0;
+    margin-top: 8px;
+}
+
+.category-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #adb5bd;
+}
+
+.category-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+/* ============================================
+   COULEURS DES CATÉGORIES
+   ============================================ */
+
+/* Les couleurs des tag-badge sont chargées dynamiquement via category_colors.js */
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .tags-input-container {
+        gap: 8px;
+        padding: 10px;
+    }
+    
+    .tag-badge {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+    }
+    
+    .category-dropdown {
+        left: auto;
+        right: 0;
+        min-width: 180px;
+    }
+}

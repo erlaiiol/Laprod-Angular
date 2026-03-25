@@ -1,0 +1,109 @@
+<div class="login-wrapper">
+  <div class="login-card">
+
+    <!-- ── Alerte : compte Google sans mot de passe ──────────────────────── -->
+    <!-- @if (showPasswordSetLink()) {
+      <div class="alert-box alert-warning">
+        Ce compte est lié à Google. Voulez-vous créer un mot de passe ?
+        <a routerLink="/forgot-password" [queryParams]="{ email: passwordEmail() }" class="alert-link">
+          Recevoir un lien par email
+        </a>
+      </div>
+    } -->
+
+    <!-- ── Alerte : email non vérifié ───────────────────────────────────── -->
+    <!-- @if (showConfirmationEmail()) {
+      <div class="alert-box alert-warning">
+        Veuillez vérifier votre email avant de vous connecter.
+        <button type="button" class="btn-link" (click)="resendVerification()">
+          Renvoyer l'email
+        </button>
+      </div>
+    } -->
+
+    <!-- ── Alerte : erreur générale ─────────────────────────────────────── -->
+    <!-- @if (error()) {
+      <div class="alert-box alert-danger">
+        {{ error() }}
+      </div>
+    } -->
+
+    <!-- ── Formulaire ────────────────────────────────────────────────────── -->
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm" novalidate>
+
+      <!-- Identifiant -->
+      <div class="field-group">
+        <label for="identifier">Nom d'utilisateur ou email</label>
+        <input
+          type="text"
+          id="identifier"
+          name="identifier"
+          placeholder="pseudo ou adresse email"
+          autocomplete="username"
+          autofocus
+          required
+          [(ngModel)]="identifier"
+        />
+      </div>
+
+      <!-- Mot de passe -->
+      <div class="field-group">
+        <div class="field-label-row">
+          <label for="password">Mot de passe</label>
+          <a routerLink="/forgot-password" class="forgot-link">Mot de passe oublié ?</a>
+        </div>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          autocomplete="current-password"
+          required
+          [(ngModel)]="password"
+        />
+      </div>
+
+      <!-- Se souvenir de moi -->
+      <div class="field-check">
+        <input
+          type="checkbox"
+          id="remember"
+          name="remember"
+          [(ngModel)]="remember"
+        />
+        <label for="remember">Se souvenir de moi</label>
+      </div>
+
+      <!-- Bouton submit -->
+      <button
+        type="submit"
+        class="btn-primary"
+        [disabled]="loading()"
+      >
+        @if (loading()) {
+          <span class="spinner"></span> Connexion…
+        } @else {
+          Se connecter
+        }
+      </button>
+
+    </form>
+
+    <!-- ── Séparateur ─────────────────────────────────────────────────────── -->
+    <div class="divider"><span>ou</span></div>
+
+    <!-- ── Google ─────────────────────────────────────────────────────────── -->
+    <a href="/auth/google/login" class="btn-google">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/>
+      </svg>
+      Continuer avec Google
+    </a>
+
+    <!-- ── Lien vers register ──────────────────────────────────────────────── -->
+    <p class="register-link">
+      Pas encore de compte ?
+      <a routerLink="/register">Inscrivez-vous</a>
+    </p>
+
+  </div>
+</div>

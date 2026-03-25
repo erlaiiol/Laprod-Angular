@@ -1,0 +1,35 @@
+.toast-container {
+  position: fixed;
+  top: 70px; // ou 0 si au-dessus de la navbar
+  right: 20px;
+  z-index: 9999;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info {
+  background: #2196f3;
+}
+.warning {
+  background: #ff9800;
+}
+.error {
+  background: #f44336;
+}
+
+.toast-container div {
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+}
+
+.toast {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
