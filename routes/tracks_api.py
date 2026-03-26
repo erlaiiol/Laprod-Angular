@@ -47,21 +47,26 @@ def get_track(track_id):
 
         return jsonify({
             'success': True,
-            'track': {
-                'id': track.id,
-                'title': track.title,
-                'bpm': track.bpm,
-                'key': track.key,
-                'style': track.style,
-                'price_mp3': float(track.price_mp3) if track.price_mp3 else None,
-                'price_wav': float(track.price_wav) if track.price_wav else None,
-                'price_stems': float(track.price_stems) if track.price_stems else None,
-                'composer': track.composer_user.username if track.composer_user else None
+            'data': {
+                'track': {
+                    'id': track.id,
+                    'title': track.title,
+                    'bpm': track.bpm,
+                    'key': track.key,
+                    'style': track.style,
+                    'price_mp3': float(track.price_mp3) if track.price_mp3 else None,
+                    'price_wav': float(track.price_wav) if track.price_wav else None,
+                    'price_stems': float(track.price_stems) if track.price_stems else None,
+                    'composer': track.composer_user.username if track.composer_user else None
+                }
             }
         })
     except Exception as e:
-        current_app.logger.warning('erreur API get_track(): {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.warning(f'erreur API get_track(): {e}')
+        return jsonify({
+            'success': False,
+            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération du track'}
+        }), 500
 
 
 @tracks_api_bp.route('/tracks', methods=['GET'])
@@ -161,15 +166,20 @@ def get_tracks():
 
         return jsonify({
             'success': True,
-            'tracks': tracks_data,
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total': total,
-                'pages': (total + per_page - 1) // per_page
+            'data': {
+                'tracks': tracks_data,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total,
+                    'pages': (total + per_page - 1) // per_page
+                }
             }
         })
 
     except Exception as e:
         current_app.logger.warning(f'Erreur api get_tracks(): {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération des tracks'}
+        }), 500

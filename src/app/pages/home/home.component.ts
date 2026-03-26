@@ -68,7 +68,7 @@ export class HomeComponent implements OnInit {
     this.trackService.getTracks(apiFilters).subscribe({
       next: (response) => {
         if (response.success) {
-          this.tracks.set(response.tracks);
+          this.tracks.set(response.data.tracks);
         } else {
           this.error.set('Le serveur a répondu mais signale une erreur.');
         }

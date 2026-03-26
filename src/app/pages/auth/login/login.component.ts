@@ -15,9 +15,9 @@ import { finalize } from 'rxjs';
 export class LoginComponent {
 
   
-  identifier = '';
-  password = '';
-  remember = false;
+  identifier : string = '';
+  password : string = '';
+  remember : boolean = false;
 
   loading = signal(false);
 

@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { Toast, ToastService } from '../../../services/toast.service';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-toast',
@@ -7,16 +7,9 @@ import { Toast, ToastService } from '../../../services/toast.service';
   imports: [],
   templateUrl: './toast.component.html',
   styleUrl: './toast.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ToastComponent {
-
-  toasts: Toast[] = [];
-
-  constructor( public toastService:ToastService){
-
-  }
-
-  ngOnInit(){
-    this.toastService._toasts()
-  }
+  protected toastService = inject(ToastService);
+  protected toasts = this.toastService._toasts;
 }

@@ -106,9 +106,9 @@ export class NavbarComponent implements OnInit {
     this.tagsService.getTags().subscribe({
       next: (response) => {
         if (response.success) {
-          this.tags.set(response.tags);
-          this.keys.set(response.keys);
-          this.styles.set(response.styles);
+          this.tags.set(response.data.tags);
+          this.keys.set(response.data.keys);
+          this.styles.set(response.data.styles);
         } else {
           this.error.set('Erreur chargement des filtres');
         }

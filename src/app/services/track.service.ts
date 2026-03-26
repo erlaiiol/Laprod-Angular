@@ -44,13 +44,15 @@ export interface Track {
 
 // Correspond au JSON global retourné par jsonify({...}) dans get_tracks()
 export interface TracksResponse {
-  success:    boolean;
-  tracks:     Track[];
-  pagination: {
-    page:     number;
-    per_page: number;
-    total:    number;
-    pages:    number;
+  success: boolean;
+  data: {
+    tracks:     Track[];
+    pagination: {
+      page:     number;
+      per_page: number;
+      total:    number;
+      pages:    number;
+    };
   };
 }
 
@@ -114,8 +116,8 @@ export class TrackService {
   // ── GET /tracks/track/:id ───────────────────────────────────────────────
   // Correspond à @tracks_api_bp.route('/track/<int:track_id>') dans tracks_api.py
 
-  getTrack(trackId: number): Observable<{ success: boolean; track: Track }> {
-    return this.http.get<{ success: boolean; track: Track }>(
+  getTrack(trackId: number): Observable<{ success: boolean; data: { track: Track } }> {
+    return this.http.get<{ success: boolean; data: { track: Track } }>(
       `${this.tracksApiUrl}/track/${trackId}`
     ).pipe(tap(data => console.log('TrackService called getTrack()', data)));
   }

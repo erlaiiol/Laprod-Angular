@@ -1,6 +1,6 @@
 <div class="toast-container">
-    @for (toast of _toasts(); track toast) {
-      <div class="toast" [class]="toast.level">
+    @for (toast of toasts(); track toast) {
+      <div class="toast-item {{toast.level}}">
         {{ toast.message }}
       </div>
     }

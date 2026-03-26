@@ -1,23 +1,30 @@
-// feedback.interceptor.ts
-import { inject, Injectable } from '@angular/core';
-import { HttpEvent, HttpHandler, HttpHandlerFn, HttpInterceptor, HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/http';
-import { tap } from 'rxjs/operators';
-import { ToastService } from '../services/toast.service';
+import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { tap, catchError, throwError } from 'rxjs';
+import { Toast, ToastService } from '../services/toast.service';
 
-export const feedbackInterceptor: HttpInterceptorFn = (req: HttpRequest<any>, next: HttpHandlerFn) => {
-    console.log('intercepted.')
-  const toastService = inject(ToastService); // on injecte le service ici
+export const toastInterceptor: HttpInterceptorFn = (req, next) => {
+  const toastService = inject(ToastService);
 
   return next(req).pipe(
-    tap((event: HttpEvent<any>) => {
+
+    // Réponses 2xx : on lit event.body.feedback
+    tap((event) => {
       if (event instanceof HttpResponse) {
-        const feedback = event.body?.feedback;
-        if (feedback) {
-            console.log('calling showToast()')
-          toastService.showToast(feedback);
+        const body = event.body as { feedback?: Toast };
+        if (body?.feedback) {
+          toastService.showToast(body.feedback);
         }
       }
+    }),
+
+    // Réponses 4xx/5xx : on lit err.error.feedback
+    catchError((err) => {
+      if (err.error?.feedback) {
+        toastService.showToast(err.error.feedback);
+      }
+      return throwError(() => err);
     })
+
   );
 };
-

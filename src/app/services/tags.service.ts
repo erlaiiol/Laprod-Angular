@@ -13,9 +13,11 @@ export interface Tag {
 // Le même appel renvoie désormais tags + gammes + styles (un seul fetch)
 export interface TagsResponse {
   success: boolean;
-  tags:    Tag[];
-  keys:    string[];   // gammes distinctes issues des tracks approuvés
-  styles:  string[];   // styles distincts  issues des tracks approuvés
+  data: {
+    tags:    Tag[];
+    keys:    string[];   // gammes distinctes issues des tracks approuvés
+    styles:  string[];   // styles distincts  issues des tracks approuvés
+  };
 }
 
 @Injectable({

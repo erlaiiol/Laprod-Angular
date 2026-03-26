@@ -147,7 +147,9 @@ export class AuthService {
     }
 
     private failedAuth(res: LoginError){
-      console.log('level :', res.feedback.level, ', message : ', res.feedback.message)
+      if (res?.feedback) {
+        console.log('level :', res.feedback.level, ', message : ', res.feedback.message)
+      }
     }
 
 
@@ -188,16 +190,16 @@ export class AuthService {
   //// NEW USER BLOCK (register)
   //// ======================================================
   
-  register(identifier: string, 
-    password: string, 
-    password_confirm: string, 
-    email: string, 
+  register(username: string,
+    password: string,
+    password_confirm: string,
+    email: string,
     signature: string) : Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.authUrl}/register`, {
-      identifier, 
-      password, 
-      password_confirm, 
-      email, 
+      username,
+      password,
+      password_confirm,
+      email,
       signature
     }).pipe(
       tap((res) => {
