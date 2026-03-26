@@ -20,14 +20,9 @@
     <p>Aucun morceau trouvé.</p>
   </div>
 
-  <!--
-    [track]="track"  →  @Input()  : la page envoie un Track vers le composant
-    (play)="onTrackPlay($event)"  →  @Output() : le composant remonte l'événement
-  -->
   <app-track-card
     *ngFor="let track of tracks()"
-    [track]="track"
-    (play)="onTrackPlay($event)">
+    [track]="track">
   </app-track-card>
 
 </div>

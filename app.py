@@ -214,7 +214,9 @@ def create_app():
         tracks_api_bp,
         cud_tracks_api_bp,
         tags_filters_api_bp,
-        auth_api_bp
+        auth_api_bp,
+        topline_api_bp,
+        topline_cud_api_bp,
     )
 
     app.register_blueprint(auth_bp)
@@ -235,6 +237,8 @@ def create_app():
     app.register_blueprint(cud_tracks_api_bp)
     app.register_blueprint(tags_filters_api_bp)
     app.register_blueprint(auth_api_bp)
+    app.register_blueprint(topline_api_bp)
+    app.register_blueprint(topline_cud_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

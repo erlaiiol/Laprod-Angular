@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from extensions import db, limiter
 from models import Track, Tag, Category, User, Topline
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from helpers import generate_track_image
 from utils.ownership_authorizer import TrackOwnership, requires_ownership
 
@@ -38,29 +39,89 @@ tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/tracks')
 @tracks_api_bp.route('/track/<int:track_id>', methods=['GET'])
 def get_track(track_id):
     """
-    Récupérer les informations d'un track spécifique
-    (pour le persistent player)
+    Récupérer les informations complètes d'un track (page track_detail).
+    Inclut : composer_user, tags, toplines publiées + toplines de l'utilisateur connecté.
     """
-
     try:
-        track = db.get_or_404(Track, track_id)
+        track = db.session.execute(
+            select(Track)
+            .options(
+                selectinload(Track.tags).selectinload(Tag.category_obj),
+                selectinload(Track.composer_user),
+                selectinload(Track.toplines).selectinload(Topline.artist_user),
+            )
+            .where(Track.id == track_id)
+        ).scalar_one_or_none()
+
+        if not track:
+            return jsonify({
+                'success': False,
+                'feedback': {'level': 'warning', 'message': 'Track introuvable'}
+            }), 404
+
+        # Identité JWT optionnelle (non bloquante)
+        current_user_id = None
+        try:
+            verify_jwt_in_request(optional=True)
+            raw = get_jwt_identity()
+            current_user_id = int(raw) if raw else None
+        except Exception:
+            pass
+
+        published_toplines = [tl for tl in track.toplines if tl.is_published]
+        my_toplines = (
+            [tl for tl in track.toplines if tl.artist_id == current_user_id]
+            if current_user_id else []
+        )
+
+        def tl_dict(tl):
+            return {
+                'id':          tl.id,
+                'audio_file':  tl.audio_file,
+                'description': tl.description,
+                'created_at':  tl.created_at.isoformat(),
+                'is_published': tl.is_published,
+                'artist_user': {
+                    'username':      tl.artist_user.username      if tl.artist_user else None,
+                    'profile_image': tl.artist_user.profile_image if tl.artist_user else None,
+                }
+            }
 
         return jsonify({
             'success': True,
             'data': {
                 'track': {
-                    'id': track.id,
-                    'title': track.title,
-                    'bpm': track.bpm,
-                    'key': track.key,
-                    'style': track.style,
-                    'price_mp3': float(track.price_mp3) if track.price_mp3 else None,
-                    'price_wav': float(track.price_wav) if track.price_wav else None,
-                    'price_stems': float(track.price_stems) if track.price_stems else None,
-                    'composer': track.composer_user.username if track.composer_user else None
+                    'id':           track.id,
+                    'title':        track.title,
+                    'bpm':          track.bpm,
+                    'key':          track.key,
+                    'style':        track.style,
+                    'created_at':   track.created_at.isoformat() if track.created_at else None,
+                    'is_approved':  track.is_approved,
+                    'price_mp3':    float(track.price_mp3)    if track.price_mp3    else None,
+                    'price_wav':    float(track.price_wav)    if track.price_wav    else None,
+                    'price_stems':  float(track.price_stems)  if track.price_stems  else None,
+                    'audio_file':   track.audio_file,
+                    'image_file':   track.image_file,
+                    'composer_user': {
+                        'id':            track.composer_user.id            if track.composer_user else None,
+                        'username':      track.composer_user.username      if track.composer_user else None,
+                        'profile_image': track.composer_user.profile_image if track.composer_user else None,
+                    },
+                    'tags': [
+                        {
+                            'name':     tag.name,
+                            'category': tag.category_obj.name  if tag.category_obj else 'other',
+                            'color':    tag.category_obj.color if tag.category_obj else '#000000'
+                        }
+                        for tag in track.tags
+                    ],
+                    'toplines':    [tl_dict(tl) for tl in published_toplines],
+                    'my_toplines': [tl_dict(tl) for tl in my_toplines],
                 }
             }
         })
+
     except Exception as e:
         current_app.logger.warning(f'erreur API get_track(): {e}')
         return jsonify({
@@ -182,4 +243,66 @@ def get_tracks():
         return jsonify({
             'success': False,
             'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération des tracks'}
+        }), 500
+
+
+@tracks_api_bp.route('/random', methods=['GET'])
+def get_random_track():
+    """
+    Récupérer un track approuvé aléatoire (pour l'autoplay du player).
+    Optionnel : exclude_id=<int> pour éviter de rejouer le track actuel.
+    → GET /tracks/random?exclude_id=42
+    """
+    exclude_id = request.args.get('exclude_id', type=int)
+
+    try:
+        query = select(Track).options(
+            selectinload(Track.tags), selectinload(Track.composer_user)
+        ).where(Track.is_approved.is_(True))
+
+        if exclude_id:
+            query = query.where(Track.id != exclude_id)
+
+        track = db.session.execute(
+            query.order_by(func.random()).limit(1)
+        ).scalar_one_or_none()
+
+        if not track:
+            return jsonify({
+                'success': False,
+                'feedback': {'level': 'info', 'message': 'Aucun track disponible'}
+            }), 404
+
+        track_data = {
+            'id':    track.id,
+            'title': track.title,
+            'bpm':   track.bpm,
+            'key':   track.key,
+            'style': track.style,
+            'price_mp3':   float(track.price_mp3)   if track.price_mp3   else None,
+            'price_wav':   float(track.price_wav)   if track.price_wav   else None,
+            'price_stems': float(track.price_stems) if track.price_stems else None,
+            'is_approved': track.is_approved,
+            'composer_user': {
+                'username': track.composer_user.username if track.composer_user else None
+            },
+            'audio_file':  track.audio_file,
+            'image_file':  track.image_file,
+            'tags': [
+                {
+                    'name':     tag.name,
+                    'category': tag.category_obj.name  if tag.category_obj else 'other',
+                    'color':    tag.category_obj.color if tag.category_obj else '#000000'
+                }
+                for tag in track.tags
+            ]
+        }
+
+        return jsonify({'success': True, 'data': {'track': track_data}})
+
+    except Exception as e:
+        current_app.logger.warning(f'Erreur api get_random_track(): {e}')
+        return jsonify({
+            'success': False,
+            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération du track aléatoire'}
         }), 500

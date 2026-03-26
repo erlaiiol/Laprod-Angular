@@ -1,0 +1,154 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Chargement...</span>
+    </div>
+  </div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ error() }}
+  </div>
+}
+
+@if (track() && !loading()) {
+  <div class="track-detail-page">
+
+    <!-- ── HERO ────────────────────────────────────────────────────────── -->
+    <section class="track-hero">
+      <div class="track-hero-cover">
+        <img [src]="getImageUrl(track()!.image_file)" [alt]="track()!.title"
+             onerror="this.src='assets/placeholder-track.png'">
+      </div>
+
+      <div class="track-hero-info">
+        <h1 class="track-title">{{ track()!.title }}</h1>
+
+        <div class="track-composer">
+          <img class="composer-avatar"
+               [src]="getImageUrl(track()!.composer_user.profile_image)"
+               onerror="this.src='assets/placeholder-avatar.png'"
+               alt="">
+          <a [routerLink]="['/profile', track()!.composer_user.username]">
+            {{ track()!.composer_user.username }}
+          </a>
+        </div>
+
+        <div class="track-meta-grid">
+          <span><i class="bi bi-speedometer2"></i> {{ track()!.bpm }} BPM</span>
+          <span><i class="bi bi-music-note"></i> {{ track()!.key }}</span>
+          <span><i class="bi bi-tag"></i> {{ track()!.style || 'Inconnu' }}</span>
+          @if (track()!.created_at) {
+            <span><i class="bi bi-calendar3"></i> {{ formatDate(track()!.created_at) }}</span>
+          }
+        </div>
+
+        <div class="track-tags">
+          @for (tag of track()!.tags; track tag.name) {
+            <span class="tag"
+                  [style.background-color]="tagBgColor(tag.color)"
+                  [style.border-color]="tagBorderColor(tag.color)">
+              #{{ tag.name }}
+            </span>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PURCHASE ─────────────────────────────────────────────────────── -->
+    <section class="purchase-section">
+      <h2>Acquérir une licence</h2>
+      <div class="purchase-cards">
+
+        <div class="purchase-card" [class.unavailable]="!track()!.price_mp3">
+          <div class="format-badge mp3">MP3</div>
+          <p class="format-desc">Licence lease standard</p>
+          @if (track()!.price_mp3) {
+            <p class="format-price">{{ (track()!.price_mp3 + 5).toFixed(2) }}€</p>
+            <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'mp3']">
+              Acheter MP3
+            </a>
+          } @else {
+            <p class="format-unavailable">Non disponible</p>
+          }
+        </div>
+
+        <div class="purchase-card" [class.unavailable]="!track()!.price_wav">
+          <div class="format-badge wav">WAV</div>
+          <p class="format-desc">Qualité studio non compressée</p>
+          @if (track()!.price_wav) {
+            <p class="format-price">{{ ((track()!.price_wav ?? 0) + 5).toFixed(2) }}€</p>
+            <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'wav']">
+              Acheter WAV
+            </a>
+          } @else {
+            <p class="format-unavailable">Non disponible</p>
+          }
+        </div>
+
+        <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems">
+          <div class="format-badge stems">STEMS</div>
+          <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
+          @if (track()!.price_stems) {
+            <p class="format-price">{{ ((track()!.price_stems ?? 0) + 5).toFixed(2) }}€</p>
+            <a class="btn-buy featured" [routerLink]="['/contract', track()!.id, 'stems']">
+              Acheter STEMS
+            </a>
+          } @else {
+            <p class="format-unavailable">Non disponible</p>
+          }
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── TOPLINES ──────────────────────────────────────────────────────── -->
+    <section class="toplines-section">
+      <div class="toplines-header">
+        <h2>Toplines ({{ track()!.toplines.length }})</h2>
+        @if (auth.isLoggedIn()) {
+          <button class="btn-record" (click)="showRecorder.set(!showRecorder())">
+            <i class="bi bi-mic-fill"></i>
+            {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
+          </button>
+        }
+      </div>
+
+      @if (showRecorder() && track()) {
+        <app-topline-recorder
+          [track]="track()!"
+          (published)="onToplinePublished($event)"
+          (closed)="showRecorder.set(false)">
+        </app-topline-recorder>
+      }
+
+      @if (track()!.toplines.length === 0) {
+        <p class="toplines-empty">Aucune topline publiée pour ce beat.</p>
+      }
+
+      <div class="toplines-list">
+        @for (tl of track()!.toplines; track tl.id) {
+          <div class="topline-item">
+            <img class="topline-avatar"
+                 [src]="getImageUrl(tl.artist_user.profile_image)"
+                 onerror="this.src='assets/placeholder-avatar.png'"
+                 alt="">
+            <div class="topline-info">
+              <span class="topline-artist">{{ tl.artist_user.username }}</span>
+              @if (tl.description) {
+                <span class="topline-desc">{{ tl.description }}</span>
+              }
+              <span class="topline-date">{{ formatDate(tl.created_at) }}</span>
+            </div>
+            <button class="btn-play-topline" (click)="playTopline(tl)" aria-label="Écouter">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+
+  </div>
+}

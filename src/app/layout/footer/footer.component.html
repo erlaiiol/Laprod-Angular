@@ -1,0 +1,76 @@
+<footer class="site-footer">
+  <div class="footer-container">
+    <div class="footer-grid">
+
+      <!-- Col 1: À propos -->
+      <div class="footer-col">
+        <h5>LaProd</h5>
+        <p class="footer-desc">
+          Plateforme de mise en relation entre beatmakers, arrangeurs et interprètes
+          pour la vente de licences musicales.
+        </p>
+        <div class="footer-socials">
+          <a href="#" title="Instagram" aria-label="Instagram">
+            <i class="bi bi-instagram"></i>
+          </a>
+          <a href="#" title="Twitter / X" aria-label="Twitter">
+            <i class="bi bi-twitter-x"></i>
+          </a>
+          <a href="#" title="YouTube" aria-label="YouTube">
+            <i class="bi bi-youtube"></i>
+          </a>
+          <a href="#" title="SoundCloud" aria-label="SoundCloud">
+            <i class="bi bi-soundwave"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Col 2: Navigation -->
+      <div class="footer-col">
+        <h6>Navigation</h6>
+        <ul>
+          <li><a routerLink="/">Beats</a></li>
+          @if (auth.isLoggedIn()) {
+            <li><a [routerLink]="['/profile', auth.currentUser()!.username]">Mon Profil</a></li>
+            <li><a routerLink="/purchases">Mes Achats</a></li>
+          } @else {
+            <li><a routerLink="/login">Connexion</a></li>
+            <li><a routerLink="/register">Inscription</a></li>
+          }
+        </ul>
+      </div>
+
+      <!-- Col 3: Légal -->
+      <div class="footer-col">
+        <h6>Légal</h6>
+        <ul>
+          <li><a routerLink="/terms">CGU / CGV</a></li>
+          <li><a routerLink="/privacy">Politique de confidentialité</a></li>
+          <li><a routerLink="/legal">Mentions légales</a></li>
+          <li><a routerLink="/dmca">DMCA / Droits d'auteur</a></li>
+          <li><a routerLink="/cookies">Cookies</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 4: Contact -->
+      <div class="footer-col">
+        <h6>Contact</h6>
+        <ul>
+          <li>
+            <i class="bi bi-envelope"></i>
+            <a href="mailto:contact@laprod.net">contact@laprod.net</a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <hr class="footer-divider">
+
+    <div class="footer-bottom">
+      <p>© {{ year }} LaProd. Tous droits réservés.</p>
+      <p><span class="dot-green">●</span> Service 100&nbsp;% sécurisé avec Stripe</p>
+    </div>
+
+  </div>
+</footer>

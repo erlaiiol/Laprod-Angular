@@ -5,8 +5,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Component, OnInit, signal, effect, inject } from '@angular/core';
-//                                          │       └── inject() : alternative moderne au constructeur
-//                                          └── effect() : s'exécute quand un signal observé change
 import { CommonModule } from '@angular/common';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
@@ -98,12 +96,6 @@ export class HomeComponent implements OnInit {
       styles:   f.styles.length ? f.styles.join(',') : undefined,
       tags:     f.tags.length   ? f.tags.join(',')   : undefined,
     };
-  }
-
-  // Reçoit l'événement "play" émis par TrackCardComponent via @Output()
-  onTrackPlay(track: Track): void {
-    console.log('Page reçoit play :', track.title);
-    // TODO : brancher sur un service player global
   }
 
 }

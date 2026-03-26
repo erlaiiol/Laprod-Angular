@@ -1,0 +1,94 @@
+<!-- Bottom player — always in DOM so @ViewChild resolves at ngAfterViewInit.
+     Visibility toggled by CSS .hidden (display:none) when no track is loaded. -->
+<div class="bottom-player" [class.hidden]="!player.currentTrack()">
+
+  <!-- ✕ Close (top-right corner) -->
+  <button class="btn-close-player" (click)="player.close()" aria-label="Fermer le player">&#x2715;</button>
+
+  <div class="player-content">
+
+    <!-- ── LEFT: cover (clickable play/pause) + title/artist ──────────── -->
+    <div class="player-left-group">
+      <div class="player-cover-wrapper" (click)="player.togglePlay()">
+        <img
+          class="player-cover"
+          [src]="getImageUrl()"
+          [alt]="player.currentTrack()?.title ?? ''"
+          onerror="this.src='assets/placeholder-track.png'">
+        <div class="player-play-overlay">
+          @if (player.isPlaying()) {
+            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+              <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+              <polygon points="5,3 19,12 5,21"/>
+            </svg>
+          }
+        </div>
+      </div>
+
+      <div class="player-info">
+        <p class="player-title">{{ player.currentTrack()?.title }}</p>
+        <p class="player-artist">{{ player.currentTrack()?.composer_user?.username }}</p>
+      </div>
+    </div>
+
+    <!-- ── CENTER: waveform ───────────────────────────────────────────── -->
+    <div class="waveform-container">
+      <div #waveformContainer class="waveform-inner"></div>
+      <span class="preview-notice">Preview avec watermark (1:30)</span>
+    </div>
+
+    <!-- ── RIGHT: time + meta + price + next + volume ────────────────── -->
+    <div class="player-controls">
+
+      <div class="player-time">
+        <span>{{ formatTime(player.currentTime()) }}</span>
+        <span class="time-sep">/</span>
+        <span>{{ formatTime(player.duration()) }}</span>
+      </div>
+
+      <div class="player-metadata">
+        @if (player.currentTrack()?.bpm) {
+          <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
+        }
+        @if (player.currentTrack()?.key) {
+          <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
+        }
+        @if (player.currentTrack()?.style) {
+          <span class="player-meta-item">{{ player.currentTrack()!.style }}</span>
+        }
+        @if (player.currentTrack()?.price_mp3) {
+          <a class="player-meta-price"
+             [routerLink]="['/track', player.currentTrack()!.id]">
+            preview gratuite ou lease à partir de {{ ((player.currentTrack()!.price_mp3 ?? 0) + 5).toFixed(2) }}€
+          </a>
+        }
+      </div>
+
+      <div class="volume-control">
+        <svg class="volume-icon" viewBox="0 0 24 24">
+          <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input
+          class="volume-slider"
+          type="range"
+          min="0" max="1" step="0.02"
+          [value]="player.volume()"
+          (input)="onVolumeChange($event)"
+          aria-label="Volume">
+      </div>
+
+      <button class="btn-next" (click)="player.playNext()" aria-label="Piste suivante">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <polygon points="5,3 15,12 5,21"/><rect x="17" y="3" width="2" height="18"/>
+        </svg>
+      </button>
+
+    </div>
+
+  </div>
+</div>

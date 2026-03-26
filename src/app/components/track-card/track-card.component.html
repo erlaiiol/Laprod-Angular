@@ -33,6 +33,12 @@
       {{ track.style || 'Inconnu' }} | {{ track.bpm }} BPM | {{ track.key }}
     </em>
 
+    @if (track.price_mp3) {
+      <a class="track-price-hint" [routerLink]="['/track', track.id]">
+        preview gratuite ou lease à partir de {{ (track.price_mp3 + 5).toFixed(2) }}€
+      </a>
+    }
+
     <div class="track-tags">
       <!--
         [style.background-color]  →  fond très foncé  (factor 0.15, comme darken_color en Python)

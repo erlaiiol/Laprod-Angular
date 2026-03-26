@@ -1,0 +1,129 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+}
+
+@if (error()) {
+  <div class="state-error">{{ error() }}</div>
+}
+
+@if (track() && !loading()) {
+  <div class="contract-page">
+
+    <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────── -->
+    <aside class="contract-sidebar">
+      <img class="sidebar-cover"
+           [src]="getImageUrl(track()!.image_file)"
+           [alt]="track()!.title"
+           onerror="this.src='assets/placeholder-track.png'">
+      <h2 class="sidebar-title">{{ track()!.title }}</h2>
+      <p class="sidebar-artist">{{ track()!.composer_user.username }}</p>
+      <div class="format-badge {{ format() }}">{{ formatLabel() }}</div>
+      <p class="sidebar-base-price">Base : {{ basePrice().toFixed(2) }}€</p>
+
+      <div class="sidebar-meta">
+        <span>{{ track()!.bpm }} BPM</span>
+        <span>{{ track()!.key }}</span>
+        <span>{{ track()!.style }}</span>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT FORM ───────────────────────────────────────────────── -->
+    <main class="contract-form">
+      <h1>Configurer votre contrat</h1>
+
+      <!-- Rights -->
+      <section class="form-section">
+        <h3>Droits inclus</h3>
+        <label class="right-item always-on">
+          <input type="checkbox" checked disabled>
+          <div>
+            <span class="right-name">Streaming</span>
+            <span class="right-desc">Distribution sur les plateformes (Spotify, Deezer, YouTube…)</span>
+          </div>
+          <span class="right-badge included">Inclus</span>
+        </label>
+
+        <label class="right-item">
+          <input type="checkbox" [ngModel]="rightMechanical()" (ngModelChange)="rightMechanical.set($event)">
+          <div>
+            <span class="right-name">Reproduction mécanique <em>+15%</em></span>
+            <span class="right-desc">Pressage physique (CD, vinyle) et téléchargement payant</span>
+          </div>
+        </label>
+
+        <label class="right-item">
+          <input type="checkbox" [ngModel]="rightPerformance()" (ngModelChange)="rightPerformance.set($event)">
+          <div>
+            <span class="right-name">Représentation publique <em>+20%</em></span>
+            <span class="right-desc">Concerts, spectacles, diffusion radio / TV</span>
+          </div>
+        </label>
+
+        <label class="right-item">
+          <input type="checkbox" [ngModel]="rightArrangement()" (ngModelChange)="rightArrangement.set($event)">
+          <div>
+            <span class="right-name">Arrangement / remix <em>+10%</em></span>
+            <span class="right-desc">Droit de modifier, remixer ou réarranger le beat</span>
+          </div>
+        </label>
+      </section>
+
+      <!-- Duration -->
+      <section class="form-section">
+        <h3>Durée de la licence</h3>
+        <div class="radio-group">
+          @for (opt of [['3ans','3 ans ×1.0'],['5ans','5 ans ×1.3'],['10ans','10 ans ×1.6'],['vie','À vie ×2.2']]; track opt[0]) {
+            <label class="radio-item" [class.selected]="duration() === opt[0]">
+              <input type="radio" name="duration" [value]="opt[0]"
+                     [ngModel]="duration()" (ngModelChange)="duration.set($event)">
+              {{ opt[1] }}
+            </label>
+          }
+        </div>
+      </section>
+
+      <!-- Territory -->
+      <section class="form-section">
+        <h3>Territoire</h3>
+        <div class="radio-group">
+          @for (opt of [['france','France ×1.0'],['europe','Europe ×1.4'],['monde','Monde entier ×2.0']]; track opt[0]) {
+            <label class="radio-item" [class.selected]="territory() === opt[0]">
+              <input type="radio" name="territory" [value]="opt[0]"
+                     [ngModel]="territory()" (ngModelChange)="territory.set($event)">
+              {{ opt[1] }}
+            </label>
+          }
+        </div>
+      </section>
+
+      <!-- SACEM -->
+      <section class="form-section sacem-section">
+        <h3>Répartition SACEM</h3>
+        <div class="sacem-bar">
+          <div class="sacem-composer" [style.width.%]="composerPct()">
+            Compositeur {{ composerPct() }}%
+          </div>
+          <div class="sacem-buyer" [style.width.%]="buyerPct()">
+            Acheteur {{ buyerPct() }}%
+          </div>
+        </div>
+      </section>
+
+      <!-- Total + Submit -->
+      <div class="contract-total">
+        <span class="total-label">Total</span>
+        <span class="total-price">{{ totalPrice() }}€</span>
+      </div>
+
+      <button class="btn-confirm" (click)="onConfirm()">
+        <i class="bi bi-lock-fill"></i> Confirmer et payer
+      </button>
+      <p class="stripe-notice">
+        <i class="bi bi-shield-check"></i> Paiement sécurisé — intégration Stripe à venir
+      </p>
+
+    </main>
+  </div>
+}

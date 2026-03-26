@@ -56,6 +56,24 @@ export interface TracksResponse {
   };
 }
 
+export interface PublishedTopline {
+  id:           number;
+  audio_file:   string;
+  description:  string | null;
+  created_at:   string;
+  is_published: boolean;
+  artist_user:  { username: string; profile_image: string | null };
+}
+
+export interface TrackDetail extends Track {
+  created_at:    string | null;
+  price_wav:     number | null;
+  price_stems:   number | null;
+  composer_user: { id: number; username: string; profile_image: string | null };
+  toplines:      PublishedTopline[];
+  my_toplines:   PublishedTopline[];
+}
+
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)
 // Chaque champ ici correspond à un request.args.get('...') dans get_tracks()
 export interface TrackFilters {
@@ -120,6 +138,24 @@ export class TrackService {
     return this.http.get<{ success: boolean; data: { track: Track } }>(
       `${this.tracksApiUrl}/track/${trackId}`
     ).pipe(tap(data => console.log('TrackService called getTrack()', data)));
+  }
+
+  // ── GET /tracks/track/:id (version enrichie pour TrackDetailComponent) ───
+  getTrackDetail(trackId: number): Observable<{ success: boolean; data: { track: TrackDetail } }> {
+    return this.http.get<{ success: boolean; data: { track: TrackDetail } }>(
+      `${this.tracksApiUrl}/track/${trackId}`
+    );
+  }
+
+
+  // ── GET /tracks/random?exclude_id=<id> ──────────────────────────────────
+  // Utilisé par PlayerService pour l'autoplay aléatoire.
+
+  getRandomTrack(excludeId?: number): Observable<{ success: boolean; data: { track: Track } }> {
+    const params = excludeId ? `?exclude_id=${excludeId}` : '';
+    return this.http.get<{ success: boolean; data: { track: Track } }>(
+      `${this.tracksApiUrl}/random${params}`
+    );
   }
 
 

@@ -22,6 +22,8 @@ from .tracks_api import tracks_api_bp
 from .cud_tracks_api import cud_tracks_api_bp
 from .tags_filters_api import tags_filters_api_bp
 from .auth_api import auth_api_bp
+from .topline_api import topline_api_bp
+from .topline_cud_api import topline_cud_api_bp
 
 
 __all__ = [
@@ -42,5 +44,7 @@ __all__ = [
     'tracks_api_bp',
     'cud_tracks_api_bp',
     'tags_filters_api_bp',
-    'auth_api_bp'
+    'auth_api_bp',
+    'topline_api_bp',
+    'topline_cud_api_bp',
 ]
