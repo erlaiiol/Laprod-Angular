@@ -8,7 +8,6 @@ import { FormsModule } from '@angular/forms';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
 import { ToplineService } from '../../services/topline.service';
 import { PlayerService } from '../../services/player.service';
-import { environment } from '../../../environments/environment';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
 
@@ -31,7 +30,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   state      = signal<RecorderState>('idle');
   timer      = signal(0);
   errorMsg   = signal<string | null>(null);
-  resultTopline = signal<(PublishedTopline & { merged_file?: string }) | null>(null);
+  resultTopline = signal<PublishedTopline | null>(null);
 
   useAutotune  = false;
   useMonitor   = false;
@@ -52,6 +51,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private monitorAudio: HTMLAudioElement | null = null;
 
   readonly MAX_SECONDS = 70;
+  readonly MIN_SECONDS = 10;
+
+  private recordingStartTime = 0;
+  private recordingTooShort  = false;
 
   ngAfterViewInit(): void {}
 
@@ -90,6 +93,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.mediaRecorder.start(100);
 
     // Timer
+    this.recordingStartTime = Date.now();
     this.timer.set(0);
     this.timerInterval = setInterval(() => {
       const t = this.timer() + 1;
@@ -104,6 +108,14 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   }
 
   stopRecording(): void {
+    const elapsed = (Date.now() - this.recordingStartTime) / 1000;
+    if (elapsed < this.MIN_SECONDS) {
+      this.recordingTooShort = true;
+      this.errorMsg.set(
+        `Enregistrement trop court (${Math.floor(elapsed)}s). Minimum requis : ${this.MIN_SECONDS} secondes.`
+      );
+      this.cdr.markForCheck();
+    }
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
@@ -123,6 +135,14 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   private async onRecordingStop(): Promise<void> {
     this.player.pause();
+
+    if (this.recordingTooShort) {
+      this.recordingTooShort = false;
+      this.state.set('idle');
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.state.set('processing');
     this.cdr.markForCheck();
 
@@ -159,7 +179,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       id:            tl.id,
       title:         `Topline (aperçu)`,
       composer_user: tl.artist_user as any,
-      audio_file:    tl.merged_file ?? tl.audio_file,
+      audio_file:    tl.audio_file,
       image_file:    this.track.image_file,
       bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
     });
@@ -188,9 +208,16 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     const tl = this.resultTopline();
     if (!tl) return;
     this.toplineSvc.deleteTopline(tl.id).subscribe({
-      next: () => { this.resetToIdle(); },
+      next: (res) => {
+        if (res.success) {
+          this.resetToIdle();
+        } else {
+          this.errorMsg.set(res.feedback?.message ?? 'Erreur lors de la suppression.');
+          this.cdr.markForCheck();
+        }
+      },
       error: () => {
-        this.errorMsg.set('Erreur lors de la suppression.');
+        this.errorMsg.set('Impossible de contacter le serveur.');
         this.cdr.markForCheck();
       }
     });

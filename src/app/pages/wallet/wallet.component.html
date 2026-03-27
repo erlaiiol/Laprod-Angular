@@ -1,0 +1,240 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error">{{ error() }}</div>
+}
+
+@if (!loading() && !error()) {
+  <div class="wallet-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="wallet-header">
+      <h1><i class="bi bi-wallet2"></i> Mes Gains</h1>
+      <div class="header-actions">
+        @if (stripeComplete()) {
+          <button class="btn-stripe-dashboard" (click)="openDashboard()">
+            <i class="bi bi-box-arrow-up-right"></i> Dashboard Stripe
+          </button>
+        } @else {
+          <button class="btn-stripe-setup" (click)="setupStripe()" [disabled]="settingUpStripe()">
+            @if (settingUpStripe()) {
+              <span class="spinner-border spinner-border-sm me-1"></span> Redirection…
+            } @else {
+              <i class="bi bi-credit-card"></i> Configurer Stripe Connect
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (stripeError()) {
+      <div class="alert-error">{{ stripeError() }}</div>
+    }
+
+    <!-- ── Connect Alert ───────────────────────────────────────────────────── -->
+    @if (showConnectAlert()) {
+      <div class="connect-alert">
+        <i class="bi bi-exclamation-triangle-fill alert-icon"></i>
+        <div>
+          <strong>Action requise :</strong> Vous avez des gains en attente depuis plus de 6 mois
+          mais votre compte Stripe Connect n'est pas configuré.
+          Sans configuration, ces fonds expireront après 2 ans.
+          <div class="mt-alert">
+            <button class="btn-stripe-setup" (click)="setupStripe()" [disabled]="settingUpStripe()">
+              <i class="bi bi-credit-card"></i> Configurer maintenant
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ── Balance Cards ───────────────────────────────────────────────────── -->
+    <div class="balance-grid">
+
+      <div class="balance-card balance-available">
+        <div class="balance-label">Disponible au retrait</div>
+        <div class="balance-amount available">{{ (wallet()?.balance_available ?? 0).toFixed(2) }}€</div>
+        @if (canWithdraw()) {
+          <button class="btn-withdraw" (click)="openWithdrawModal()">
+            <i class="bi bi-arrow-down-circle"></i> Retirer
+          </button>
+        } @else if ((wallet()?.balance_available ?? 0) > 0) {
+          <p class="balance-note">Minimum 10€ requis pour retirer</p>
+        } @else {
+          <p class="balance-note">Aucun solde disponible</p>
+        }
+      </div>
+
+      <div class="balance-card balance-pending">
+        <div class="balance-label">En cours de validation</div>
+        <div class="balance-amount pending">{{ (wallet()?.balance_pending ?? 0).toFixed(2) }}€</div>
+        <p class="balance-note">
+          <i class="bi bi-clock"></i>
+          Disponible après 7 jours (protection anti-fraude)
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ── Transaction History ────────────────────────────────────────────── -->
+    <h2 class="section-title">Historique des transactions</h2>
+
+    @if (transactions().length > 0) {
+      <div class="txn-table-wrap">
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th class="text-right">Montant</th>
+              <th>Statut</th>
+              <th>Disponible le</th>
+              <th>Détail</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (txn of transactions(); track txn.id) {
+              <tr>
+                <td class="td-date">
+                  <span>{{ formatDate(txn.created_at) }}</span>
+                  <small>{{ formatTime(txn.created_at) }}</small>
+                </td>
+                <td>
+                  <span class="txn-badge" [class]="'txn-' + txn.type">
+                    @switch (txn.type) {
+                      @case ('credit_beat_sale') {
+                        <i class="bi bi-music-note-beamed"></i> Vente beat
+                      }
+                      @case ('credit_mixmaster_deposit') {
+                        <i class="bi bi-sliders"></i> Acompte mix
+                      }
+                      @case ('credit_mixmaster_final') {
+                        <i class="bi bi-sliders"></i> Solde mix
+                      }
+                      @case ('withdrawal') {
+                        <i class="bi bi-arrow-down-circle"></i> Retrait
+                      }
+                      @case ('expiration') {
+                        <i class="bi bi-x-circle"></i> Expiré
+                      }
+                      @default {
+                        {{ txn.type }}
+                      }
+                    }
+                  </span>
+                </td>
+                <td class="text-right td-amount" [class.debit]="isDebit(txn)" [class.credit]="!isDebit(txn)">
+                  {{ isDebit(txn) ? '-' : '+' }}{{ txn.amount.toFixed(2) }}€
+                </td>
+                <td>
+                  <span class="status-badge status-{{ txn.status }}">
+                    @switch (txn.status) {
+                      @case ('pending') {
+                        <i class="bi bi-hourglass-split"></i> En attente
+                      }
+                      @case ('available') {
+                        <i class="bi bi-check-circle"></i> Disponible
+                      }
+                      @case ('transferred') {
+                        <i class="bi bi-check2-all"></i> Retiré
+                      }
+                      @case ('expired') {
+                        <i class="bi bi-x-circle"></i> Expiré
+                      }
+                    }
+                  </span>
+                </td>
+                <td class="td-muted">
+                  @if (txn.available_at && txn.status === 'pending') {
+                    {{ formatDate(txn.available_at) }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="td-muted">{{ txn.description ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <p>Aucune transaction pour le moment.</p>
+        <small>Vos revenus apparaîtront ici après chaque vente.</small>
+      </div>
+    }
+
+  </div>
+}
+
+<!-- ── Withdraw Modal ──────────────────────────────────────────────────────── -->
+@if (showWithdrawModal()) {
+  <div class="modal-backdrop" (click)="closeWithdrawModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-arrow-down-circle"></i> Retirer mes gains</h3>
+        <button class="modal-close" (click)="closeWithdrawModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (withdrawSuccess()) {
+          <div class="withdraw-success">
+            <i class="bi bi-check-circle-fill"></i>
+            {{ withdrawSuccess() }}
+          </div>
+        } @else {
+          <p class="withdraw-balance">
+            Solde disponible :
+            <strong class="text-available">{{ (wallet()?.balance_available ?? 0).toFixed(2) }}€</strong>
+          </p>
+
+          <div class="form-field">
+            <label for="withdrawAmt">Montant à retirer (min. 10€)</label>
+            <div class="input-euro">
+              <input type="number" id="withdrawAmt"
+                     [ngModel]="withdrawAmount()"
+                     (ngModelChange)="withdrawAmount.set($event)"
+                     min="10"
+                     [max]="wallet()?.balance_available ?? 0"
+                     step="0.01">
+              <span class="euro-suffix">€</span>
+            </div>
+          </div>
+
+          <div class="withdraw-info">
+            <i class="bi bi-info-circle"></i>
+            Les fonds seront virés sur votre compte bancaire via Stripe Express
+            sous <strong>1–2 jours ouvrés</strong>.
+            @if (!stripeComplete()) {
+              <br><strong class="text-warning">Vous devrez d'abord configurer votre compte Stripe Connect.</strong>
+            }
+          </div>
+
+          @if (withdrawError()) {
+            <div class="withdraw-error">{{ withdrawError() }}</div>
+          }
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeWithdrawModal()">Annuler</button>
+        @if (!withdrawSuccess()) {
+          <button class="btn-confirm-withdraw" (click)="confirmWithdraw()" [disabled]="withdrawing()">
+            @if (withdrawing()) {
+              <span class="spinner-border spinner-border-sm me-1"></span> Traitement…
+            } @else {
+              <i class="bi bi-arrow-down-circle"></i> Confirmer le retrait
+            }
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

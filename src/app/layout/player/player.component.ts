@@ -6,6 +6,8 @@ import {
   ElementRef,
   inject,
   effect,
+  signal,
+  computed,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -24,18 +26,27 @@ import { TrackService } from '../../services/track.service';
 })
 export class PlayerComponent implements AfterViewInit, OnDestroy {
 
-  // The waveform container is ALWAYS in the DOM (shown/hidden via CSS).
-  // This guarantees @ViewChild resolves at ngAfterViewInit time.
   @ViewChild('waveformContainer') waveformContainer!: ElementRef<HTMLDivElement>;
 
   player   = inject(PlayerService);
   trackSvc = inject(TrackService);
 
+  /** Whether the player is in track_detail context (viewingTrack is set). */
+  isDetailContext = computed(() => this.player.viewingTrack() !== null);
+
+  /** True when the currently playing track IS the viewing track → actions work directly. */
+  isViewingTrackLoaded = computed(() => {
+    const v = this.player.viewingTrack();
+    const c = this.player.currentTrack();
+    return !!v && !!c && v.id === c.id;
+  });
+
+  showConfirmModal = signal(false);
+  private pendingAction: 'download' | 'rec' | null = null;
+
   private wavesurfer: WaveSurfer | null = null;
 
   constructor() {
-    // Fires every time currentTrack changes.
-    // At this point wavesurfer is already initialized (ngAfterViewInit ran first).
     effect(() => {
       const track = this.player.currentTrack();
       if (!track || !this.wavesurfer) return;
@@ -50,11 +61,10 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       waveColor:     '#4a5568',
       progressColor: '#a78bfa',
       cursorColor:   '#ffffff',
-      height:        40,
+      height:        48,
       barWidth:      2,
       barGap:        1,
       barRadius:     2,
-      // Share the HTMLAudioElement — WaveSurfer controls src, PlayerService controls play/pause/seek
       media: this.player.audioEl,
     });
 
@@ -67,10 +77,55 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    // User clicked/dragged the waveform → sync PlayerService seek position
     this.wavesurfer.on('interaction', (newTime) => {
       this.player.seek(newTime);
     });
+  }
+
+  // ── Contextual actions ───────────────────────────────────────────────────
+
+  onDownloadClick(): void {
+    if (this.isViewingTrackLoaded()) {
+      this.doDownload();
+    } else {
+      this.pendingAction = 'download';
+      this.showConfirmModal.set(true);
+    }
+  }
+
+  onRecClick(): void {
+    if (this.isViewingTrackLoaded()) {
+      this.player.recRequested.update(n => n + 1);
+    } else {
+      this.pendingAction = 'rec';
+      this.showConfirmModal.set(true);
+    }
+  }
+
+  confirmLoadTrack(): void {
+    const viewing = this.player.viewingTrack();
+    if (viewing) this.player.play(viewing);
+    this.showConfirmModal.set(false);
+    if (this.pendingAction === 'rec') {
+      setTimeout(() => this.player.recRequested.update(n => n + 1), 250);
+    } else if (this.pendingAction === 'download') {
+      setTimeout(() => this.doDownload(), 250);
+    }
+    this.pendingAction = null;
+  }
+
+  cancelModal(): void {
+    this.showConfirmModal.set(false);
+    this.pendingAction = null;
+  }
+
+  private doDownload(): void {
+    const track = this.player.currentTrack();
+    if (!track) return;
+    const a = document.createElement('a');
+    a.href = this.player.buildAudioUrl(track);
+    a.download = `${track.title}.mp3`;
+    a.click();
   }
 
   // ── Template helpers ─────────────────────────────────────────────────────

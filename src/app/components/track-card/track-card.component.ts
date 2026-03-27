@@ -39,8 +39,17 @@ export class TrackCardComponent {
     return this.trackService.darkenColor(color, 0.35);
   }
 
+  isThisTrackPlaying(): boolean {
+    return this.playerService.currentTrack()?.id === this.track.id
+        && this.playerService.isPlaying();
+  }
+
   onPlay(): void {
-    this.playerService.play(this.track);
+    if (this.playerService.currentTrack()?.id === this.track.id) {
+      this.playerService.togglePlay();
+    } else {
+      this.playerService.play(this.track);
+    }
   }
 
 }

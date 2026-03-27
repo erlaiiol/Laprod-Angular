@@ -1,22 +1,20 @@
+@use 'variables' as v;
+
 .contract-page {
   display:   grid;
   grid-template-columns: 260px 1fr;
   gap:       2rem;
-  max-width: 900px;
+  max-width: 960px;
   margin:    2rem auto;
   padding:   0 1rem;
-  color:     #f3f4f6;
+  color:     v.$text-primary;
 
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-
 .contract-sidebar {
-  background:    #1f2937;
-  border:        1px solid #374151;
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border;
   border-radius: 12px;
   padding:       1.5rem;
   text-align:    center;
@@ -25,260 +23,180 @@
   top:           1rem;
 }
 
-.sidebar-cover {
-  width:         100%;
-  aspect-ratio:  1;
-  object-fit:    cover;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-}
-
-.sidebar-title {
-  font-size:     1rem;
-  font-weight:   700;
-  margin:        0 0 0.25rem;
-}
-
-.sidebar-artist {
-  font-size:  0.82rem;
-  color:      #9ca3af;
-  margin:     0 0 0.75rem;
-}
+.sidebar-cover     { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; }
+.sidebar-title     { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
+.sidebar-artist    { font-size: 0.82rem; color: v.$text-secondary; margin: 0 0 0.75rem; }
 
 .format-badge {
-  display:       inline-block;
-  padding:       0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size:     0.75rem;
-  font-weight:   700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 0.75rem;
-
-  &.mp3    { background: #1d4ed8; color: #bfdbfe; }
-  &.wav    { background: #065f46; color: #a7f3d0; }
-  &.stems  { background: #5b21b6; color: #ddd6fe; }
-}
-
-.sidebar-base-price {
-  font-size:     0.85rem;
-  color:         #d1d5db;
-  margin:        0 0 0.75rem;
+  display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 0.75rem;
+  &.mp3   { background: #1d4ed8; color: #bfdbfe; }
+  &.wav   { background: #065f46; color: #a7f3d0; }
+  &.stems { background: #5b21b6; color: #ddd6fe; }
 }
 
 .sidebar-meta {
-  display:   flex;
-  flex-wrap: wrap;
-  gap:       0.4rem;
-  justify-content: center;
-
-  span {
-    background:    #374151;
-    border-radius: 4px;
-    padding:       0.2rem 0.5rem;
-    font-size:     0.72rem;
-    color:         #9ca3af;
-  }
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  justify-content: center; margin-bottom: 1rem;
+  span { background: v.$bg-elevated; border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.72rem; color: v.$text-secondary; }
 }
 
-// ── Form ──────────────────────────────────────────────────────────────────────
+.price-box {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border-subtle;
+  border-radius: 10px; padding: 1rem; margin-top: 0.5rem;
+}
+.price-box-total    { font-size: 2rem;   font-weight: 800; color: v.$accent; }
+.price-box-label    { font-size: 0.75rem; color: v.$text-muted;      margin-top: 0.1rem; }
+.price-box-composer { font-size: 0.75rem; color: v.$text-secondary; margin-top: 0.35rem; }
 
-.contract-form {
-  h1 {
-    font-size:     1.4rem;
-    font-weight:   700;
-    margin-bottom: 1.5rem;
-  }
+.contract-form h1 {
+  font-size: 1.35rem; font-weight: 700; margin-bottom: 1.5rem;
+  i { margin-right: 0.4rem; color: v.$accent; }
 }
 
 .form-section {
-  background:    #1f2937;
-  border:        1px solid #374151;
-  border-radius: 10px;
-  padding:       1.25rem;
-  margin-bottom: 1rem;
-
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;
   h3 {
-    font-size:     0.85rem;
-    font-weight:   600;
-    color:         #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin:        0 0 1rem;
+    font-size: 0.8rem; font-weight: 600; color: v.$text-secondary;
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 1rem;
   }
 }
 
-// ── Right items (checkboxes) ──────────────────────────────────────────────────
+.info-box {
+  background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25);
+  border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.8rem;
+  color: v.$text-secondary; margin-bottom: 1rem;
+  i { margin-right: 0.4rem; color: v.$accent; }
+}
+.info-warning { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.25); i { color: #fbbf24; } }
+
+.parties-row   { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.parties-label { display: block; font-size: 0.75rem; color: v.$text-muted; margin-bottom: 0.2rem; }
+.parties-value { font-weight: 600; font-size: 0.9rem; }
+.sacem-label   { display: block; font-size: 0.75rem; color: v.$text-muted; margin-bottom: 0.4rem; }
+
+.sacem-bar {
+  display: flex; height: 32px; border-radius: 6px; overflow: hidden;
+  font-size: 0.75rem; font-weight: 600;
+}
+.sacem-composer { background: #1d4ed8; color: #bfdbfe; display: flex; align-items: center; justify-content: center; transition: width 0.3s; }
+.sacem-buyer    { background: #065f46; color: #a7f3d0; display: flex; align-items: center; justify-content: center; transition: width 0.3s; }
 
 .right-item {
-  display:     flex;
-  align-items: center;
-  gap:         0.75rem;
-  padding:     0.6rem 0;
-  cursor:      pointer;
-
-  & + & { border-top: 1px solid #374151; }
-
-  input[type="checkbox"] {
-    accent-color: #a78bfa;
-    width:  16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0; cursor: pointer;
+  & + & { border-top: 1px solid v.$bg-border; }
+  input[type="checkbox"] { accent-color: v.$accent; width: 16px; height: 16px; flex-shrink: 0; }
   div { flex: 1; }
-
-  .right-name {
-    display:     block;
-    font-size:   0.88rem;
-    font-weight: 600;
-
-    em { color: #a78bfa; font-style: normal; font-size: 0.8rem; margin-left: 0.3rem; }
-  }
-
-  .right-desc {
-    display:   block;
-    font-size: 0.75rem;
-    color:     #6b7280;
-    margin-top: 0.15rem;
-  }
-
-  &.always-on { opacity: 0.6; cursor: default; }
+  .right-name { display: block; font-size: 0.88rem; font-weight: 600; }
+  .right-desc { display: block; font-size: 0.74rem; color: v.$text-muted; margin-top: 0.1rem; }
+  &.always-on     { opacity: 0.6; cursor: default; }
+  &.auto-included { opacity: 0.75; cursor: default; }
 }
 
 .right-badge {
-  font-size:     0.7rem;
-  font-weight:   600;
-  border-radius: 4px;
-  padding:       0.2rem 0.5rem;
-  white-space:   nowrap;
-
+  font-size: 0.7rem; font-weight: 600; border-radius: 4px; padding: 0.2rem 0.5rem; white-space: nowrap;
   &.included { background: #064e3b; color: #6ee7b7; }
+  &.optional { background: #78350f; color: #fcd34d; }
 }
 
-// ── Radio groups (duration / territory) ──────────────────────────────────────
+.duration-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
 
-.radio-group {
-  display:   flex;
-  flex-wrap: wrap;
-  gap:       0.5rem;
+.duration-btn {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0.6rem 1rem; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  color: v.$text-primary; transition: border-color 0.15s, background 0.15s;
+  .btn-fee { font-size: 0.72rem; color: v.$text-muted; margin-top: 0.15rem; }
+  &.selected { border-color: v.$accent; background: rgba(167,139,250,0.1); .btn-fee { color: v.$accent; } }
 }
+
+.duration-selected { font-size: 0.8rem; color: v.$text-secondary; margin: 0.25rem 0 0; }
+.fee-badge {
+  display: inline-block; background: v.$bg-elevated; border-radius: 4px;
+  padding: 0.1rem 0.4rem; font-size: 0.72rem; color: v.$accent; margin-left: 0.4rem;
+}
+
+.radio-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
 .radio-item {
-  display:       flex;
-  align-items:   center;
-  gap:           0.4rem;
-  padding:       0.5rem 0.9rem;
-  background:    #111827;
-  border:        1px solid #374151;
-  border-radius: 8px;
-  cursor:        pointer;
-  font-size:     0.85rem;
-  transition:    border-color 0.15s, background 0.15s;
+  display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 8px;
+  cursor: pointer; font-size: 0.85rem; transition: border-color 0.15s, background 0.15s;
+  input[type="radio"] { accent-color: v.$accent; flex-shrink: 0; }
+  &.selected { border-color: v.$accent; background: rgba(167,139,250,0.08); }
+  .btn-fee { font-size: 0.75rem; color: v.$text-muted; margin-left: 0.3rem; }
+}
 
-  input[type="radio"] {
-    accent-color: #a78bfa;
-    flex-shrink:  0;
+.billing-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  @media (max-width: 500px) { grid-template-columns: 1fr; }
+}
+
+.form-field {
+  label { display: block; font-size: 0.78rem; color: v.$text-secondary; margin-bottom: 0.35rem; }
+  input {
+    width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    border-radius: 6px; padding: 0.45rem 0.75rem; font-size: 0.85rem; color: v.$text-primary;
+    &:focus     { outline: none; border-color: v.$accent; }
+    &[readonly] { opacity: 0.65; cursor: default; }
   }
+}
 
-  &.selected {
-    border-color: #a78bfa;
-    background:   rgba(167,139,250,0.08);
+.price-breakdown {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;
+  h3 {
+    font-size: 0.85rem; font-weight: 600; color: v.$text-secondary;
+    text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.75rem;
   }
+  hr { border-color: v.$bg-border; margin: 0.75rem 0; }
 }
 
-// ── SACEM bar ─────────────────────────────────────────────────────────────────
+.breakdown-row {
+  display: flex; justify-content: space-between; margin-bottom: 0.4rem;
+  font-size: 0.85rem; color: v.$text-secondary;
+  strong { color: v.$text-primary; }
+}
+.breakdown-total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 1rem; font-weight: 600;
+}
+.total-price    { font-size: 1.4rem; font-weight: 800; color: v.$accent; }
+.composer-line  { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.5rem; }
 
-.sacem-section h3 { margin-bottom: 0.75rem; }
-
-.sacem-bar {
-  display:       flex;
-  height:        36px;
-  border-radius: 6px;
-  overflow:      hidden;
-  font-size:     0.78rem;
-  font-weight:   600;
+.sacem-notice {
+  background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem;
+  color: v.$text-secondary; margin-bottom: 1rem;
+  i { color: #fbbf24; margin-right: 0.4rem; }
+  a { color: #fbbf24; }
 }
 
-.sacem-composer {
-  background:  #1d4ed8;
-  color:       #bfdbfe;
-  display:     flex;
-  align-items: center;
-  justify-content: center;
-  transition:  width 0.3s;
+.form-error {
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; color: #fca5a5; margin-bottom: 1rem;
 }
 
-.sacem-buyer {
-  background:  #065f46;
-  color:       #a7f3d0;
-  display:     flex;
-  align-items: center;
-  justify-content: center;
-  transition:  width 0.3s;
-}
+.form-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 
-// ── Total & CTA ───────────────────────────────────────────────────────────────
-
-.contract-total {
-  display:         flex;
-  justify-content: space-between;
-  align-items:     center;
-  padding:         1rem 1.25rem;
-  background:      #1f2937;
-  border:          1px solid #374151;
-  border-radius:   10px;
-  margin-bottom:   1rem;
-}
-
-.total-label {
-  font-size:   1rem;
-  color:       #9ca3af;
-  font-weight: 600;
-}
-
-.total-price {
-  font-size:   1.5rem;
-  font-weight: 700;
-  color:       #a78bfa;
+.btn-back {
+  padding: 0.65rem 1.25rem; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: v.$text-secondary;
+  text-decoration: none; transition: background 0.15s;
+  &:hover { background: v.$bg-border; }
+  i { margin-right: 0.3rem; }
 }
 
 .btn-confirm {
-  width:         100%;
-  padding:       0.8rem;
-  background:    #7c3aed;
-  color:         #fff;
-  border:        none;
-  border-radius: 8px;
-  font-size:     1rem;
-  font-weight:   700;
-  cursor:        pointer;
-  transition:    background 0.15s;
-  margin-bottom: 0.6rem;
-
-  &:hover { background: #6d28d9; }
-
+  flex: 1; padding: 0.75rem 1.5rem; background: v.$accent-dark; color: #fff;
+  border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+  &:hover:not(:disabled) { background: v.$accent-darker; }
+  &:disabled             { opacity: 0.6; cursor: not-allowed; }
   i { margin-right: 0.4rem; }
 }
 
-.stripe-notice {
-  font-size: 0.78rem;
-  color:     #6b7280;
-  text-align: center;
-
-  i { margin-right: 0.3rem; color: #4ade80; }
-}
-
-// ── Loading / error ───────────────────────────────────────────────────────────
-
-.state-loading {
-  display:         flex;
-  justify-content: center;
-  padding:         4rem 0;
-}
-
-.state-error {
-  text-align: center;
-  padding:    2rem;
-  color:      #f87171;
-}
+.state-loading { display: flex; justify-content: center; padding: 4rem 0; }
+.state-error   { text-align: center; padding: 2rem; color: #f87171; }

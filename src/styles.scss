@@ -1,1 +1,109 @@
-/* You can add global styles to this file, and also import other style files */
+// @use must come before any other rules
+@use 'styles/variables' as v;
+
+// ── CSS custom properties — available globally via var() ─────────────────────
+
+:root {
+  // Tag colors — main (vibrant)
+  --tag-violet:  #{v.$tag-violet};
+  --tag-blue:    #{v.$tag-blue};
+  --tag-red:     #{v.$tag-red};
+  --tag-orange:  #{v.$tag-orange};
+  --tag-green:   #{v.$tag-green};
+  --tag-pink:    #{v.$tag-pink};
+
+  // Tag colors — light (40 % white tint)
+  --tag-violet-light:  #{v.$tag-violet-light};
+  --tag-blue-light:    #{v.$tag-blue-light};
+  --tag-red-light:     #{v.$tag-red-light};
+  --tag-orange-light:  #{v.$tag-orange-light};
+  --tag-green-light:   #{v.$tag-green-light};
+  --tag-pink-light:    #{v.$tag-pink-light};
+
+  // Tag colors — dark backgrounds (from admin preset palette)
+  --tag-violet-dark:  #{v.$tag-violet-dark};
+  --tag-blue-dark:    #{v.$tag-blue-dark};
+  --tag-red-dark:     #{v.$tag-red-dark};
+  --tag-orange-dark:  #{v.$tag-orange-dark};
+  --tag-green-dark:   #{v.$tag-green-dark};
+  --tag-pink-dark:    #{v.$tag-pink-dark};
+
+  // Neutral (uncolored / "other" tags)
+  --tag-neutral:        #{v.$tag-neutral};
+  --tag-neutral-light:  #{v.$tag-neutral-light};
+  --tag-neutral-dark:   #{v.$tag-neutral-dark};
+
+  // App background layers (dark blue — NOT grey)
+  --bg-base:          #{v.$bg-base};
+  --bg-surface:       #{v.$bg-surface};
+  --bg-elevated:      #{v.$bg-elevated};
+  --bg-border:        #{v.$bg-border};
+  --bg-border-subtle: #{v.$bg-border-subtle};
+
+  // Text
+  --text-primary:    #{v.$text-primary};
+  --text-secondary:  #{v.$text-secondary};
+  --text-muted:      #{v.$text-muted};
+
+  // Whites
+  --white:     #{v.$white};
+  --off-white: #{v.$off-white};
+
+  // Brand accent
+  --accent:        #{v.$accent};
+  --accent-dark:   #{v.$accent-dark};
+  --accent-darker: #{v.$accent-darker};
+}
+
+// ── Global dark-theme overrides (loaded after Bootstrap CDN) ─────────────────
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin:           0;
+  min-height:       100%;
+  background-color: v.$bg-base;
+  color:            v.$text-primary;
+  font-family:      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                    'Helvetica Neue', Arial, sans-serif;
+  font-size:        16px;
+  line-height:      1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+// ── Bootstrap component overrides ────────────────────────────────────────────
+
+// Align Bootstrap's bg-dark navbar with the page's dark-blue background
+nav.navbar.bg-dark,
+.navbar.navbar-dark.bg-dark {
+  background-color: v.$bg-base !important;
+  border-bottom: 1px solid v.$bg-elevated;
+}
+
+// Override Bootstrap's default link color
+a {
+  color: v.$accent;
+  &:hover { color: v.$tag-violet-light; }
+}
+
+// Override Bootstrap's .spinner-border so it uses our accent colour
+.spinner-border.text-primary { color: v.$accent !important; }
+
+// Make sure images don't overflow their containers
+img { max-width: 100%; }
+
+// ── Custom scrollbar ──────────────────────────────────────────────────────────
+
+::-webkit-scrollbar             { width: 6px; height: 6px; }
+::-webkit-scrollbar-track       { background: v.$bg-base; }
+::-webkit-scrollbar-thumb       { background: v.$bg-elevated; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: v.$bg-border-subtle; }

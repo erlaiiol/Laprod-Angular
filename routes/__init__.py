@@ -24,6 +24,11 @@ from .tags_filters_api import tags_filters_api_bp
 from .auth_api import auth_api_bp
 from .topline_api import topline_api_bp
 from .topline_cud_api import topline_cud_api_bp
+from .payment_track_api import payment_track_api_bp
+from .wallet_api import wallet_api_bp
+from .cud_wallet_api import cud_wallet_api_bp
+from .contracts_api import contracts_api_bp
+from .stripe_connect_api import stripe_connect_api_bp
 
 
 __all__ = [
@@ -47,4 +52,9 @@ __all__ = [
     'auth_api_bp',
     'topline_api_bp',
     'topline_cud_api_bp',
+    'payment_track_api_bp',
+    'wallet_api_bp',
+    'cud_wallet_api_bp',
+    'contracts_api_bp',
+    'stripe_connect_api_bp',
 ]

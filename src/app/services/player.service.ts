@@ -7,11 +7,17 @@ import { environment } from '../../environments/environment';
 export class PlayerService {
 
   // ── State signals ─────────────────────────────────────────────────────────
-  currentTrack = signal<Track | null>(null);
-  isPlaying    = signal(false);
-  currentTime  = signal(0);
-  duration     = signal(0);
-  volume       = signal(0.8);
+  currentTrack  = signal<Track | null>(null);
+  isPlaying     = signal(false);
+  currentTime   = signal(0);
+  duration      = signal(0);
+  volume        = signal(0.8);
+
+  // ── Context signals (set by TrackDetailComponent) ─────────────────────────
+  /** Track whose detail page is currently open — drives player contextual buttons. */
+  viewingTrack  = signal<Track | null>(null);
+  /** Increments each time the player asks the detail page to open the recorder. */
+  recRequested  = signal(0);
 
   // ── Audio element shared with WaveSurfer via `media:` option ─────────────
   // WaveSurfer owns loading (wavesurfer.load(url)) — this service only controls

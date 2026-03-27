@@ -217,6 +217,11 @@ def create_app():
         auth_api_bp,
         topline_api_bp,
         topline_cud_api_bp,
+        payment_track_api_bp,
+        wallet_api_bp,
+        cud_wallet_api_bp,
+        contracts_api_bp,
+        stripe_connect_api_bp,
     )
 
     app.register_blueprint(auth_bp)
@@ -239,6 +244,11 @@ def create_app():
     app.register_blueprint(auth_api_bp)
     app.register_blueprint(topline_api_bp)
     app.register_blueprint(topline_cud_api_bp)
+    app.register_blueprint(payment_track_api_bp)
+    app.register_blueprint(wallet_api_bp)
+    app.register_blueprint(cud_wallet_api_bp)
+    app.register_blueprint(contracts_api_bp)
+    app.register_blueprint(stripe_connect_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

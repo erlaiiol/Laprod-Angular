@@ -1,30 +1,44 @@
 <!-- COMPOSANT TRACK-CARD
-     Reçoit : [track]  via @Input()
-     Émet   : (play)   via @Output()
+     Clic sur la carte  → /track/:id  (routerLink)
+     Clic sur l'image   → joue/pause  (stopPropagation)
 -->
-<div class="track-card">
+<div class="track-card" [routerLink]="['/track', track.id]">
 
-  <!-- Image + overlay play → émet l'événement @Output play vers la page parente -->
-  <div class="image-wrapper" (click)="onPlay()">
+  <!-- Image + overlay play/pause -->
+  <div class="image-wrapper"
+       [class.is-playing]="isThisTrackPlaying()"
+       (click)="onPlay(); $event.stopPropagation()">
     <img
       [src]="getImageUrl()"
       [alt]="track.title"
       class="music-card-img"
       onerror="this.onerror=null; this.src='assets/placeholder-track.png'">
     <div class="play-overlay">
-      <div class="play-icon"></div>
+      @if (isThisTrackPlaying()) {
+        <!-- Pause icon -->
+        <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+          <rect x="6" y="4" width="4" height="16"/>
+          <rect x="14" y="4" width="4" height="16"/>
+        </svg>
+      } @else {
+        <!-- Play icon -->
+        <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+      }
     </div>
   </div>
 
   <!-- Infos texte -->
   <div class="track-info">
     <h6>
-      <a [routerLink]="['/track', track.id]">{{ track.title }}</a>
+      <span class="track-title">{{ track.title }}</span>
       <span class="badge-pending" *ngIf="!track.is_approved">En attente</span>
     </h6>
 
     <small class="track-artist">
-      <a [routerLink]="['/profile', track.composer_user.username]">
+      <a [routerLink]="['/profile', track.composer_user.username]"
+         (click)="$event.stopPropagation()">
         {{ track.composer_user.username }}
       </a>
     </small>
@@ -33,18 +47,7 @@
       {{ track.style || 'Inconnu' }} | {{ track.bpm }} BPM | {{ track.key }}
     </em>
 
-    @if (track.price_mp3) {
-      <a class="track-price-hint" [routerLink]="['/track', track.id]">
-        preview gratuite ou lease à partir de {{ (track.price_mp3 + 5).toFixed(2) }}€
-      </a>
-    }
-
     <div class="track-tags">
-      <!--
-        [style.background-color]  →  fond très foncé  (factor 0.15, comme darken_color en Python)
-        [style.border-color]      →  bordure moins foncée  (factor 0.35)
-        [style.color]             →  texte dans la couleur d'origine de la catégorie
-      -->
       <span
         *ngFor="let tag of track.tags"
         class="tag"
@@ -60,7 +63,8 @@
 
   <!-- Bouton favori -->
   <div class="track-actions">
-    <button class="btn-favorite" title="Ajouter aux favoris">
+    <button class="btn-favorite" title="Ajouter aux favoris"
+            (click)="$event.stopPropagation()">
       <i class="bi bi-heart"></i>
     </button>
   </div>

@@ -14,7 +14,7 @@
   padding:     0 16px 0 12px;
 }
 
-// ── Close button (absolute top-right) ────────────────────────────────────────
+// ── Close button ─────────────────────────────────────────────────────────────
 
 .btn-close-player {
   position:   absolute;
@@ -23,7 +23,7 @@
   background: transparent;
   border:     none;
   color:      #6b7280;
-  font-size:  0.85rem;
+  font-size:  0.8rem;
   cursor:     pointer;
   line-height: 1;
   padding:    2px 4px;
@@ -37,10 +37,10 @@
   display:     flex;
   align-items: center;
   gap:         16px;
-  height:      68px;
+  height:      80px;  // taller than before (was 68px)
 }
 
-// ── LEFT group: cover + info ─────────────────────────────────────────────────
+// ── LEFT: cover + info ───────────────────────────────────────────────────────
 
 .player-left-group {
   display:     flex;
@@ -52,8 +52,8 @@
 
 .player-cover-wrapper {
   position:      relative;
-  width:         50px;
-  height:        50px;
+  width:         56px;
+  height:        56px;
   flex-shrink:   0;
   cursor:        pointer;
   border-radius: 4px;
@@ -82,45 +82,45 @@
 }
 
 .player-info {
-  overflow:    hidden;
-  min-width:   0;
+  overflow: hidden;
+  min-width: 0;
 
   p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
-.player-title  { font-size: 0.82rem; font-weight: 600; }
-.player-artist { font-size: 0.72rem; color: #9ca3af; margin-top: 2px !important; }
+.player-title  { font-size: 0.84rem; font-weight: 600; }
+.player-artist { font-size: 0.73rem; color: #9ca3af; margin-top: 3px !important; }
 
 // ── CENTER: waveform ──────────────────────────────────────────────────────────
 
 .waveform-container {
-  flex:        1;
-  min-width:   0;
-  display:     flex;
+  flex:           1;
+  min-width:      0;
+  display:        flex;
   flex-direction: column;
-  align-items: stretch;
-  gap:         2px;
+  align-items:    stretch;
+  gap:            3px;
 }
 
 .waveform-inner {
   width:  100%;
-  height: 44px;
+  height: 48px;
   cursor: pointer;
 }
 
 .preview-notice {
-  font-size:  0.62rem;
+  font-size:  0.6rem;
   color:      #4b5563;
   text-align: center;
   line-height: 1;
 }
 
-// ── RIGHT group: time + meta + volume + next ──────────────────────────────────
+// ── RIGHT: controls ───────────────────────────────────────────────────────────
 
 .player-controls {
   display:     flex;
   align-items: center;
-  gap:         12px;
+  gap:         10px;
   flex-shrink: 0;
 }
 
@@ -135,11 +135,13 @@
 
 .time-sep { color: #4b5563; }
 
+// ── Default context: meta chips ───────────────────────────────────────────────
+
 .player-metadata {
-  display:   flex;
+  display:     flex;
   align-items: center;
-  gap:       6px;
-  flex-wrap: nowrap;
+  gap:         5px;
+  flex-wrap:   nowrap;
 }
 
 .player-meta-item {
@@ -153,13 +155,73 @@
 }
 
 .player-meta-price {
-  font-size:      0.68rem;
-  color:          #a78bfa;
+  font-size:       0.68rem;
+  color:           #a78bfa;
   text-decoration: none;
-  white-space:    nowrap;
+  white-space:     nowrap;
 
   &:hover { text-decoration: underline; }
 }
+
+// ── Track-detail context: Download + REC ─────────────────────────────────────
+
+.player-context-actions {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+}
+
+.btn-download {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       5px 10px;
+  background:    #065f46;
+  color:         #a7f3d0;
+  border:        none;
+  border-radius: 6px;
+  font-size:     0.75rem;
+  font-weight:   600;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.15s;
+
+  &:hover { background: #047857; }
+}
+
+.btn-rec {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       5px 10px;
+  background:    #7f1d1d;
+  color:         #fca5a5;
+  border:        none;
+  border-radius: 6px;
+  font-size:     0.75rem;
+  font-weight:   700;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.15s;
+  letter-spacing: 0.05em;
+
+  &:hover { background: #991b1b; }
+}
+
+.rec-dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    #ef4444;
+  animation:     pulse-rec 1s infinite;
+}
+
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+// ── Volume + Next ────────────────────────────────────────────────────────────
 
 .volume-control {
   display:     flex;
@@ -168,13 +230,13 @@
 }
 
 .volume-icon {
-  width:      18px;
-  height:     18px;
-  color:      #9ca3af;
+  width:    18px;
+  height:   18px;
+  color:    #9ca3af;
   flex-shrink: 0;
 
-  path     { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-  polygon  { fill: currentColor; }
+  path    { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  polygon { fill: currentColor; }
 }
 
 .volume-slider {
@@ -200,12 +262,82 @@
   &:hover { color: #f3f4f6; }
 }
 
+// ── Confirmation modal ────────────────────────────────────────────────────────
+
+.confirm-modal-backdrop {
+  position:        absolute;
+  bottom:          100%;
+  left:            0;
+  right:           0;
+  display:         flex;
+  justify-content: center;
+  padding-bottom:  8px;
+  pointer-events:  all;
+}
+
+.confirm-modal {
+  background:    #1f2937;
+  border:        1px solid #4b5563;
+  border-radius: 10px;
+  padding:       1rem 1.25rem;
+  max-width:     380px;
+  width:         100%;
+  box-shadow:    0 -4px 20px rgba(0, 0, 0, 0.5);
+  text-align:    center;
+}
+
+.confirm-msg {
+  font-size:     0.85rem;
+  color:         #d1d5db;
+  margin:        0 0 0.4rem;
+}
+
+.confirm-sub {
+  font-size:     0.82rem;
+  color:         #9ca3af;
+  margin:        0 0 0.9rem;
+}
+
+.confirm-actions {
+  display:         flex;
+  gap:             0.6rem;
+  justify-content: center;
+}
+
+.btn-confirm-yes {
+  padding:       0.45rem 1rem;
+  background:    #7c3aed;
+  color:         #fff;
+  border:        none;
+  border-radius: 6px;
+  font-size:     0.82rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s;
+
+  &:hover { background: #6d28d9; }
+}
+
+.btn-confirm-no {
+  padding:       0.45rem 1rem;
+  background:    #374151;
+  color:         #d1d5db;
+  border:        none;
+  border-radius: 6px;
+  font-size:     0.82rem;
+  cursor:        pointer;
+  transition:    background 0.15s;
+
+  &:hover { background: #4b5563; }
+}
+
 // ── Responsive ───────────────────────────────────────────────────────────────
 
 @media (max-width: 768px) {
-  .player-metadata  { display: none; }
-  .volume-control   { display: none; }
-  .player-left-group { width: 150px; }
+  .player-metadata        { display: none; }
+  .player-context-actions { display: none; }
+  .volume-control         { display: none; }
+  .player-left-group      { width: 150px; }
 }
 
 @media (max-width: 480px) {

@@ -24,6 +24,9 @@
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: var(--transition);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
 
   &:hover {
     transform: translateY(-2px);
@@ -57,30 +60,13 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: var(--transition);
+  transition: opacity 0.2s ease;
+  color: #fff;
 }
 
-.image-wrapper:hover .play-overlay { opacity: 1; }
-
-.play-icon {
-  width: 30px;
-  height: 30px;
-  background: #fff;
-  border-radius: 50%;
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 12px;
-    top: 8px;
-    width: 0;
-    height: 0;
-    border-left: 8px solid #000;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-  }
-}
+// Show on hover, or always when this track is currently playing
+.image-wrapper:hover .play-overlay,
+.image-wrapper.is-playing .play-overlay { opacity: 1; }
 
 .track-info {
   flex: 1;
@@ -100,9 +86,8 @@
   box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
   transition: var(--transition);
 
-  a {
+  .track-title {
     color: var(--primary-color);
-    text-decoration: none;
     font-size: 0.95rem;
   }
 }
@@ -136,16 +121,6 @@
   margin-bottom: 0.2rem;
 }
 
-.track-price-hint {
-  display: block;
-  font-size: 0.72rem;
-  color: #a78bfa;
-  text-decoration: none;
-  margin-bottom: 0.4rem;
-  transition: color 0.15s;
-
-  &:hover { color: #c4b5fd; text-decoration: underline; }
-}
 
 .track-tags {
   display: flex;

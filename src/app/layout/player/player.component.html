@@ -1,13 +1,13 @@
 <!-- Bottom player — always in DOM so @ViewChild resolves at ngAfterViewInit.
-     Visibility toggled by CSS .hidden (display:none) when no track is loaded. -->
+     Visibility toggled by CSS .hidden when no track is loaded. -->
 <div class="bottom-player" [class.hidden]="!player.currentTrack()">
 
-  <!-- ✕ Close (top-right corner) -->
+  <!-- ✕ Close -->
   <button class="btn-close-player" (click)="player.close()" aria-label="Fermer le player">&#x2715;</button>
 
   <div class="player-content">
 
-    <!-- ── LEFT: cover (clickable play/pause) + title/artist ──────────── -->
+    <!-- ── LEFT: cover (click = toggle play) + title/artist ────────────── -->
     <div class="player-left-group">
       <div class="player-cover-wrapper" (click)="player.togglePlay()">
         <img
@@ -34,13 +34,13 @@
       </div>
     </div>
 
-    <!-- ── CENTER: waveform ───────────────────────────────────────────── -->
+    <!-- ── CENTER: waveform ────────────────────────────────────────────── -->
     <div class="waveform-container">
       <div #waveformContainer class="waveform-inner"></div>
       <span class="preview-notice">Preview avec watermark (1:30)</span>
     </div>
 
-    <!-- ── RIGHT: time + meta + price + next + volume ────────────────── -->
+    <!-- ── RIGHT: time + contextual section + volume + next ────────────── -->
     <div class="player-controls">
 
       <div class="player-time">
@@ -49,23 +49,46 @@
         <span>{{ formatTime(player.duration()) }}</span>
       </div>
 
-      <div class="player-metadata">
-        @if (player.currentTrack()?.bpm) {
-          <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
-        }
-        @if (player.currentTrack()?.key) {
-          <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
-        }
-        @if (player.currentTrack()?.style) {
-          <span class="player-meta-item">{{ player.currentTrack()!.style }}</span>
-        }
-        @if (player.currentTrack()?.price_mp3) {
-          <a class="player-meta-price"
-             [routerLink]="['/track', player.currentTrack()!.id]">
-            preview gratuite ou lease à partir de {{ ((player.currentTrack()!.price_mp3 ?? 0) + 5).toFixed(2) }}€
-          </a>
-        }
-      </div>
+      <!-- Default context: meta chips + price link -->
+      @if (!isDetailContext()) {
+        <div class="player-metadata">
+          @if (player.currentTrack()?.bpm) {
+            <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
+          }
+          @if (player.currentTrack()?.key) {
+            <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
+          }
+          @if (player.currentTrack()?.style) {
+            <span class="player-meta-item">{{ player.currentTrack()!.style }}</span>
+          }
+          @if (player.currentTrack()?.price_mp3) {
+            <a class="player-meta-price"
+               [routerLink]="['/track', player.currentTrack()!.id]">
+              preview gratuite ou lease à partir de
+              {{ (player.currentTrack()!.price_mp3 + 5).toFixed(2) }}€
+            </a>
+          }
+        </div>
+      }
+
+      <!-- Track-detail context: Download + REC buttons -->
+      @if (isDetailContext()) {
+        <div class="player-context-actions">
+          <button class="btn-download" (click)="onDownloadClick()" title="Télécharger la preview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Télécharger
+          </button>
+          <button class="btn-rec" (click)="onRecClick()" title="Enregistrer une topline">
+            <span class="rec-dot"></span>
+            REC
+          </button>
+        </div>
+      }
 
       <div class="volume-control">
         <svg class="volume-icon" viewBox="0 0 24 24">
@@ -75,8 +98,7 @@
         </svg>
         <input
           class="volume-slider"
-          type="range"
-          min="0" max="1" step="0.02"
+          type="range" min="0" max="1" step="0.02"
           [value]="player.volume()"
           (input)="onVolumeChange($event)"
           aria-label="Volume">
@@ -89,6 +111,25 @@
       </button>
 
     </div>
-
   </div>
+
+  <!-- ── Confirmation modal ─────────────────────────────────────────────── -->
+  @if (showConfirmModal()) {
+    <div class="confirm-modal-backdrop" (click)="cancelModal()">
+      <div class="confirm-modal" (click)="$event.stopPropagation()">
+        <p class="confirm-msg">
+          Le player joue actuellement
+          <strong>{{ player.currentTrack()?.title }}</strong>.
+        </p>
+        <p class="confirm-sub">
+          Charger <strong>{{ player.viewingTrack()?.title }}</strong> pour continuer&nbsp;?
+        </p>
+        <div class="confirm-actions">
+          <button class="btn-confirm-yes" (click)="confirmLoadTrack()">Oui, charger</button>
+          <button class="btn-confirm-no"  (click)="cancelModal()">Annuler</button>
+        </div>
+      </div>
+    </div>
+  }
+
 </div>

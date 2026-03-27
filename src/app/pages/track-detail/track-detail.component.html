@@ -18,9 +18,22 @@
 
     <!-- ── HERO ────────────────────────────────────────────────────────── -->
     <section class="track-hero">
-      <div class="track-hero-cover">
+      <div class="track-hero-cover"
+           [class.is-playing]="isThisTrackPlaying()"
+           (click)="playThisTrack()">
         <img [src]="getImageUrl(track()!.image_file)" [alt]="track()!.title"
              onerror="this.src='assets/placeholder-track.png'">
+        <div class="cover-play-overlay">
+          @if (isThisTrackPlaying()) {
+            <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+              <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+              <polygon points="5,3 19,12 5,21"/>
+            </svg>
+          }
+        </div>
       </div>
 
       <div class="track-hero-info">

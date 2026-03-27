@@ -1,84 +1,108 @@
-<div class="recorder-panel">
-  <div class="recorder-header">
-    <h3><i class="bi bi-mic-fill"></i> Enregistrer une topline</h3>
-    <button class="btn-close-panel" (click)="closed.emit()">✕</button>
+<!-- Modal backdrop — click outside = close -->
+<div class="recorder-backdrop" (click)="closed.emit()">
+
+  <!-- Modal box -->
+  <div class="recorder-modal" (click)="$event.stopPropagation()">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="recorder-header">
+      <h3><i class="bi bi-mic-fill"></i> Enregistrer une topline</h3>
+      <button class="btn-close-modal" (click)="closed.emit()" aria-label="Fermer">&#x2715;</button>
+    </div>
+
+    @if (errorMsg()) {
+      <div class="recorder-error">{{ errorMsg() }}</div>
+    }
+
+    <!-- ── IDLE ────────────────────────────────────────────────────────────── -->
+    @if (state() === 'idle') {
+      <div class="recorder-idle">
+        <div class="recorder-options">
+          <label class="option-toggle">
+            <input type="checkbox" [(ngModel)]="useAutotune">
+            <span>Auto-tune <small>({{ track.key }})</small></span>
+          </label>
+          <label class="option-toggle">
+            <input type="checkbox" [(ngModel)]="useMonitor">
+            <span>Monitoring <small>(m'entendre en direct)</small></span>
+          </label>
+        </div>
+        <div class="description-field">
+          <label>Description <small>(optionnel)</small></label>
+          <input type="text" maxlength="200" [(ngModel)]="description"
+                 placeholder="Décrivez votre topline…">
+        </div>
+        <button class="btn-start-rec" (click)="startRecording()">
+          <span class="rec-dot-btn"></span> Démarrer l'enregistrement
+        </button>
+
+        <div class="recorder-tips">
+          <p class="tips-title"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
+          <ul>
+            <li><strong>Beat en fond</strong> — le beat joue pendant l'enregistrement, chantez par-dessus.</li>
+            <li><strong>Monitoring</strong> — si activé, vous vous entendez en temps réel (~10 ms de latence). Utilisez un casque pour éviter le larsen.</li>
+            <li><strong>Auto-tune</strong> — correction de justesse appliquée après l'enregistrement selon la gamme {{ track.key }}.</li>
+            <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }}s · maximum {{ MAX_SECONDS }}s ({{ formatTimer(MAX_SECONDS) }}).</li>
+            <li><strong>Preview</strong> — écoutez le mix voix+beat avant de publier ou supprimer.</li>
+          </ul>
+        </div>
+      </div>
+    }
+
+    <!-- ── RECORDING ───────────────────────────────────────────────────────── -->
+    @if (state() === 'recording') {
+      <div class="recorder-recording">
+        <div class="recording-indicator">
+          <span class="rec-dot"></span>
+          <span class="rec-label">REC</span>
+          <span class="rec-timer">{{ formatTimer(timer()) }} / {{ formatTimer(MAX_SECONDS) }}</span>
+        </div>
+        <canvas #visualizerCanvas class="visualizer" width="460" height="80"></canvas>
+        <button class="btn-stop-rec" (click)="stopRecording()">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+            <rect x="4" y="4" width="16" height="16"/>
+          </svg>
+          Terminer l'enregistrement
+        </button>
+      </div>
+    }
+
+    <!-- ── PROCESSING ──────────────────────────────────────────────────────── -->
+    @if (state() === 'processing') {
+      <div class="recorder-processing">
+        <div class="processing-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <p>Traitement en cours…</p>
+        <p class="processing-hint">Fusion de la voix avec le beat, application des effets…</p>
+      </div>
+    }
+
+    <!-- ── RESULT ──────────────────────────────────────────────────────────── -->
+    @if (state() === 'result' && resultTopline()) {
+      <div class="recorder-result">
+        <p class="result-title">
+          <i class="bi bi-check-circle-fill"></i> Enregistrement terminé !
+        </p>
+        <button class="btn-play-result" (click)="playResult()">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <polygon points="5,3 19,12 5,21"/>
+          </svg>
+          Écouter le mix
+        </button>
+        <div class="result-actions">
+          <button class="btn-publish" (click)="publishResult()">
+            <i class="bi bi-cloud-upload-fill"></i> Publier
+          </button>
+          <button class="btn-delete" (click)="deleteResult()">
+            <i class="bi bi-trash3"></i> Supprimer
+          </button>
+          <button class="btn-retry" (click)="resetToIdle()">
+            <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
+          </button>
+        </div>
+      </div>
+    }
+
   </div>
-
-  @if (errorMsg()) {
-    <div class="recorder-error">{{ errorMsg() }}</div>
-  }
-
-  <!-- ── IDLE ───────────────────────────────────────────────────────────── -->
-  @if (state() === 'idle') {
-    <div class="recorder-idle">
-      <div class="recorder-options">
-        <label class="option-toggle">
-          <input type="checkbox" [(ngModel)]="useAutotune">
-          <span>Auto-tune</span>
-        </label>
-        <label class="option-toggle">
-          <input type="checkbox" [(ngModel)]="useMonitor">
-          <span>Monitoring (m'entendre en direct)</span>
-        </label>
-      </div>
-      <div class="description-field">
-        <label>Description (optionnel)</label>
-        <input type="text" maxlength="200" [(ngModel)]="description"
-               placeholder="Décrivez votre topline…">
-      </div>
-      <button class="btn-start-rec" (click)="startRecording()">
-        <i class="bi bi-record-circle"></i> Démarrer l'enregistrement
-      </button>
-      <p class="recorder-hint">Le beat jouera pendant l'enregistrement. Durée max : {{ MAX_SECONDS }}s.</p>
-    </div>
-  }
-
-  <!-- ── RECORDING ──────────────────────────────────────────────────────── -->
-  @if (state() === 'recording') {
-    <div class="recorder-recording">
-      <div class="recording-indicator">
-        <span class="rec-dot"></span>
-        <span class="rec-label">REC</span>
-        <span class="rec-timer">{{ formatTimer(timer()) }} / {{ formatTimer(MAX_SECONDS) }}</span>
-      </div>
-      <canvas #visualizerCanvas class="visualizer" width="400" height="80"></canvas>
-      <button class="btn-stop-rec" (click)="stopRecording()">
-        <i class="bi bi-stop-fill"></i> Terminer l'enregistrement
-      </button>
-    </div>
-  }
-
-  <!-- ── PROCESSING ─────────────────────────────────────────────────────── -->
-  @if (state() === 'processing') {
-    <div class="recorder-processing">
-      <div class="processing-dots">
-        <span></span><span></span><span></span>
-      </div>
-      <p>Traitement en cours<span class="dots-anim">...</span></p>
-      <p class="processing-hint">Fusion de la voix avec le beat, application des effets…</p>
-    </div>
-  }
-
-  <!-- ── RESULT ─────────────────────────────────────────────────────────── -->
-  @if (state() === 'result' && resultTopline()) {
-    <div class="recorder-result">
-      <p class="result-title"><i class="bi bi-check-circle-fill"></i> Enregistrement terminé !</p>
-      <button class="btn-play-result" (click)="playResult()">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
-        Écouter le mix
-      </button>
-      <div class="result-actions">
-        <button class="btn-publish" (click)="publishResult()">
-          <i class="bi bi-cloud-upload-fill"></i> Publier
-        </button>
-        <button class="btn-delete" (click)="deleteResult()">
-          <i class="bi bi-trash3"></i> Supprimer
-        </button>
-        <button class="btn-retry" (click)="resetToIdle()">
-          <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
-        </button>
-      </div>
-    </div>
-  }
-
 </div>

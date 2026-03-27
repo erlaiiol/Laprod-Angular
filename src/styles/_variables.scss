@@ -1,0 +1,60 @@
+// ════════════════════════════════════════════════════════════════════════════
+// LaProd — Global SCSS variables
+// Usage in any component:  @use 'variables' as v;  then v.$tag-violet etc.
+// CSS custom properties are also emitted on :root (see styles.scss),
+// so  var(--tag-violet)  works everywhere without any import.
+// ════════════════════════════════════════════════════════════════════════════
+
+@use 'sass:color';
+
+// ── Tag palette  (matches /admin/categories.html preset palette) ─────────────
+
+// Main colors — vibrant, used as badge background / border accent
+$tag-violet:  #8b5cf6;
+$tag-blue:    #3b82f6;
+$tag-red:     #ef4444;
+$tag-orange:  #f97316;
+$tag-green:   #10b981;
+$tag-pink:    #ec4899;
+
+// Light variants — 40 % white tint; readable as text on dark surfaces
+$tag-violet-light:  color.mix(#fff, $tag-violet, 40%);  // ≈ #bba8f9
+$tag-blue-light:    color.mix(#fff, $tag-blue,   40%);  // ≈ #8cb3f9
+$tag-red-light:     color.mix(#fff, $tag-red,    40%);  // ≈ #f59090
+$tag-orange-light:  color.mix(#fff, $tag-orange, 40%);  // ≈ #faa87a
+$tag-green-light:   color.mix(#fff, $tag-green,  40%);  // ≈ #5dcca2
+$tag-pink-light:    color.mix(#fff, $tag-pink,   40%);  // ≈ #f281b5
+
+// Dark variants — deep tinted backgrounds (from admin preset palette)
+$tag-violet-dark: #150e27;
+$tag-blue-dark:   #0a172b;
+$tag-red-dark:    #250b0b;
+$tag-orange-dark: #221500;
+$tag-green-dark:  #031f15;
+$tag-pink-dark:   #250c19;
+
+// ── Neutral — for uncolored / "other" tags ────────────────────────────────────
+$tag-neutral:       #6b7280;  // gray-500
+$tag-neutral-light: #9ca3af;  // gray-400 — text on dark surface
+$tag-neutral-dark:  #1f2937;  // gray-800 — badge background
+
+// ── App background layers (dark blue — NOT grey) ─────────────────────────────
+$bg-base:     #212429;  // body — slate-900 (deep dark blue)
+$bg-surface:  #393d47;  // cards, modals, panels
+$bg-elevated: #374151;  // hover, active states, input backgrounds
+$bg-border:   #374151;  // default border colour
+$bg-border-subtle: #4b5563; // slightly lighter border (hover etc.)
+
+// ── Text ──────────────────────────────────────────────────────────────────────
+$text-primary:   #f3f4f6;  // almost-white — default body text
+$text-secondary: #9ca3af;  // gray-400 — labels, meta
+$text-muted:     #6b7280;  // gray-500 — hints, placeholders
+
+// ── Whites ────────────────────────────────────────────────────────────────────
+$white:     #ffffff;
+$off-white: #f3f4f6;  // same as $text-primary; alias for clarity
+
+// ── Brand accent (violet — matches Bootstrap Icons and primary CTA) ────────────
+$accent:         #a78bfa;  // violet-400
+$accent-dark:    #7c3aed;  // violet-600 — hover
+$accent-darker:  #6d28d9;  // violet-700 — active / pressed

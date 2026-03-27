@@ -1,4 +1,7 @@
-import { Component, OnInit, signal, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component, OnInit, OnDestroy, signal, inject,
+  ChangeDetectionStrategy, ChangeDetectorRef, effect
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { TrackService, TrackDetail, PublishedTopline } from '../../services/track.service';
@@ -14,18 +17,28 @@ import { ToplineRecorderComponent } from '../../components/topline-recorder/topl
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TrackDetailComponent implements OnInit {
+export class TrackDetailComponent implements OnInit, OnDestroy {
 
-  track   = signal<TrackDetail | null>(null);
-  loading = signal(true);
-  error   = signal<string | null>(null);
+  track        = signal<TrackDetail | null>(null);
+  loading      = signal(true);
+  error        = signal<string | null>(null);
   showRecorder = signal(false);
 
-  private route       = inject(ActivatedRoute);
-  private trackSvc    = inject(TrackService);
-  player              = inject(PlayerService);
-  auth                = inject(AuthService);
-  private cdr         = inject(ChangeDetectorRef);
+  private route    = inject(ActivatedRoute);
+  private trackSvc = inject(TrackService);
+  player           = inject(PlayerService);
+  auth             = inject(AuthService);
+  private cdr      = inject(ChangeDetectorRef);
+
+  constructor() {
+    // Open the recorder whenever the player requests it
+    effect(() => {
+      if (this.player.recRequested() > 0 && this.track()) {
+        this.showRecorder.set(true);
+        this.cdr.markForCheck();
+      }
+    });
+  }
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -34,9 +47,10 @@ export class TrackDetailComponent implements OnInit {
     this.trackSvc.getTrackDetail(id).subscribe({
       next: (res) => {
         if (res.success && res.data?.track) {
-          this.track.set(res.data.track);
-          // Auto-play preview
-          this.player.play(res.data.track as any);
+          const t = res.data.track;
+          this.track.set(t);
+          // Register this page's track as the viewing context (no auto-play)
+          this.player.viewingTrack.set(t as any);
         } else {
           this.error.set('Track introuvable.');
         }
@@ -51,13 +65,13 @@ export class TrackDetailComponent implements OnInit {
     });
   }
 
-  getImageUrl(path: string | null | undefined): string {
-    if (!path) return 'assets/placeholder-track.png';
-    return this.trackSvc.getStaticFileUrl(path);
+  ngOnDestroy(): void {
+    this.player.viewingTrack.set(null);
+    this.player.recRequested.set(0);
   }
 
-  getAudioUrl(path: string | null | undefined): string {
-    if (!path) return '';
+  getImageUrl(path: string | null | undefined): string {
+    if (!path) return 'assets/placeholder-track.png';
     return this.trackSvc.getStaticFileUrl(path);
   }
 
@@ -69,8 +83,22 @@ export class TrackDetailComponent implements OnInit {
     return new Date(iso).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
+  isThisTrackPlaying(): boolean {
+    const t = this.track();
+    return !!t && this.player.currentTrack()?.id === t.id && this.player.isPlaying();
+  }
+
+  playThisTrack(): void {
+    const t = this.track();
+    if (!t) return;
+    if (this.player.currentTrack()?.id === t.id) {
+      this.player.togglePlay();
+    } else {
+      this.player.play(t as any);
+    }
+  }
+
   playTopline(tl: PublishedTopline): void {
-    // Build a minimal Track-like object for the player
     const t = this.track();
     if (!t) return;
     this.player.play({
