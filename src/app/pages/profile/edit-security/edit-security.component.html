@@ -1,0 +1,128 @@
+<div class="sec-wrapper">
+  <div class="sec-card">
+
+    <div class="sec-header">
+      <h2><i class="bi bi-shield-lock-fill"></i> Sécurité du compte</h2>
+      <a [routerLink]="['/profile', auth.currentUser()?.username]" class="back-link">
+        <i class="bi bi-arrow-left"></i> Retour au profil
+      </a>
+    </div>
+
+    @if (error())   { <div class="form-feedback form-feedback--error">{{ error() }}</div> }
+    @if (success()) { <div class="form-feedback form-feedback--success">{{ success() }}</div> }
+
+    <!-- ── Cas OAuth sans mot de passe ────────────────────────────────────── -->
+    @if (isOAuth() && !hasPassword()) {
+      <div class="info-band">
+        <i class="bi bi-google"></i>
+        Votre compte est lié à Google. Définissez un mot de passe pour pouvoir modifier vos paramètres de sécurité.
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">Définir un mot de passe</h3>
+
+        <div class="field">
+          <label>Nouveau mot de passe</label>
+          <div class="pwd-input">
+            <input [type]="showNewPwd() ? 'text' : 'password'" placeholder="Min. 9 caractères"
+              [ngModel]="setPassword()" (ngModelChange)="setPassword.set($event)" />
+            <button type="button" class="pwd-toggle" (click)="showNewPwd.update(v => !v)">
+              <i [class]="showNewPwd() ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Confirmer le mot de passe</label>
+          <input type="password" placeholder="Répétez le mot de passe"
+            [ngModel]="setPasswordConfirm()" (ngModelChange)="setPasswordConfirm.set($event)" />
+        </div>
+
+        <p class="field-hint">Minuscule, majuscule, chiffre · min. 9 caractères</p>
+
+        <button type="button" class="btn-submit" [disabled]="loading()" (click)="onSetPassword()">
+          @if (loading()) { <span class="spinner"></span> } @else { <i class="bi bi-check-lg"></i> }
+          Définir le mot de passe
+        </button>
+      </div>
+    }
+
+    <!-- ── Formulaire principal ────────────────────────────────────────────── -->
+    @if (!isOAuth() || hasPassword()) {
+
+      @if (isOAuth()) {
+        <div class="info-band">
+          <i class="bi bi-google"></i>
+          Compte Google · vous avez défini un mot de passe local.
+        </div>
+      }
+
+      <!-- Vérification mot de passe actuel -->
+      <div class="form-section">
+        <h3 class="section-title"><i class="bi bi-lock-fill"></i> Vérification</h3>
+        <div class="field">
+          <label>Mot de passe actuel</label>
+          <div class="pwd-input">
+            <input [type]="showCurrentPwd() ? 'text' : 'password'" placeholder="Votre mot de passe actuel"
+              [ngModel]="currentPassword()" (ngModelChange)="currentPassword.set($event)" />
+            <button type="button" class="pwd-toggle" (click)="showCurrentPwd.update(v => !v)">
+              <i [class]="showCurrentPwd() ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Changer le username -->
+      <div class="form-section">
+        <h3 class="section-title"><i class="bi bi-person-fill"></i> Nom d'utilisateur</h3>
+        <div class="field">
+          <label>Nouveau nom d'utilisateur</label>
+          <input type="text" [placeholder]="currentUsername()"
+            [ngModel]="newUsername()" (ngModelChange)="newUsername.set($event)" />
+          <small class="field-hint">3–20 caractères, lettres/chiffres/underscore uniquement</small>
+        </div>
+      </div>
+
+      <!-- Changer le mot de passe -->
+      <div class="form-section">
+        <h3 class="section-title"><i class="bi bi-key-fill"></i> Mot de passe</h3>
+        <div class="field">
+          <label>Nouveau mot de passe</label>
+          <div class="pwd-input">
+            <input [type]="showNewPwd() ? 'text' : 'password'" placeholder="Laisser vide pour ne pas changer"
+              [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)" />
+            <button type="button" class="pwd-toggle" (click)="showNewPwd.update(v => !v)">
+              <i [class]="showNewPwd() ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Confirmer le nouveau mot de passe</label>
+          <input type="password" placeholder="Répétez le nouveau mot de passe"
+            [ngModel]="newPasswordConfirm()" (ngModelChange)="newPasswordConfirm.set($event)" />
+        </div>
+      </div>
+
+      <!-- Changer l'email -->
+      <div class="form-section">
+        <h3 class="section-title"><i class="bi bi-envelope-fill"></i> Adresse email</h3>
+        <div class="field">
+          <label>Nouvel email</label>
+          <input type="email" placeholder="Laisser vide pour ne pas changer"
+            [ngModel]="newEmail()" (ngModelChange)="newEmail.set($event)" />
+          <small class="field-hint">Un lien de vérification sera envoyé à la nouvelle adresse.</small>
+        </div>
+      </div>
+
+      <button type="button" class="btn-submit" [disabled]="loading() || !currentPassword()" (click)="onSubmit()">
+        @if (loading()) { <span class="spinner"></span> Enregistrement… }
+        @else { <i class="bi bi-check-lg"></i> Enregistrer les modifications }
+      </button>
+    }
+
+    <a [routerLink]="['/profile/edit']" class="link-back">
+      <i class="bi bi-person-fill"></i> Informations de profil
+    </a>
+
+  </div>
+</div>

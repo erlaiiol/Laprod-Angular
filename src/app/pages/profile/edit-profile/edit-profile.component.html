@@ -1,0 +1,145 @@
+<div class="edit-wrapper">
+  <div class="edit-card">
+
+    <div class="edit-header">
+      <h2><i class="bi bi-person-fill"></i> Informations de profil</h2>
+      <a [routerLink]="['/profile', auth.currentUser()?.username]" class="back-link">
+        <i class="bi bi-arrow-left"></i> Retour au profil
+      </a>
+    </div>
+
+    @if (error())   { <div class="form-feedback form-feedback--error">{{ error() }}</div> }
+    @if (success()) { <div class="form-feedback form-feedback--success">{{ success() }}</div> }
+
+    <!-- ── Avatar ─────────────────────────────────────────────────────────── -->
+    <div class="avatar-section">
+      <div class="avatar-preview">
+        <img [src]="avatarPreview() ?? imgUrl(auth.currentUser()?.profile_image ?? '')" alt="Avatar" />
+      </div>
+      <div class="avatar-upload">
+        <label for="avatarInput" class="file-label">
+          <i class="bi bi-upload"></i>
+          {{ selectedFile() ? selectedFile()!.name : 'Changer la photo de profil' }}
+        </label>
+        <input type="file" id="avatarInput" accept="image/*" (change)="onAvatarChange($event)" hidden />
+        <small class="hint">JPG, PNG, WebP · max 5 MB</small>
+      </div>
+    </div>
+
+    <!-- ── Bio ────────────────────────────────────────────────────────────── -->
+    <div class="field">
+      <label>Biographie</label>
+      <textarea rows="4" placeholder="Décrivez-vous…" [ngModel]="bio()" (ngModelChange)="bio.set($event)"></textarea>
+    </div>
+
+    <!-- ── Signature légale ────────────────────────────────────────────────── -->
+    <div class="field">
+      <label>Signature légale</label>
+      <input type="text" placeholder="Prénom Nom (pour les contrats)" [ngModel]="signature()" (ngModelChange)="signature.set($event)" />
+    </div>
+
+    <!-- ── Réseaux sociaux ────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-share-fill"></i> Réseaux sociaux</h3>
+      <div class="social-grid">
+        <div class="field field--inline">
+          <label><i class="bi bi-instagram"></i> Instagram</label>
+          <div class="input-prefix"><span>@</span>
+            <input type="text" placeholder="username" [ngModel]="instagram()" (ngModelChange)="instagram.set($event)" />
+          </div>
+        </div>
+        <div class="field field--inline">
+          <label><i class="bi bi-twitter-x"></i> Twitter</label>
+          <div class="input-prefix"><span>@</span>
+            <input type="text" placeholder="username" [ngModel]="twitter()" (ngModelChange)="twitter.set($event)" />
+          </div>
+        </div>
+        <div class="field field--inline">
+          <label><i class="bi bi-youtube"></i> YouTube</label>
+          <div class="input-prefix"><span>&#64;</span>
+            <input type="text" placeholder="channel" [ngModel]="youtube()" (ngModelChange)="youtube.set($event)" />
+          </div>
+        </div>
+        <div class="field field--inline">
+          <label><i class="bi bi-soundwave"></i> SoundCloud</label>
+          <div class="input-prefix"><span>/</span>
+            <input type="text" placeholder="profile" [ngModel]="soundcloud()" (ngModelChange)="soundcloud.set($event)" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Rôles ───────────────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-tags-fill"></i> Rôles</h3>
+      <div class="roles-grid">
+        <label class="role-toggle" [class.active]="isArtist()">
+          <input type="checkbox" [checked]="isArtist()" (change)="isArtist.set(!isArtist())" hidden />
+          <i class="bi bi-mic-fill"></i>
+          <span>Interprète / Chanteur</span>
+        </label>
+        <label class="role-toggle" [class.active]="isBeatmaker()">
+          <input type="checkbox" [checked]="isBeatmaker()" (change)="isBeatmaker.set(!isBeatmaker())" hidden />
+          <i class="bi bi-music-note-beamed"></i>
+          <span>Beatmaker</span>
+        </label>
+        <label class="role-toggle" [class.active]="isMixEngineer()">
+          <input type="checkbox" [checked]="isMixEngineer()" (change)="isMixEngineer.set(!isMixEngineer())" hidden />
+          <i class="bi bi-sliders"></i>
+          <span>Mix / Master Engineer</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- ── Mixmaster certifié ──────────────────────────────────────────────── -->
+    @if (isMixmasterCertified()) {
+      <div class="form-section">
+        <h3 class="section-title"><i class="bi bi-award-fill text-yellow"></i> Paramètres Mix/Master</h3>
+
+        <div class="two-col">
+          <div class="field">
+            <label>Prix de référence (€)</label>
+            <input type="number" min="10" max="500" step="5"
+              [ngModel]="refPrice()" (ngModelChange)="refPrice.set($event)" />
+          </div>
+          <div class="field">
+            <label>Prix minimum (€)</label>
+            <input type="number" min="10" step="5"
+              [ngModel]="priceMin()" (ngModelChange)="priceMin.set($event)" />
+          </div>
+        </div>
+        <p class="field-hint">
+          Une demande de modification sera envoyée à l'admin si vos prix existants changent.
+        </p>
+
+        @if (!isCertifiedProducer() && !producerReqSubmitted()) {
+          <label class="check-line">
+            <input type="checkbox" [checked]="requestProducerArranger()"
+              (change)="requestProducerArranger.set(!requestProducerArranger())" />
+            Demander la certification <strong>Producteur/Arrangeur</strong> (+60%)
+          </label>
+        }
+        @if (producerReqSubmitted()) {
+          <p class="info-band"><i class="bi bi-clock"></i> Demande Producteur/Arrangeur en cours d'examen.</p>
+        }
+        @if (isCertifiedProducer()) {
+          <p class="info-band info-band--success"><i class="bi bi-check-circle-fill"></i> Certification Producteur/Arrangeur obtenue !</p>
+        }
+      </div>
+    }
+
+    <!-- ── Submit ──────────────────────────────────────────────────────────── -->
+    <button type="button" class="btn-submit" [disabled]="loading()" (click)="onSubmit()">
+      @if (loading()) {
+        <span class="spinner"></span> Enregistrement…
+      } @else {
+        <i class="bi bi-check-lg"></i> Enregistrer les modifications
+      }
+    </button>
+
+    <a [routerLink]="['/profile/security']" class="link-security">
+      <i class="bi bi-shield-lock"></i> Modifier username / mot de passe / email
+    </a>
+
+  </div>
+</div>

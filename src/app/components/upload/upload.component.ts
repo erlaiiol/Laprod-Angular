@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { UploadService, UploadTrackData } from '../../services/upload.service';
+import { TagsService } from '../../services/tags.service';
 
 interface Tag {
   id: number;
@@ -38,7 +39,8 @@ export class UploadComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private uploadService: UploadService
+    private uploadService: UploadService,
+    private tagsService: TagsService
   ) {
     this.uploadForm = this.fb.group({
       title: ['', [Validators.required, Validators.minLength(1), Validators.maxLength(100)]],

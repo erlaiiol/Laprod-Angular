@@ -1,0 +1,67 @@
+<div class="contact-wrapper">
+  <div class="contact-card">
+
+    @if (success()) {
+      <div class="success-state">
+        <i class="bi bi-envelope-check-fill success-icon"></i>
+        <h2>Message envoyé !</h2>
+        <p>Notre équipe vous répondra dans les meilleurs délais. Une confirmation vous a été envoyée par email.</p>
+        <button type="button" class="btn-submit" (click)="reset()">
+          Envoyer un autre message
+        </button>
+      </div>
+    } @else {
+
+      <div class="contact-header">
+        <h2><i class="bi bi-envelope-fill"></i> Contacter le support</h2>
+        <p>Une question, un problème ? Nous vous répondrons rapidement.</p>
+      </div>
+
+      @if (error()) {
+        <div class="form-error">{{ error() }}</div>
+      }
+
+      <div class="field">
+        <label for="subject">Sujet</label>
+        <input
+          type="text" id="subject"
+          placeholder="Décrivez brièvement votre demande"
+          [ngModel]="subject()" (ngModelChange)="subject.set($event)"
+        />
+      </div>
+
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea
+          id="message" rows="6"
+          placeholder="Décrivez votre problème en détail…"
+          [ngModel]="message()" (ngModelChange)="message.set($event)"
+        ></textarea>
+      </div>
+
+      @if (ref()) {
+        <div class="ref-band">
+          <i class="bi bi-link-45deg"></i>
+          Référence : <strong>{{ ref() }}</strong>
+        </div>
+      }
+
+      <button
+        type="button" class="btn-submit"
+        [disabled]="!canSubmit()"
+        (click)="onSubmit()"
+      >
+        @if (loading()) {
+          <span class="spinner"></span> Envoi en cours…
+        } @else {
+          <i class="bi bi-send-fill"></i> Envoyer le message
+        }
+      </button>
+
+      <p class="contact-hint">
+        Ou écrivez directement à <strong>contact&#64;laprod.net</strong>
+      </p>
+
+    }
+  </div>
+</div>

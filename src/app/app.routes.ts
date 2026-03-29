@@ -12,6 +12,11 @@ import { OauthCallbackComponent }   from './pages/auth/oauth-callback/oauth-call
 import { CompleteProfileComponent } from './pages/auth/complete-profile/complete-profile.component';
 import { SelectRoleComponent }           from './pages/auth/select-role/select-role.component';
 import { SubmitMixmasterSampleComponent } from './pages/auth/submit-mixmaster-sample/submit-mixmaster-sample.component';
+import { ProfileComponent }       from './pages/profile/profile.component';
+import { EditProfileComponent }   from './pages/profile/edit-profile/edit-profile.component';
+import { EditSecurityComponent }  from './pages/profile/edit-security/edit-security.component';
+import { NotificationsComponent } from './pages/notifications/notifications.component';
+import { ContactComponent }       from './pages/contact/contact.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -25,4 +30,9 @@ export const routes: Routes = [
   { path: 'contract/:trackId/:format',     component: ContractConfigComponent },
   { path: 'wallet',                        component: WalletComponent },
   { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent },
+  { path: 'profile/edit',                  component: EditProfileComponent },
+  { path: 'profile/security',              component: EditSecurityComponent },
+  { path: 'profile/:username',             component: ProfileComponent },
+  { path: 'notifications',                 component: NotificationsComponent },
+  { path: 'contact',                       component: ContactComponent },
 ];

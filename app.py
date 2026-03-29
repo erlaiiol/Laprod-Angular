@@ -198,7 +198,6 @@ def create_app():
     
     from routes import (
         auth_bp,
-        main_bp,
         tracks_bp,
         admin_bp,
         payment_bp,
@@ -222,10 +221,10 @@ def create_app():
         cud_wallet_api_bp,
         contracts_api_bp,
         stripe_connect_api_bp,
+        main_api_bp,
     )
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)
     app.register_blueprint(tracks_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(payment_bp)
@@ -249,6 +248,7 @@ def create_app():
     app.register_blueprint(cud_wallet_api_bp)
     app.register_blueprint(contracts_api_bp)
     app.register_blueprint(stripe_connect_api_bp)
+    app.register_blueprint(main_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

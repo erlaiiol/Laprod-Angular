@@ -1,0 +1,331 @@
+.profile-wrapper {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem 4rem;
+}
+
+/* ── Loading / Erreur ─────────────────────────────────────────────────────── */
+
+.page-loading {
+  display: flex;
+  justify-content: center;
+  padding: 5rem 0;
+}
+
+.page-error {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #6c757d;
+  i { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+  p { margin: 0; }
+}
+
+/* ── En-tête profil ───────────────────────────────────────────────────────── */
+
+.profile-header {
+  display: flex;
+  gap: 1.5rem;
+  background: #2c3034;
+  border: 1px solid #495057;
+  border-radius: 8px;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+
+  img {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #495057;
+  }
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-username {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin: 0 0 0.5rem;
+}
+
+.role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.artist        { background: rgba(13, 202, 240, 0.15); color: #0dcaf0; }
+  &.beatmaker     { background: rgba(25, 135, 84, 0.15);  color: #198754; }
+  &.mix-certified { background: rgba(255, 193, 7, 0.2);   color: #ffc107; }
+  &.mix           { background: rgba(108, 117, 125, 0.2); color: #adb5bd; }
+}
+
+.profile-since {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0 0 0.6rem;
+}
+
+.profile-bio {
+  font-size: 0.9rem;
+  color: #ced4da;
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #495057;
+  border-radius: 4px;
+  color: #adb5bd;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover { color: #f8f9fa; border-color: #6c757d; }
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────────── */
+
+.profile-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+
+  @media (max-width: 640px) {
+    align-items: center;
+    width: 100%;
+  }
+}
+
+.stat-box {
+  text-align: center;
+  margin-bottom: 0.25rem;
+
+  strong {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f8f9fa;
+  }
+
+  span { font-size: 0.75rem; color: #6c757d; }
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #495057;
+  border-radius: 6px;
+  color: #adb5bd;
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+
+  &:hover          { border-color: #6ea8fe; color: #6ea8fe; }
+  &--sec:hover     { border-color: #ffc107; color: #ffc107; }
+  &--wallet:hover  { border-color: #198754; color: #75b798; }
+}
+
+/* ── Tracks ───────────────────────────────────────────────────────────────── */
+
+.tracks-section { }
+
+.tracks-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin-bottom: 1rem;
+}
+
+.empty-state {
+  color: #6c757d;
+  font-size: 0.9rem;
+  padding: 1.5rem;
+  background: #2c3034;
+  border: 1px solid #495057;
+  border-radius: 6px;
+  margin: 0;
+}
+
+.tracks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #2c3034;
+  border: 1px solid #3d4449;
+  border-radius: 6px;
+  padding: 0.75rem;
+  transition: border-color 0.15s;
+
+  &:hover { border-color: #495057; }
+}
+
+.track-cover {
+  flex-shrink: 0;
+  position: relative;
+  width: 56px;
+  height: 56px;
+  cursor: pointer;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .play-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: #fff;
+    font-size: 1.25rem;
+  }
+
+  &:hover .play-overlay { opacity: 1; }
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-title {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #f8f9fa;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover { color: #6ea8fe; }
+}
+
+.badge-pending {
+  display: inline-block;
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.track-meta {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+}
+
+.track-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.tag {
+  font-size: 0.7rem;
+  color: #6c757d;
+  background: rgba(108, 117, 125, 0.15);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+
+.track-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.track-price {
+  font-size: 0.78rem;
+  color: #75b798;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover { color: #a3cfbb; }
+}
+
+.track-edit {
+  font-size: 0.85rem;
+  color: #6c757d;
+  text-decoration: none;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #495057;
+  border-radius: 4px;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover { color: #adb5bd; border-color: #6c757d; }
+}
+
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
+
+.spinner-lg {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #495057;
+  border-top-color: #6ea8fe;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

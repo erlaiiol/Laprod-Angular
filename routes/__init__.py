@@ -5,7 +5,6 @@ Importe tous les blueprints pour faciliter leur enregistrement dans app.py
 
 # Blueprints actuellement créés
 from .auth import auth_bp
-from .main import main_bp
 from .api import api_bp
 from .admin import admin_bp
 from .audio import audio_bp
@@ -29,11 +28,11 @@ from .wallet_api import wallet_api_bp
 from .cud_wallet_api import cud_wallet_api_bp
 from .contracts_api import contracts_api_bp
 from .stripe_connect_api import stripe_connect_api_bp
+from .main_api import main_api_bp
 
 
 __all__ = [
     'auth_bp',
-    'main_bp',
     'tracks_bp',
     'admin_bp',
     'api_bp',
@@ -57,4 +56,5 @@ __all__ = [
     'cud_wallet_api_bp',
     'contracts_api_bp',
     'stripe_connect_api_bp',
+    'main_api_bp',
 ]
