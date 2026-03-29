@@ -1,0 +1,75 @@
+<div class="register-wrapper">
+  <div class="register-card">
+
+    <h1 class="register-title">
+      <i class="bi bi-google" style="color:#4285f4;margin-right:0.4rem"></i>
+      Compléter votre profil
+    </h1>
+
+    <p class="intro-text">
+      Vous vous connectez avec Google pour la première fois.
+      Choisissez un nom d'utilisateur et une signature légale pour continuer.
+    </p>
+
+    @if (error()) {
+      <div class="alert-box alert-danger">{{ error() }}</div>
+    }
+
+    <form (ngSubmit)="onSubmit()" #profileForm="ngForm" novalidate>
+
+      <div class="field-group">
+        <label for="username">Nom d'utilisateur</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Entre 3 et 20 caractères (lettres, chiffres, _)"
+          autocomplete="username"
+          required
+          [(ngModel)]="username"
+        />
+      </div>
+
+      <div class="field-group">
+        <label for="signature">Signature artistique / légale</label>
+        <input
+          type="text"
+          id="signature"
+          name="signature"
+          placeholder="Nom sous lequel vous signez vos œuvres"
+          required
+          [(ngModel)]="signature"
+        />
+        <span class="field-hint">
+          Apparaîtra dans les contrats de licence générés par la plateforme.
+        </span>
+      </div>
+
+      <div class="field-check">
+        <input
+          type="checkbox"
+          id="acceptTerms"
+          name="acceptTerms"
+          required
+          [(ngModel)]="acceptTerms"
+        />
+        <label for="acceptTerms">
+          J'accepte les
+          <a routerLink="/terms" target="_blank" class="terms-link">
+            conditions générales d'utilisation
+          </a>
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary" [disabled]="loading()">
+        @if (loading()) {
+          <span class="spinner"></span> Enregistrement…
+        } @else {
+          Continuer
+        }
+      </button>
+
+    </form>
+
+  </div>
+</div>

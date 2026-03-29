@@ -1,54 +1,57 @@
 import { Component, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
-import { Router, RouterModule, RouterOutlet } from '@angular/router';
 import { finalize } from 'rxjs';
 
 @Component({
-  selector: 'app-register.component',
-  standalone : true,
-  imports: [],
+  selector: 'app-register',
+  standalone: true,
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
 })
 export class RegisterComponent {
 
-  username : string = '';
-  password : string = '';
-  password_confirm : string = '';
-  email : string = '';
-  signature = '';
+  username        = '';
+  email           = '';
+  password        = '';
+  passwordConfirm = '';
+  signature       = '';
+  acceptTerms     = false;
 
-  loading = signal(false)
+  loading        = signal(false);
+  error          = signal<string | null>(null);
+  confirmedEmail = signal<string | null>(null); // success state
 
-  constructor ( private authService : AuthService, private router : Router ){
+  constructor(private authService: AuthService) {}
 
-  }
-
-  onSubmit(){
-
+  onSubmit(): void {
     this.loading.set(true);
+    this.error.set(null);
 
     this.authService.register(
       this.username,
       this.password,
-      this.password_confirm,
+      this.passwordConfirm,
       this.email,
-      this.signature)
-      .pipe(
-      finalize(() => this.loading.set(false)))
+      this.signature,
+      this.acceptTerms,
+    ).pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {
-          if (res.success){
-            console.log('compte créé', res);
-            this.router.navigate(['/login'])
-          }
-          else {
-            console.log('échec à la création du compte.');
+          if (res.success) {
+            this.confirmedEmail.set(res.data?.user?.email ?? this.email);
+          } else {
+            this.error.set(res.feedback?.message ?? 'Erreur lors de l\'inscription.');
           }
         },
-        error : (err) => {
-          console.error(err);
-        }
+        error: (err) => {
+          this.error.set(
+            err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
+          );
+        },
       });
   }
 }

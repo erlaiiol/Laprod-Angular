@@ -1,0 +1,83 @@
+<div class="role-wrapper">
+  <div class="role-card">
+
+    <div class="role-header">
+      <h2>Bienvenue sur LaProd !</h2>
+      <p>Pour continuer, veuillez sélectionner votre(vos) rôle(s)</p>
+    </div>
+
+    <div class="role-info">
+      <i class="bi bi-info-circle"></i>
+      Vous pouvez sélectionner plusieurs rôles si vous êtes polyvalent.
+    </div>
+
+    @if (error()) {
+      <div class="role-error">{{ error() }}</div>
+    }
+
+    <div class="role-grid">
+
+      <!-- Interprète / Chanteur -->
+      <button
+        type="button"
+        class="role-btn"
+        [class.selected]="isArtist()"
+        (click)="toggle('artist')"
+      >
+        <i class="bi bi-mic-fill role-icon artist"></i>
+        <span class="role-name">Interprète / Chanteur</span>
+        <span class="role-desc">Vous enregistrez des toplines et cherchez des beats</span>
+        <span class="role-check" [class.visible]="isArtist()">
+          <i class="bi bi-check-circle-fill"></i>
+        </span>
+      </button>
+
+      <!-- Beatmaker / Compositeur -->
+      <button
+        type="button"
+        class="role-btn"
+        [class.selected]="isBeatmaker()"
+        (click)="toggle('beatmaker')"
+      >
+        <i class="bi bi-music-note-beamed role-icon beatmaker"></i>
+        <span class="role-name">Beatmaker / Compositeur</span>
+        <span class="role-desc">Vous produisez et vendez des instrumentales</span>
+        <span class="role-check" [class.visible]="isBeatmaker()">
+          <i class="bi bi-check-circle-fill"></i>
+        </span>
+      </button>
+
+      <!-- Mix / Master Engineer -->
+      <button
+        type="button"
+        class="role-btn"
+        [class.selected]="isMixEngineer()"
+        (click)="toggle('mix')"
+      >
+        <i class="bi bi-sliders role-icon mix"></i>
+        <span class="role-name">Mix / Master Engineer</span>
+        <span class="role-desc">Vous mixez et masterisez des tracks</span>
+        <span class="role-check" [class.visible]="isMixEngineer()">
+          <i class="bi bi-check-circle-fill"></i>
+        </span>
+      </button>
+
+    </div>
+
+    <button
+      type="button"
+      class="btn-submit"
+      [disabled]="loading() || !hasSelection()"
+      (click)="onSubmit()"
+    >
+      @if (loading()) {
+        <span class="spinner"></span> Enregistrement…
+      } @else {
+        Valider mon profil
+      }
+    </button>
+
+    <p class="role-hint">Vous devez sélectionner au moins un rôle pour continuer</p>
+
+  </div>
+</div>

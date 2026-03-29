@@ -20,39 +20,30 @@ export class LoginComponent {
   remember : boolean = false;
 
   loading = signal(false);
+  error   = signal<string | null>(null);
 
-  constructor(private authService : AuthService, private router : Router ) {
-
-
-      
-      {
-  }
-  };
+  constructor(private authService : AuthService, private router : Router ) {}
 
   onSubmit() {
+    this.loading.set(true);
+    this.error.set(null);
 
-    this.loading.set(true);  
-
-          this.authService.login(
-            this.identifier, 
-            this.password, 
-            this.remember)
-            .pipe(
-              finalize(() => this.loading.set(false)))
-          .subscribe({
-            next: (res) => {
-              if (res.success) {
-                console.log('Connexion réussie');
-                this.router.navigate(['/'])
-
-              } else {
-                console.log('erreur login');
-              }
-            },
-            error : (err) => {
-              console.error(err);
-            }
-          });
+    this.authService.login(this.identifier, this.password, this.remember)
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: (res) => {
+          if (res.success) {
+            this.router.navigate(['/']);
+          } else {
+            this.error.set(res.feedback?.message ?? 'Identifiants incorrects.');
+          }
+        },
+        error: (err) => {
+          this.error.set(
+            err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
+          );
+        },
+      });
   }
 
 

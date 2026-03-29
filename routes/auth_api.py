@@ -1,8 +1,9 @@
 """
-Blueprint Authentication - Login, Register, Logout
+Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
 import re
 import uuid
+import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -26,6 +27,21 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
+
+# ── Stockage temporaire des codes OAuth (60 s) ───────────────────────────────
+# En production, remplacer par Redis.
+_oauth_pending: dict = {}  # { code: { expires_at, tokens, user, next } }
+
+def _store_oauth_code(payload: dict) -> str:
+    code = str(uuid.uuid4())
+    _oauth_pending[code] = {**payload, 'expires_at': time.time() + 60}
+    return code
+
+def _pop_oauth_code(code: str) -> dict | None:
+    entry = _oauth_pending.pop(code, None)
+    if entry and entry['expires_at'] > time.time():
+        return entry
+    return None
 
 # ============================================
 # CRÉER LE BLUEPRINT
@@ -461,4 +477,319 @@ def register_user():
                 'email' : new_user.email
             }
         }
+    }), 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SÉLECTION DU RÔLE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@auth_api_bp.route('/select-role', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def select_role():
+    """
+    Sélection du/des rôle(s) utilisateur (obligatoire après inscription).
+    Body JSON : { is_artist, is_beatmaker, is_mix_engineer }
+    """
+    user_id = int(get_jwt_identity())
+    user    = db.get_or_404(User, user_id)
+
+    data            = request.get_json() or {}
+    is_artist       = bool(data.get('is_artist',       False))
+    is_beatmaker    = bool(data.get('is_beatmaker',    False))
+    is_mix_engineer = bool(data.get('is_mix_engineer', False))
+
+    if not (is_artist or is_beatmaker or is_mix_engineer):
+        return jsonify({
+            'success':  False,
+            'feedback': {'level': 'warning',
+                         'message': 'Vous devez sélectionner au moins un rôle.'},
+        }), 400
+
+    try:
+        user.is_artist          = is_artist
+        user.is_beatmaker       = is_beatmaker
+        user.is_mix_engineer    = is_mix_engineer
+        user.user_type_selected = True
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'select_role error: {e}', exc_info=True)
+        return jsonify({
+            'success':  False,
+            'feedback': {'level': 'error', 'message': 'Erreur serveur.'},
+        }), 500
+
+    # Mix/master → page de soumission d'échantillon ; sinon → accueil
+    next_page = 'submit-sample' if is_mix_engineer else '/'
+
+    return jsonify({
+        'success':  True,
+        'feedback': {'level': 'info', 'message': 'Profil mis à jour avec succès !'},
+        'data': {
+            'user': _user_payload(user),
+            'next': next_page,
+        },
+    }), 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GOOGLE OAUTH
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _user_payload(user):
+    """Sérialise un User en dict pour la réponse JWT."""
+    
+    current_app.logger.debug(f'_user_payload() called {user}')
+
+    return {
+        'id':                user.id,
+        'username':          user.username,
+        'email':             user.email,
+        'profile_image':     user.profile_image,
+        'roles': {
+            'is_admin':        user.is_admin,
+            'is_beatmaker':    user.is_beatmaker,
+            'is_mix_engineer': user.is_mix_engineer,
+            'is_artist':       user.is_artist,
+        },
+        'user_type_selected': user.user_type_selected,
+        'email_verified':     user.email_verified,
+        'notif_count':        0,
+    }
+
+
+@auth_api_bp.route('/google/login')
+@csrf.exempt
+def google_login():
+    """Démarre le flux OAuth Google — redirige le navigateur vers Google."""
+    
+    
+    current_app.logger.debug('google_login() called. User should see Google interface.')
+    
+    redirect_uri = url_for('auth_api.google_callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_api_bp.route('/google/callback')
+@csrf.exempt
+def google_callback():
+    """
+    Callback Google OAuth.
+    Crée / retrouve l'utilisateur, génère un code court-durée et redirige
+    vers la SPA Angular qui l'échangera contre les JWT.
+    """
+    angular_base = current_app.config.get('ANGULAR_BASE_URL', 'http://localhost:4200')
+
+    current_app.logger.debug('google_callback() called')
+
+    try:
+        token      = oauth.google.authorize_access_token()
+        resp       = oauth.google.get('https://www.googleapis.com/oauth2/v3/userinfo')
+        user_info  = resp.json()
+
+        google_id      = user_info.get('sub')
+        email          = user_info.get('email')
+        given_name     = user_info.get('given_name', '')
+        picture        = user_info.get('picture')
+        email_verified = user_info.get('email_verified', False)
+
+        # ── CAS 1 : google_id connu ──────────────────────────────────────────
+        user = db.session.query(User).filter_by(google_id=google_id).first()
+
+        if user:
+            if picture and getattr(user, 'profile_picture_url', None) != picture:
+                user.profile_picture_url = picture
+                db.session.commit()
+
+            if user.account_status == 'deleted':
+                return redirect(f'{angular_base}/login?error=account_deleted')
+
+            access_token  = create_access_token(identity=str(user.id))
+            refresh_token = create_refresh_token(identity=str(user.id))
+
+            if not user.user_type_selected:
+                code = _store_oauth_code({
+                    'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
+                    'user':   _user_payload(user),
+                    'next':   'select-role',
+                })
+                return redirect(f'{angular_base}/oauth-callback?code={code}')
+
+            code = _store_oauth_code({
+                'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
+                'user':   _user_payload(user),
+                'next':   '/',
+            })
+            return redirect(f'{angular_base}/oauth-callback?code={code}')
+
+        current_app.logger.debug(f'user: {user_infi}, authorize_access_token ?: {token}, resp ? {resp}.')
+
+        # ── CAS 2 : google_id inconnu ────────────────────────────────────────
+        user_by_email = db.session.query(User).filter_by(email=email).first()
+
+        if user_by_email:
+            if user_by_email.oauth_provider is None:
+                # Lier le compte classique à Google
+                user_by_email.google_id           = google_id
+                user_by_email.oauth_provider      = 'google'
+                user_by_email.profile_picture_url = picture
+                user_by_email.email_verified      = user_by_email.email_verified or email_verified
+                if user_by_email.email_verified:
+                    user_by_email.account_status = 'active'
+                db.session.commit()
+
+                access_token  = create_access_token(identity=str(user_by_email.id))
+                refresh_token = create_refresh_token(identity=str(user_by_email.id))
+
+                next_page = 'select-role' if not user_by_email.user_type_selected else '/'
+                code = _store_oauth_code({
+                    'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
+                    'user':   _user_payload(user_by_email),
+                    'next':   next_page,
+                })
+                return redirect(f'{angular_base}/oauth-callback?code={code}')
+
+            # Déjà lié à un autre OAuth
+            return redirect(f'{angular_base}/login?error=oauth_conflict')
+
+        # ── CAS 3 : nouvel utilisateur ───────────────────────────────────────
+        new_user = User(
+            email                = email,
+            username             = None,
+            google_id            = google_id,
+            oauth_provider       = 'google',
+            profile_picture_url  = picture,
+            email_verified       = email_verified,
+            account_status       = 'pending_completion',
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        db.session.refresh(new_user)
+
+        # Token temporaire (scope limité — seulement pour compléter le profil)
+        access_token  = create_access_token(identity=str(new_user.id),
+                                            additional_claims={'oauth_incomplete': True})
+        refresh_token = create_refresh_token(identity=str(new_user.id))
+
+        safe_name = re.sub(r"[^\w\s\-']", '', given_name.strip())[:100] if given_name else ''
+
+        code = _store_oauth_code({
+            'tokens':           {'access_token': access_token, 'refresh_token': refresh_token},
+            'user':             _user_payload(new_user),
+            'next':             'complete-profile',
+            'suggested_name':   safe_name,
+        })
+        return redirect(f'{angular_base}/oauth-callback?code={code}')
+
+    except Exception as e:
+        current_app.logger.error(f'Erreur OAuth Google: {type(e).__name__}: {e}', exc_info=True)
+        return redirect(f'{angular_base}/login?error=oauth_failed')
+
+
+@auth_api_bp.route('/token-exchange', methods=['GET'])
+@csrf.exempt
+def token_exchange():
+    """
+    Échange un code OAuth court-durée contre les tokens JWT.
+    GET /auth/token-exchange?code=XXX
+    """
+    code  = request.args.get('code', '')
+    entry = _pop_oauth_code(code)
+
+    current_app.logger.debug(f'token_exchange() called code: {code}, entry: {entry}')
+
+    if not entry:
+        return jsonify({
+            'success':  False,
+            'feedback': {'level': 'error', 'message': 'Code invalide ou expiré.'},
+        }), 400
+
+    return jsonify({
+        'success':  True,
+        'data': {
+            'tokens':         entry['tokens'],
+            'user':           entry['user'],
+            'next':           entry.get('next', '/'),
+            'suggested_name': entry.get('suggested_name', ''),
+        },
+    }), 200
+
+
+@auth_api_bp.route('/complete-oauth-profile', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def complete_oauth_profile():
+    """
+    Finalise le profil d'un utilisateur créé via Google OAuth.
+    Appelé une seule fois par les nouveaux comptes Google (account_status = pending_completion).
+    Body JSON : { username, signature, accept_terms }
+    """
+
+    user_id = int(get_jwt_identity())
+    user    = db.get_or_404(User, user_id)
+
+    current_app.logger.debug(f'complete_oauth_profile() called {user}')
+
+    if user.account_status != 'pending_completion':
+        return jsonify({
+            'success':  False,
+            'feedback': {'level': 'warning', 'message': 'Profil déjà complété.'},
+        }), 400
+
+    data = request.get_json() or {}
+    username     = (data.get('username') or '').strip()
+    signature    = (data.get('signature') or '').strip()
+    accept_terms = data.get('accept_terms', False)
+
+    if not username or len(username) < 3 or len(username) > 20:
+        return jsonify({'success': False,
+                        'feedback': {'level': 'warning',
+                                     'message': 'Nom d\'utilisateur : 3-20 caractères.'}}), 400
+
+    if not re.match(r'^[\w]+$', username):
+        return jsonify({'success': False,
+                        'feedback': {'level': 'warning',
+                                     'message': 'Lettres, chiffres et _ uniquement.'}}), 400
+
+    if not signature or len(signature) < 3:
+        return jsonify({'success': False,
+                        'feedback': {'level': 'warning',
+                                     'message': 'Signature légale requise (min. 3 caractères).'}}), 400
+
+    if not accept_terms:
+        return jsonify({'success': False,
+                        'feedback': {'level': 'warning',
+                                     'message': 'Veuillez accepter les conditions d\'utilisation.'}}), 400
+
+    if db.session.query(User).filter(User.username == username, User.id != user_id).first():
+        return jsonify({'success': False,
+                        'feedback': {'level': 'warning',
+                                     'message': 'Nom d\'utilisateur déjà pris.'}}), 400
+
+    try:
+        user.username          = username
+        user.signature         = sanitize_html(signature)
+        user.terms_accepted_at = datetime.now()
+        user.account_status    = 'active'
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'complete_oauth_profile error: {e}', exc_info=True)
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error', 'message': 'Erreur serveur.'}}), 500
+
+    # Émettre de nouveaux tokens sans le claim `oauth_incomplete`
+    access_token  = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
+
+    return jsonify({
+        'success':  True,
+        'feedback': {'level': 'info', 'message': f'Bienvenue {user.username} !'},
+        'data': {
+            'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
+            'user':   _user_payload(user),
+            'next':   'select-role' if not user.user_type_selected else '/',
+        },
     }), 200

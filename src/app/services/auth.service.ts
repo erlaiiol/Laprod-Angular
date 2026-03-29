@@ -52,7 +52,7 @@ export interface RegisterSuccess{
   feedback: { level: string; message:string;};
   code?: string;
   data: {
-    newUser : NewUser
+    user: NewUser;
   }
 }
 
@@ -67,6 +67,19 @@ type RegisterResponse = RegisterSuccess | RegisterError;
 export interface NewUser {
   username: string;
   email: string;
+}
+
+export interface OauthExchangeData {
+  tokens:         { access_token: string; refresh_token: string };
+  user:           User;
+  next:           string;           // '/', 'select-role', 'complete-profile'
+  suggested_name: string;
+}
+
+export interface CompleteOauthProfileData {
+  tokens: { access_token: string; refresh_token: string };
+  user:   User;
+  next:   string;
 }
 
 
@@ -190,31 +203,64 @@ export class AuthService {
   //// NEW USER BLOCK (register)
   //// ======================================================
   
-  register(username: string,
+  // ── Google OAuth ─────────────────────────────────────────────────────────
+
+  /** Échange un code OAuth court-durée contre les tokens JWT. */
+  tokenExchange(code: string): Observable<{ success: boolean; data?: OauthExchangeData; feedback?: { message: string } }> {
+    return this.http.get<any>(`${this.authUrl}/token-exchange`, { params: { code } });
+  }
+
+  /** Finalise le profil d'un nouveau compte Google (username + signature + CGU). */
+  completeOauthProfile(
+    username: string,
+    signature: string,
+    accept_terms: boolean,
+  ): Observable<{ success: boolean; data?: CompleteOauthProfileData; feedback?: { message: string } }> {
+    return this.http.post<any>(
+      `${this.authUrl}/complete-oauth-profile`,
+      { username, signature, accept_terms },
+      { headers: { Authorization: `Bearer ${this.getToken()}` } },
+    );
+  }
+
+  /** Sélectionne les rôles de l'utilisateur. */
+  selectRole(roles: { is_artist: boolean; is_beatmaker: boolean; is_mix_engineer: boolean }):
+      Observable<{ success: boolean; data?: { user: User; next: string }; feedback?: { message: string } }> {
+    return this.http.post<any>(
+      `${this.authUrl}/select-role`,
+      roles,
+      { headers: { Authorization: `Bearer ${this.getToken()}` } },
+    );
+  }
+
+  /** Stocke les tokens et l'utilisateur après échange OAuth. */
+  storeOauthAuth(data: OauthExchangeData | CompleteOauthProfileData): void {
+    localStorage.setItem('access_token',  data.tokens.access_token);
+    localStorage.setItem('refresh_token', data.tokens.refresh_token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    this._currentUser.set(data.user);
+  }
+
+  // ── Inscription ───────────────────────────────────────────────────────────
+
+  register(
+    username: string,
     password: string,
     password_confirm: string,
     email: string,
-    signature: string) : Observable<RegisterResponse> {
+    signature: string,
+    accept_terms: boolean,
+  ): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.authUrl}/register`, {
       username,
       password,
       password_confirm,
       email,
-      signature
+      signature,
+      accept_terms,
     }).pipe(
-      tap((res) => {
-        if (res.success === true){
-          ///////
-          this.router.navigate(['/login']);
-        }
-      }),
-      catchError((err) => {
-        if (err.error) {
-          ////////
-        }
-        return throwError(() => err)
-      })
-    )
+      catchError((err) => throwError(() => err))
+    );
   }
 
 }

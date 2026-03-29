@@ -1,1 +1,141 @@
-<p>register.component works!</p>
+<div class="register-wrapper">
+  <div class="register-card">
+
+    <!-- ── Succès : email de confirmation envoyé ──────────────────────────── -->
+    @if (confirmedEmail()) {
+      <div class="confirm-panel">
+        <div class="confirm-icon"><i class="bi bi-envelope-check"></i></div>
+        <h2>Vérifiez votre boîte mail</h2>
+        <p>
+          Un email de confirmation a été envoyé à
+          <strong>{{ confirmedEmail() }}</strong>.
+          Cliquez sur le lien reçu pour activer votre compte.
+        </p>
+        <p class="confirm-spam">Pensez à vérifier vos spams.</p>
+        <a routerLink="/login" class="btn-primary">Se connecter</a>
+      </div>
+    }
+
+    <!-- ── Formulaire ─────────────────────────────────────────────────────── -->
+    @if (!confirmedEmail()) {
+
+      <h1 class="register-title">Créer un compte</h1>
+
+      @if (error()) {
+        <div class="alert-box alert-danger">{{ error() }}</div>
+      }
+
+      <form (ngSubmit)="onSubmit()" #registerForm="ngForm" novalidate>
+
+        <div class="field-group">
+          <label for="username">Nom d'utilisateur</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Entre 3 et 20 caractères (lettres, chiffres, _)"
+            autocomplete="username"
+            required
+            [(ngModel)]="username"
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="email">Adresse email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="votre@email.com"
+            autocomplete="email"
+            required
+            [(ngModel)]="email"
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="password">Mot de passe</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="new-password"
+            required
+            [(ngModel)]="password"
+          />
+          <span class="field-hint">
+            9 caractères minimum · une majuscule · une minuscule · un chiffre
+          </span>
+        </div>
+
+        <div class="field-group">
+          <label for="passwordConfirm">Confirmer le mot de passe</label>
+          <input
+            type="password"
+            id="passwordConfirm"
+            name="passwordConfirm"
+            autocomplete="new-password"
+            required
+            [(ngModel)]="passwordConfirm"
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="signature">Signature artistique / légale</label>
+          <input
+            type="text"
+            id="signature"
+            name="signature"
+            placeholder="Nom sous lequel vous signez vos œuvres"
+            required
+            [(ngModel)]="signature"
+          />
+          <span class="field-hint">
+            Apparaîtra dans les contrats de licence générés par la plateforme.
+          </span>
+        </div>
+
+        <div class="field-check">
+          <input
+            type="checkbox"
+            id="acceptTerms"
+            name="acceptTerms"
+            required
+            [(ngModel)]="acceptTerms"
+          />
+          <label for="acceptTerms">
+            J'accepte les
+            <a routerLink="/terms" target="_blank" class="terms-link">
+              conditions générales d'utilisation
+            </a>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner"></span> Création du compte…
+          } @else {
+            Créer mon compte
+          }
+        </button>
+
+      </form>
+
+      <div class="divider"><span>ou</span></div>
+
+      <a href="http://localhost:5000/auth/google/login" class="btn-google">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/>
+        </svg>
+        Continuer avec Google
+      </a>
+
+      <p class="login-link">
+        Déjà un compte ?
+        <a routerLink="/login">Se connecter</a>
+      </p>
+
+    }
+
+  </div>
+</div>

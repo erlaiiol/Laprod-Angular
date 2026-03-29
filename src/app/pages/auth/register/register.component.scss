@@ -1,0 +1,249 @@
+/* ── Layout centré ────────────────────────────────────────────────────────── */
+
+.register-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: #1a1d20;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 440px;
+  background: #2c3034;
+  border: 1px solid #495057;
+  border-radius: 8px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.register-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin: 0;
+}
+
+
+/* ── Alerte erreur ────────────────────────────────────────────────────────── */
+
+.alert-box {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+
+  &.alert-danger {
+    background: rgba(220, 53, 69, 0.12);
+    border: 1px solid rgba(220, 53, 69, 0.35);
+    color: #dc3545;
+  }
+}
+
+
+/* ── Champs ───────────────────────────────────────────────────────────────── */
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    color: #adb5bd;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  input {
+    background: #1a1d20;
+    border: 1px solid #495057;
+    border-radius: 5px;
+    color: #f8f9fa;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &::placeholder { color: #6c757d; }
+    &:focus        { border-color: #0d6efd; }
+  }
+}
+
+.field-hint {
+  font-size: 0.76rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+
+/* ── Checkbox CGU ─────────────────────────────────────────────────────────── */
+
+.field-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  input[type="checkbox"] {
+    accent-color: #0d6efd;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+  }
+
+  label {
+    color: #adb5bd;
+    font-size: 0.875rem;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+
+  .terms-link {
+    color: #0d6efd;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+
+/* ── Boutons ──────────────────────────────────────────────────────────────── */
+
+.btn-primary {
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  border: 1px solid #0d6efd;
+  border-radius: 5px;
+  color: #0d6efd;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #0d6efd;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-google {
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  border: 1px solid #dc3545;
+  border-radius: 5px;
+  color: #dc3545;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: #dc3545;
+    color: #fff;
+  }
+}
+
+
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* ── Séparateur ───────────────────────────────────────────────────────────── */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #495057;
+  font-size: 0.8rem;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #495057;
+  }
+
+  span { color: #6c757d; }
+}
+
+
+/* ── Lien login ───────────────────────────────────────────────────────────── */
+
+.login-link {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+
+  a {
+    color: #0d6efd;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+
+/* ── Panneau confirmation email ───────────────────────────────────────────── */
+
+.confirm-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.confirm-icon {
+  font-size: 3rem;
+  color: #0d6efd;
+  line-height: 1;
+}
+
+.confirm-panel h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin: 0;
+}
+
+.confirm-panel p {
+  font-size: 0.875rem;
+  color: #adb5bd;
+  margin: 0;
+
+  strong { color: #f8f9fa; }
+}
+
+.confirm-spam {
+  font-size: 0.78rem !important;
+  color: #6c757d !important;
+}
