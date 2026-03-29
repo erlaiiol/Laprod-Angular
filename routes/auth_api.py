@@ -260,31 +260,33 @@ def get_identity():
 
 
 @auth_api_bp.route('/logout', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 @csrf.exempt
 def logout():
 
     from models import TokenBlocklist
 
-    jti     = get_jwt()['jti']
-    user_id = int(get_jwt_identity())
+    jwt_data = get_jwt()
+    jti      = jwt_data.get('jti') if jwt_data else None
+    user_id  = get_jwt_identity()
 
-    try:
-        db.session.add(TokenBlocklist(jti=jti))
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur blocklist logout user #{user_id} : {e}')
-        return jsonify({'success': False, 'error': 'Erreur lors de la déconnexion.'}), 500
+    if jti:
+        try:
+            db.session.add(TokenBlocklist(jti=jti))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Erreur blocklist logout user #{user_id} : {e}')
 
-    current_app.logger.debug(f'Déconnexion utilisateur #{user_id}')
+    if user_id:
+        current_app.logger.debug(f'Déconnexion utilisateur #{user_id}')
+
     return jsonify({
         'success' : True,
         'feedback' : {
             'level' : 'info',
             'message' : 'déconnecté avec succès.'
         }
-
     }), 200
 
 
@@ -558,6 +560,114 @@ def _user_payload(user):
         'email_verified':     user.email_verified,
         'notif_count':        0,
     }
+
+
+@auth_api_bp.route('/submit-mixmaster-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def submit_mixmaster_sample():
+    """Soumet un échantillon audio pour la certification Mix/Master Engineer."""
+    user_id = int(get_jwt_identity())
+    user    = db.session.get(User, user_id)
+
+    if not user or not user.is_mix_engineer:
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Rôle Mix/Master Engineer requis.'}}), 403
+
+    # ── Tarifs ──────────────────────────────────────────────────────────────
+    try:
+        reference_price = float(request.form.get('reference_price', 0))
+        if not (10 <= reference_price <= 500):
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Prix de référence invalide (10€–500€).'}}), 422
+
+    try:
+        price_min = float(request.form.get('price_min', 0))
+        min_required   = round(reference_price * 0.35, 2)
+        max_allowed    = round(reference_price * 0.65, 2)
+        if price_min < min_required or price_min > max_allowed:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': f'Prix minimum invalide (35%–65% du prix de référence).'}}), 422
+
+    # ── Bio ─────────────────────────────────────────────────────────────────
+    bio = (request.form.get('bio') or '').strip()
+    if not bio:
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error', 'message': 'La bio est requise.'}}), 422
+
+    # ── Fichiers ─────────────────────────────────────────────────────────────
+    raw_file       = request.files.get('sample_raw')
+    processed_file = request.files.get('sample_processed')
+
+    if not raw_file or not processed_file or \
+       raw_file.filename == '' or processed_file.filename == '':
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Les deux fichiers audio sont requis.'}}), 422
+
+    allowed_ext = {'wav', 'mp3'}
+
+    def _allowed(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_ext
+
+    if not _allowed(raw_file.filename) or not _allowed(processed_file.filename):
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Format non autorisé (.wav ou .mp3 uniquement).'}}), 422
+
+    MAX_SIZE = 50 * 1024 * 1024
+
+    def _check_size(f):
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+        return size <= MAX_SIZE
+
+    if not _check_size(raw_file) or not _check_size(processed_file):
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Fichier trop volumineux (max 50 MB).'}}), 422
+
+    # ── Sauvegarde ───────────────────────────────────────────────────────────
+    try:
+        config.MIXMASTER_SAMPLES_FOLDER.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        raw_name  = f"{user_id}_{ts}_raw_{secure_filename(raw_file.filename)}"
+        proc_name = f"{user_id}_{ts}_processed_{secure_filename(processed_file.filename)}"
+
+        raw_file.save(config.MIXMASTER_SAMPLES_FOLDER / raw_name)
+        processed_file.save(config.MIXMASTER_SAMPLES_FOLDER / proc_name)
+
+        raw_path  = Path('static', 'mixmaster', 'samples', raw_name).as_posix()
+        proc_path = Path('static', 'mixmaster', 'samples', proc_name).as_posix()
+
+        user.mixmaster_reference_price   = reference_price
+        user.mixmaster_price_min         = price_min
+        user.mixmaster_bio               = bio
+        user.mixmaster_sample_raw        = raw_path
+        user.mixmaster_sample_processed  = proc_path
+        user.mixmaster_sample_submitted  = True
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'submit_mixmaster_sample error: {e}', exc_info=True)
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error', 'message': 'Erreur serveur.'}}), 500
+
+    current_app.logger.info(f'Mixmaster sample submitted by user #{user_id}')
+    return jsonify({
+        'success': True,
+        'feedback': {'level': 'success',
+                     'message': 'Candidature soumise ! Notre équipe évaluera votre travail.'},
+    }), 200
 
 
 @auth_api_bp.route('/google/login')

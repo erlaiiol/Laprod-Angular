@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, Observable, tap, throwError } from 'rxjs';
+import { catchError, Observable, of, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 
@@ -167,14 +167,19 @@ export class AuthService {
 
 
 
-  logout() : Observable<any> {
+  logout(): Observable<any> {
     return this.http.post(`${this.authUrl}/logout`, {}, {
-      headers: { Authorization: `Bearer ${this.getToken()}`}
-    }).pipe(tap(() => {
-      localStorage.clear();
-      this._currentUser.set(null);
-      this.router.navigate(['/login'])
-    }));
+      headers: { Authorization: `Bearer ${this.getToken()}` }
+    }).pipe(
+      tap(() => this._clearAuth()),
+      catchError(() => { this._clearAuth(); return of(null); })
+    );
+  }
+
+  private _clearAuth(): void {
+    localStorage.clear();
+    this._currentUser.set(null);
+    this.router.navigate(['/login']);
   }
 
   getToken(): string | null {

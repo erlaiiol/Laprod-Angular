@@ -111,7 +111,7 @@
         @if (isLoggedIn()){
           <!-- Mes gains (beatmakers & mix engineers uniquement) -->
           <li class="nav-item" *ngIf="isBeatmaker() || isMixEngineer()">
-            <a class="nav-link" [routerLink]="['/gains']" routerLinkActive="active">
+            <a class="nav-link" [routerLink]="['/wallet']" routerLinkActive="active">
               <i class="bi bi-wallet2"></i> Mes gains
             </a>
           </li>
@@ -174,7 +174,7 @@
 
                     <!-- Déconnexion -->
           <li class="nav-item">
-            <a class="nav-link" (click)="logout()">
+            <a class="nav-link" (click)="logout()" [routerLink]="'/login'" routerLinkActive="active">
               <i class="bi bi-box-arrow-right"></i> Déconnexion
             </a>
           </li>

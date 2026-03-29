@@ -10,7 +10,8 @@ import { WalletComponent }         from './pages/wallet/wallet.component';
 import { RegisterComponent }        from './pages/auth/register/register.component';
 import { OauthCallbackComponent }   from './pages/auth/oauth-callback/oauth-callback.component';
 import { CompleteProfileComponent } from './pages/auth/complete-profile/complete-profile.component';
-import { SelectRoleComponent }      from './pages/auth/select-role/select-role.component';
+import { SelectRoleComponent }           from './pages/auth/select-role/select-role.component';
+import { SubmitMixmasterSampleComponent } from './pages/auth/submit-mixmaster-sample/submit-mixmaster-sample.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -23,4 +24,5 @@ export const routes: Routes = [
   { path: 'track/:id',                     component: TrackDetailComponent },
   { path: 'contract/:trackId/:format',     component: ContractConfigComponent },
   { path: 'wallet',                        component: WalletComponent },
+  { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent },
 ];

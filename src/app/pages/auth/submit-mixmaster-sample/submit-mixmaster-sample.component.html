@@ -1,0 +1,221 @@
+<div class="sample-wrapper">
+  <div class="sample-card">
+
+    <!-- ── Succès ────────────────────────────────────────────────────────── -->
+    @if (success()) {
+      <div class="success-state">
+        <i class="bi bi-check-circle-fill success-icon"></i>
+        <h2>Candidature envoyée !</h2>
+        <p>Notre équipe va évaluer votre travail. Vous serez notifié(e) dès que votre certification sera traitée.</p>
+        <button type="button" class="btn-submit" (click)="goHome()">
+          Retour à l'accueil
+        </button>
+      </div>
+    } @else {
+
+    <!-- ── En-tête ───────────────────────────────────────────────────────── -->
+    <div class="sample-header">
+      <span class="badge-role"><i class="bi bi-sliders"></i> Mix/Master Engineer</span>
+      <h2>Certification Mix/Master Engineer</h2>
+      <p>Soumettez un échantillon de votre travail pour être certifié et apparaître sur la page Mix/Master.</p>
+    </div>
+
+    <!-- ── Bandeau info ─────────────────────────────────────────────────── -->
+    <div class="info-band">
+      <i class="bi bi-info-circle-fill"></i>
+      <ul>
+        <li>Envoyez une version <strong>brute</strong> ET votre <strong>mix/master</strong> du même titre.</li>
+        <li>Définissez votre <strong>prix de référence</strong> et votre <strong>prix minimum</strong>.</li>
+        <li>Une fois certifié, vous apparaîtrez sur la page Mix/Master et les artistes pourront vous contacter.</li>
+      </ul>
+    </div>
+
+    <!-- ── Tableau des services ─────────────────────────────────────────── -->
+    <details class="services-details">
+      <summary><i class="bi bi-gear-fill"></i> Services proposés aux artistes</summary>
+      <table class="services-table">
+        <thead>
+          <tr><th>Service</th><th>Description</th><th>%</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Nettoyage &amp; équilibre</strong></td>
+            <td class="small">Faire ressortir la voix, rééquilibrer les instruments</td>
+            <td><span class="badge badge-blue">+35%</span></td>
+          </tr>
+          <tr>
+            <td><strong>Mixage avec effets</strong></td>
+            <td class="small">Delay, cuts, flanger, reverse reverb…</td>
+            <td><span class="badge badge-blue">+45%</span></td>
+          </tr>
+          <tr>
+            <td><strong>Intervention artistique</strong> <i class="bi bi-lock-fill text-yellow"></i></td>
+            <td class="small">Nouveaux instruments, arrangements (certification Producteur requise)</td>
+            <td><span class="badge badge-yellow">+60%</span></td>
+          </tr>
+          <tr>
+            <td><strong>Mastering final</strong></td>
+            <td class="small">Rendu "streaming ready" avec style professionnel</td>
+            <td><span class="badge badge-green">+20%</span></td>
+          </tr>
+          <tr>
+            <td><strong>Pistes séparées</strong></td>
+            <td class="small">Bonus si l'artiste envoie des stems</td>
+            <td><span class="badge badge-grey">+20%</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="services-note">Total max : 100% + 60% (artistique) + 20% (stems) = <strong>180%</strong> de votre prix de référence.</p>
+    </details>
+
+    <!-- ── Erreur ─────────────────────────────────────────────────────────── -->
+    @if (error()) {
+      <div class="form-error">{{ error() }}</div>
+    }
+
+    <!-- ── Formulaire ────────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-currency-euro"></i> Tarifs</h3>
+
+      <!-- Prix de référence -->
+      <div class="field">
+        <label for="refPrice">
+          <span class="field-num">1</span> Prix de référence <em>(base 100%)</em>
+        </label>
+        <div class="input-euro">
+          <input
+            type="number" id="refPrice" min="10" max="500" step="5"
+            placeholder="Ex : 100"
+            [ngModel]="referencePrice()"
+            (ngModelChange)="referencePrice.set($event)"
+          />
+          <span>€</span>
+        </div>
+        <p class="field-hint">
+          Pensez à votre tarif pour un mix/master complet standard. Les artistes paieront un pourcentage de ce montant.
+        </p>
+      </div>
+
+      <!-- Prix minimum -->
+      <div class="field">
+        <label for="priceMin">
+          <span class="field-num">2</span> Prix minimum <em>(seuil d'acceptation)</em>
+        </label>
+        <div class="input-euro">
+          <input
+            type="number" id="priceMin" min="10" step="5"
+            placeholder="Ex : 50"
+            [ngModel]="priceMin()"
+            (ngModelChange)="priceMin.set($event)"
+            [class.invalid]="priceError()"
+          />
+          <span>€</span>
+        </div>
+        @if (minRequired()) {
+          <p class="field-hint">Entre <strong>{{ minRequired() }}€</strong> (35%) et <strong>{{ maxAllowed() }}€</strong> (65%) de votre prix de référence.</p>
+        }
+        @if (priceError()) {
+          <p class="price-error">{{ priceError() }}</p>
+        }
+      </div>
+
+      <!-- Services auto-inclus -->
+      @if (autoServices().length > 0) {
+        <div class="auto-services">
+          <p><i class="bi bi-gear-fill"></i> Services auto-inclus au seuil minimum :</p>
+          <ul>
+            @for (s of autoServices(); track s.name) {
+              <li><strong>{{ s.name }}</strong> ({{ s.pct }}% = {{ s.price.toFixed(2) }}€)</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Simulateur -->
+      @if (simulatorRows().length > 0) {
+        <div class="simulator">
+          <p class="simulator-title"><i class="bi bi-calculator"></i> Simulateur — ce que paiera l'artiste</p>
+          <table class="sim-table">
+            <thead><tr><th>Combinaison</th><th>%</th><th>Prix</th></tr></thead>
+            <tbody>
+              @for (row of simulatorRows(); track row.name) {
+                <tr [class.below-min]="priceMin() && row.price < priceMin()!">
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.pct }}%</td>
+                  <td><strong>{{ row.price.toFixed(2) }}€</strong></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (priceMin()) {
+            <p class="sim-note">Les lignes <span class="strikethrough">barrées</span> sont sous votre prix minimum ({{ priceMin()!.toFixed(2) }}€).</p>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- ── Bio ───────────────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-person-lines-fill"></i> Présentation</h3>
+      <div class="field">
+        <label for="bio">Décrivez vos compétences</label>
+        <textarea
+          id="bio" rows="4"
+          placeholder="Décrivez votre expérience, vos styles, vos techniques…"
+          [ngModel]="bio()"
+          (ngModelChange)="bio.set($event)"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- ── Fichiers ──────────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-file-music-fill"></i> Échantillons audio</h3>
+
+      <div class="field">
+        <label for="sampleRaw">Fichier BRUT <em>(avant mix/master)</em></label>
+        <div class="file-input-wrap">
+          <label for="sampleRaw" class="file-label">
+            <i class="bi bi-upload"></i>
+            {{ rawFile() ? rawFile()!.name : 'Choisir un fichier…' }}
+          </label>
+          <input type="file" id="sampleRaw" accept=".wav,.mp3" (change)="onFileChange('raw', $event)" hidden />
+        </div>
+        <small class="field-hint">Format .wav ou .mp3 · max 50 MB</small>
+      </div>
+
+      <div class="field">
+        <label for="sampleProcessed">Fichier TRAITÉ <em>(après votre mix/master)</em></label>
+        <div class="file-input-wrap">
+          <label for="sampleProcessed" class="file-label">
+            <i class="bi bi-upload"></i>
+            {{ processedFile() ? processedFile()!.name : 'Choisir un fichier…' }}
+          </label>
+          <input type="file" id="sampleProcessed" accept=".wav,.mp3" (change)="onFileChange('processed', $event)" hidden />
+        </div>
+        <small class="field-hint">Format .wav ou .mp3 · max 50 MB</small>
+      </div>
+    </div>
+
+    <!-- ── Actions ───────────────────────────────────────────────────────── -->
+    <button
+      type="button" class="btn-submit"
+      [disabled]="!canSubmit()"
+      (click)="onSubmit()"
+    >
+      @if (loading()) {
+        <span class="spinner"></span> Envoi en cours…
+      } @else {
+        <i class="bi bi-send-fill"></i> Soumettre ma candidature
+      }
+    </button>
+
+    <button type="button" class="btn-skip" (click)="goHome()">
+      Je ferai ça plus tard
+    </button>
+
+    <p class="form-hint">Vous pourrez modifier vos informations à tout moment depuis votre profil.</p>
+
+    } <!-- end @else -->
+  </div>
+</div>
