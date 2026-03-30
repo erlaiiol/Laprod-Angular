@@ -26,7 +26,7 @@
          [routerLink]="['/']"  →  property binding : navigue vers la page Home
          sans rechargement complet (SPA) -->
     <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']">
-      <img src="static/images/logo.png" alt="LaProd" height="40" class="me-2"
+      <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
            onerror="this.onerror=null; this.style.display='none'">
       <span>LaProd</span>
     </a>
@@ -118,7 +118,7 @@
 
           <!-- Publier un beat (beatmakers uniquement) -->
           <li class="nav-item" *ngIf="isBeatmaker()">
-            <a class="nav-link" [routerLink]="['/upload']" routerLinkActive="active">
+            <a class="nav-link" [routerLink]="['/upload-track']" routerLinkActive="active">
               <i class="bi bi-cloud-upload"></i> Publier un beat
             </a>
           </li>
@@ -251,7 +251,7 @@
       <label class="filter-label">Gammes</label>
       <div class="filter-tags-container">
         <span *ngFor="let key of keys()"
-              class="filter-tag"
+              class="filter-tag filter-tag--neutral"
               [class.selected]="selectedKeys().includes(key)"
               (click)="toggleKey(key)">
           {{ key }}
@@ -267,7 +267,7 @@
       <label class="filter-label">Styles</label>
       <div class="filter-tags-container">
         <span *ngFor="let style of styles()"
-              class="filter-tag"
+              class="filter-tag filter-tag--neutral"
               [class.selected]="selectedStyles().includes(style)"
               (click)="toggleStyle(style)">
           {{ style }}
@@ -284,7 +284,7 @@
       <div class="filter-tags-container">
         <span *ngFor="let tag of tags()"
               class="filter-tag"
-              [attr.data-category]="tag.category.name"
+              [style.--tag-color]="tag.category.color"
               [class.selected]="selectedTags().includes(tag.name)"
               (click)="toggleTag(tag.name)">
           #{{ tag.name }}

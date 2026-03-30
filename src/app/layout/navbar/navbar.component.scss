@@ -128,21 +128,48 @@
   gap: 0.4rem;
 }
 
+/* ── Tags colorés (catégories) ─────────────────────────────────────────────
+   --tag-color est posé en inline style depuis Angular ([style.--tag-color])
+   Fallback sur un gris neutre si la variable n'est pas définie.              */
+
 .filter-tag {
-  background: rgba(255, 255, 255, 0.08);
-  color: #f8f9fa;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #e7e8e9;
+  border: 1px solid color-mix(in srgb, var(--tag-color, #6b7280) 40%, transparent);
   border-radius: 4px;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 
-  &:hover,
+  &:hover {
+    background: color-mix(in srgb, var(--tag-color, #6b7280) 18%, transparent);
+    border-color: var(--tag-color, #9ca3af);
+  }
+
   &.selected {
-    background: rgba(13, 110, 253, 0.3);
-    border-color: #0d6efd;
-    color: #fff;
+    background: color-mix(in srgb, var(--tag-color, #6b7280) 28%, transparent);
+    border-color: var(--tag-color, #9ca3af);
+  }
+}
+
+/* ── Gammes & Styles — comportement neutre (blanc au survol/sélection) ────── */
+
+.filter-tag--neutral {
+  --tag-color: unset;    /* on neutralise la variable héritable */
+  color: #e7e8e9;
+  border-color: rgba(255, 255, 255, 0.15);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #e5e7eb;
+  }
+
+  &.selected {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(255, 255, 255, 0.9);
+    color: #1a1d20;
   }
 }
 

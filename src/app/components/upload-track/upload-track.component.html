@@ -1,0 +1,209 @@
+<div class="upload-wrapper">
+  <div class="upload-page">
+
+    @if (success()) {
+      <div class="success-state">
+        <i class="bi bi-cloud-check-fill success-icon"></i>
+        <h2>Beat mis en ligne !</h2>
+        <p>Votre beat a été soumis avec succès. Il sera visible une fois validé par notre équipe.</p>
+        <button type="button" class="btn-submit" (click)="reset()">
+          Uploader un autre beat
+        </button>
+      </div>
+    } @else {
+
+      <div class="page-header">
+        <h1><i class="bi bi-cloud-arrow-up-fill"></i> Uploader un beat</h1>
+      </div>
+
+      @if (error()) {
+        <div class="form-error">{{ error() }}</div>
+      }
+
+      <!-- ── Informations ─────────────────────────────────────────────────── -->
+      <div class="section-card">
+        <h3 class="section-title">Informations</h3>
+
+        <div class="field">
+          <label for="title">Titre *</label>
+          <input
+            type="text" id="title"
+            placeholder="Nom de votre beat"
+            [ngModel]="title()" (ngModelChange)="title.set($event)"
+          />
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="bpm">BPM *</label>
+            <input
+              type="number" id="bpm" min="60" max="220"
+              placeholder="ex. 140"
+              [ngModel]="bpm()" (ngModelChange)="bpm.set($event ? +$event : null)"
+            />
+          </div>
+
+          <div class="field">
+            <label for="key">Gamme *</label>
+            <select id="key" [ngModel]="key()" (ngModelChange)="key.set($event)">
+              <option value="">Choisir une gamme</option>
+              @for (k of availableKeys; track k) {
+                <option [value]="k">{{ k }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="style">Style *</label>
+          <select id="style" [ngModel]="style()" (ngModelChange)="style.set($event)">
+            <option value="">Choisir un style</option>
+            @for (s of availableStyles(); track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Prix & SACEM ─────────────────────────────────────────────────── -->
+      <div class="section-card">
+        <h3 class="section-title">Prix & SACEM</h3>
+
+        <div class="row-3">
+          <div class="field">
+            <label for="price_mp3">MP3 (€)</label>
+            <input
+              type="number" id="price_mp3" step="0.01" min="0"
+              [ngModel]="priceMp3()" (ngModelChange)="priceMp3.set(+$event)"
+            />
+          </div>
+          <div class="field">
+            <label for="price_wav">WAV (€)</label>
+            <input
+              type="number" id="price_wav" step="0.01" min="0"
+              [ngModel]="priceWav()" (ngModelChange)="priceWav.set(+$event)"
+            />
+          </div>
+          <div class="field">
+            <label for="price_stems">Stems (€)</label>
+            <input
+              type="number" id="price_stems" step="0.01" min="0"
+              [ngModel]="priceStems()" (ngModelChange)="priceStems.set(+$event)"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="sacem">Part compositeur SACEM (%) *</label>
+          <input
+            type="number" id="sacem" min="0" max="85"
+            [ngModel]="sacemComposer()" (ngModelChange)="sacemComposer.set(+$event)"
+          />
+          <span class="field-hint">Maximum 85 % — le reste revient à l'acheteur</span>
+        </div>
+      </div>
+
+      <!-- ── Tags ─────────────────────────────────────────────────────────── -->
+      @if (tagGroups().length > 0) {
+        <div class="section-card">
+          <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
+          @for (group of tagGroups(); track group.name) {
+            <div class="tag-group">
+              <span class="tag-group-name" [style.color]="group.color">{{ group.name }}</span>
+              <div class="tag-pills">
+                @for (tag of group.tags; track tag.id) {
+                  <button
+                    type="button"
+                    class="tag-pill"
+                    [class.selected]="isTagSelected(tag.id)"
+                    [style.--tag-color]="group.color"
+                    (click)="toggleTag(tag.id)"
+                  >{{ tag.name }}</button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Fichiers ──────────────────────────────────────────────────────── -->
+      <div class="section-card">
+        <h3 class="section-title">Fichiers audio</h3>
+
+        <div class="file-field">
+          <label class="file-label">
+            <i class="bi bi-file-earmark-music-fill"></i>
+            <span>
+              <strong>Fichier MP3 *</strong>
+              @if (fileMp3()) {
+                <em class="file-name">{{ fileMp3()!.name }}</em>
+              } @else {
+                <em>Cliquer pour sélectionner (.mp3)</em>
+              }
+            </span>
+            <input type="file" accept=".mp3" (change)="onFileSelected($event, 'mp3')" />
+          </label>
+        </div>
+
+        <div class="file-field">
+          <label class="file-label">
+            <i class="bi bi-file-earmark-music"></i>
+            <span>
+              <strong>Fichier WAV</strong> <em class="opt">optionnel</em>
+              @if (fileWav()) {
+                <em class="file-name">{{ fileWav()!.name }}</em>
+              } @else {
+                <em>Cliquer pour sélectionner (.wav)</em>
+              }
+            </span>
+            <input type="file" accept=".wav" (change)="onFileSelected($event, 'wav')" />
+          </label>
+        </div>
+
+        <div class="file-field">
+          <label class="file-label">
+            <i class="bi bi-file-earmark-zip"></i>
+            <span>
+              <strong>Archive stems</strong> <em class="opt">optionnel</em>
+              @if (fileStems()) {
+                <em class="file-name">{{ fileStems()!.name }}</em>
+              } @else {
+                <em>Cliquer pour sélectionner (.zip/.rar)</em>
+              }
+            </span>
+            <input type="file" accept=".zip,.rar" (change)="onFileSelected($event, 'stems')" />
+          </label>
+        </div>
+
+        <div class="file-field">
+          <label class="file-label">
+            <i class="bi bi-image"></i>
+            <span>
+              <strong>Image de couverture</strong> <em class="opt">optionnel</em>
+              @if (fileImage()) {
+                <em class="file-name">{{ fileImage()!.name }}</em>
+              } @else {
+                <em>Cliquer pour sélectionner (jpg/png…)</em>
+              }
+            </span>
+            <input type="file" accept="image/*" (change)="onFileSelected($event, 'image')" />
+          </label>
+        </div>
+      </div>
+
+      <!-- ── Soumettre ─────────────────────────────────────────────────────── -->
+      <button
+        type="button" class="btn-submit"
+        [disabled]="!canSubmit()"
+        (click)="onSubmit()"
+      >
+        @if (loading()) {
+          <span class="spinner"></span> Upload en cours…
+        } @else {
+          <i class="bi bi-cloud-arrow-up-fill"></i> Uploader le beat
+        }
+      </button>
+
+    }
+  </div>
+</div>

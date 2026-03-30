@@ -60,7 +60,8 @@ export interface SalesData {
 export class WalletService {
 
   private http         = inject(HttpClient);
-  private walletUrl    = `${environment.apiUrl}/api/wallet`;
+  private walletUrl    = `${environment.apiUrl}/wallet`;
+  private cudWalletUrl    = `${environment.apiUrl}/cud_wallet`;
   private contractsUrl = `${environment.apiUrl}/api/contracts`;
   private stripeUrl    = `${environment.apiUrl}/api/stripe`;
 
@@ -72,7 +73,7 @@ export class WalletService {
 
   withdraw(amount: number): Observable<ApiResponse<{ transfer_id: string; amount: number }>> {
     return this.http.post<ApiResponse<{ transfer_id: string; amount: number }>>(
-      `${this.walletUrl}/withdraw`,
+      `${this.cudWalletUrl}/withdraw`,
       { amount },
     );
   }

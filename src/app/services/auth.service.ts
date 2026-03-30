@@ -203,6 +203,11 @@ export class AuthService {
     );
   }
 
+  // USED IN JWT INTERCEPTOR
+  getAuthUrl(): string {
+    return this.authUrl;
+  }
+
 
   //// ======================================================
   //// NEW USER BLOCK (register)

@@ -8,11 +8,13 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from extensions import db
+from extensions import db, csrf
 from models import User, WalletTransaction
 from utils.wallet_service import process_pending_to_available, process_expirations
 
-wallet_api_bp = Blueprint('wallet_api', __name__, url_prefix='/api/wallet')
+wallet_api_bp = Blueprint('wallet_api', __name__, url_prefix='/wallet')
+
+
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -35,6 +37,7 @@ def _err(message, level='error', code=None, status=400):
 
 @wallet_api_bp.route('', methods=['GET'])
 @jwt_required()
+@csrf.exempt
 def get_wallet():
     """Retourne le wallet de l'utilisateur connecté : soldes + transactions (100 dernières)."""
     current_user_id = int(get_jwt_identity())

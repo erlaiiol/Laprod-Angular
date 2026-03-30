@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 
 export interface Tag {
   id:       number;
@@ -30,8 +30,6 @@ export class TagsService {
   constructor(private http: HttpClient) {}
 
   getTags(): Observable<TagsResponse> {
-    return this.http.get<TagsResponse>(this.tagsApiUrl).pipe(
-      tap(data => console.log('TagsService.getTags() called', data))
-    );
+    return this.http.get<TagsResponse>(this.tagsApiUrl);
   }
 }

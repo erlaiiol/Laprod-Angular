@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { Tag } from './tags.service';
 
 export interface UploadTrackData {
   title: string;
@@ -79,13 +80,13 @@ export class UploadService {
     success: boolean;
     keys: string[];
     styles: string[];
-    tags: { id: number; name: string; category: string }[];
+    tags: Tag [];
   }> {
     return this.http.get<{
       success: boolean;
       keys: string[];
       styles: string[];
-      tags: { id: number; name: string; category: string }[];
-    }>(`${this.apiUrl}/filter-options`);
+      tags: Tag [];
+    }>(`${this.apiUrl}/filters/tags/all`);
   }
 }

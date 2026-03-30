@@ -243,7 +243,7 @@ def get_identity():
                     },
                     'user_type_selected': user.user_type_selected,
                     'email_verified': user.email_verified,
-                    'notif_count' : get_unread_count(user.id)
+                    'notif_count' : notification_service.get_unread_count(user.id)
                 }
             }
         }), 200
@@ -734,7 +734,7 @@ def google_callback():
             })
             return redirect(f'{angular_base}/oauth-callback?code={code}')
 
-        current_app.logger.debug(f'user: {user_infi}, authorize_access_token ?: {token}, resp ? {resp}.')
+        current_app.logger.debug(f'user: {user}, authorize_access_token ?: {token}, resp ? {resp}.')
 
         # ── CAS 2 : google_id inconnu ────────────────────────────────────────
         user_by_email = db.session.query(User).filter_by(email=email).first()
@@ -826,6 +826,25 @@ def token_exchange():
         },
     }), 200
 
+
+@auth_api_bp.route('/refresh', methods=['POST'])
+@csrf.exempt
+@jwt_required(refresh=True)
+def jwt_token_refresh():
+    user_id = int(get_jwt_identity())
+
+    user = db.get_or_404(User, user_id)
+
+    current_app.logger.debug(f'refreshing via jwt_token_refresh() for {user}')
+
+    access_token = create_access_token(identity=str(user.id))
+
+    return jsonify({
+        'success': True,
+        'tokens' : {
+            'access_token' : access_token
+        }
+    })
 
 @auth_api_bp.route('/complete-oauth-profile', methods=['POST'])
 @jwt_required()

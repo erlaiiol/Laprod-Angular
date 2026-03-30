@@ -10,7 +10,7 @@ from extensions import db
 from models import User
 from utils.wallet_service import perform_withdrawal, process_pending_to_available, process_expirations
 
-cud_wallet_api_bp = Blueprint('cud_wallet_api', __name__, url_prefix='/api/wallet')
+cud_wallet_api_bp = Blueprint('cud_wallet_api', __name__, url_prefix='/cud_wallet')
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
