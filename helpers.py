@@ -147,3 +147,33 @@ def sanitize_html(input_html):
         tags=config.ALLOWED_TAGS,
         attributes=config.ALLOWED_ATTRIBUTES
     )
+
+
+# ── Helpers Redis — refresh tokens ───────────────────────────────────────────
+# Clé Redis : "refresh_token:{user_id}:{jti}"  →  valeur "1"  (TTL = exp du token)
+# Usage :
+#   store_refresh_token(user.id, jti, ttl)         après chaque create_refresh_token()
+#   is_refresh_token_valid(user.id, jti)           dans /auth/refresh
+#   revoke_all_refresh_tokens(user.id)             dans /auth/logout et reset-password
+
+REFRESH_PREFIX = "refresh_token:"
+
+
+def store_refresh_token(user_id: int, jti: str, ttl: int) -> None:
+    """Enregistre le JTI du refresh token dans Redis avec TTL = durée de vie du token."""
+    from extensions import redis_client
+    redis_client.set(f"{REFRESH_PREFIX}{user_id}:{jti}", "1", ex=ttl)
+
+
+def is_refresh_token_valid(user_id: int, jti: str) -> bool:
+    """Vérifie si le refresh token (jti) est encore valide (présent dans Redis)."""
+    from extensions import redis_client
+    return redis_client.exists(f"{REFRESH_PREFIX}{user_id}:{jti}") == 1
+
+
+def revoke_all_refresh_tokens(user_id: int) -> None:
+    """Révoque TOUS les refresh tokens d'un user (logout, changement de mot de passe)."""
+    from extensions import redis_client
+    keys = redis_client.keys(f"{REFRESH_PREFIX}{user_id}:*")
+    if keys:
+        redis_client.delete(*keys)

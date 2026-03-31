@@ -64,4 +64,5 @@ dependencies = [
     "libcst>=1.8.6",
     "flask-cors>=6.0.2",
     "flask-jwt-extended>=4.7.1",
+    "redis>=7.4.0",
 ]

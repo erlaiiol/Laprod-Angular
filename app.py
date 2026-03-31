@@ -73,6 +73,11 @@ def create_app():
     app.config['STRIPE_WEBHOOK_SECRET'] = config.STRIPE_WEBHOOK_SECRET
     app.config['PLATFORM_COMMISSION'] = config.PLATFORM_COMMISSION
 
+    # REDIS
+    app.config['REDIS_HOST'] = config.REDIS_HOST
+    app.config['REDIS_PORT'] = config.REDIS_PORT
+    app.config['REDIS_DB'] = config.REDIS_DB
+
     # SERVER
     # Not NEEDED IN PRODUCTION PROD V2
     # app.config['SERVER_NAME'] = config.SERVER_NAME

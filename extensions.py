@@ -16,6 +16,7 @@ from authlib.integrations.flask_client import OAuth
 from apscheduler.schedulers.background import BackgroundScheduler
 import stripe
 import os
+import redis
 
 # ============================================
 # CRÉER LES EXTENSIONS SANS APP
@@ -34,8 +35,10 @@ limiter = Limiter(
     key_func=get_remote_address,
     # CHANGE THIS ABSOLUTELY FOR PRODUCTION PURPOSE TO 300 PER DAY 50 PER HOUR
     default_limits=["300 per day", "50 per hour"],
-    storage_uri="memory://"
+    storage_uri="redis://localhost:6379/0",  # Utiliser Redis pour stocker les compteurs de rate limit
 )
+
+redis_client: redis.Redis | None = None  # Initialisé dans init_extensions()
 
 
 # ============================================
@@ -103,6 +106,15 @@ def init_extensions(app):
         }
     )
     app.logger.info("  OK OAuth2 (Google)")
+
+    # Redis
+    global redis_client
+    redis_client = redis.Redis(
+        host=app.config['REDIS_HOST'],
+        port=app.config['REDIS_PORT'],
+        db=app.config['REDIS_DB'],
+        decode_responses=True
+    )
 
     # Talisman (Headers sécurité)
     env = os.environ.get('FLASK_ENV', 'development')

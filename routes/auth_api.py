@@ -1,6 +1,7 @@
 """
 Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
+import json
 import re
 import uuid
 import time
@@ -15,14 +16,15 @@ import config
 from utils.file_validator import validate_image_file
 from sqlalchemy import select, or_
 
-from extensions import db, limiter, oauth, csrf
+from extensions import db, limiter, oauth, csrf, redis_client
 from models import User, PriceChangeRequest
-from helpers import sanitize_html
+from helpers import sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens
 from utils import email_service, notification_service
 
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     jwt_required,
     get_jwt_identity,
     get_jwt
@@ -34,14 +36,25 @@ _oauth_pending: dict = {}  # { code: { expires_at, tokens, user, next } }
 
 def _store_oauth_code(payload: dict) -> str:
     code = str(uuid.uuid4())
-    _oauth_pending[code] = {**payload, 'expires_at': time.time() + 60}
+    redis_client.setex(
+        f"oauth:{code}",
+        60,
+        json.dumps(payload)
+    )
+
     return code
 
 def _pop_oauth_code(code: str) -> dict | None:
-    entry = _oauth_pending.pop(code, None)
-    if entry and entry['expires_at'] > time.time():
-        return entry
-    return None
+    key = f"oauth:{code}"
+
+    data = redis_client.get(key)
+
+    if not data:
+        return None
+
+    redis_client.delete(key)
+
+    return json.loads(data)
 
 # ============================================
 # CRÉER LE BLUEPRINT
@@ -153,7 +166,11 @@ def login():
     access_token = create_access_token(identity=str(user.id))
     refresh_token = create_refresh_token(identity=str(user.id))
 
-
+    decoded = decode_token(refresh_token)
+    jti = decoded['jti']
+    exp = decoded['exp']
+    ttl = int(exp - time.time())
+    store_refresh_token(user.id, jti, ttl)
 
     if not user.user_type_selected:
         current_app.logger.debug("l'utilisateur doit choisir un rôle")
@@ -270,10 +287,14 @@ def logout():
     jti      = jwt_data.get('jti') if jwt_data else None
     user_id  = get_jwt_identity()
 
-    if jti:
+    if jti and user_id:
         try:
-            db.session.add(TokenBlocklist(jti=jti))
+            # Blocklist l'access token courant
+            entry = TokenBlocklist(jti=jti, created_at=datetime.utcnow())
+            db.session.add(entry)
             db.session.commit()
+            # Révoquer tous les refresh tokens Redis
+            revoke_all_refresh_tokens(int(user_id))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Erreur blocklist logout user #{user_id} : {e}')
@@ -718,6 +739,8 @@ def google_callback():
 
             access_token  = create_access_token(identity=str(user.id))
             refresh_token = create_refresh_token(identity=str(user.id))
+            decoded = decode_token(refresh_token)
+            store_refresh_token(user.id, decoded['jti'], int(decoded['exp'] - time.time()))
 
             if not user.user_type_selected:
                 code = _store_oauth_code({
@@ -752,6 +775,8 @@ def google_callback():
 
                 access_token  = create_access_token(identity=str(user_by_email.id))
                 refresh_token = create_refresh_token(identity=str(user_by_email.id))
+                decoded = decode_token(refresh_token)
+                store_refresh_token(user_by_email.id, decoded['jti'], int(decoded['exp'] - time.time()))
 
                 next_page = 'select-role' if not user_by_email.user_type_selected else '/'
                 code = _store_oauth_code({
@@ -782,6 +807,8 @@ def google_callback():
         access_token  = create_access_token(identity=str(new_user.id),
                                             additional_claims={'oauth_incomplete': True})
         refresh_token = create_refresh_token(identity=str(new_user.id))
+        decoded = decode_token(refresh_token)
+        store_refresh_token(new_user.id, decoded['jti'], int(decoded['exp'] - time.time()))
 
         safe_name = re.sub(r"[^\w\s\-']", '', given_name.strip())[:100] if given_name else ''
 
@@ -833,18 +860,31 @@ def token_exchange():
 def jwt_token_refresh():
     user_id = int(get_jwt_identity())
 
-    user = db.get_or_404(User, user_id)
 
+    jwt_data = get_jwt()
+    jti = jwt_data['jti']
+
+    if not is_refresh_token_valid(user_id, jti):
+        current_app.logger.warning(f"Token refresh rejeté pour l'utilisateur #{user_id} (jti: {jti})")
+        return jsonify({
+            'success': False,
+            'feedback': {
+                'level': 'error',
+                'message': 'Refresh token invalide ou expiré. Veuillez vous reconnecter.'
+            },
+        }), 401
+
+    user = db.get_or_404(User, user_id)
     current_app.logger.debug(f'refreshing via jwt_token_refresh() for {user}')
 
     access_token = create_access_token(identity=str(user.id))
 
     return jsonify({
         'success': True,
-        'tokens' : {
-            'access_token' : access_token
+        'data': {
+            'access_token': access_token
         }
-    })
+    }), 200
 
 @auth_api_bp.route('/complete-oauth-profile', methods=['POST'])
 @jwt_required()
@@ -912,6 +952,8 @@ def complete_oauth_profile():
     # Émettre de nouveaux tokens sans le claim `oauth_incomplete`
     access_token  = create_access_token(identity=str(user.id))
     refresh_token = create_refresh_token(identity=str(user.id))
+    decoded = decode_token(refresh_token)
+    store_refresh_token(user.id, decoded['jti'], int(decoded['exp'] - time.time()))
 
     return jsonify({
         'success':  True,

@@ -101,7 +101,12 @@ DEFAULT_PRICE_MP3 = 9.99
 DEFAULT_PRICE_WAV = 19.99
 DEFAULT_PRICE_STEMS = 49.99
 
-
+# ===========================================
+# REDIS CONFIGURATION
+# ===========================================
+REDIS_HOST = os.environ.get('REDIS_HOST')
+REDIS_PORT = int(os.environ.get('REDIS_PORT'))
+REDIS_DB = int(os.environ.get('REDIS_DB'))
 
 # ============================================
 # CONFIGURATION DES CONTRATS BEATS/TRACKS
