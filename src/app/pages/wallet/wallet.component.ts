@@ -1,10 +1,7 @@
-import {
-  Component, OnInit, signal, computed,
-  inject, ChangeDetectionStrategy, ChangeDetectorRef,
-} from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import {
   WalletService, WalletInfo, WalletTransaction,
 } from '../../services/wallet.service';
@@ -16,7 +13,6 @@ import { AuthService } from '../../services/auth.service';
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './wallet.component.html',
   styleUrls: ['./wallet.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WalletComponent implements OnInit {
 
@@ -41,18 +37,20 @@ export class WalletComponent implements OnInit {
 
   // ── Computed ─────────────────────────────────────────────────────────────────
 
-  canWithdraw      = computed(() => (this.wallet()?.balance_available ?? 0) >= 10);
-  stripeComplete   = computed(() => this.wallet()?.stripe_onboarding_complete ?? false);
+  canWithdraw    = computed(() => (this.wallet()?.balance_available ?? 0) >= 10);
+  stripeComplete = computed(() => this.wallet()?.stripe_onboarding_complete ?? false);
 
   // ── DI ───────────────────────────────────────────────────────────────────────
 
   private walletSvc = inject(WalletService);
   readonly auth     = inject(AuthService);
-  private cdr       = inject(ChangeDetectorRef);
+  private router    = inject(Router);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
+    if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
+
     this.walletSvc.getWallet().subscribe({
       next: (res) => {
         if (res.success) {
@@ -64,12 +62,10 @@ export class WalletComponent implements OnInit {
           this.error.set(res.feedback?.message ?? 'Erreur de chargement.');
         }
         this.loading.set(false);
-        this.cdr.markForCheck();
       },
       error: () => {
         this.error.set('Impossible de contacter le serveur.');
         this.loading.set(false);
-        this.cdr.markForCheck();
       },
     });
   }
@@ -80,7 +76,6 @@ export class WalletComponent implements OnInit {
     if (this.settingUpStripe()) return;
     this.settingUpStripe.set(true);
     this.stripeError.set(null);
-    this.cdr.markForCheck();
 
     const returnUrl = window.location.href;
     this.walletSvc.getSetupUrl(returnUrl).subscribe({
@@ -90,13 +85,11 @@ export class WalletComponent implements OnInit {
         } else {
           this.stripeError.set(res.feedback?.message ?? 'Erreur Stripe Connect.');
           this.settingUpStripe.set(false);
-          this.cdr.markForCheck();
         }
       },
       error: () => {
         this.stripeError.set('Erreur serveur.');
         this.settingUpStripe.set(false);
-        this.cdr.markForCheck();
       },
     });
   }
@@ -117,12 +110,10 @@ export class WalletComponent implements OnInit {
     this.withdrawError.set(null);
     this.withdrawSuccess.set(null);
     this.showWithdrawModal.set(true);
-    this.cdr.markForCheck();
   }
 
   closeWithdrawModal(): void {
     this.showWithdrawModal.set(false);
-    this.cdr.markForCheck();
   }
 
   confirmWithdraw(): void {
@@ -130,19 +121,16 @@ export class WalletComponent implements OnInit {
     const amount = this.withdrawAmount();
     if (amount < 10) {
       this.withdrawError.set('Montant minimum : 10€.');
-      this.cdr.markForCheck();
       return;
     }
 
     this.withdrawing.set(true);
     this.withdrawError.set(null);
-    this.cdr.markForCheck();
 
     this.walletSvc.withdraw(amount).subscribe({
       next: (res) => {
         if (res.success) {
           this.withdrawSuccess.set(`Retrait de ${res.data!.amount.toFixed(2)}€ initié avec succès.`);
-          // Refresh wallet
           this.walletSvc.getWallet().subscribe({
             next: (r) => {
               if (r.success) {
@@ -150,20 +138,17 @@ export class WalletComponent implements OnInit {
                 this.transactions.set(r.data!.transactions);
               }
               this.withdrawing.set(false);
-              this.cdr.markForCheck();
             },
-            error: () => { this.withdrawing.set(false); this.cdr.markForCheck(); },
+            error: () => { this.withdrawing.set(false); },
           });
         } else {
           this.withdrawError.set(res.feedback?.message ?? 'Erreur de retrait.');
           this.withdrawing.set(false);
-          this.cdr.markForCheck();
         }
       },
       error: (err) => {
         this.withdrawError.set(err?.error?.feedback?.message ?? 'Erreur serveur.');
         this.withdrawing.set(false);
-        this.cdr.markForCheck();
       },
     });
   }

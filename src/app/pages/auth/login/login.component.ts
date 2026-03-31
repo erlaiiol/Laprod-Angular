@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { Router, RouterModule, RouterOutlet } from '@angular/router';
+import { Component, signal } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
-import { FormBuilder, FormsModule } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 @Component({

@@ -1,85 +1,40 @@
-import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
-
-
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
-  
-  const http = inject(HttpClient);
   const authService = inject(AuthService);
-  const authUrl = authService.getAuthUrl();
+  const authUrl     = authService.getAuthUrl();
+  const token       = authService.getToken();
 
-  const access_token = authService.getToken();
-  const refresh_token = localStorage.getItem('refresh_token');
-
-  //===================================
-  //DEBUG LINE 
-  // console.log('jwtInterceptor online')
-  //===================================
-    
-  if (access_token) {
-    //===================================
-    //DEBUG LINE 
-    // console.log('interceptor checks token, token = ', token)
-    //===================================
-    
-
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${access_token}`
-      }
-    });
+  if (token) {
+    req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
   }
 
   return next(req).pipe(
-    
-    catchError((error:HttpErrorResponse) => {
-      if (error.status !== 401) {
-        return throwError(() => error);
-      }
+    catchError((error: HttpErrorResponse) => {
+      // Laisser passer toutes les erreurs non-401
+      if (error.status !== 401) return throwError(() => error);
 
-      if (!refresh_token){
-        authService.logout().subscribe();
-        return throwError(() => error);
-      }
-
+      // Si c'est le refresh lui-même qui 401 → logout direct (refresh token expiré/révoqué)
       if (req.url.includes(`${authUrl}/refresh`)) {
         authService.logout().subscribe();
         return throwError(() => error);
       }
 
-      return http.post<any>(`${authUrl}/refresh`, {}, {
-        headers: {
-          Authorization: `Bearer ${refresh_token}`
-        }
-      }).pipe(
-
-        switchMap((response) => {
-
-          const newAccessToken = response.data.access_token;
-
-          // 💾 sauvegarde
-          localStorage.setItem('access_token', newAccessToken);
-
-          // 🔁 rejouer requête originale
-          const newReq = req.clone({
-            setHeaders: {
-              Authorization: `Bearer ${newAccessToken}`
-            }
-          });
-
-          return next(newReq);
-        }),
-
+      // Tenter un refresh (shareReplay garantit une seule requête même en cas de 401 simultanés)
+      return authService.refreshToken().pipe(
+        switchMap(newToken =>
+          next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } })),
+        ),
         catchError(err => {
-          // ❌ refresh failed → logout
+          // Refresh échoué (token expiré, révoqué, réseau…) → logout
           authService.logout().subscribe();
           return throwError(() => err);
-        })
+        }),
       );
-    })
+    }),
   );
 };

@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, Observable, of, tap, throwError } from 'rxjs';
+import { catchError, finalize, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 
@@ -159,18 +159,12 @@ export class AuthService {
       this._currentUser.set(res.data.user);
     }
 
-    private failedAuth(res: LoginError){
-      if (res?.feedback) {
-        console.log('level :', res.feedback.level, ', message : ', res.feedback.message)
-      }
-    }
+    private failedAuth(_res: LoginError){ /* noop — error handled by component */ }
 
 
 
   logout(): Observable<any> {
-    return this.http.post(`${this.authUrl}/logout`, {}, {
-      headers: { Authorization: `Bearer ${this.getToken()}` }
-    }).pipe(
+    return this.http.post(`${this.authUrl}/logout`, {}).pipe(
       tap(() => this._clearAuth()),
       catchError(() => { this._clearAuth(); return of(null); })
     );
@@ -192,9 +186,7 @@ export class AuthService {
   }
 
   me(): Observable<MeResponse> {
-    return this.http.get<MeResponse>(`${this.authUrl}/me`, {
-      headers: { Authorization: `Bearer ${this.getToken()}` }
-    }).pipe(
+    return this.http.get<MeResponse>(`${this.authUrl}/me`).pipe(
       tap((res) => {
         if (res.success) {
           this._currentUser.set(res.user);
@@ -203,9 +195,36 @@ export class AuthService {
     );
   }
 
-  // USED IN JWT INTERCEPTOR
-  getAuthUrl(): string {
-    return this.authUrl;
+  // ── USED IN JWT INTERCEPTOR ──────────────────────────────────────────────────
+
+  getAuthUrl(): string { return this.authUrl; }
+
+  /**
+   * Rafraîchit l'access_token en utilisant le refresh_token stocké.
+   *
+   * Protection multi-refresh : si un refresh est déjà en cours, renvoie le
+   * même Observable partagé (shareReplay) — une seule requête HTTP, tous les
+   * appelants simultanés reçoivent le même nouveau token.
+   */
+  private _refreshing$: Observable<string> | null = null;
+
+  refreshToken(): Observable<string> {
+    if (this._refreshing$) return this._refreshing$;
+
+    const rt = localStorage.getItem('refresh_token');
+    if (!rt) return throwError(() => new Error('no_refresh_token'));
+
+    this._refreshing$ = this.http.post<any>(
+      `${this.authUrl}/refresh`, {},
+      { headers: { Authorization: `Bearer ${rt}` } },
+    ).pipe(
+      map((res): string => res.data.access_token),
+      tap(token => localStorage.setItem('access_token', token)),
+      shareReplay(1),
+      finalize(() => { this._refreshing$ = null; }),
+    );
+
+    return this._refreshing$;
   }
 
 
@@ -229,7 +248,6 @@ export class AuthService {
     return this.http.post<any>(
       `${this.authUrl}/complete-oauth-profile`,
       { username, signature, accept_terms },
-      { headers: { Authorization: `Bearer ${this.getToken()}` } },
     );
   }
 
@@ -239,7 +257,6 @@ export class AuthService {
     return this.http.post<any>(
       `${this.authUrl}/select-role`,
       roles,
-      { headers: { Authorization: `Bearer ${this.getToken()}` } },
     );
   }
 
