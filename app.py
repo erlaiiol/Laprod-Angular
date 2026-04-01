@@ -1,7 +1,7 @@
 """
 LaProd - Application Factory (PostgreSQL + Flask-Migrate)
 """
-from flask import Flask, session
+from flask import Flask, session, jsonify
 import os
 from dotenv import load_dotenv
 from helpers import admin_required

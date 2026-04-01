@@ -22,6 +22,14 @@
     "strictTemplates": true
   },
   "files": [],
+  "exclude": [
+    "*.ctl",
+    "*.sock",
+    "*.pid",
+    ".venv",
+    "node_modules",
+    "dist"
+  ],
   "references": [
     {
       "path": "./tsconfig.app.json"

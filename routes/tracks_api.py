@@ -145,7 +145,9 @@ def get_tracks():
     user_id = None
     is_admin = False
 
-    try: 
+    track_query = select(Track).options(selectinload(Track.tags), selectinload(Track.composer_user))
+
+    try:
         verify_jwt_in_request(optional=True)
         user_id = get_jwt_identity()
         if user_id:
@@ -154,8 +156,6 @@ def get_tracks():
             is_admin = user.is_admin if user else False
     except Exception as e:
         current_app.logger.debug(f'pas de jwt valide pour get_tracks(): {e}')
-
-        track_query = select(Track).options(selectinload(Track.tags), selectinload(Track.composer_user))
 
     if not is_admin:
         track_query = track_query.where(Track.is_approved.is_(True))
