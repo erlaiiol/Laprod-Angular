@@ -179,7 +179,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       id:            tl.id,
       title:         `Topline (aperçu)`,
       composer_user: tl.artist_user as any,
-      audio_file:    tl.audio_file,
+      stream_url:    tl.stream_url,
       image_file:    this.track.image_file,
       bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
     });

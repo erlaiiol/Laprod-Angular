@@ -65,7 +65,7 @@ export class ProfileComponent implements OnInit {
     this.player.play({
       id:         track.id,
       title:      track.title,
-      audio_file: track.audio_file,
+      stream_url: track.stream_url,
       image_file: track.image_file,
       price_mp3:  track.price_mp3,
       composer_user: { username: this.profile()?.username ?? '' },

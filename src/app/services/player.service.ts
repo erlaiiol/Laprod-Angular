@@ -122,9 +122,9 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    if (!track.audio_file) return '';
-    if (track.audio_file.startsWith('http')) return track.audio_file;
-    return `${environment.apiUrl}/static/${track.audio_file}`;
+    if (!track.stream_url) return '';
+    if (track.stream_url.startsWith('http')) return track.stream_url;
+    return `${environment.apiUrl}${track.stream_url}`;
   }
 
 }

@@ -105,7 +105,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
       id:            tl.id,
       title:         `Topline par ${tl.artist_user.username}`,
       composer_user: tl.artist_user as any,
-      audio_file:    tl.audio_file,
+      stream_url:    tl.stream_url,
       image_file:    t.image_file,
       bpm:           t.bpm,
       key:           t.key,

@@ -32,7 +32,7 @@ export interface Track {
   id:            number;
   title:         string;
   composer_user: { username: string };  // objet imbriqué  ← {'username': ...}
-  audio_file:    string;
+  stream_url:    string;
   image_file:    string;
   bpm:           number;
   key:           string;
@@ -58,7 +58,7 @@ export interface TracksResponse {
 
 export interface PublishedTopline {
   id:           number;
-  audio_file:   string;
+  stream_url:   string;
   description:  string | null;
   created_at:   string;
   is_published: boolean;
