@@ -31,7 +31,9 @@
               }
             ],
             "stylePreprocessorOptions": {
-              "includePaths": ["src/styles"]
+              "includePaths": [
+                "src/styles"
+              ]
             },
             "styles": [
               "src/styles.scss"
@@ -51,7 +53,13 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
             },
             "development": {
               "optimization": false,
@@ -68,7 +76,8 @@
               "buildTarget": "Laprod-Angular:build:production"
             },
             "development": {
-              "buildTarget": "Laprod-Angular:build:development"
+              "buildTarget": "Laprod-Angular:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"

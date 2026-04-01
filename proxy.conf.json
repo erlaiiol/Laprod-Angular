@@ -1,0 +1,53 @@
+{
+  "/api": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/auth": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/tracks": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/cud_tracks": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/toplines": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/filters": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/stream": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/wallet": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/cud_wallet": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/static": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

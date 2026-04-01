@@ -42,7 +42,7 @@ dependencies = [
     "pillow==12.0.0",
     "plumbum==1.10.0",
     "ply==3.11",
-    "psycopg2-binary>=2.9.11",
+    "psycopg2-binary>=2.9.11",  # binaire précompilé → pas besoin de pg_config
     "pydub==0.25.1",
     "python-dotenv==1.2.1",
     "python-magic",
@@ -60,7 +60,7 @@ dependencies = [
     "wtforms==3.2.1",
     "apscheduler>=3.11.2",
     "scipy>=1.17.1",
-    "psycopg2>=2.9.11",
+
     "libcst>=1.8.6",
     "flask-cors>=6.0.2",
     "flask-jwt-extended>=4.7.1",

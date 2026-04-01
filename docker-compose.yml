@@ -1,22 +1,18 @@
 # =============================================================================
-# LaProd - Docker Compose (production)
-# Stack : nginx + gunicorn (Flask) + PostgreSQL + Certbot (Let's Encrypt)
+# LaProd - Docker Compose PRODUCTION
+# Stack : frontend (Angular + Nginx) + Flask (Gunicorn) + PostgreSQL + Redis + Certbot
 #
-# TRANSITION DEPUIS SYSTEMCTL (à faire une seule fois sur le serveur) :
-#   sudo systemctl stop nginx postgresql
-#   sudo systemctl disable nginx postgresql
-#   # Arrêter aussi le service gunicorn si tu en as un :
-#   sudo systemctl stop laprod   # (ou le nom que tu lui as donné)
-#   sudo systemctl disable laprod
+# Prérequis :
+#   - Copier .env.example → .env et remplir les variables
+#   - Lancer ng build avant le premier déploiement (ou laisser Dockerfile.frontend le faire)
 #
-# PREMIER DÉMARRAGE :
-#   docker compose up -d
-#
-# MISE À JOUR DU CODE :
-#   git pull
+# Premier démarrage :
 #   docker compose up -d --build
 #
-# LOGS EN DIRECT :
+# Mise à jour du code :
+#   git pull && docker compose up -d --build
+#
+# Logs :
 #   docker compose logs -f
 #   docker compose logs -f web
 # =============================================================================
@@ -24,16 +20,16 @@
 services:
 
   # ---------------------------------------------------------------------------
-  # BASE DE DONNÉES PostgreSQL
+  # PostgreSQL
   # ---------------------------------------------------------------------------
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     shm_size: 256mb
-    env_file: .env                        # charge DB_USER, DB_PASSWORD, DB_NAME depuis .env
+    env_file: .env
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -44,84 +40,101 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  # APPLICATION Flask / Gunicorn
+  # Redis — stockage refresh tokens JWT + cache OAuth
+  # Pas de port exposé en prod (accès interne uniquement)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Flask / Gunicorn (API uniquement — plus de Jinja en prod)
   # ---------------------------------------------------------------------------
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
-    mem_limit : 1g
+    mem_limit: 1g
     env_file: .env
     environment:
-      FLASK_ENV: production
-      FLASK_APP: app.py
-      # Pointe vers le service 'db' du compose (écrase DATABASE_URL du .env)
+      FLASK_ENV:    production
+      FLASK_APP:    app.py
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_URL:    redis://redis:6379/0   # pour flask_limiter (module-level)
+      REDIS_HOST:   redis                 # pour redis_client (init_extensions)
+      REDIS_PORT:   "6379"
+      REDIS_DB:     "0"
     volumes:
-      - ./static:/usr/src/app/static    # fichiers statiques + uploads persistants
-      - ./logs:/usr/src/app/logs        # logs persistants sur le serveur
+      - ./static:/usr/src/app/static    # uploads persistants
+      - ./logs:/usr/src/app/logs
     expose:
-      - "5000"                          # port interne uniquement (nginx fait le relais)
+      - "5000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      # curl est installé dans notre Dockerfile (apt-get install curl)
-      # -f : retourne un code d'erreur si HTTP >= 400 (fail silently sinon)
-      # -s : silencieux (pas d'affichage dans les logs)
-      # --max-time 3 : timeout de la requête healthcheck elle-même
-      test: ["CMD", "curl", "-fs", "--max-time", "3", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-fs", "--max-time", "3", "http://localhost:5000/auth/ping"]
       interval: 30s
       timeout: 5s
       retries: 3
-      # start_period : délai avant le premier healthcheck (laisse le temps à gunicorn de démarrer)
-      start_period: 10s
+      start_period: 15s
 
   # ---------------------------------------------------------------------------
-  # REVERSE PROXY nginx
+  # Frontend : Angular (build) + Nginx (reverse proxy + SPA)
   # ---------------------------------------------------------------------------
-  nginx:
-    image: nginx:alpine
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./static:/usr/src/app/static:ro           # fichiers statiques (lecture seule)
-      - certbot_www:/var/www/certbot:ro            # challenge Let's Encrypt
-      - certbot_conf:/etc/letsencrypt:ro           # certificats SSL
+      - ./static:/usr/src/app/static:ro       # fichiers statiques Flask (images, audio)
+      - certbot_www:/var/www/certbot:ro        # challenge Let's Encrypt
+      - certbot_conf:/etc/letsencrypt:ro       # certificats SSL
     depends_on:
-      web :
-        condition : service_started
-
+      web:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  # CERTBOT - Let's Encrypt
-  # Usage : docker compose run --rm certbot certonly --webroot \
-  #           --webroot-path=/var/www/certbot \
-  #           -d laprod.net -d www.laprod.net \
-  #           --email contact@laprod.net --agree-tos --no-eff-email
+  # Certbot — Let's Encrypt (déclenché manuellement)
   #
-  # Renouvellement (à mettre en cron sur le serveur) :
-  #   0 3 * * * docker compose -f /chemin/vers/docker-compose.yml run --rm certbot renew \
-  #             && docker compose -f /chemin/vers/docker-compose.yml exec nginx nginx -s reload
+  # Premier certificat :
+  #   docker compose run --rm certbot certonly --webroot \
+  #     --webroot-path=/var/www/certbot \
+  #     -d laprod.net -d www.laprod.net \
+  #     --email contact@laprod.net --agree-tos --no-eff-email
+  #
+  # Renouvellement (cron Ubuntu) :
+  #   0 3 * * 1 docker compose run --rm certbot renew \
+  #             && docker compose exec frontend nginx -s reload
   # ---------------------------------------------------------------------------
   certbot:
     image: certbot/certbot
     volumes:
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
-    # Ce service ne démarre pas automatiquement, on l'appelle manuellement.
     profiles:
       - certbot
 
 # -----------------------------------------------------------------------------
-# VOLUMES PERSISTANTS
-# postgres_data : données PostgreSQL (ne jamais supprimer en prod)
-# certbot_www   : fichiers de challenge HTTP-01 pour Let's Encrypt
-# certbot_conf  : certificats SSL et configuration Certbot
+# Volumes persistants
 # -----------------------------------------------------------------------------
 volumes:
   postgres_data:
+  redis_data:
   certbot_www:
   certbot_conf:

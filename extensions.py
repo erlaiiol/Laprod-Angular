@@ -35,7 +35,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     # CHANGE THIS ABSOLUTELY FOR PRODUCTION PURPOSE TO 300 PER DAY 50 PER HOUR
     default_limits=["300 per day", "50 per hour"],
-    storage_uri="redis://localhost:6379/0",  # Utiliser Redis pour stocker les compteurs de rate limit
+    storage_uri=os.getenv("REDIS_URL", "redis://redis:6379"),  # Utiliser Redis pour stocker les compteurs de rate limit
 )
 
 redis_client: redis.Redis | None = None  # Initialisé dans init_extensions()

@@ -1,0 +1,52 @@
+# =============================================================================
+# LaProd - Docker Compose DÉVELOPPEMENT (Windows / local)
+# Utilisation :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Ce fichier surcharge docker-compose.yml pour le dev :
+#   - Expose les ports db, redis, Flask directement sur localhost
+#   - Flask tourne en mode debug avec hot-reload
+#   - Pas de frontend Docker (Angular tourne via : ng serve)
+#   - Pas de certbot
+#
+# Angular dev :
+#   npm start   (ou ng serve)
+#   → proxy.conf.json redirige /api → http://localhost:5000
+#   → accès à l'app sur http://localhost:4200
+# =============================================================================
+
+services:
+
+  db:
+    ports:
+      - "5432:5432"   # accès direct pour DBeaver / pgAdmin
+
+  redis:
+    ports:
+      - "6379:6379"   # accès direct pour redis-cli / Redis Insight
+
+  web:
+    environment:
+      FLASK_ENV:   development
+      FLASK_DEBUG: "1"
+      REDIS_URL:   redis://redis:6379/0
+      REDIS_HOST:  redis
+      REDIS_PORT:  "6379"
+      REDIS_DB:    "0"
+    ports:
+      - "5000:5000"   # accès direct (Angular proxy.conf.json pointe ici)
+    volumes:
+      # Monte le code source pour le hot-reload Flask
+      - .:/usr/src/app
+      # Exclure le venv et les dossiers lourds du montage
+      - /usr/src/app/.venv
+      - /usr/src/app/node_modules
+
+  # Frontend et certbot désactivés en dev
+  frontend:
+    profiles:
+      - never
+
+  certbot:
+    profiles:
+      - never

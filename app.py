@@ -423,130 +423,60 @@ def create_app():
             f"csrf_in_form={'csrf_token' in request.form}"
         )
         log_security_event('csrf_error', f"Token CSRF invalide sur {request.url}", user_id=user_id, ip=ip)
-        return render_template(
-            'errors.html',
-            error_code=400,
-            error_title="Session expirée",
-            error_description=(
-                "Votre session a expiré ou la requête est invalide. "
-                "Cela arrive souvent si la page est restée ouverte trop longtemps."
-            ),
-            error_hint="Revenez sur la page précédente et soumettez à nouveau le formulaire."
-        ), 400
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Session expirée ou requête invalide.'}}), 400
 
     # --- 400 Bad Request ---
     @app.errorhandler(400)
     def handle_bad_request(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"400 Bad Request | user={user_id} | ip={ip} | "
-            f"url={request.url} | detail={getattr(e, 'description', str(e))}"
-        )
-        return render_template(
-            'errors.html',
-            error_code=400,
-            error_title="Requête invalide",
-            error_description="La requête envoyée au serveur est mal formée ou contient des données incorrectes.",
-            error_hint="Vérifiez les données soumises et réessayez."
-        ), 400
+        app.logger.warning(f"400 Bad Request | user={user_id} | ip={ip} | url={request.url} | detail={getattr(e, 'description', str(e))}")
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Requête invalide.'}}), 400
 
     # --- 403 Forbidden ---
     @app.errorhandler(403)
     def handle_forbidden(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"403 Forbidden | user={user_id} | ip={ip} | url={request.url}"
-        )
+        app.logger.warning(f"403 Forbidden | user={user_id} | ip={ip} | url={request.url}")
         log_security_event('access_forbidden', f"Accès interdit à {request.url}", user_id=user_id, ip=ip)
-        return render_template(
-            'errors.html',
-            error_code=403,
-            error_title="Accès refusé",
-            error_description="Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
-            error_hint="Connectez-vous avec un compte ayant les droits requis, ou contactez l'administration."
-        ), 403
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès refusé.'}}), 403
 
     # --- 404 Not Found ---
     @app.errorhandler(404)
     def handle_not_found(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"404 Not Found | user={user_id} | ip={ip} | url={request.url}"
-        )
-        return render_template(
-            'errors.html',
-            error_code=404,
-            error_title="Page introuvable",
-            error_description="La page que vous cherchez n'existe pas ou a été supprimée.",
-            error_hint="Vérifiez l'URL ou utilisez la barre de recherche pour trouver ce que vous cherchez."
-        ), 404
+        app.logger.warning(f"404 Not Found | user={user_id} | ip={ip} | url={request.url}")
+        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Ressource introuvable.'}}), 404
 
     # --- 405 Method Not Allowed ---
     @app.errorhandler(405)
     def handle_method_not_allowed(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"405 Method Not Allowed | user={user_id} | ip={ip} | "
-            f"url={request.url} | method={request.method}"
-        )
-        return render_template(
-            'errors.html',
-            error_code=405,
-            error_title="Méthode non autorisée",
-            error_description="La méthode HTTP utilisée n'est pas autorisée pour cette URL.",
-            error_hint=None
-        ), 405
+        app.logger.warning(f"405 Method Not Allowed | user={user_id} | ip={ip} | url={request.url} | method={request.method}")
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Méthode non autorisée.'}}), 405
 
-    # --- 413 Payload Too Large (fichier trop gros, capté aussi par nginx) ---
+    # --- 413 Payload Too Large ---
     @app.errorhandler(413)
     def handle_payload_too_large(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"413 Payload Too Large | user={user_id} | ip={ip} | url={request.url}"
-        )
-        return render_template(
-            'errors.html',
-            error_code=413,
-            error_title="Fichier trop volumineux",
-            error_description="Le fichier envoyé dépasse la taille maximale autorisée par le serveur.",
-            error_hint="Vérifiez les limites de taille indiquées dans le formulaire d'upload."
-        ), 413
+        app.logger.warning(f"413 Payload Too Large | user={user_id} | ip={ip} | url={request.url}")
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Fichier trop volumineux.'}}), 413
 
     # --- 429 Too Many Requests (Flask-Limiter) ---
     @app.errorhandler(429)
     def handle_rate_limit(e):
         user_id, ip = _error_context()
-        app.logger.warning(
-            f"429 Too Many Requests | user={user_id} | ip={ip} | "
-            f"url={request.url} | detail={getattr(e, 'description', str(e))}"
-        )
+        app.logger.warning(f"429 Too Many Requests | user={user_id} | ip={ip} | url={request.url}")
         log_security_event('rate_limit_exceeded', f"Limite dépassée sur {request.url}", user_id=user_id, ip=ip)
-        return render_template(
-            'errors.html',
-            error_code=429,
-            error_title="Trop de requêtes",
-            error_description="Vous avez effectué trop de requêtes en peu de temps.",
-            error_hint="Attendez quelques minutes avant de réessayer."
-        ), 429
+        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Trop de requêtes. Réessayez dans quelques minutes.'}}), 429
 
     # --- 500 Internal Server Error ---
     @app.errorhandler(500)
     def handle_server_error(e):
         user_id, ip = _error_context()
-        app.logger.error(
-            f"500 Internal Server Error | user={user_id} | ip={ip} | url={request.url}",
-            exc_info=True
-        )
+        app.logger.error(f"500 Internal Server Error | user={user_id} | ip={ip} | url={request.url}", exc_info=True)
         try:
-            return render_template(
-                'errors.html',
-                error_code=500,
-                error_title="Erreur serveur",
-                error_description="Une erreur inattendue s'est produite. Notre équipe a été notifiée.",
-                error_hint=None
-            ), 500
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur serveur inattendue.'}}), 500
         except Exception:
-            # Fallback si render_template échoue (ex : base de données hors-ligne)
             return (
                 "<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#212529;color:#fff'>"
                 "<h1 style='color:#dc3545;font-size:6rem;margin:0'>500</h1>"

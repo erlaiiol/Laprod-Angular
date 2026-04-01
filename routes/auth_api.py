@@ -63,6 +63,13 @@ def _pop_oauth_code(code: str) -> dict | None:
 auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth')
 
 
+@auth_api_bp.route('/ping', methods=['GET'])
+@csrf.exempt
+def ping():
+    """Healthcheck Docker — retourne 200 si l'app est démarrée."""
+    return jsonify({'status': 'ok'}), 200
+
+
 @auth_api_bp.route('/login', methods=['POST'])
 @limiter.limit('5 per minute')
 @csrf.exempt
