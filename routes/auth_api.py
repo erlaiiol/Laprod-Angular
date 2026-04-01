@@ -65,6 +65,7 @@ auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth')
 
 @auth_api_bp.route('/ping', methods=['GET'])
 @csrf.exempt
+@limiter.exempt
 def ping():
     """Healthcheck Docker — retourne 200 si l'app est démarrée."""
     return jsonify({'status': 'ok'}), 200
