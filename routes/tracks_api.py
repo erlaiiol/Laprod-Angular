@@ -142,12 +142,26 @@ def get_tracks():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Limite max
 
-    try:
+    user_id = None
+    is_admin = False
+
+    try: 
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            user_id = int(user_id)
+            user = db.session.get(User, user_id)
+            is_admin = user.is_admin if user else False
+    except Exception as e:
+        current_app.logger.debug(f'pas de jwt valide pour get_tracks(): {e}')
+
         track_query = select(Track).options(selectinload(Track.tags), selectinload(Track.composer_user))
 
-        # Base query: admins voient tout, public voit seulement approuvé
-        if not (current_user.is_authenticated and current_user.is_admin):
-            track_query = track_query.where(Track.is_approved.is_(True))
+    if not is_admin:
+        track_query = track_query.where(Track.is_approved.is_(True))
+    
+    try:
+        
 
         # Récupérer les filtres
         search = request.args.get('search', '').strip()[:50]
@@ -200,8 +214,8 @@ def get_tracks():
         ).scalars().all()
 
         # Compter le total pour la pagination
-        total_query = select(func.count()).select_from(track_query.subquery())
-        total = db.session.execute(total_query).scalar()
+        count_query = track_query.with_only_columns(func.count()).order_by(None)
+        total = db.session.execute(count_query).scalar()
 
         # Formater la réponse
         tracks_data = []
@@ -233,7 +247,7 @@ def get_tracks():
                     'page': page,
                     'per_page': per_page,
                     'total': total,
-                    'pages': (total + per_page - 1) // per_page
+                    'pages': max(1, (total + per_page - 1) // per_page)
                 }
             }
         })
