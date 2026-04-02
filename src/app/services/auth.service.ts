@@ -170,6 +170,11 @@ export class AuthService {
     );
   }
 
+  /** Vide la session localement sans appel API ni toast (ex: token expiré auto-détecté). */
+  silentLogout(): void {
+    this._clearAuth();
+  }
+
   private _clearAuth(): void {
     localStorage.clear();
     this._currentUser.set(null);

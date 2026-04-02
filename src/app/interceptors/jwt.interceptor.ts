@@ -18,9 +18,9 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
       // Laisser passer toutes les erreurs non-401
       if (error.status !== 401) return throwError(() => error);
 
-      // Si c'est le refresh lui-même qui 401 → logout direct (refresh token expiré/révoqué)
+      // Si c'est le refresh lui-même qui 401 → logout silencieux (refresh token expiré/révoqué)
       if (req.url.includes(`${authUrl}/refresh`)) {
-        authService.logout().subscribe();
+        authService.silentLogout();
         return throwError(() => error);
       }
 
@@ -30,8 +30,8 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
           next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } })),
         ),
         catchError(err => {
-          // Refresh échoué (token expiré, révoqué, réseau…) → logout
-          authService.logout().subscribe();
+          // Refresh échoué (token expiré, révoqué, réseau…) → logout silencieux
+          authService.silentLogout();
           return throwError(() => err);
         }),
       );

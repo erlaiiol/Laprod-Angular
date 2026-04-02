@@ -44,28 +44,22 @@ with app.app_context():
 "
 echo ">>> Admin OK"
 
-# Calcul dynamique du nombre de workers : (2 x CPU) + 1
-# Sur un VPS 1 vCPU → 3 workers. Sur 2 vCPU → 5 workers. Etc.
-WORKERS=$((2 * $(nproc) + 1))
-
-# gosu appuser : bascule vers l'utilisateur non-root avant de lancer gunicorn (sécurité)
-# --preload          : charge l'app une fois avant de forker les workers (économie RAM via copy-on-write)
-# --worker-tmp-dir   : utilise la RAM (/dev/shm) pour les fichiers heartbeat des workers
-#                      évite les problèmes d'I/O disque en Docker (workers battent toutes les secondes)
-# --max-requests     : redémarre un worker après 1000 requêtes → prévient les fuites mémoire Python
-# --max-requests-jitter : ajoute un délai aléatoire (0-50 req) pour éviter que tous les workers
-#                      redémarrent simultanément (thundering herd)
-# --access-logfile - : logs vers stdout → capturés par `docker compose logs`
-# --error-logfile -  : logs d'erreur vers stderr → capturés par `docker compose logs`
-echo ">>> Démarrage gunicorn ($WORKERS workers)..."
-exec gosu appuser uv run gunicorn \
-    --workers $WORKERS \
-    --bind 0.0.0.0:5000 \
-    --timeout 120 \
-    --preload \
-    --worker-tmp-dir /dev/shm \
-    --max-requests 1000 \
-    --max-requests-jitter 50 \
-    --access-logfile - \
-    --error-logfile - \
-    app:app
+if [ "$FLASK_ENV" = "development" ]; then
+    echo ">>> Démarrage Flask dev server (hot-reload)..."
+    exec gosu appuser uv run flask run --host=0.0.0.0 --port=5000
+else
+    # Calcul dynamique du nombre de workers : (2 x CPU) + 1
+    WORKERS=$((2 * $(nproc) + 1))
+    echo ">>> Démarrage gunicorn ($WORKERS workers)..."
+    exec gosu appuser uv run gunicorn \
+        --workers $WORKERS \
+        --bind 0.0.0.0:5000 \
+        --timeout 120 \
+        --preload \
+        --worker-tmp-dir /dev/shm \
+        --max-requests 1000 \
+        --max-requests-jitter 50 \
+        --access-logfile - \
+        --error-logfile - \
+        app:app
+fi
