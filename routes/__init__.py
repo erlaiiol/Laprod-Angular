@@ -29,6 +29,8 @@ from .cud_wallet_api import cud_wallet_api_bp
 from .contracts_api import contracts_api_bp
 from .stripe_connect_api import stripe_connect_api_bp
 from .main_api import main_api_bp
+from .dashboard_api import dashboard_api_bp
+from .boughts_api import boughts_api_bp
 
 
 __all__ = [
@@ -57,4 +59,6 @@ __all__ = [
     'contracts_api_bp',
     'stripe_connect_api_bp',
     'main_api_bp',
+    'dashboard_api_bp',
+    'boughts_api_bp',
 ]

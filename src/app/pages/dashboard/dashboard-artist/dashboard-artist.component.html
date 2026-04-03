@@ -1,0 +1,136 @@
+@if (loading()) {
+  <div class="state-loading"><div class="spinner"></div></div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+}
+
+@if (!loading() && !error() && data()) {
+  <div class="dashboard-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="dash-header">
+      <h1><i class="bi bi-mic"></i> Espace Artiste</h1>
+    </div>
+
+    <!-- ── Stats ───────────────────────────────────────────────────────────── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ data()!.stats.toplines_count }}</div>
+        <div class="stat-label">Toplines soumises</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ data()!.stats.toplines_published }}</div>
+        <div class="stat-label">Publiées</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-pink">{{ data()!.stats.favorites_count }}</div>
+        <div class="stat-label">Favoris</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ data()!.stats.topline_tokens }}</div>
+        <div class="stat-label">Tokens topline</div>
+      </div>
+    </div>
+
+    <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+    <div class="tabs">
+      <button class="tab-btn" [class.active]="activeTab() === 'toplines'" (click)="setTab('toplines')">
+        <i class="bi bi-mic-fill"></i> Mes Toplines
+        <span class="tab-count">{{ data()!.toplines.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'favorites'" (click)="setTab('favorites')">
+        <i class="bi bi-heart-fill"></i> Favoris
+        <span class="tab-count">{{ data()!.favorites.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="setTab('history')">
+        <i class="bi bi-clock-history"></i> Historique
+        <span class="tab-count">{{ data()!.history.length }}</span>
+      </button>
+    </div>
+
+    <!-- ── Toplines ───────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'toplines') {
+      @if (data()!.toplines.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-mic"></i>
+          <p>Aucune topline soumise pour l'instant.</p>
+          <small>Rendez-vous sur la page d'un beat pour soumettre votre voix.</small>
+        </div>
+      } @else {
+        <div class="items-list">
+          @for (tl of data()!.toplines; track tl.id) {
+            <div class="item-row">
+              <img class="item-cover" [src]="imgUrl(tl.track_image)" [alt]="tl.track_title ?? ''">
+              <div class="item-info">
+                <a [routerLink]="['/track', tl.track_id]" class="item-title">{{ tl.track_title ?? 'Beat inconnu' }}</a>
+                @if (tl.description) {
+                  <p class="item-desc">{{ tl.description }}</p>
+                }
+                <span class="item-date">{{ formatDate(tl.created_at) }}</span>
+              </div>
+              <div class="item-right">
+                <span class="status-badge" [class.status-published]="tl.is_published" [class.status-draft]="!tl.is_published">
+                  @if (tl.is_published) {
+                    <i class="bi bi-eye-fill"></i> Publiée
+                  } @else {
+                    <i class="bi bi-eye-slash"></i> Privée
+                  }
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ── Favoris ────────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'favorites') {
+      @if (data()!.favorites.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-heart"></i>
+          <p>Aucun favori pour l'instant.</p>
+          <small>Ajoutez des beats à vos favoris depuis la page d'accueil.</small>
+        </div>
+      } @else {
+        <div class="items-list">
+          @for (fav of data()!.favorites; track fav.id) {
+            <div class="item-row">
+              <img class="item-cover" [src]="imgUrl(fav.image_file)" [alt]="fav.title ?? ''">
+              <div class="item-info">
+                <a [routerLink]="['/track', fav.id]" class="item-title">{{ fav.title ?? '—' }}</a>
+                @if (fav.composer) { <span class="item-composer">{{ fav.composer }}</span> }
+                <span class="item-date">Ajouté le {{ formatDate(fav.favorited_at) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ── Historique ─────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'history') {
+      @if (data()!.history.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-clock-history"></i>
+          <p>Aucun historique d'écoute.</p>
+        </div>
+      } @else {
+        <div class="items-list">
+          @for (h of data()!.history; track h.id) {
+            <div class="item-row">
+              <img class="item-cover" [src]="imgUrl(h.image_file)" [alt]="h.title ?? ''">
+              <div class="item-info">
+                <a [routerLink]="['/track', h.id]" class="item-title">{{ h.title ?? '—' }}</a>
+                @if (h.composer) { <span class="item-composer">{{ h.composer }}</span> }
+                <span class="item-date">Écouté le {{ formatDate(h.listened_at) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+  </div>
+}

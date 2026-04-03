@@ -1,0 +1,123 @@
+@if (loading()) {
+  <div class="state-loading"><div class="spinner"></div></div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+}
+
+@if (!loading() && !error() && data()) {
+  <div class="dashboard-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="dash-header">
+      <h1><i class="bi bi-sliders"></i> Espace Mix Engineer</h1>
+    </div>
+
+    <!-- ── Stats ───────────────────────────────────────────────────────────── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ data()!.stats.total_revenue.toFixed(2) }}€</div>
+        <div class="stat-label">Revenus totaux</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ data()!.stats.completed_count }}</div>
+        <div class="stat-label">Commandes terminées</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ data()!.stats.active_count }}</div>
+        <div class="stat-label">En cours</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-orange">{{ data()!.stats.pending_count }}</div>
+        <div class="stat-label">À accepter</div>
+      </div>
+    </div>
+
+    <!-- ── Tarifs ──────────────────────────────────────────────────────────── -->
+    @if (data()!.stats.reference_price || data()!.stats.price_min) {
+      <div class="pricing-banner">
+        <i class="bi bi-info-circle"></i>
+        <span>
+          Tarif de référence :
+          <strong>{{ data()!.stats.reference_price?.toFixed(2) }}€</strong>
+          @if (data()!.stats.price_min) {
+            — Minimum : <strong>{{ data()!.stats.price_min?.toFixed(2) }}€</strong>
+          }
+        </span>
+      </div>
+    }
+
+    <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+    <div class="tabs">
+      <button class="tab-btn" [class.active]="activeTab() === 'awaiting'" (click)="setTab('awaiting')">
+        <i class="bi bi-hourglass-split"></i> À accepter
+        <span class="tab-count">{{ data()!.orders.awaiting.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'active'" (click)="setTab('active')">
+        <i class="bi bi-play-circle"></i> En cours
+        <span class="tab-count">{{ data()!.orders.active.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'revisions'" (click)="setTab('revisions')">
+        <i class="bi bi-arrow-clockwise"></i> Révisions
+        <span class="tab-count">{{ data()!.orders.revisions.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'completed'" (click)="setTab('completed')">
+        <i class="bi bi-check-circle"></i> Terminées
+        <span class="tab-count">{{ data()!.orders.completed.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'refused'" (click)="setTab('refused')">
+        <i class="bi bi-x-circle"></i> Refusées
+        <span class="tab-count">{{ data()!.orders.refused.length }}</span>
+      </button>
+    </div>
+
+    <!-- ── Orders ─────────────────────────────────────────────────────────── -->
+    @if (currentOrders().length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <p>Aucune commande dans cette catégorie.</p>
+      </div>
+    } @else {
+      <div class="orders-list">
+        @for (order of currentOrders(); track order.id) {
+          <div class="order-card">
+            <div class="order-header">
+              <div class="order-artist">
+                <img class="artist-avatar" [src]="imgUrl(order.artist_image)" [alt]="order.artist_username ?? ''">
+                <div>
+                  <span class="order-title">{{ order.title }}</span>
+                  <span class="artist-name">{{ order.artist_username ?? '—' }}</span>
+                </div>
+              </div>
+              <div class="order-meta-right">
+                <span class="status-badge status-{{ order.status }}">{{ statusLabel(order.status) }}</span>
+                <span class="order-price">{{ order.total_price.toFixed(2) }}€</span>
+              </div>
+            </div>
+            <div class="order-body">
+              <div class="services-list">
+                @for (svc of servicesList(order); track svc) {
+                  <span class="svc-badge">{{ svc }}</span>
+                }
+              </div>
+              <div class="order-dates">
+                <span><i class="bi bi-calendar3"></i> Reçue le {{ formatDate(order.created_at) }}</span>
+                @if (order.deadline) {
+                  <span><i class="bi bi-alarm"></i> Deadline {{ formatDate(order.deadline) }}</span>
+                }
+                @if (order.completed_at) {
+                  <span><i class="bi bi-check2"></i> Terminée le {{ formatDate(order.completed_at) }}</span>
+                }
+                @if (order.engineer_revenue !== null && order.engineer_revenue > 0) {
+                  <span class="text-green"><i class="bi bi-currency-euro"></i> Gain : {{ order.engineer_revenue.toFixed(2) }}€</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+}

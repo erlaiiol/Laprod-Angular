@@ -227,6 +227,8 @@ def create_app():
         contracts_api_bp,
         stripe_connect_api_bp,
         main_api_bp,
+        dashboard_api_bp,
+        boughts_api_bp,
     )
     from routes.streaming_service import streaming_bp
 
@@ -256,6 +258,8 @@ def create_app():
     app.register_blueprint(stripe_connect_api_bp)
     app.register_blueprint(main_api_bp)
     app.register_blueprint(streaming_bp)
+    app.register_blueprint(dashboard_api_bp)
+    app.register_blueprint(boughts_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

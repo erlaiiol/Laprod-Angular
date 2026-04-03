@@ -1,0 +1,90 @@
+@if (loading()) {
+  <div class="state-loading"><div class="spinner"></div></div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+}
+
+@if (!loading() && !error() && data()) {
+  <div class="purchases-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="page-header">
+      <div>
+        <h1><i class="bi bi-bag-check"></i> Mes Achats</h1>
+        @if (data()!.purchases.length > 0) {
+          <p class="header-sub">
+            {{ data()!.purchases.length }} achat(s) —
+            total dépensé : <strong>{{ data()!.total_spent.toFixed(2) }}€</strong>
+          </p>
+        }
+      </div>
+    </div>
+
+    <!-- ── Liste ───────────────────────────────────────────────────────────── -->
+    @if (data()!.purchases.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-bag"></i>
+        <p>Aucun achat pour l'instant.</p>
+        <small>Vos achats de beats apparaîtront ici.</small>
+        <a routerLink="/" class="btn-browse">
+          <i class="bi bi-music-note-list"></i> Parcourir les beats
+        </a>
+      </div>
+    } @else {
+      <div class="purchases-list">
+        @for (p of data()!.purchases; track p.id) {
+          <div class="purchase-card">
+
+            <!-- Cover + infos ─────────────────────────────────────────────── -->
+            <a [routerLink]="['/track', p.track?.id]" class="card-cover-link">
+              <img class="card-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
+            </a>
+
+            <div class="card-info">
+              <a [routerLink]="['/track', p.track?.id]" class="card-title">
+                {{ p.track?.title ?? 'Beat supprimé' }}
+              </a>
+              @if (p.track?.composer_username) {
+                <span class="card-composer">
+                  <i class="bi bi-person"></i> {{ p.track!.composer_username }}
+                </span>
+              }
+              <div class="card-meta">
+                <span class="fmt-badge" [class]="'fmt-' + p.format">{{ formatLabel(p.format) }}</span>
+                <span class="card-date"><i class="bi bi-calendar3"></i> {{ formatDate(p.created_at) }}</span>
+              </div>
+            </div>
+
+            <!-- Prix + actions ─────────────────────────────────────────────── -->
+            <div class="card-right">
+              <div class="card-price">
+                {{ p.price_paid.toFixed(2) }}€
+                @if (p.contract_price > 0) {
+                  <small class="price-breakdown">
+                    (beat {{ p.track_price.toFixed(2) }}€ + contrat {{ p.contract_price.toFixed(2) }}€)
+                  </small>
+                }
+              </div>
+              <div class="card-actions">
+                <a [href]="downloadUrl(p.stream_url)" class="btn-download" target="_blank" rel="noopener">
+                  <i class="bi bi-download"></i> Télécharger
+                </a>
+                @if (p.has_contract && p.contract_url) {
+                  <a [href]="contractUrl(p.contract_url)" class="btn-contract" target="_blank" rel="noopener">
+                    <i class="bi bi-file-earmark-pdf"></i> Contrat
+                  </a>
+                } @else {
+                  <span class="no-contract"><i class="bi bi-file-earmark-x"></i> Pas de contrat</span>
+                }
+              </div>
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+}

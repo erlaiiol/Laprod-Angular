@@ -1,0 +1,144 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner"></div>
+  </div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+}
+
+@if (!loading() && !error() && data()) {
+  <div class="dashboard-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="dash-header">
+      <h1><i class="bi bi-music-note-beamed"></i> Espace Beatmaker</h1>
+      <a routerLink="/upload-track" class="btn-primary">
+        <i class="bi bi-cloud-upload"></i> Uploader un beat
+      </a>
+    </div>
+
+    <!-- ── Stats ───────────────────────────────────────────────────────────── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ data()!.stats.total_revenue.toFixed(2) }}€</div>
+        <div class="stat-label">Revenus totaux</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ data()!.stats.sales_count }}</div>
+        <div class="stat-label">Ventes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ data()!.stats.tracks_approved }}</div>
+        <div class="stat-label">Beats en ligne</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-orange">{{ data()!.stats.tracks_pending }}</div>
+        <div class="stat-label">En attente</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ data()!.stats.upload_tokens }}</div>
+        <div class="stat-label">Tokens d'upload</div>
+      </div>
+    </div>
+
+    <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+    <div class="tabs">
+      <button class="tab-btn" [class.active]="activeTab() === 'tracks'" (click)="setTab('tracks')">
+        <i class="bi bi-collection"></i> Mes Beats
+        <span class="tab-count">{{ data()!.tracks.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'sales'" (click)="setTab('sales')">
+        <i class="bi bi-bag-check"></i> Ventes
+        <span class="tab-count">{{ data()!.sales.length }}</span>
+      </button>
+    </div>
+
+    <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
+    @if (activeTab() === 'tracks') {
+      @if (data()!.tracks.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-music-note"></i>
+          <p>Aucun beat uploadé pour l'instant.</p>
+          <a routerLink="/upload-track" class="btn-primary mt-1">
+            <i class="bi bi-cloud-upload"></i> Uploader mon premier beat
+          </a>
+        </div>
+      } @else {
+        <div class="tracks-list">
+          @for (track of data()!.tracks; track track.id) {
+            <div class="track-row">
+              <img class="track-cover" [src]="imgUrl(track.image_file)" [alt]="track.title">
+              <div class="track-info">
+                <a [routerLink]="['/track', track.id]" class="track-title">{{ track.title }}</a>
+                <div class="track-meta">
+                  @if (track.bpm) { <span>{{ track.bpm }} BPM</span> }
+                  @if (track.key) { <span>{{ track.key }}</span> }
+                  @if (track.style) { <span>{{ track.style }}</span> }
+                </div>
+                <div class="format-badges">
+                  @if (track.has_mp3)   { <span class="fmt-badge fmt-mp3">MP3 {{ track.price_mp3?.toFixed(2) }}€</span> }
+                  @if (track.has_wav)   { <span class="fmt-badge fmt-wav">WAV {{ track.price_wav?.toFixed(2) }}€</span> }
+                  @if (track.has_stems) { <span class="fmt-badge fmt-stems">STEMS {{ track.price_stems?.toFixed(2) }}€</span> }
+                </div>
+              </div>
+              <div class="track-right">
+                <span class="status-badge" [class.status-approved]="track.is_approved" [class.status-pending]="!track.is_approved">
+                  @if (track.is_approved) {
+                    <i class="bi bi-check-circle-fill"></i> En ligne
+                  } @else {
+                    <i class="bi bi-hourglass-split"></i> En attente
+                  }
+                </span>
+                <span class="sales-count"><i class="bi bi-bag"></i> {{ track.sales_count }} vente(s)</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ── Tab : Ventes ───────────────────────────────────────────────────── -->
+    @if (activeTab() === 'sales') {
+      @if (data()!.sales.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-bag"></i>
+          <p>Aucune vente pour l'instant.</p>
+          <small>Vos ventes apparaîtront ici dès qu'un artiste achètera un de vos beats.</small>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Beat</th>
+                <th>Acheteur</th>
+                <th>Format</th>
+                <th class="text-right">Prix</th>
+                <th class="text-right">Votre part</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sale of data()!.sales; track sale.id) {
+                <tr>
+                  <td class="td-track">
+                    <img [src]="imgUrl(sale.track_image)" class="mini-cover" [alt]="sale.track_title ?? ''">
+                    <span>{{ sale.track_title ?? '—' }}</span>
+                  </td>
+                  <td>{{ sale.buyer_name }}</td>
+                  <td><span class="fmt-badge" [class]="'fmt-' + sale.format">{{ formatLabel(sale.format) }}</span></td>
+                  <td class="text-right">{{ sale.price_paid.toFixed(2) }}€</td>
+                  <td class="text-right text-green">+{{ sale.composer_revenue.toFixed(2) }}€</td>
+                  <td class="td-muted">{{ formatDate(sale.created_at) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+
+  </div>
+}
