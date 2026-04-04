@@ -24,6 +24,7 @@ import { PurchasesComponent }                 from './pages/purchases/purchases.
 import { MixmasterEngineersComponent }        from './pages/mixmaster/engineers/engineers.component';
 import { MixmasterOrderComponent }            from './pages/mixmaster/order/order.component';
 import { MixPaymentSuccessComponent }         from './pages/mixmaster/payment-success/payment-success.component';
+import { AdminComponent }                    from './pages/admin/admin.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -49,4 +50,5 @@ export const routes: Routes = [
   { path: 'mix/engineers',                 component: MixmasterEngineersComponent },
   { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent },
   { path: 'mix/payment-success',           component: MixPaymentSuccessComponent },
+  { path: 'admin',                         component: AdminComponent },
 ];

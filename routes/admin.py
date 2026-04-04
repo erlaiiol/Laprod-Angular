@@ -21,7 +21,7 @@ from utils.ownership_authorizer import ToplineOwnership, requires_ownership
 # CRÉER LE BLUEPRINT
 # ============================================
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+admin_bp = Blueprint('admin', __name__, url_prefix='/legacy/admin')
 
 # chemin vers le dossier des images de tracks
 tracks_images_folder = config.IMAGES_FOLDER / 'tracks'

@@ -36,6 +36,8 @@ from .mixmaster_api import mixmaster_api_bp
 from .cud_mixmaster_engineer_api import cud_mixmaster_engineer_api_bp
 from .cud_mixmaster_artist_api import cud_mixmaster_artist_api_bp
 from .payment_mixmaster_api import payment_mixmaster_api_bp
+from .admin_api import admin_api_bp
+from .cud_admin_api import cud_admin_api_bp
 
 
 __all__ = [
@@ -71,4 +73,6 @@ __all__ = [
     'cud_mixmaster_engineer_api_bp',
     'cud_mixmaster_artist_api_bp',
     'payment_mixmaster_api_bp',
+    'admin_api_bp',
+    'cud_admin_api_bp',
 ]

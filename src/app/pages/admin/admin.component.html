@@ -1,0 +1,415 @@
+<div class="admin-page">
+
+  <!-- Header -->
+  <div class="admin-header">
+    <h1><i class="bi bi-shield-lock-fill"></i> Administration</h1>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button [class.active]="activeTab() === 'dashboard'"    (click)="setTab('dashboard')">Dashboard</button>
+    <button [class.active]="activeTab() === 'tracks'"       (click)="setTab('tracks')">
+      Tracks <span class="badge" *ngIf="pendingCount() > 0">{{ pendingCount() }}</span>
+    </button>
+    <button [class.active]="activeTab() === 'users'"        (click)="setTab('users')">Utilisateurs</button>
+    <button [class.active]="activeTab() === 'engineers'"    (click)="setTab('engineers')">
+      Engineers
+      <span class="badge" *ngIf="pendingEngineers().length + priceRequests().length + paRequests().length > 0">
+        {{ pendingEngineers().length + priceRequests().length + paRequests().length }}
+      </span>
+    </button>
+    <button [class.active]="activeTab() === 'categories'"   (click)="setTab('categories')">Catégories</button>
+    <button [class.active]="activeTab() === 'contracts'"    (click)="setTab('contracts')">Contrats</button>
+    <button [class.active]="activeTab() === 'transactions'" (click)="setTab('transactions')">Transactions</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-bar" *ngIf="loading()"><div class="loading-inner"></div></div>
+
+  <!-- ── DASHBOARD ────────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'dashboard' && stats()">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value text-orange">{{ stats()!.tracks.pending }}</div>
+        <div class="stat-label">Tracks en attente</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ stats()!.tracks.approved }}</div>
+        <div class="stat-label">Tracks approuvés</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ stats()!.users.total }}</div>
+        <div class="stat-label">Utilisateurs actifs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-violet">{{ stats()!.users.premium }}</div>
+        <div class="stat-label">Premium</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats()!.users.beatmakers }}</div>
+        <div class="stat-label">Beatmakers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats()!.users.artists }}</div>
+        <div class="stat-label">Artistes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats()!.users.engineers }}</div>
+        <div class="stat-label">Engineers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ stats()!.contracts.revenue | number:'1.0-0' }}€</div>
+        <div class="stat-label">Revenus contrats</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ stats()!.mixmaster.in_progress }}</div>
+        <div class="stat-label">Mix/Master en cours</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-green">{{ stats()!.mixmaster.revenue | number:'1.0-0' }}€</div>
+        <div class="stat-label">Revenus Mix/Master</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3>Derniers tracks approuvés</h3>
+        <div class="recent-list">
+          <div class="recent-item" *ngFor="let t of stats()!.recent_tracks">
+            <img [src]="imgUrl(t.image_file)" class="thumb" alt="">
+            <div>
+              <div class="item-title">{{ t.title }}</div>
+              <div class="item-sub">{{ t.composer?.username }} · {{ fmtDate(t.approved_at) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Derniers inscrits</h3>
+        <div class="recent-list">
+          <div class="recent-item" *ngFor="let u of stats()!.recent_users">
+            <img [src]="imgUrl(u.profile_image)" class="thumb round" alt="">
+            <div>
+              <div class="item-title">{{ u.username }}</div>
+              <div class="item-sub">{{ fmtDate(u.created_at) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TRACKS ─────────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'tracks'">
+    <div class="sub-tabs">
+      <button [class.active]="trackStatus() === 'pending'"  (click)="setTrackStatus('pending')">En attente ({{ pendingCount() }})</button>
+      <button [class.active]="trackStatus() === 'approved'" (click)="setTrackStatus('approved')">Approuvés ({{ approvedCount() }})</button>
+      <button [class.active]="trackStatus() === 'all'"      (click)="setTrackStatus('all')">Tous</button>
+    </div>
+
+    <table class="data-table" *ngIf="tracks().length > 0">
+      <thead>
+        <tr>
+          <th>Cover</th>
+          <th>Titre</th>
+          <th>Beatmaker</th>
+          <th>BPM / Clé</th>
+          <th>Prix MP3</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of tracks()">
+          <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+          <td>{{ t.title }}</td>
+          <td>{{ t.composer?.username ?? '—' }}</td>
+          <td>{{ t.bpm }} / {{ t.key }}</td>
+          <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
+          <td>{{ fmtDate(t.created_at) }}</td>
+          <td class="actions">
+            <button class="btn-success" *ngIf="!t.is_approved" (click)="approveTrack(t)"><i class="bi bi-check-lg"></i></button>
+            <button class="btn-edit"    (click)="openEditTrack(t)"><i class="bi bi-pencil"></i></button>
+            <button class="btn-danger"  (click)="rejectTrack(t)"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" *ngIf="!loading() && tracks().length === 0">Aucun track.</p>
+
+    <!-- Edit track modal -->
+    <div class="modal-backdrop" *ngIf="editingTrack()" (click)="editingTrack.set(null)">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h3>Modifier le track</h3>
+        <div class="form-grid">
+          <label>Titre<input [ngModel]="editingTrack()!.title"      (ngModelChange)="patchTrack('title', $event)"></label>
+          <label>BPM<input type="number" [ngModel]="editingTrack()!.bpm" (ngModelChange)="patchTrack('bpm', $event)"></label>
+          <label>Clé<input   [ngModel]="editingTrack()!.key"        (ngModelChange)="patchTrack('key', $event)"></label>
+          <label>Style<input [ngModel]="editingTrack()!.style"      (ngModelChange)="patchTrack('style', $event)"></label>
+          <label>Prix MP3<input type="number" [ngModel]="editingTrack()!.price_mp3"   (ngModelChange)="patchTrack('price_mp3', $event)"></label>
+          <label>Prix WAV<input type="number" [ngModel]="editingTrack()!.price_wav"   (ngModelChange)="patchTrack('price_wav', $event)"></label>
+          <label>Prix Stems<input type="number" [ngModel]="editingTrack()!.price_stems" (ngModelChange)="patchTrack('price_stems', $event)"></label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="editingTrack.set(null)">Annuler</button>
+          <button class="btn-primary" (click)="saveTrack()">Sauvegarder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USERS ──────────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'users'">
+    <div class="sub-tabs">
+      <button [class.active]="userType() === 'all'"        (click)="setUserType('all')">Tous ({{ userCounts()['all'] ?? 0 }})</button>
+      <button [class.active]="userType() === 'beatmakers'" (click)="setUserType('beatmakers')">Beatmakers ({{ userCounts()['beatmakers'] ?? 0 }})</button>
+      <button [class.active]="userType() === 'artists'"    (click)="setUserType('artists')">Artistes ({{ userCounts()['artists'] ?? 0 }})</button>
+      <button [class.active]="userType() === 'engineers'"  (click)="setUserType('engineers')">Engineers ({{ userCounts()['engineers'] ?? 0 }})</button>
+    </div>
+
+    <table class="data-table" *ngIf="users().length > 0">
+      <thead>
+        <tr>
+          <th>Avatar</th>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Rôles</th>
+          <th>Tokens</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of users()" [class.disabled]="u.account_status !== 'active'">
+          <td><img [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
+          <td>
+            {{ u.username }}
+            <span class="badge-premium" *ngIf="u.is_premium">★</span>
+            <span class="badge-admin" *ngIf="u.is_admin">ADMIN</span>
+          </td>
+          <td class="small">{{ u.email }}</td>
+          <td>
+            <span class="role-chip role-bm"  *ngIf="u.is_beatmaker">BM</span>
+            <span class="role-chip role-art" *ngIf="u.is_artist">ART</span>
+            <span class="role-chip role-eng" *ngIf="u.is_mixmaster_engineer">ENG</span>
+            <span class="role-chip role-pa"  *ngIf="u.is_certified_producer_arranger">PA</span>
+          </td>
+          <td class="small">
+            Track: {{ u.upload_track_tokens }}<br>
+            Topline: {{ u.topline_tokens }}
+          </td>
+          <td>
+            <span class="status-chip" [class.active]="u.account_status === 'active'">{{ u.account_status }}</span>
+          </td>
+          <td class="actions">
+            <button class="btn-icon" title="Toggle statut" (click)="toggleUserStatus(u)">
+              <i class="bi" [class.bi-person-check]="u.account_status !== 'active'" [class.bi-person-dash]="u.account_status === 'active'"></i>
+            </button>
+            <button class="btn-icon" title="Toggle Beatmaker" (click)="toggleRole(u, 'beatmaker')"><i class="bi bi-music-note"></i></button>
+            <button class="btn-icon" title="Toggle Artiste" (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
+            <button class="btn-icon" title="Toggle Engineer" (click)="toggleRole(u, 'engineer')"><i class="bi bi-headphones"></i></button>
+            <button class="btn-icon" title="Tokens Track" (click)="openTokenModal(u, 'track')"><i class="bi bi-plus-circle"></i>T</button>
+            <button class="btn-icon" title="Tokens Topline" (click)="openTokenModal(u, 'topline')"><i class="bi bi-plus-circle"></i>TL</button>
+            <button class="btn-icon" title="Toggle Premium" (click)="togglePremium(u)">
+              <i class="bi" [class.bi-star-fill]="!u.is_premium" [class.bi-star]="u.is_premium"></i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" *ngIf="!loading() && users().length === 0">Aucun utilisateur.</p>
+
+    <!-- Token modal -->
+    <div class="modal-backdrop" *ngIf="tokenUser()" (click)="tokenUser.set(null)">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h3>Ajouter des tokens {{ tokenType() === 'track' ? 'Track' : 'Topline' }}</h3>
+        <p>Utilisateur : <strong>{{ tokenUser()!.username }}</strong></p>
+        <label>Nombre de tokens
+          <input type="number" min="1" [ngModel]="tokenAmount()" (ngModelChange)="tokenAmount.set($event)">
+        </label>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="tokenUser.set(null)">Annuler</button>
+          <button class="btn-primary" (click)="submitTokens()">Ajouter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ENGINEERS ──────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'engineers'">
+    <div class="sub-tabs">
+      <button [class.active]="engineerTab() === 'pending'"    (click)="engineerTab.set('pending')">
+        En attente <span class="badge" *ngIf="pendingEngineers().length > 0">{{ pendingEngineers().length }}</span>
+      </button>
+      <button [class.active]="engineerTab() === 'certified'"  (click)="engineerTab.set('certified')">Certifiés ({{ certifiedEngineers().length }})</button>
+      <button [class.active]="engineerTab() === 'price'"      (click)="engineerTab.set('price')">
+        Prix <span class="badge" *ngIf="priceRequests().length > 0">{{ priceRequests().length }}</span>
+      </button>
+      <button [class.active]="engineerTab() === 'pa'"         (click)="engineerTab.set('pa')">
+        Prod/Arr <span class="badge" *ngIf="paRequests().length > 0">{{ paRequests().length }}</span>
+      </button>
+    </div>
+
+    <!-- Pending -->
+    <div *ngIf="engineerTab() === 'pending'">
+      <p class="empty" *ngIf="pendingEngineers().length === 0">Aucune demande en attente.</p>
+      <div class="engineer-card" *ngFor="let e of pendingEngineers()">
+        <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+        <div class="engineer-info">
+          <strong>{{ e.username }}</strong>
+          <span class="small">{{ e.email }}</span>
+          <span class="small">Prix réf: {{ e.mixmaster_reference_price }}€ · Min: {{ e.mixmaster_price_min }}€</span>
+          <p class="bio" *ngIf="e.mixmaster_bio">{{ e.mixmaster_bio }}</p>
+          <div class="sample-links" *ngIf="e.mixmaster_sample_raw">
+            <a [href]="staticBase + e.mixmaster_sample_raw" target="_blank">Fichier brut</a>
+            <a [href]="staticBase + e.mixmaster_sample_processed" target="_blank" *ngIf="e.mixmaster_sample_processed">Fichier traité</a>
+          </div>
+        </div>
+        <div class="engineer-actions">
+          <button class="btn-success" (click)="certifyEngineer(e)"><i class="bi bi-check-lg"></i> Certifier</button>
+          <button class="btn-danger"  (click)="rejectSample(e)"><i class="bi bi-x-lg"></i> Rejeter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Certified -->
+    <div *ngIf="engineerTab() === 'certified'">
+      <p class="empty" *ngIf="certifiedEngineers().length === 0">Aucun engineer certifié.</p>
+      <div class="engineer-card" *ngFor="let e of certifiedEngineers()">
+        <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+        <div class="engineer-info">
+          <strong>{{ e.username }}</strong>
+          <span class="small">Prix réf: {{ e.mixmaster_reference_price }}€ · Min: {{ e.mixmaster_price_min }}€</span>
+          <span class="badge-pa" *ngIf="e.is_certified_producer_arranger">Producteur/Arrangeur</span>
+        </div>
+        <div class="engineer-actions">
+          <ng-container *ngIf="priceEditId() === e.id">
+            <input type="number" placeholder="Min €" [ngModel]="priceEditMin()" (ngModelChange)="priceEditMin.set($event)">
+            <input type="number" placeholder="Réf €" [ngModel]="priceEditRef()" (ngModelChange)="priceEditRef.set($event)">
+            <button class="btn-success" (click)="savePrices()">OK</button>
+            <button class="btn-secondary" (click)="priceEditId.set(null)">✕</button>
+          </ng-container>
+          <ng-container *ngIf="priceEditId() !== e.id">
+            <button class="btn-edit" (click)="openPriceEdit(e)"><i class="bi bi-pencil"></i> Prix</button>
+            <button class="btn-danger" (click)="revokeEngineer(e)"><i class="bi bi-slash-circle"></i> Révoquer</button>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+
+    <!-- Price requests -->
+    <div *ngIf="engineerTab() === 'price'">
+      <p class="empty" *ngIf="priceRequests().length === 0">Aucune demande de prix.</p>
+      <div class="price-req-card" *ngFor="let pr of priceRequests()">
+        <strong>{{ pr.engineer_username }}</strong>
+        <span>Actuel: {{ pr.current_price_min }}€ – {{ pr.current_reference_price }}€ (réf)</span>
+        <span class="arrow">→</span>
+        <span class="new-price">{{ pr.new_price_min }}€ – {{ pr.new_reference_price }}€ (réf)</span>
+        <button class="btn-success" (click)="approvePriceRequest(pr)"><i class="bi bi-check-lg"></i></button>
+        <button class="btn-danger"  (click)="rejectPriceRequest(pr)"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+
+    <!-- Producer/Arranger requests -->
+    <div *ngIf="engineerTab() === 'pa'">
+      <p class="empty" *ngIf="paRequests().length === 0">Aucune demande Producteur/Arrangeur.</p>
+      <div class="engineer-card" *ngFor="let e of paRequests()">
+        <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+        <div class="engineer-info">
+          <strong>{{ e.username }}</strong>
+          <span class="small">Engineer certifié — demande Producteur/Arrangeur</span>
+        </div>
+        <div class="engineer-actions">
+          <button class="btn-success" (click)="approvePA(e)">Approuver</button>
+          <button class="btn-danger"  (click)="rejectPA(e)">Rejeter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CATEGORIES ─────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'categories'">
+    <div class="cat-create">
+      <h3>Nouvelle catégorie</h3>
+      <div class="inline-form">
+        <input placeholder="Nom" [ngModel]="newCatName()" (ngModelChange)="newCatName.set($event)">
+        <input type="color" [ngModel]="newCatColor()" (ngModelChange)="newCatColor.set($event)" title="Couleur">
+        <button class="btn-primary" (click)="createCategory()"><i class="bi bi-plus"></i> Créer</button>
+      </div>
+    </div>
+
+    <div class="cat-list">
+      <div class="cat-item" *ngFor="let cat of categories()">
+        <div class="cat-header">
+          <span class="cat-dot" [style.background]="cat.color"></span>
+          <strong>{{ cat.name }}</strong>
+          <span class="small">({{ cat.tags.length }} tags)</span>
+          <button class="btn-danger-sm" (click)="deleteCategory(cat)"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="tag-list">
+          <span class="tag-chip" *ngFor="let tag of cat.tags">
+            {{ tag.name }}
+            <button (click)="deleteTag(tag.id)">✕</button>
+          </span>
+          <div class="tag-add">
+            <input placeholder="Nouveau tag..." [ngModel]="newTagName()" (ngModelChange)="newTagName.set($event)" (keyup.enter)="createTag(cat)">
+            <button (click)="createTag(cat)"><i class="bi bi-plus"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTRACTS ──────────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'contracts'">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value text-green">{{ contractRevenue() | number:'1.0-0' }}€</div><div class="stat-label">Revenus totaux</div></div>
+      <div class="stat-card"><div class="stat-value">{{ exclusiveCount() }}</div><div class="stat-label">Exclusifs</div></div>
+      <div class="stat-card"><div class="stat-value">{{ nonExclusiveCount() }}</div><div class="stat-label">Non exclusifs</div></div>
+    </div>
+
+    <table class="data-table" *ngIf="contracts().length > 0">
+      <thead><tr><th>Track</th><th>Client</th><th>Prix</th><th>Type</th><th>Format</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of contracts()">
+          <td>{{ c.track?.title ?? '—' }}</td>
+          <td>{{ c.client?.username ?? '—' }}</td>
+          <td>{{ c.price | number:'1.2-2' }}€</td>
+          <td><span class="badge" [class.exclusive]="c.is_exclusive">{{ c.is_exclusive ? 'Exclusif' : 'Non-exclusif' }}</span></td>
+          <td>{{ c.format ?? '—' }}</td>
+          <td>{{ fmtDate(c.created_at) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" *ngIf="!loading() && contracts().length === 0">Aucun contrat.</p>
+  </div>
+
+  <!-- ── TRANSACTIONS ───────────────────────────────────────────────────── -->
+  <div *ngIf="activeTab() === 'transactions'">
+    <div class="sub-tabs">
+      <button [class.active]="txStatus() === 'all'"         (click)="setTxStatus('all')">Tous ({{ txCounts()['all'] ?? 0 }})</button>
+      <button [class.active]="txStatus() === 'awaiting'"    (click)="setTxStatus('awaiting')">En attente ({{ txCounts()['awaiting'] ?? 0 }})</button>
+      <button [class.active]="txStatus() === 'in_progress'" (click)="setTxStatus('in_progress')">En cours ({{ txCounts()['in_progress'] ?? 0 }})</button>
+      <button [class.active]="txStatus() === 'completed'"   (click)="setTxStatus('completed')">Terminés ({{ txCounts()['completed'] ?? 0 }})</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value text-green">{{ txRevenue() | number:'1.0-0' }}€</div><div class="stat-label">Revenus totaux</div></div>
+    </div>
+
+    <table class="data-table" *ngIf="transactions().length > 0">
+      <thead><tr><th>Artiste</th><th>Engineer</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let t of transactions()">
+          <td>{{ t.artist?.username ?? '—' }}</td>
+          <td>{{ t.engineer?.username ?? '—' }}</td>
+          <td>{{ t.total_price | number:'1.2-2' }}€</td>
+          <td><span class="status-chip" [class.active]="t.status === 'completed'">{{ t.status }}</span></td>
+          <td>{{ fmtDate(t.created_at) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" *ngIf="!loading() && transactions().length === 0">Aucune transaction.</p>
+  </div>
+
+</div>

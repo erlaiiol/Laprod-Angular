@@ -94,5 +94,10 @@
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true
+  },
+  "/admin-api": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
   }
 }

@@ -1,0 +1,347 @@
+@use 'variables' as v;
+
+.admin-page {
+  max-width: 1200px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+}
+
+.admin-header {
+  margin-bottom: 1.5rem;
+  h1 { font-size: 1.6rem; font-weight: 800; margin: 0;
+       i { margin-right: 0.5rem; color: v.$tag-violet; } }
+}
+
+// ── Tab bar ────────────────────────────────────────────────────────────────────
+
+.tab-bar {
+  display: flex; gap: 0.25rem; flex-wrap: wrap;
+  border-bottom: 1px solid v.$bg-border; margin-bottom: 1.5rem;
+
+  button {
+    background: none; border: none; color: v.$text-secondary;
+    padding: 0.6rem 1rem; cursor: pointer; font-size: 0.875rem;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    display: flex; align-items: center; gap: 0.4rem;
+    transition: color 0.15s;
+
+    &:hover { color: v.$text-primary; }
+    &.active { color: v.$tag-violet; border-bottom-color: v.$tag-violet; font-weight: 600; }
+  }
+}
+
+.sub-tabs {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;
+
+  button {
+    background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 6px;
+    color: v.$text-secondary; padding: 0.35rem 0.85rem; font-size: 0.8rem; cursor: pointer;
+    display: flex; align-items: center; gap: 0.35rem;
+
+    &:hover { border-color: v.$tag-violet; }
+    &.active { background: v.$tag-violet-dark; border-color: v.$tag-violet; color: v.$text-primary; font-weight: 600; }
+  }
+}
+
+// ── Loading bar ────────────────────────────────────────────────────────────────
+
+.loading-bar {
+  height: 3px; background: v.$bg-border; border-radius: 2px; margin-bottom: 1rem; overflow: hidden;
+}
+.loading-inner {
+  height: 100%; width: 40%; background: v.$tag-violet;
+  animation: slide 1s infinite;
+}
+@keyframes slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+// ── Badge ──────────────────────────────────────────────────────────────────────
+
+.badge {
+  background: v.$tag-orange; color: #fff; border-radius: 10px;
+  font-size: 0.7rem; font-weight: 700; padding: 0 0.45rem;
+  &.exclusive { background: v.$tag-violet; }
+}
+
+// ── Stats grid ─────────────────────────────────────────────────────────────────
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+  @media (max-width: 900px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 500px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stats-row {
+  display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;
+}
+
+.stat-card {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem; text-align: center;
+}
+
+.stat-value {
+  font-size: 1.5rem; font-weight: 800; margin-bottom: 0.2rem;
+  &.text-green  { color: v.$tag-green; }
+  &.text-blue   { color: v.$tag-blue; }
+  &.text-orange { color: v.$tag-orange; }
+  &.text-violet { color: v.$tag-violet; }
+}
+
+.stat-label { font-size: 0.75rem; color: v.$text-secondary; }
+
+// ── Two-column layout ──────────────────────────────────────────────────────────
+
+.two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 10px; padding: 1rem;
+  h3 { font-size: 0.9rem; font-weight: 700; margin: 0 0 0.75rem; color: v.$text-secondary; text-transform: uppercase; }
+}
+
+.recent-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.recent-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  .item-title { font-size: 0.875rem; font-weight: 600; }
+  .item-sub   { font-size: 0.75rem; color: v.$text-secondary; }
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────────
+
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+
+  th {
+    text-align: left; padding: 0.5rem 0.75rem;
+    font-size: 0.75rem; text-transform: uppercase; color: v.$text-secondary;
+    border-bottom: 1px solid v.$bg-border;
+  }
+
+  td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid v.$bg-border;
+    vertical-align: middle;
+    &.small { font-size: 0.75rem; color: v.$text-secondary; }
+  }
+
+  tr.disabled td { opacity: 0.45; }
+  tr:hover td { background: v.$bg-surface; }
+}
+
+.actions {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+}
+
+.btn-success {
+  background: rgba(v.$tag-green, 0.15); border: 1px solid v.$tag-green;
+  color: v.$tag-green; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+  &:hover { background: rgba(v.$tag-green, 0.3); }
+}
+.btn-danger {
+  background: rgba(v.$tag-red, 0.15); border: 1px solid v.$tag-red;
+  color: v.$tag-red; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+  &:hover { background: rgba(v.$tag-red, 0.3); }
+}
+.btn-edit {
+  background: rgba(v.$tag-blue, 0.15); border: 1px solid v.$tag-blue;
+  color: v.$tag-blue; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+  &:hover { background: rgba(v.$tag-blue, 0.3); }
+}
+.btn-icon {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer;
+  &:hover { color: v.$text-primary; border-color: v.$tag-violet; }
+}
+.btn-primary {
+  background: v.$tag-violet; border: none; color: #fff;
+  border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.875rem; cursor: pointer;
+  &:hover { opacity: 0.88; }
+}
+.btn-secondary {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-secondary;
+  border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.875rem; cursor: pointer;
+  &:hover { border-color: v.$text-secondary; }
+}
+.btn-danger-sm {
+  background: none; border: none; color: v.$tag-red; cursor: pointer; font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  &:hover { opacity: 0.7; }
+}
+
+// ── Thumbs ─────────────────────────────────────────────────────────────────────
+
+.thumb {
+  width: 40px; height: 40px; object-fit: cover; border-radius: 4px;
+  &.round { border-radius: 50%; }
+}
+.avatar {
+  width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
+
+// ── Role chips ─────────────────────────────────────────────────────────────────
+
+.role-chip {
+  display: inline-block; font-size: 0.7rem; font-weight: 700;
+  padding: 0.15rem 0.4rem; border-radius: 4px; margin-right: 0.2rem;
+  &.role-bm  { background: rgba(v.$tag-violet, 0.2); color: v.$tag-violet; }
+  &.role-art { background: rgba(v.$tag-pink, 0.2);   color: v.$tag-pink; }
+  &.role-eng { background: rgba(v.$tag-blue, 0.2);   color: v.$tag-blue; }
+  &.role-pa  { background: rgba(v.$tag-green, 0.2);  color: v.$tag-green; }
+}
+
+.badge-premium { color: v.$tag-orange; font-size: 0.8rem; margin-left: 0.3rem; }
+.badge-admin   { background: v.$tag-red; color: #fff; font-size: 0.65rem; font-weight: 700;
+                 padding: 0.1rem 0.35rem; border-radius: 4px; margin-left: 0.3rem; }
+.badge-pa      { background: rgba(v.$tag-green, 0.2); color: v.$tag-green; font-size: 0.75rem;
+                 padding: 0.15rem 0.4rem; border-radius: 4px; }
+
+.status-chip {
+  font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 10px;
+  background: rgba(v.$tag-red, 0.15); color: v.$tag-red;
+  &.active { background: rgba(v.$tag-green, 0.15); color: v.$tag-green; }
+}
+
+// ── Engineer cards ─────────────────────────────────────────────────────────────
+
+.engineer-card {
+  display: flex; align-items: flex-start; gap: 1rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;
+}
+
+.engineer-info {
+  flex: 1; display: flex; flex-direction: column; gap: 0.2rem;
+  strong { font-size: 0.95rem; }
+  .small { font-size: 0.75rem; color: v.$text-secondary; }
+  .bio   { font-size: 0.8rem; color: v.$text-secondary; margin: 0; }
+}
+
+.engineer-actions {
+  display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end;
+  input[type="number"] {
+    width: 70px; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    color: v.$text-primary; border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.8rem;
+  }
+}
+
+.sample-links {
+  display: flex; gap: 0.5rem; margin-top: 0.25rem;
+  a { font-size: 0.75rem; color: v.$tag-blue; }
+}
+
+// ── Price requests ─────────────────────────────────────────────────────────────
+
+.price-req-card {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  strong { min-width: 120px; }
+  .arrow { color: v.$text-secondary; }
+  .new-price { color: v.$tag-green; font-weight: 600; }
+}
+
+// ── Categories ─────────────────────────────────────────────────────────────────
+
+.cat-create {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;
+  h3 { font-size: 0.9rem; font-weight: 700; margin: 0 0 0.75rem; text-transform: uppercase; color: v.$text-secondary; }
+}
+
+.inline-form {
+  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+  input[type="text"], input:not([type="color"]) {
+    flex: 1; min-width: 160px; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    color: v.$text-primary; border-radius: 6px; padding: 0.4rem 0.7rem;
+    &:focus { outline: none; border-color: v.$tag-violet; }
+  }
+  input[type="color"] {
+    width: 36px; height: 36px; border: none; background: none; cursor: pointer; border-radius: 4px;
+  }
+}
+
+.cat-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.cat-item {
+  background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 10px; padding: 1rem;
+}
+
+.cat-header {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;
+  .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  strong   { font-size: 0.95rem; }
+  .small   { font-size: 0.75rem; color: v.$text-secondary; flex: 1; }
+}
+
+.tag-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.tag-chip {
+  display: flex; align-items: center; gap: 0.3rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 14px; padding: 0.2rem 0.6rem; font-size: 0.78rem;
+  button {
+    background: none; border: none; color: v.$text-secondary; cursor: pointer;
+    font-size: 0.7rem; padding: 0; line-height: 1;
+    &:hover { color: v.$tag-red; }
+  }
+}
+
+.tag-add {
+  display: flex; gap: 0.3rem; align-items: center;
+  input {
+    background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-primary;
+    border-radius: 14px; padding: 0.2rem 0.6rem; font-size: 0.78rem; width: 130px;
+    &:focus { outline: none; border-color: v.$tag-violet; }
+  }
+  button {
+    background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-secondary;
+    border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    &:hover { border-color: v.$tag-violet; color: v.$text-primary; }
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────────
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+
+.modal {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 480px;
+  h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem; }
+  label {
+    display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; margin-bottom: 0.75rem;
+    input {
+      background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-primary;
+      border-radius: 8px; padding: 0.5rem 0.75rem;
+      &:focus { outline: none; border-color: v.$tag-violet; }
+    }
+  }
+}
+
+.form-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.75rem;
+  label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; margin-bottom: 0.6rem;
+    input {
+      background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-primary;
+      border-radius: 8px; padding: 0.4rem 0.7rem;
+      &:focus { outline: none; border-color: v.$tag-violet; }
+    }
+  }
+}
+
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────────
+
+.empty {
+  text-align: center; color: v.$text-secondary; padding: 2rem; font-size: 0.875rem;
+}
