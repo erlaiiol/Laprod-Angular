@@ -62,6 +62,7 @@ export class NavbarComponent implements OnInit {
   ) {}
 
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
+  isArtist      = computed(() => this.authService.isArtist());
   isMixEngineer = computed(() => this.authService.isMixEngineer());
   isAdmin       = computed(() => this.authService.isAdmin());
   username      = computed(() => this.authService.currentUser()?.username || '');

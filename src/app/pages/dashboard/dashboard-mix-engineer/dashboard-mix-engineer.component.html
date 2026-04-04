@@ -22,7 +22,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-value">{{ data()!.stats.completed_count }}</div>
-        <div class="stat-label">Commandes terminées</div>
+        <div class="stat-label">Terminées</div>
       </div>
       <div class="stat-card">
         <div class="stat-value text-blue">{{ data()!.stats.active_count }}</div>
@@ -72,6 +72,27 @@
       </button>
     </div>
 
+    <!-- ── Upload modal ────────────────────────────────────────────────────── -->
+    @if (uploadOrderId() !== null) {
+      <div class="upload-modal-backdrop" (click)="cancelUpload()">
+        <div class="upload-modal" (click)="$event.stopPropagation()">
+          <h3>{{ isRevisionTab() ? 'Livrer la révision' : 'Livrer le fichier traité' }}</h3>
+          <p class="upload-hint">Format accepté : WAV ou MP3</p>
+          <input type="file" accept=".wav,.mp3" (change)="onUploadFileChange($event)">
+          @if (uploadFile()) {
+            <span class="file-name"><i class="bi bi-paperclip"></i> {{ uploadFile()!.name }}</span>
+          }
+          <div class="upload-actions">
+            <button class="btn-cancel" (click)="cancelUpload()" [disabled]="uploading()">Annuler</button>
+            <button class="btn-confirm" (click)="submitUpload(isRevisionTab())" [disabled]="!uploadFile() || uploading()">
+              @if (uploading()) { <span class="spinner-sm"></span> Envoi... }
+              @else { <i class="bi bi-upload"></i> Livrer }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- ── Orders ─────────────────────────────────────────────────────────── -->
     @if (currentOrders().length === 0) {
       <div class="empty-state">
@@ -82,6 +103,7 @@
       <div class="orders-list">
         @for (order of currentOrders(); track order.id) {
           <div class="order-card">
+
             <div class="order-header">
               <div class="order-artist">
                 <img class="artist-avatar" [src]="imgUrl(order.artist_image)" [alt]="order.artist_username ?? ''">
@@ -95,16 +117,23 @@
                 <span class="order-price">{{ order.total_price.toFixed(2) }}€</span>
               </div>
             </div>
+
             <div class="order-body">
               <div class="services-list">
                 @for (svc of servicesList(order); track svc) {
                   <span class="svc-badge">{{ svc }}</span>
+                }
+                @if (order.has_separated_stems) {
+                  <span class="svc-badge svc-stems"><i class="bi bi-layers"></i> Stems séparés</span>
                 }
               </div>
               <div class="order-dates">
                 <span><i class="bi bi-calendar3"></i> Reçue le {{ formatDate(order.created_at) }}</span>
                 @if (order.deadline) {
                   <span><i class="bi bi-alarm"></i> Deadline {{ formatDate(order.deadline) }}</span>
+                }
+                @if (order.delivered_at) {
+                  <span><i class="bi bi-send"></i> Livrée le {{ formatDate(order.delivered_at) }}</span>
                 }
                 @if (order.completed_at) {
                   <span><i class="bi bi-check2"></i> Terminée le {{ formatDate(order.completed_at) }}</span>
@@ -114,6 +143,120 @@
                 }
               </div>
             </div>
+
+            <!-- Révision messages -->
+            @if (order.revision1_message || order.revision2_message) {
+              <div class="revision-messages">
+                @if (order.revision1_message) {
+                  <div class="rev-msg"><strong>Révision 1 :</strong> {{ order.revision1_message }}</div>
+                }
+                @if (order.revision2_message) {
+                  <div class="rev-msg"><strong>Révision 2 :</strong> {{ order.revision2_message }}</div>
+                }
+              </div>
+            }
+
+            <!-- Fichiers -->
+            @if (order.reference_file_url || order.original_file_url) {
+              <div class="order-files">
+                @if (order.reference_file_url) {
+                  <audio class="order-audio" controls [src]="fileUrl(order.reference_file_url)">
+                    <track kind="captions">
+                  </audio>
+                  <span class="file-label">Référence</span>
+                }
+                @if (order.original_file_url) {
+                  <a class="btn-download-file" [href]="fileUrl(order.original_file_url)" download>
+                    <i class="bi bi-download"></i> Télécharger les stems
+                  </a>
+                }
+              </div>
+            }
+
+            <!-- Briefing accordion -->
+            @if (order.artist_message || order.brief_vocals || order.brief_instruments) {
+              <div class="briefing-toggle">
+                <button class="btn-briefing" (click)="toggleBriefing(order.id)">
+                  <i class="bi bi-journal-text"></i>
+                  {{ expandedOrderId() === order.id ? 'Masquer le briefing' : 'Voir le briefing' }}
+                  <i class="bi" [class.bi-chevron-down]="expandedOrderId() !== order.id" [class.bi-chevron-up]="expandedOrderId() === order.id"></i>
+                </button>
+                @if (expandedOrderId() === order.id) {
+                  <div class="briefing-panel">
+                    @if (order.artist_message) {
+                      <div class="brief-row"><strong>Message :</strong> {{ order.artist_message }}</div>
+                    }
+                    @if (order.brief_vocals) {
+                      <div class="brief-row"><strong>Voix :</strong> {{ order.brief_vocals }}</div>
+                    }
+                    @if (order.brief_backing_vocals) {
+                      <div class="brief-row"><strong>Chœurs :</strong> {{ order.brief_backing_vocals }}</div>
+                    }
+                    @if (order.brief_ambiance) {
+                      <div class="brief-row"><strong>Ambiance :</strong> {{ order.brief_ambiance }}</div>
+                    }
+                    @if (order.brief_bass) {
+                      <div class="brief-row"><strong>Basse :</strong> {{ order.brief_bass }}</div>
+                    }
+                    @if (order.brief_energy_style) {
+                      <div class="brief-row"><strong>Style :</strong> {{ order.brief_energy_style }}</div>
+                    }
+                    @if (order.brief_references) {
+                      <div class="brief-row"><strong>Références :</strong> {{ order.brief_references }}</div>
+                    }
+                    @if (order.brief_instruments) {
+                      <div class="brief-row"><strong>Instruments :</strong> {{ order.brief_instruments }}</div>
+                    }
+                    @if (order.brief_percussion) {
+                      <div class="brief-row"><strong>Percussions :</strong> {{ order.brief_percussion }}</div>
+                    }
+                    @if (order.brief_effects) {
+                      <div class="brief-row"><strong>Effets :</strong> {{ order.brief_effects }}</div>
+                    }
+                    @if (order.brief_structure) {
+                      <div class="brief-row"><strong>Structure :</strong> {{ order.brief_structure }}</div>
+                    }
+                    @if (order.archive_file_tree && order.archive_file_tree.length > 0) {
+                      <div class="brief-row">
+                        <strong>Contenu de l'archive :</strong>
+                        <ul class="file-tree">
+                          @for (f of order.archive_file_tree; track f) {
+                            <li>{{ f }}</li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Actions -->
+            <div class="order-actions">
+              @if (order.status === 'awaiting_acceptance') {
+                <button class="btn-action btn-accept"
+                        [disabled]="actionInProgress() !== null"
+                        (click)="accept(order.id)">
+                  <i class="bi bi-check-lg"></i> Accepter
+                </button>
+                <button class="btn-action btn-reject"
+                        [disabled]="actionInProgress() !== null"
+                        (click)="reject(order.id)">
+                  <i class="bi bi-x-lg"></i> Refuser
+                </button>
+              }
+              @if (order.status === 'accepted' || order.status === 'processing') {
+                <button class="btn-action btn-upload" (click)="openUpload(order.id)">
+                  <i class="bi bi-upload"></i> Livrer le fichier traité
+                </button>
+              }
+              @if (order.status === 'revision1' || order.status === 'revision2') {
+                <button class="btn-action btn-upload" (click)="openUpload(order.id)">
+                  <i class="bi bi-upload"></i> Livrer la révision
+                </button>
+              }
+            </div>
+
           </div>
         }
       </div>

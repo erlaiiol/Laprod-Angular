@@ -1,0 +1,29 @@
+@use 'variables' as v;
+
+.btn-favorite {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%; cursor: pointer;
+  transition: background 0.15s, transform 0.1s, color 0.15s;
+  color: v.$text-muted;
+
+  i { font-size: 0.9rem; line-height: 1; }
+
+  &:hover:not(:disabled) {
+    background: rgba(236, 72, 153, 0.2);
+    border-color: rgba(236, 72, 153, 0.4);
+    color: v.$tag-pink;
+    transform: scale(1.1);
+  }
+
+  &.is-favorite {
+    background: rgba(236, 72, 153, 0.15);
+    border-color: rgba(236, 72, 153, 0.35);
+    color: v.$tag-pink;
+  }
+
+  &.pending { opacity: 0.6; cursor: wait; }
+
+  &:disabled { cursor: not-allowed; }
+}

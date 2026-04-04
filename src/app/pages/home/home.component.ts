@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
+import { ToastService } from '../../services/toast.service';
 //                             └── service partagé : Navbar écrit, Home lit
 
 
@@ -26,8 +27,9 @@ export class HomeComponent implements OnInit {
   loading = signal(true);
   error   = signal<string | null>(null);
 
-  private trackService      = inject(TrackService);
+  private trackService       = inject(TrackService);
   private filterStateService = inject(FilterStateService);
+  private toast              = inject(ToastService);
   // inject() est l'équivalent de "private x: X" dans le constructeur.
   // Il peut être utilisé en dehors du constructeur, pratique ici car
   // effect() doit être créé dans le contexte d'injection (champ de classe).
@@ -73,8 +75,10 @@ export class HomeComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        console.error('Erreur API :', err);
-        this.error.set('Impossible de contacter le serveur Flask.');
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de contacter le serveur.' });
+        }
+        this.error.set('Impossible de contacter le serveur.');
         this.loading.set(false);
       }
     });

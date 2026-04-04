@@ -62,6 +62,8 @@ export interface ArtistStats {
   toplines_published: number;
   favorites_count:    number;
   topline_tokens:     number;
+  mm_requests_count:  number;
+  mm_active_count:    number;
 }
 
 export interface ArtistTopline {
@@ -93,11 +95,45 @@ export interface ArtistHistoryItem {
   listened_at: string;
 }
 
+export interface ArtistMixRequest {
+  id:                    number;
+  title:                 string;
+  status:                string;
+  stripe_payment_status: string | null;
+  total_price:           number;
+  deposit_amount:        number;
+  remaining_amount:      number;
+  revision_count:        number;
+  revision1_message:     string | null;
+  revision2_message:     string | null;
+  can_request_revision:  boolean;
+  is_expired:            boolean;
+  final_transfer_amount: number | null;
+  engineer_username:     string | null;
+  engineer_image:        string | null;
+  engineer_id:           number | null;
+  services: {
+    cleaning:  boolean;
+    effects:   boolean;
+    artistic:  boolean;
+    mastering: boolean;
+  };
+  reference_file_url:               string | null;
+  processed_file_preview_url:       string | null;
+  processed_file_preview_full_url:  string | null;
+  created_at:   string;
+  accepted_at:  string | null;
+  deadline:     string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
+}
+
 export interface ArtistDashboard {
-  stats:     ArtistStats;
-  toplines:  ArtistTopline[];
-  favorites: ArtistFavorite[];
-  history:   ArtistHistoryItem[];
+  stats:       ArtistStats;
+  toplines:    ArtistTopline[];
+  favorites:   ArtistFavorite[];
+  history:     ArtistHistoryItem[];
+  mm_requests: ArtistMixRequest[];
 }
 
 // ── Mix Engineer ───────────────────────────────────────────────────────────────
@@ -117,15 +153,40 @@ export interface MixOrder {
   artist_username:  string | null;
   artist_image:     string | null;
   status:           string;
+  stripe_payment_status: string | null;
   total_price:      number;
   deposit_amount:   number;
+  remaining_amount: number;
   engineer_revenue: number | null;
+  revision_count:   number;
+  revision1_message: string | null;
+  revision2_message: string | null;
+  can_request_revision: boolean;
+  is_expired:       boolean;
+  final_transfer_amount: number | null;
   services: {
     cleaning:  boolean;
     effects:   boolean;
     artistic:  boolean;
     mastering: boolean;
   };
+  has_separated_stems: boolean;
+  artist_message:       string | null;
+  brief_vocals:         string | null;
+  brief_backing_vocals: string | null;
+  brief_ambiance:       string | null;
+  brief_bass:           string | null;
+  brief_energy_style:   string | null;
+  brief_references:     string | null;
+  brief_instruments:    string | null;
+  brief_percussion:     string | null;
+  brief_effects:        string | null;
+  brief_structure:      string | null;
+  reference_file_url:              string | null;
+  original_file_url:               string | null;
+  processed_file_preview_url:      string | null;
+  processed_file_preview_full_url: string | null;
+  archive_file_tree: string[];
   created_at:   string;
   accepted_at:  string | null;
   deadline:     string | null;

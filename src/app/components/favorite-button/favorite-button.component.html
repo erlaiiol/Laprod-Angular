@@ -1,0 +1,9 @@
+<button
+  class="btn-favorite"
+  [class.is-favorite]="isFavorite()"
+  [class.pending]="pending()"
+  [title]="isFavorite() ? 'Retirer des favoris' : 'Ajouter aux favoris'"
+  (click)="toggle($event)"
+  [disabled]="pending()">
+  <i class="bi" [class.bi-heart-fill]="isFavorite()" [class.bi-heart]="!isFavorite()"></i>
+</button>

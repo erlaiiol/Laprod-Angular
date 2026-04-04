@@ -1,0 +1,115 @@
+@use 'variables' as v;
+
+.engineers-page {
+  max-width: 1100px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+}
+
+.page-header {
+  text-align: center; margin-bottom: 2rem;
+  h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.4rem;
+       i { margin-right: 0.4rem; color: v.$tag-blue; } }
+  .subtitle { color: v.$text-muted; font-size: 0.9rem; }
+}
+
+.engineers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.engineer-card {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 12px; padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.9rem;
+  transition: border-color 0.15s;
+  &:hover { border-color: v.$bg-border-subtle; }
+}
+
+.eng-top {
+  display: flex; align-items: center; gap: 0.9rem;
+}
+
+.eng-avatar {
+  width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
+
+.eng-identity {
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+
+.eng-name { font-size: 1rem; font-weight: 700; }
+
+.badge-certified {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.72rem; font-weight: 600; color: #6ee7b7;
+  background: rgba(16,185,129,0.12); padding: 0.15rem 0.5rem; border-radius: 4px;
+  i { font-size: 0.75rem; }
+}
+
+.badge-producer {
+  font-size: 0.7rem; font-weight: 600; color: #fcd34d;
+  background: rgba(251,191,36,0.12); padding: 0.15rem 0.5rem; border-radius: 4px;
+}
+
+.eng-bio {
+  font-size: 0.82rem; color: v.$text-secondary; line-height: 1.5;
+  margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.samples {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  border-top: 1px solid v.$bg-border; padding-top: 0.75rem;
+}
+
+.sample-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  audio { flex: 1; height: 28px; }
+}
+
+.sample-label {
+  font-size: 0.72rem; font-weight: 600; color: v.$text-muted; min-width: 35px;
+}
+
+.eng-footer {
+  margin-top: auto; display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.6rem; border-top: 1px solid v.$bg-border; padding-top: 0.75rem;
+}
+
+.price-range {
+  font-size: 0.83rem; font-weight: 700; color: v.$tag-green;
+  i { margin-right: 0.3rem; }
+}
+
+.slots {
+  font-size: 0.78rem; color: v.$text-muted;
+  i { margin-right: 0.25rem; }
+}
+
+.btn-order {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: v.$tag-blue; color: #fff; padding: 0.45rem 1rem;
+  border-radius: 7px; font-size: 0.83rem; font-weight: 700;
+  text-decoration: none; transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+  &.btn-login { background: v.$bg-elevated; color: v.$text-secondary; border: 1px solid v.$bg-border; }
+}
+
+// ── States ─────────────────────────────────────────────────────────────────────
+
+.state-loading { display: flex; justify-content: center; padding: 4rem 0; }
+.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+
+.empty-state {
+  text-align: center; padding: 4rem 1rem; color: v.$text-muted;
+  background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 10px;
+  i { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+  p { font-size: 0.9rem; margin: 0; }
+}
+
+.spinner {
+  width: 36px; height: 36px; border: 3px solid v.$bg-border;
+  border-top-color: v.$tag-blue; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

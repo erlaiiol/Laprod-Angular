@@ -28,7 +28,8 @@ export class PlayerService {
   playOnReady = false;
 
   private http = inject(HttpClient);
-  private tracksApiUrl = `${environment.apiUrl}/tracks`;
+  private tracksApiUrl  = `${environment.apiUrl}/tracks`;
+  private favoritesUrl  = `${environment.apiUrl}/favorites-api`;
 
   constructor() {
     this.audioEl.volume = this.volume();
@@ -66,6 +67,11 @@ export class PlayerService {
   play(track: Track): void {
     this.playOnReady = true;
     this.currentTrack.set(track);
+    // Record listening history silently (fails silently if not logged in)
+    if (track.id && track.stream_url?.includes('/preview')) {
+      this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
+        .subscribe({ error: () => {} });
+    }
   }
 
   pause(): void {

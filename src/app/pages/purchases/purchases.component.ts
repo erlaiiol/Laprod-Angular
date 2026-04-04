@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { PurchasesService, PurchasesData } from '../../services/purchases.service';
+import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -21,6 +22,7 @@ export class PurchasesComponent implements OnInit {
   readonly auth        = inject(AuthService);
   private purchasesSvc = inject(PurchasesService);
   private router       = inject(Router);
+  private toast        = inject(ToastService);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -31,8 +33,11 @@ export class PurchasesComponent implements OnInit {
         else this.error.set(res.feedback?.message ?? 'Erreur de chargement.');
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Impossible de contacter le serveur.');
+      error: (err) => {
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de charger vos achats.' });
+        }
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger vos achats.');
         this.loading.set(false);
       },
     });

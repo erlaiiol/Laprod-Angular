@@ -63,10 +63,7 @@
 
   <!-- Bouton favori -->
   <div class="track-actions">
-    <button class="btn-favorite" title="Ajouter aux favoris"
-            (click)="$event.stopPropagation()">
-      <i class="bi bi-heart"></i>
-    </button>
+    <app-favorite-button [trackId]="track.id"></app-favorite-button>
   </div>
 
 </div>

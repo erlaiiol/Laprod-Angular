@@ -1,0 +1,38 @@
+<div class="success-page">
+
+  @if (state() === 'verifying') {
+    <div class="state-card">
+      <div class="spinner"></div>
+      <p>Vérification du paiement en cours...</p>
+    </div>
+  }
+
+  @if (state() === 'success') {
+    <div class="state-card state-success">
+      <i class="bi bi-check-circle-fill icon-big"></i>
+      <h1>Paiement confirmé !</h1>
+      <p>{{ message() }}</p>
+      <p class="sub">Votre demande a été transmise à l'ingénieur. Vous serez notifié dès qu'il l'accepte.</p>
+      <div class="actions">
+        <a class="btn-primary" [routerLink]="['/dashboard/artist']">
+          <i class="bi bi-person-circle"></i> Voir mon espace artiste
+        </a>
+        <a class="btn-secondary" [routerLink]="['/']">
+          <i class="bi bi-house"></i> Accueil
+        </a>
+      </div>
+    </div>
+  }
+
+  @if (state() === 'error') {
+    <div class="state-card state-error">
+      <i class="bi bi-x-circle-fill icon-big"></i>
+      <h1>Erreur de paiement</h1>
+      <p>{{ message() }}</p>
+      <a class="btn-secondary" [routerLink]="['/mix/engineers']">
+        <i class="bi bi-arrow-left"></i> Retour aux ingénieurs
+      </a>
+    </div>
+  }
+
+</div>

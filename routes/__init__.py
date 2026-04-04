@@ -30,7 +30,12 @@ from .contracts_api import contracts_api_bp
 from .stripe_connect_api import stripe_connect_api_bp
 from .main_api import main_api_bp
 from .dashboard_api import dashboard_api_bp
-from .boughts_api import boughts_api_bp
+from .purchases_api import purchases_api_bp
+from .favorites_api import favorites_api_bp
+from .mixmaster_api import mixmaster_api_bp
+from .cud_mixmaster_engineer_api import cud_mixmaster_engineer_api_bp
+from .cud_mixmaster_artist_api import cud_mixmaster_artist_api_bp
+from .payment_mixmaster_api import payment_mixmaster_api_bp
 
 
 __all__ = [
@@ -60,5 +65,10 @@ __all__ = [
     'stripe_connect_api_bp',
     'main_api_bp',
     'dashboard_api_bp',
-    'boughts_api_bp',
+    'purchases_api_bp',
+    'favorites_api_bp',
+    'mixmaster_api_bp',
+    'cud_mixmaster_engineer_api_bp',
+    'cud_mixmaster_artist_api_bp',
+    'payment_mixmaster_api_bp',
 ]

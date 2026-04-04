@@ -11,12 +11,13 @@ import { RouterModule } from '@angular/router';
 
 import { Track, TrackService } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
+import { FavoriteButtonComponent } from '../favorite-button/favorite-button.component';
 
 
 @Component({
   selector: 'app-track-card',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FavoriteButtonComponent],
   templateUrl: './track-card.component.html',
   styleUrls:   ['./track-card.component.scss']
 })

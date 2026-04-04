@@ -5,6 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import {
   WalletService, WalletInfo, WalletTransaction,
 } from '../../services/wallet.service';
+import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -45,6 +46,7 @@ export class WalletComponent implements OnInit {
   private walletSvc = inject(WalletService);
   readonly auth     = inject(AuthService);
   private router    = inject(Router);
+  private toast     = inject(ToastService);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -63,8 +65,11 @@ export class WalletComponent implements OnInit {
         }
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Impossible de contacter le serveur.');
+      error: (err) => {
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de charger le portefeuille.' });
+        }
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger le portefeuille.');
         this.loading.set(false);
       },
     });
@@ -83,12 +88,16 @@ export class WalletComponent implements OnInit {
         if (res.success && res.data?.url) {
           window.location.href = res.data.url;
         } else {
-          this.stripeError.set(res.feedback?.message ?? 'Erreur Stripe Connect.');
+          const msg = res.feedback?.message ?? 'Erreur Stripe Connect.';
+          this.stripeError.set(msg);
+          this.toast.showToast({ level: 'error', message: msg });
           this.settingUpStripe.set(false);
         }
       },
-      error: () => {
-        this.stripeError.set('Erreur serveur.');
+      error: (err) => {
+        const msg = err?.error?.feedback?.message ?? 'Erreur Stripe Connect.';
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: msg });
+        this.stripeError.set(msg);
         this.settingUpStripe.set(false);
       },
     });
@@ -99,7 +108,11 @@ export class WalletComponent implements OnInit {
       next: (res) => {
         if (res.success && res.data?.url) window.open(res.data.url, '_blank');
       },
-      error: () => {},
+      error: (err) => {
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible d\'ouvrir le dashboard Stripe.' });
+        }
+      },
     });
   }
 

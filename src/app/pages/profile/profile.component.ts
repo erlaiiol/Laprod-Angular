@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
+import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -22,11 +23,12 @@ export class ProfileComponent implements OnInit {
   profile = signal<UserProfile | null>(null);
 
   constructor(
-    private route:  ActivatedRoute,
-    private router: Router,
+    private route:   ActivatedRoute,
+    private router:  Router,
     private userSvc: UserService,
     readonly auth:   AuthService,
     private player:  PlayerService,
+    private toast:   ToastService,
   ) {}
 
   ngOnInit(): void {
@@ -34,6 +36,7 @@ export class ProfileComponent implements OnInit {
       const username = params.get('username') ?? '';
       this.loadProfile(username);
     });
+    
   }
 
   loadProfile(username: string): void {
@@ -50,7 +53,10 @@ export class ProfileComponent implements OnInit {
       },
       error: err => {
         this.loading.set(false);
-        this.error.set(err?.error?.feedback?.message ?? 'Erreur serveur.');
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de charger le profil.' });
+        }
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger le profil.');
       },
     });
   }

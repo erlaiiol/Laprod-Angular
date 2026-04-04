@@ -228,7 +228,12 @@ def create_app():
         stripe_connect_api_bp,
         main_api_bp,
         dashboard_api_bp,
-        boughts_api_bp,
+        purchases_api_bp,
+        favorites_api_bp,
+        mixmaster_api_bp,
+        cud_mixmaster_engineer_api_bp,
+        cud_mixmaster_artist_api_bp,
+        payment_mixmaster_api_bp,
     )
     from routes.streaming_service import streaming_bp
 
@@ -259,7 +264,12 @@ def create_app():
     app.register_blueprint(main_api_bp)
     app.register_blueprint(streaming_bp)
     app.register_blueprint(dashboard_api_bp)
-    app.register_blueprint(boughts_api_bp)
+    app.register_blueprint(purchases_api_bp)
+    app.register_blueprint(favorites_api_bp)
+    app.register_blueprint(mixmaster_api_bp)
+    app.register_blueprint(cud_mixmaster_engineer_api_bp)
+    app.register_blueprint(cud_mixmaster_artist_api_bp)
+    app.register_blueprint(payment_mixmaster_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

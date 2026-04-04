@@ -16,7 +16,14 @@ import { ProfileComponent }       from './pages/profile/profile.component';
 import { EditProfileComponent }   from './pages/profile/edit-profile/edit-profile.component';
 import { EditSecurityComponent }  from './pages/profile/edit-security/edit-security.component';
 import { NotificationsComponent } from './pages/notifications/notifications.component';
-import { ContactComponent }       from './pages/contact/contact.component';
+import { ContactComponent }                   from './pages/contact/contact.component';
+import { DashboardBeatmakerComponent }        from './pages/dashboard/dashboard-beatmaker/dashboard-beatmaker.component';
+import { DashboardArtistComponent }           from './pages/dashboard/dashboard-artist/dashboard-artist.component';
+import { DashboardMixEngineerComponent }      from './pages/dashboard/dashboard-mix-engineer/dashboard-mix-engineer.component';
+import { PurchasesComponent }                 from './pages/purchases/purchases.component';
+import { MixmasterEngineersComponent }        from './pages/mixmaster/engineers/engineers.component';
+import { MixmasterOrderComponent }            from './pages/mixmaster/order/order.component';
+import { MixPaymentSuccessComponent }         from './pages/mixmaster/payment-success/payment-success.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -35,4 +42,11 @@ export const routes: Routes = [
   { path: 'profile/:username',             component: ProfileComponent },
   { path: 'notifications',                 component: NotificationsComponent },
   { path: 'contact',                       component: ContactComponent },
+  { path: 'dashboard/beatmaker',           component: DashboardBeatmakerComponent },
+  { path: 'dashboard/artist',              component: DashboardArtistComponent },
+  { path: 'dashboard/mix-engineer',        component: DashboardMixEngineerComponent },
+  { path: 'purchases',                     component: PurchasesComponent },
+  { path: 'mix/engineers',                 component: MixmasterEngineersComponent },
+  { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent },
+  { path: 'mix/payment-success',           component: MixPaymentSuccessComponent },
 ];

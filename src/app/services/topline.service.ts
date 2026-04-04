@@ -7,7 +7,7 @@ import { PublishedTopline } from './track.service';
 // ── Format JSON unifié ────────────────────────────────────────────────────────
 
 export interface ApiFeedback {
-  level:   'success' | 'error' | 'warning' | 'info';
+  level:   'info' | 'warning' | 'error';
   message: string;
 }
 

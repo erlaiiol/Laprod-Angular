@@ -29,10 +29,27 @@
         <div class="stat-label">Favoris</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value text-blue">{{ data()!.stats.topline_tokens }}</div>
-        <div class="stat-label">Tokens topline</div>
+        <div class="stat-value text-blue">{{ data()!.stats.mm_requests_count }}</div>
+        <div class="stat-label">Mix/Master</div>
       </div>
     </div>
+
+    <!-- ── Revision modal ──────────────────────────────────────────────────── -->
+    @if (revisionOrderId() !== null) {
+      <div class="modal-backdrop" (click)="revisionOrderId.set(null)">
+        <div class="modal-box" (click)="$event.stopPropagation()">
+          <h3>Demander une révision</h3>
+          <textarea rows="4" [ngModel]="revisionInput()" (ngModelChange)="revisionInput.set($event)"
+                    placeholder="Décrivez les modifications souhaitées..."></textarea>
+          <div class="modal-actions">
+            <button class="btn-cancel" (click)="revisionOrderId.set(null)">Annuler</button>
+            <button class="btn-confirm" (click)="submitRevision()" [disabled]="!revisionInput().trim() || actionInProgress() !== null">
+              Envoyer la révision
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
     <div class="tabs">
@@ -47,6 +64,10 @@
       <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="setTab('history')">
         <i class="bi bi-clock-history"></i> Historique
         <span class="tab-count">{{ data()!.history.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'mixmaster'" (click)="setTab('mixmaster')">
+        <i class="bi bi-sliders"></i> Mix/Master
+        <span class="tab-count">{{ data()!.mm_requests.length }}</span>
       </button>
     </div>
 
@@ -126,6 +147,100 @@
                 @if (h.composer) { <span class="item-composer">{{ h.composer }}</span> }
                 <span class="item-date">Écouté le {{ formatDate(h.listened_at) }}</span>
               </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ── Mix/Master ─────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'mixmaster') {
+      @if (data()!.mm_requests.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-sliders"></i>
+          <p>Aucune commande mix/master.</p>
+          <small><a [routerLink]="['/mix/engineers']">Trouver un ingénieur</a></small>
+        </div>
+      } @else {
+        <div class="mm-list">
+          @for (req of data()!.mm_requests; track req.id) {
+            <div class="mm-card">
+              <div class="mm-header">
+                <div class="mm-identity">
+                  <img class="mm-avatar" [src]="imgUrl(req.engineer_image)" [alt]="req.engineer_username ?? ''">
+                  <div>
+                    <span class="mm-title">{{ req.title }}</span>
+                    <span class="mm-engineer">{{ req.engineer_username ?? '—' }}</span>
+                  </div>
+                </div>
+                <div class="mm-meta-right">
+                  <span class="status-badge status-{{ req.status }}">{{ statusLabel(req.status) }}</span>
+                  <span class="mm-price">{{ req.total_price.toFixed(2) }}€</span>
+                </div>
+              </div>
+
+              <div class="mm-body">
+                <div class="services-list">
+                  @for (svc of servicesList(req); track svc) {
+                    <span class="svc-badge">{{ svc }}</span>
+                  }
+                </div>
+                <div class="mm-dates">
+                  <span><i class="bi bi-calendar3"></i> {{ formatDate(req.created_at) }}</span>
+                  @if (req.deadline) {
+                    <span><i class="bi bi-alarm"></i> Deadline {{ formatDate(req.deadline) }}</span>
+                  }
+                  @if (req.delivered_at) {
+                    <span><i class="bi bi-send"></i> Livrée le {{ formatDate(req.delivered_at) }}</span>
+                  }
+                </div>
+              </div>
+
+              <!-- Preview audio (si livrée) -->
+              @if (req.processed_file_preview_url) {
+                <div class="mm-preview">
+                  <span class="preview-label"><i class="bi bi-music-note"></i> Aperçu (dégradé)</span>
+                  <audio controls [src]="fileUrl(req.processed_file_preview_url)">
+                    <track kind="captions">
+                  </audio>
+                </div>
+              }
+
+              <!-- Révision messages -->
+              @if (req.revision1_message) {
+                <div class="rev-msg-row"><strong>Révision 1 :</strong> {{ req.revision1_message }}</div>
+              }
+              @if (req.revision2_message) {
+                <div class="rev-msg-row"><strong>Révision 2 :</strong> {{ req.revision2_message }}</div>
+              }
+
+              <!-- Actions -->
+              <div class="mm-actions">
+                @if (req.status === 'awaiting_acceptance') {
+                  <button class="btn-mm btn-danger" [disabled]="actionInProgress() !== null"
+                          (click)="cancelOrder(req.id)">
+                    <i class="bi bi-x-lg"></i> Annuler
+                  </button>
+                }
+                @if (req.status === 'delivered' && req.can_request_revision) {
+                  <button class="btn-mm btn-warning" [disabled]="actionInProgress() !== null"
+                          (click)="openRevision(req.id)">
+                    <i class="bi bi-arrow-clockwise"></i> Demander une révision
+                  </button>
+                }
+                @if (req.status === 'delivered' || req.status === 'revision1' || req.status === 'revision2') {
+                  <button class="btn-mm btn-success" [disabled]="actionInProgress() !== null"
+                          (click)="approveOrder(req.id)">
+                    <i class="bi bi-check-lg"></i> Approuver et télécharger
+                  </button>
+                }
+                @if (req.status === 'completed') {
+                  <a class="btn-mm btn-download" [href]="downloadUrl(req.id)" download>
+                    <i class="bi bi-download"></i> Télécharger
+                  </a>
+                }
+              </div>
+
             </div>
           }
         </div>

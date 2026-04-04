@@ -30,10 +30,11 @@ export interface User {
     email: string,
     profile_image: string,
     roles : {
-      is_admin: boolean,
-      is_beatmaker: boolean,
-      is_mix_engineer : boolean,
-      is_artist: boolean,
+      is_admin:              boolean;
+      is_beatmaker:          boolean;
+      is_mix_engineer:       boolean;
+      is_artist:             boolean;
+      is_mixmaster_engineer: boolean;
     },
     user_type_selected: boolean,
     email_verified: boolean,
@@ -179,6 +180,13 @@ export class AuthService {
     localStorage.clear();
     this._currentUser.set(null);
     this.router.navigate(['/login']);
+  }
+
+  /** Met à jour le signal et localStorage avec un objet User partiel ou complet. */
+  updateCurrentUser(partial: Partial<User>): void {
+    const merged = { ...this._currentUser()!, ...partial } as User;
+    localStorage.setItem('user', JSON.stringify(merged));
+    this._currentUser.set(merged);
   }
 
   getToken(): string | null {

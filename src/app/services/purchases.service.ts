@@ -25,9 +25,30 @@ export interface PurchaseItem {
   track:         PurchasedTrack | null;
 }
 
+export interface MixOrderPurchase {
+  id:                               number;
+  title:                            string;
+  total_price:                      number;
+  completed_at:                     string | null;
+  created_at:                       string;
+  services: {
+    cleaning:  boolean;
+    effects:   boolean;
+    artistic:  boolean;
+    mastering: boolean;
+  };
+  engineer_username:                string | null;
+  engineer_image:                   string | null;
+  processed_file_preview_url:       string | null;
+  processed_file_preview_full_url:  string | null;
+  download_url:                     string;
+}
+
 export interface PurchasesData {
-  purchases:   PurchaseItem[];
-  total_spent: number;
+  purchases:      PurchaseItem[];
+  total_spent:    number;
+  mm_orders:      MixOrderPurchase[];
+  mm_total_spent: number;
 }
 
 @Injectable({ providedIn: 'root' })

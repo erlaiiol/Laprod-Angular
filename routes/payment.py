@@ -733,7 +733,7 @@ def transactions():
 # NOUVEAUX DASHBOARDS MÉTIERS
 # ============================================
 
-@payment_bp.route('/dashboard/artist')
+@payment_bp.route('/legacy/dashboard/artist')
 @login_required
 def artist_dashboard():
     """
@@ -816,7 +816,7 @@ def purchases():
     )
 
 
-@payment_bp.route('/dashboard/beatmaker')
+@payment_bp.route('/legacy/dashboard/beatmaker')
 @login_required
 def beatmaker_dashboard():
     """

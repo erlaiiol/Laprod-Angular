@@ -124,14 +124,25 @@
           </li>
 
           <!-- Dropdown "Mes Espaces" (dashboards) -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+          <li class="nav-item dropdown" *ngIf="isBeatmaker() || isArtist() || isMixEngineer()">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+               aria-expanded="false">
               <i class="bi bi-speedometer2"></i> Mes Espaces
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-              <li>
-                <a class="dropdown-item" [routerLink]="['/dashboard']">
-                  <i class="bi bi-grid"></i> Tableau de bord
+              <li *ngIf="isBeatmaker()">
+                <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
+                  <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
+                </a>
+              </li>
+              <li *ngIf="isArtist()">
+                <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
+                  <i class="bi bi-mic"></i> Espace Artiste
+                </a>
+              </li>
+              <li *ngIf="isMixEngineer()">
+                <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
+                  <i class="bi bi-sliders"></i> Espace Mix Engineer
                 </a>
               </li>
             </ul>
@@ -159,8 +170,8 @@
 
           <!-- Achats -->
           <li class="nav-item">
-            <a class="nav-link" [routerLink]="['/achats']" routerLinkActive="active">
-              <i class="bi bi-cart-check"></i> Achats
+            <a class="nav-link" [routerLink]="['/purchases']" routerLinkActive="active">
+              <i class="bi bi-bag-check"></i> Mes Achats
             </a>
           </li>
 

@@ -84,7 +84,7 @@ def _profile_payload(user, tracks, is_own=False):
 
 # ── GET /users/<username> ─────────────────────────────────────────────────────
 
-@main_api_bp.route('/profile/<username>', methods=['GET'])
+@main_api_bp.route('/users/<username>', methods=['GET'])
 @csrf.exempt
 def get_profile(username):
     """Profil public d'un utilisateur (JWT optionnel pour le profil propre)"""
@@ -121,7 +121,7 @@ def get_profile(username):
 
 # ── PUT /users/edit-profile ───────────────────────────────────────────────────
 
-@main_api_bp.route('/profile/edit-profile', methods=['PUT'])
+@main_api_bp.route('/users/edit-profile', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
 def edit_profile():
@@ -285,7 +285,7 @@ def edit_profile():
 
 # ── PUT /users/edit-profile/security ─────────────────────────────────────────
 
-@main_api_bp.route('/profile/edit-profile/security', methods=['PUT'])
+@main_api_bp.route('/users/edit-profile/security', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
 def edit_profile_security():

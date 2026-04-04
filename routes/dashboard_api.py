@@ -177,6 +177,48 @@ def get_artist_dashboard():
         if h.track
     ]
 
+    # ── Demandes mix/master en tant qu'artiste ────────────────────────────────
+    mm_requests = db.session.scalars(
+        select(MixMasterRequest)
+        .where(MixMasterRequest.artist_id == user_id)
+        .order_by(MixMasterRequest.created_at.desc())
+    ).all()
+
+    def mm_dict(o: MixMasterRequest) -> dict:
+        can_rev, _ = o.can_request_revision()
+        return {
+            'id':                    o.id,
+            'title':                 o.title,
+            'status':                o.status,
+            'stripe_payment_status': o.stripe_payment_status,
+            'total_price':           o.total_price,
+            'deposit_amount':        o.deposit_amount,
+            'remaining_amount':      o.remaining_amount,
+            'revision_count':        o.revision_count,
+            'revision1_message':     o.revision1_message,
+            'revision2_message':     o.revision2_message,
+            'can_request_revision':  can_rev,
+            'is_expired':            o.is_expired(),
+            'final_transfer_amount': o.get_final_transfer_amount(),
+            'engineer_username':     o.engineer.username if o.engineer else None,
+            'engineer_image':        o.engineer.profile_image if o.engineer else None,
+            'engineer_id':           o.engineer_id,
+            'services': {
+                'cleaning':  o.service_cleaning,
+                'effects':   o.service_effects,
+                'artistic':  o.service_artistic,
+                'mastering': o.service_mastering,
+            },
+            'reference_file_url':              f'/static/{o.reference_file}' if o.reference_file else None,
+            'processed_file_preview_url':      f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
+            'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
+            'created_at':    o.created_at.isoformat(),
+            'accepted_at':   o.accepted_at.isoformat() if o.accepted_at else None,
+            'deadline':      o.deadline.isoformat() if o.deadline else None,
+            'delivered_at':  o.delivered_at.isoformat() if o.delivered_at else None,
+            'completed_at':  o.completed_at.isoformat() if o.completed_at else None,
+        }
+
     return jsonify({
         'success': True,
         'data': {
@@ -185,10 +227,13 @@ def get_artist_dashboard():
                 'toplines_published': sum(1 for tl in toplines if tl.is_published),
                 'favorites_count':    len(favorites_data),
                 'topline_tokens':     user.topline_tokens,
+                'mm_requests_count':  len(mm_requests),
+                'mm_active_count':    sum(1 for o in mm_requests if o.status in ('awaiting_acceptance', 'accepted', 'processing', 'delivered', 'revision1', 'revision2')),
             },
-            'toplines':  toplines_data,
-            'favorites': favorites_data,
-            'history':   history_data,
+            'toplines':     toplines_data,
+            'favorites':    favorites_data,
+            'history':      history_data,
+            'mm_requests':  [mm_dict(o) for o in mm_requests],
         },
     }), 200
 
@@ -218,21 +263,49 @@ def get_mix_engineer_dashboard():
     REFUSED_STATUSES   = {'rejected', 'refunded'}
 
     def order_dict(o: MixMasterRequest) -> dict:
+        can_rev, _ = o.can_request_revision()
         return {
             'id':              o.id,
             'title':           o.title,
             'artist_username': o.artist.username if o.artist else None,
             'artist_image':    o.artist.profile_image if o.artist else None,
             'status':          o.status,
+            'stripe_payment_status': o.stripe_payment_status,
             'total_price':     o.total_price,
             'deposit_amount':  o.deposit_amount,
+            'remaining_amount': o.remaining_amount,
             'engineer_revenue': o.engineer_revenue,
+            'revision_count':  o.revision_count,
+            'revision1_message': o.revision1_message,
+            'revision2_message': o.revision2_message,
+            'can_request_revision': can_rev,
+            'is_expired':      o.is_expired(),
+            'final_transfer_amount': o.get_final_transfer_amount(),
             'services': {
                 'cleaning':  o.service_cleaning,
                 'effects':   o.service_effects,
                 'artistic':  o.service_artistic,
                 'mastering': o.service_mastering,
             },
+            'has_separated_stems': o.has_separated_stems,
+            # Briefing (pour l'ingénieur)
+            'artist_message':    o.artist_message,
+            'brief_vocals':      o.brief_vocals,
+            'brief_backing_vocals': o.brief_backing_vocals,
+            'brief_ambiance':    o.brief_ambiance,
+            'brief_bass':        o.brief_bass,
+            'brief_energy_style': o.brief_energy_style,
+            'brief_references':  o.brief_references,
+            'brief_instruments': o.brief_instruments,
+            'brief_percussion':  o.brief_percussion,
+            'brief_effects':     o.brief_effects,
+            'brief_structure':   o.brief_structure,
+            # Fichiers (accès via /static/)
+            'reference_file_url':              f'/static/{o.reference_file}' if o.reference_file else None,
+            'original_file_url':               f'/static/{o.original_file}' if o.original_file else None,
+            'processed_file_preview_url':      f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
+            'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
+            'archive_file_tree': o.archive_file_tree or [],
             'created_at':      o.created_at.isoformat(),
             'accepted_at':     o.accepted_at.isoformat() if o.accepted_at else None,
             'deadline':        o.deadline.isoformat() if o.deadline else None,

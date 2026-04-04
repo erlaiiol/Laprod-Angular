@@ -1,0 +1,135 @@
+@use 'variables' as v;
+
+.purchases-page {
+  max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+.page-header {
+  margin-bottom: 1.5rem;
+  h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.3rem;
+       i { margin-right: 0.4rem; color: v.$tag-green; } }
+}
+
+.header-sub {
+  font-size: 0.83rem; color: v.$text-secondary; margin: 0;
+  strong { color: v.$text-primary; }
+}
+
+// ── Purchase cards ────────────────────────────────────────────────────────────
+
+.purchases-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.purchase-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem;
+  transition: border-color 0.15s;
+  &:hover { border-color: v.$bg-border-subtle; }
+
+  @media (max-width: 600px) { flex-wrap: wrap; }
+}
+
+.card-cover-link { flex-shrink: 0; }
+
+.card-cover {
+  width: 64px; height: 64px; border-radius: 6px; object-fit: cover;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+}
+
+.card-info { flex: 1; min-width: 0; }
+
+.card-title {
+  display: block; font-size: 0.95rem; font-weight: 700; color: v.$text-primary;
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 0.2rem;
+  &:hover { color: v.$tag-green; }
+}
+
+.card-composer {
+  display: block; font-size: 0.78rem; color: v.$text-secondary; margin-bottom: 0.35rem;
+  i { margin-right: 0.2rem; }
+}
+
+.card-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.fmt-badge {
+  display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700;
+  &.fmt-mp3   { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  &.fmt-wav   { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  &.fmt-stems { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+}
+
+.card-date { font-size: 0.75rem; color: v.$text-muted; i { margin-right: 0.2rem; } }
+
+.card-right {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem;
+  @media (max-width: 600px) { width: 100%; align-items: flex-start; }
+}
+
+.card-price {
+  font-size: 1.1rem; font-weight: 800; color: v.$text-primary;
+}
+
+.price-breakdown {
+  display: block; font-size: 0.72rem; font-weight: 400; color: v.$text-muted;
+}
+
+.card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.btn-download {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.9rem; background: v.$tag-green; border: none;
+  border-radius: 7px; font-size: 0.82rem; font-weight: 700;
+  color: #fff; text-decoration: none; cursor: pointer; transition: filter 0.15s;
+  &:hover { filter: brightness(1.1); }
+}
+
+.btn-contract {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.9rem; background: v.$bg-elevated;
+  border: 1px solid v.$bg-border; border-radius: 7px;
+  font-size: 0.82rem; font-weight: 600; color: v.$text-secondary;
+  text-decoration: none; transition: border-color 0.15s, color 0.15s;
+  &:hover { border-color: v.$bg-border-subtle; color: v.$text-primary; }
+}
+
+.no-contract {
+  font-size: 0.75rem; color: v.$text-muted;
+  i { margin-right: 0.2rem; }
+}
+
+// ── Browse button ─────────────────────────────────────────────────────────────
+
+.btn-browse {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  margin-top: 1rem; padding: 0.5rem 1.1rem; background: v.$bg-elevated;
+  border: 1px solid v.$bg-border; border-radius: 8px;
+  font-size: 0.85rem; font-weight: 600; color: v.$text-secondary;
+  text-decoration: none; transition: border-color 0.15s, color 0.15s;
+  &:hover { border-color: v.$tag-green; color: v.$tag-green; }
+}
+
+// ── Empty / states ────────────────────────────────────────────────────────────
+
+.empty-state {
+  text-align: center; padding: 3rem 1rem; color: v.$text-muted;
+  background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 10px;
+  i { font-size: 2rem; display: block; margin-bottom: 0.75rem; }
+  p { font-size: 0.9rem; margin: 0 0 0.25rem; }
+  small { font-size: 0.78rem; }
+}
+
+.state-loading { display: flex; justify-content: center; padding: 4rem 0; }
+.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+
+.spinner {
+  width: 36px; height: 36px; border: 3px solid v.$bg-border;
+  border-top-color: v.$tag-green; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

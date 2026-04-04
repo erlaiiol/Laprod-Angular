@@ -37,7 +37,10 @@
       </div>
 
       <div class="track-hero-info">
-        <h1 class="track-title">{{ track()!.title }}</h1>
+        <div class="track-title-row">
+          <h1 class="track-title">{{ track()!.title }}</h1>
+          <app-favorite-button [trackId]="track()!.id"></app-favorite-button>
+        </div>
 
         <div class="track-composer">
           <img class="composer-avatar"

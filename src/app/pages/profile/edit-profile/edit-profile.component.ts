@@ -121,9 +121,7 @@ export class EditProfileComponent implements OnInit {
       next: res => {
         this.loading.set(false);
         if (res.success) {
-          // Rafraîchit le user en localStorage
-          const stored = JSON.parse(localStorage.getItem('user') ?? '{}');
-          localStorage.setItem('user', JSON.stringify({ ...stored, ...res.data?.user }));
+          if (res.data?.user) this.auth.updateCurrentUser(res.data.user);
           this.success.set(res.feedback.message);
           if (res.data?.next === 'submit-sample') {
             this.router.navigate(['/submit-sample']);

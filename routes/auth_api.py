@@ -694,7 +694,7 @@ def submit_mixmaster_sample():
     current_app.logger.info(f'Mixmaster sample submitted by user #{user_id}')
     return jsonify({
         'success': True,
-        'feedback': {'level': 'success',
+        'feedback': {'level': 'info',
                      'message': 'Candidature soumise ! Notre équipe évaluera votre travail.'},
     }), 200
 

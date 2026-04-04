@@ -1,0 +1,90 @@
+<div class="engineers-page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <h1><i class="bi bi-sliders"></i> Mix/Master Engineers Certifiés</h1>
+    <p class="subtitle">Sélectionnez un ingénieur du son professionnel pour mixer et masteriser vos pistes.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="state-loading"><div class="spinner"></div></div>
+  }
+
+  @if (error() && !loading()) {
+    <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+  }
+
+  @if (!loading() && !error()) {
+
+    @if (engineers().length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-person-x"></i>
+        <p>Aucun ingénieur certifié disponible pour l'instant.</p>
+      </div>
+    } @else {
+      <div class="engineers-grid">
+        @for (eng of engineers(); track eng.id) {
+          <div class="engineer-card">
+
+            <!-- Avatar + nom -->
+            <div class="eng-top">
+              <img class="eng-avatar" [src]="imgUrl(eng.profile_image)" [alt]="eng.username">
+              <div class="eng-identity">
+                <span class="eng-name">{{ eng.username }}</span>
+                <span class="badge-certified"><i class="bi bi-patch-check-fill"></i> Certifié</span>
+                @if (eng.is_certified_producer_arranger) {
+                  <span class="badge-producer">Producteur/Arrangeur</span>
+                }
+              </div>
+            </div>
+
+            <!-- Bio -->
+            <p class="eng-bio">{{ eng.mixmaster_bio || 'Aucune description disponible.' }}</p>
+
+            <!-- Samples audio -->
+            @if (eng.sample_raw_url || eng.sample_processed_url) {
+              <div class="samples">
+                @if (eng.sample_raw_url) {
+                  <div class="sample-row">
+                    <span class="sample-label">Brut</span>
+                    <audio controls [src]="audioUrl(eng.sample_raw_url)"></audio>
+                  </div>
+                }
+                @if (eng.sample_processed_url) {
+                  <div class="sample-row">
+                    <span class="sample-label">Traité</span>
+                    <audio controls [src]="audioUrl(eng.sample_processed_url)"></audio>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Prix + slots -->
+            <div class="eng-footer">
+              <div class="price-range">
+                <i class="bi bi-tag"></i> {{ priceRange(eng) }}
+              </div>
+              @if (eng.slots_available !== null) {
+                <div class="slots">
+                  <i class="bi bi-calendar-check"></i>
+                  {{ eng.slots_used }}/{{ eng.slots_available }} slots
+                </div>
+              }
+              @if (auth.isLoggedIn()) {
+                <a class="btn-order" [routerLink]="['/mix/order', eng.id]">
+                  Commander <i class="bi bi-arrow-right"></i>
+                </a>
+              } @else {
+                <a class="btn-order btn-login" [routerLink]="['/login']">
+                  Se connecter pour commander
+                </a>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+  }
+
+</div>

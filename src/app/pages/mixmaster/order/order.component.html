@@ -1,0 +1,160 @@
+<div class="order-page">
+
+  @if (loading()) {
+    <div class="state-loading"><div class="spinner"></div></div>
+  }
+
+  @if (error() && !loading()) {
+    <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+  }
+
+  @if (!loading() && !error() && engineer()) {
+    <div class="order-layout">
+
+      <!-- ── Sidebar ingénieur ──────────────────────────────────────────── -->
+      <aside class="eng-sidebar">
+        <img class="eng-avatar" [src]="imgUrl(engineer()!.profile_image)" [alt]="engineer()!.username">
+        <h2 class="eng-name">{{ engineer()!.username }}</h2>
+        <p class="eng-bio">{{ engineer()!.mixmaster_bio || '' }}</p>
+
+        <div class="price-summary">
+          <div class="price-row">
+            <span>Prix estimé</span>
+            <strong class="price-value">{{ estimatedPrice().toFixed(2) }}€</strong>
+          </div>
+          <div class="price-row small">
+            <span>Acompte (30%)</span>
+            <span>{{ depositAmount().toFixed(2) }}€</span>
+          </div>
+          <div class="price-row small">
+            <span>Solde à la livraison</span>
+            <span>{{ (estimatedPrice() - depositAmount()).toFixed(2) }}€</span>
+          </div>
+          <p class="price-note">Le paiement sera capturé à la livraison. Vous disposerez de 2 révisions.</p>
+        </div>
+      </aside>
+
+      <!-- ── Formulaire ─────────────────────────────────────────────────── -->
+      <form class="order-form" (ngSubmit)="submit()">
+
+        <h1 class="form-title">Commander à {{ engineer()!.username }}</h1>
+
+        <!-- Titre -->
+        <div class="field-group">
+          <label>Titre du projet <span class="req">*</span></label>
+          <input type="text" [ngModel]="title()" (ngModelChange)="title.set($event)"
+                 name="title" placeholder="Nom de votre projet" maxlength="50">
+        </div>
+
+        <!-- Services -->
+        <div class="field-group">
+          <label>Services souhaités <span class="req">*</span></label>
+          <div class="checkboxes">
+            <label class="chk-row">
+              <input type="checkbox" [checked]="serviceCleaning()" (change)="serviceCleaning.set(!serviceCleaning())">
+              Nettoyage ({{ (engineer()!.mixmaster_reference_price * 0.35).toFixed(2) }}€)
+            </label>
+            <label class="chk-row">
+              <input type="checkbox" [checked]="serviceEffects()" (change)="serviceEffects.set(!serviceEffects())">
+              Effets / Mixage ({{ (engineer()!.mixmaster_reference_price * 0.45).toFixed(2) }}€)
+            </label>
+            <label class="chk-row">
+              <input type="checkbox" [checked]="serviceArtistic()" (change)="serviceArtistic.set(!serviceArtistic())">
+              Direction artistique ({{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€)
+            </label>
+            <label class="chk-row">
+              <input type="checkbox" [checked]="serviceMastering()" (change)="serviceMastering.set(!serviceMastering())">
+              Mastering ({{ (engineer()!.mixmaster_reference_price * (engineer()!.is_certified_producer_arranger ? 0.60 : 0.20)).toFixed(2) }}€)
+            </label>
+            <label class="chk-row">
+              <input type="checkbox" [checked]="hasSeparatedStems()" (change)="hasSeparatedStems.set(!hasSeparatedStems())">
+              Mes stems sont déjà séparés (+{{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€)
+            </label>
+          </div>
+        </div>
+
+        <!-- Fichier stems -->
+        <div class="field-group">
+          <label>Archive stems (ZIP ou RAR) <span class="req">*</span></label>
+          <input type="file" accept=".zip,.rar" (change)="onStemsChange($event)">
+          @if (stemsFile()) {
+            <span class="file-name"><i class="bi bi-paperclip"></i> {{ stemsFile()!.name }}</span>
+          }
+        </div>
+
+        <!-- Fichier référence -->
+        <div class="field-group">
+          <label>Piste de référence (MP3/WAV — optionnel)</label>
+          <input type="file" accept=".mp3,.wav" (change)="onReferenceChange($event)">
+          @if (referenceFile()) {
+            <span class="file-name"><i class="bi bi-paperclip"></i> {{ referenceFile()!.name }}</span>
+          }
+        </div>
+
+        <!-- Message artiste -->
+        <div class="field-group">
+          <label>Message général pour l'ingénieur</label>
+          <textarea rows="3" [ngModel]="artistMessage()" (ngModelChange)="artistMessage.set($event)"
+                    name="artistMessage" placeholder="Décrivez votre projet, vos attentes..."></textarea>
+        </div>
+
+        <!-- Briefing accordéon -->
+        <details class="briefing-accordion">
+          <summary>Briefing détaillé (optionnel)</summary>
+          <div class="briefing-grid">
+            <div class="field-group">
+              <label>Voix</label>
+              <input type="text" [ngModel]="briefVocals()" (ngModelChange)="briefVocals.set($event)" name="briefVocals" placeholder="ex : voix douce, autotuned...">
+            </div>
+            <div class="field-group">
+              <label>Chœurs / Backing vocals</label>
+              <input type="text" [ngModel]="briefBackingVocals()" (ngModelChange)="briefBackingVocals.set($event)" name="briefBackingVocals">
+            </div>
+            <div class="field-group">
+              <label>Ambiance</label>
+              <input type="text" [ngModel]="briefAmbiance()" (ngModelChange)="briefAmbiance.set($event)" name="briefAmbiance">
+            </div>
+            <div class="field-group">
+              <label>Basse / Subs</label>
+              <input type="text" [ngModel]="briefBass()" (ngModelChange)="briefBass.set($event)" name="briefBass">
+            </div>
+            <div class="field-group">
+              <label>Style / Énergie</label>
+              <input type="text" [ngModel]="briefEnergyStyle()" (ngModelChange)="briefEnergyStyle.set($event)" name="briefEnergyStyle">
+            </div>
+            <div class="field-group">
+              <label>Références artistiques</label>
+              <input type="text" [ngModel]="briefReferences()" (ngModelChange)="briefReferences.set($event)" name="briefReferences">
+            </div>
+            <div class="field-group">
+              <label>Instruments</label>
+              <input type="text" [ngModel]="briefInstruments()" (ngModelChange)="briefInstruments.set($event)" name="briefInstruments">
+            </div>
+            <div class="field-group">
+              <label>Percussions</label>
+              <input type="text" [ngModel]="briefPercussion()" (ngModelChange)="briefPercussion.set($event)" name="briefPercussion">
+            </div>
+            <div class="field-group">
+              <label>Effets</label>
+              <input type="text" [ngModel]="briefEffects()" (ngModelChange)="briefEffects.set($event)" name="briefEffects">
+            </div>
+            <div class="field-group">
+              <label>Structure</label>
+              <input type="text" [ngModel]="briefStructure()" (ngModelChange)="briefStructure.set($event)" name="briefStructure">
+            </div>
+          </div>
+        </details>
+
+        <button type="submit" class="btn-submit" [disabled]="submitting()">
+          @if (submitting()) {
+            <span class="spinner-sm"></span> Redirection vers Stripe...
+          } @else {
+            <i class="bi bi-credit-card"></i> Payer {{ estimatedPrice().toFixed(2) }}€ (acompte {{ depositAmount().toFixed(2) }}€)
+          }
+        </button>
+
+      </form>
+    </div>
+  }
+
+</div>

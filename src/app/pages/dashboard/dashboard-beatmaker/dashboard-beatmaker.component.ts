@@ -6,6 +6,7 @@ import { AuthService } from '../../../services/auth.service';
 import {
   DashboardService, BeatmakerDashboard, BeatmakerTrack, SaleRecord,
 } from '../../../services/dashboard.service';
+import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
 type Tab = 'tracks' | 'sales';
@@ -27,6 +28,7 @@ export class DashboardBeatmakerComponent implements OnInit {
   readonly auth         = inject(AuthService);
   private dashboardSvc  = inject(DashboardService);
   private router        = inject(Router);
+  private toast         = inject(ToastService);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -37,8 +39,11 @@ export class DashboardBeatmakerComponent implements OnInit {
         else this.error.set(res.feedback?.message ?? 'Erreur de chargement.');
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Impossible de contacter le serveur.');
+      error: (err) => {
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de charger l\'espace beatmaker.' });
+        }
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger l\'espace beatmaker.');
         this.loading.set(false);
       },
     });

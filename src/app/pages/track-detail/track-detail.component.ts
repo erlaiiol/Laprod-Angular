@@ -8,11 +8,14 @@ import { TrackService, TrackDetail, PublishedTopline } from '../../services/trac
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { ToplineRecorderComponent } from '../../components/topline-recorder/topline-recorder.component';
+import { FavoriteButtonComponent } from '../../components/favorite-button/favorite-button.component';
+import { FavoritesService } from '../../services/favorites.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToplineRecorderComponent],
+  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,6 +32,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   player           = inject(PlayerService);
   auth             = inject(AuthService);
   private cdr      = inject(ChangeDetectorRef);
+  private toast    = inject(ToastService);
 
   constructor() {
     // Open the recorder whenever the player requests it
@@ -57,8 +61,11 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.cdr.markForCheck();
       },
-      error: () => {
-        this.error.set('Impossible de contacter le serveur.');
+      error: (err) => {
+        if (!err?.error?.feedback) {
+          this.toast.showToast({ level: 'error', message: 'Impossible de charger ce beat.' });
+        }
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger ce beat.');
         this.loading.set(false);
         this.cdr.markForCheck();
       }
