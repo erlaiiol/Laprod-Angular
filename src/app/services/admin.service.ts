@@ -71,20 +71,7 @@ export interface AdminUser {
   mm_count:        number;
 }
 
-export interface AdminEngineer {
-  id:              number;
-  username:        string;
-  email:           string;
-  profile_image:   string;
-  mixmaster_reference_price: number | null;
-  mixmaster_price_min:       number | null;
-  mixmaster_bio:             string | null;
-  mixmaster_sample_raw:      string | null;
-  mixmaster_sample_processed: string | null;
-  is_certified_producer_arranger: boolean;
-  producer_arranger_request_submitted: boolean;
-  created_at: string | null;
-}
+
 
 export interface PriceRequest {
   id:                      number;
@@ -125,9 +112,41 @@ export interface AdminCategory {
   tags:  { id: number; name: string }[];
 }
 
+export interface AdminMixEngineer {
+  id:              number;
+  username:        string;
+  email:           string;
+  profile_image:   string;
+  is_mixmaster_engineer: boolean;
+  is_certified_producer_arranger: boolean;
+  mixmaster_reference_price: number | null;
+  mixmaster_price_min:       number | null;
+  mixmaster_bio:             string | null;
+  mixmaster_sample_raw:      string | null;
+  mixmaster_sample_processed: string | null;
+}
+
+export interface UserSearchResult {
+  id:       number;
+  username: string;
+  email:    string;
+}
+
+export interface TrackSearchResult {
+  id:                 number;
+  title:              string;
+  composer_username:  string | null;
+  composer_id:        number | null;
+  price_mp3:          number | null;
+  price_wav:          number | null;
+  price_stems:        number | null;
+}
+
+export type ApiFeedback = { level: 'info' | 'warning' | 'error'; message: string };
+
 type ApiResponse<T = void> = {
   success: boolean;
-  feedback: { level: string; message: string };
+  feedback: ApiFeedback;
   data?: T;
 };
 
@@ -158,7 +177,7 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/users`, { headers: this.headers, params: { user_type: userType } });
   }
 
-  getEngineers(): Observable<ApiResponse<{ certified: AdminEngineer[]; pending: AdminEngineer[]; pa_requests: AdminEngineer[]; price_requests: PriceRequest[] }>> {
+  getEngineers(): Observable<ApiResponse<{ certified: AdminMixEngineer[]; pending: AdminMixEngineer[]; pa_requests: AdminMixEngineer[]; price_requests: PriceRequest[] }>> {
     return this.http.get<any>(`${this.base}/engineers`, { headers: this.headers });
   }
 
@@ -246,6 +265,43 @@ export class AdminService {
 
   rejectProducerArranger(userId: number): Observable<ApiResponse> {
     return this.http.post<any>(`${this.base}/producer-arranger/${userId}/reject`, {}, { headers: this.headers });
+  }
+
+  // ── Engineer direct certification ──────────────────────────────────────────
+
+  getAllMixEngineers(): Observable<ApiResponse<{ engineers: AdminMixEngineer[] }>> {
+    return this.http.get<any>(`${this.base}/engineers/all-mix`, { headers: this.headers });
+  }
+
+  uploadEngineerSample(userId: number, fd: FormData): Observable<ApiResponse<{ sample_raw: string; sample_processed: string }>> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/upload-sample`, fd, { headers: this.headers });
+  }
+
+  setEngineerInfo(userId: number, data: { reference_price?: number; price_min?: number; bio?: string }): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/set-info`, data, { headers: this.headers });
+  }
+
+  // ── Search ─────────────────────────────────────────────────────────────────
+
+  searchUsers(q: string): Observable<ApiResponse<{ users: UserSearchResult[] }>> {
+    return this.http.get<any>(`${this.base}/users/search`, { headers: this.headers, params: { q } });
+  }
+
+  searchTracks(q: string): Observable<ApiResponse<{ tracks: TrackSearchResult[] }>> {
+    return this.http.get<any>(`${this.base}/tracks/search`, { headers: this.headers, params: { q } });
+  }
+
+  // ── Manual contract ────────────────────────────────────────────────────────
+
+  createContract(payload: {
+    track_id: number;
+    client_id: number;
+    price: number;
+    is_exclusive: boolean;
+    territory: string;
+    duration: string;
+  }): Observable<ApiResponse<{ contract_id: number }>> {
+    return this.http.post<any>(`${this.base}/contracts/create`, payload, { headers: this.headers });
   }
 
   // ── Categories & Tags CUD ──────────────────────────────────────────────────

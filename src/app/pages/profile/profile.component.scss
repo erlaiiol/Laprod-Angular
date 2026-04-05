@@ -78,10 +78,11 @@
   font-size: 0.75rem;
   font-weight: 600;
 
-  &.artist        { background: rgba(13, 202, 240, 0.15); color: #0dcaf0; }
-  &.beatmaker     { background: rgba(25, 135, 84, 0.15);  color: #198754; }
-  &.mix-certified { background: rgba(255, 193, 7, 0.2);   color: #ffc107; }
-  &.mix           { background: rgba(108, 117, 125, 0.2); color: #adb5bd; }
+  &.artist             { background: rgba(13, 202, 240, 0.15);  color: #0dcaf0; }
+  &.beatmaker          { background: rgba(25, 135, 84, 0.15);   color: #198754; }
+  &.mix-certified      { background: rgba(255, 193, 7, 0.2);    color: #ffc107; }
+  &.mix                { background: rgba(108, 117, 125, 0.2);  color: #adb5bd; }
+  &.producer-arranger  { background: rgba(139, 92, 246, 0.2);   color: #a78bfa; }
 }
 
 .profile-since {

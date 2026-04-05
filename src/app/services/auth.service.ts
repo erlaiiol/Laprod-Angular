@@ -30,11 +30,12 @@ export interface User {
     email: string,
     profile_image: string,
     roles : {
-      is_admin:              boolean;
-      is_beatmaker:          boolean;
-      is_mix_engineer:       boolean;
-      is_artist:             boolean;
-      is_mixmaster_engineer: boolean;
+      is_admin:                       boolean;
+      is_beatmaker:                   boolean;
+      is_mix_engineer:                boolean;
+      is_artist:                      boolean;
+      is_mixmaster_engineer:          boolean;
+      is_certified_producer_arranger: boolean;
     },
     user_type_selected: boolean,
     email_verified: boolean,
@@ -132,7 +133,7 @@ export class AuthService {
         if (res.success === true) {
           this.storeAuth(res);
           if (res.code === 'SHOW_SELECT_ROLE') {
-            this.router.navigate(['/select_role']);
+            this.router.navigate(['/select-role']);
           }
         }
 

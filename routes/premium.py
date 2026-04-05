@@ -19,7 +19,7 @@ import config
 # CRÉER LE BLUEPRINT
 # ============================================
 
-premium_bp = Blueprint('premium', __name__)
+premium_bp = Blueprint('premium', __name__, url_prefix='/legacy/premium')
 
 
 # ============================================

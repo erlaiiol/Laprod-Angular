@@ -24,11 +24,10 @@ export class NavbarComponent implements OnInit {
 
   // ── Données de filtres (chargées depuis /filters/tags/all) ───────────────
 
-  tags    = signal<Tag[]>([]);
-  keys    = signal<string[]>([]);
-  styles  = signal<string[]>([]);
   loading = signal(true);
   error   = signal<string | null>(null);
+
+
 
   // ── Sélections "en cours" dans le popover ─────────────────────────────────
   // Ces signaux sont LOCAUX à la navbar — ils ne sont poussés vers
@@ -60,6 +59,10 @@ export class NavbarComponent implements OnInit {
     // FilterStateService est injecté ici pour écrire les filtres appliqués.
     // Home l'injecte lui aussi pour les lire — c'est le canal de communication.
   ) {}
+
+  tags = computed(() => this.tagsService.tags())
+  keys = computed(() => this.tagsService.keys())
+  styles = computed(() => this.tagsService.styles())
 
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
   isArtist      = computed(() => this.authService.isArtist());
@@ -96,31 +99,9 @@ export class NavbarComponent implements OnInit {
 
 
   ngOnInit(): void {
-    this.loadTags();
-    console.log(this.isLoggedIn())
+    this.tagsService.loadTags();
   }
 
-  loadTags(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.tagsService.getTags().subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.tags.set(response.data.tags);
-          this.keys.set(response.data.keys);
-          this.styles.set(response.data.styles);
-        } else {
-          this.error.set('Erreur chargement des filtres');
-        }
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Impossible de charger les filtres');
-        this.loading.set(false);
-      }
-    });
-  }
 
   // ── Toggle d'une valeur dans un tableau de sélection ─────────────────────
   // signal.update(fn) : lit la valeur actuelle, applique fn, écrit le résultat.

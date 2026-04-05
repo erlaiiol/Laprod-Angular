@@ -371,6 +371,23 @@ def notify_tokens_recharged(user, token_type='upload'):
     )
 
 
+def notify_stripe_connect_setup(user_id):
+    """
+    Notification persistante invitant l'utilisateur à créer son compte Stripe Connect.
+    Appelée une seule fois lors de la première sélection de rôle (beatmaker ou mix engineer).
+    """
+    create_notification(
+        user_id=user_id,
+        notif_type='stripe_connect_setup',
+        title='Configurez votre compte de paiement',
+        message=(
+            'Pour recevoir vos gains, connectez votre compte Stripe depuis votre Wallet. '
+            'Vous pouvez le faire à tout moment — vos revenus seront disponibles dès que votre compte sera activé.'
+        ),
+        link='/wallet',
+    )
+
+
 def notify_tokens_low(user, token_type='upload'):
     """
     Notifie l'utilisateur que ses tokens sont bientôt épuisés

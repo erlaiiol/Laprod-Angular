@@ -1,0 +1,117 @@
+@use 'variables' as v;
+
+.mix-guide {
+  border: 1px solid v.$bg-border;
+  border-radius: 10px;
+  background: v.$bg-surface;
+  margin-bottom: 1.5rem;
+}
+
+.mix-guide__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: v.$tag-blue;
+  list-style: none;
+  user-select: none;
+  border-radius: 10px;
+  transition: background 0.15s;
+
+  &:hover { background: v.$bg-elevated; }
+
+  .mix-guide__chevron {
+    margin-left: auto;
+    transition: transform 0.2s;
+  }
+}
+
+details[open] .mix-guide__chevron {
+  transform: rotate(180deg);
+}
+
+.mix-guide__body {
+  padding: 0 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.guide-alert {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.82rem;
+  color: v.$tag-neutral-light;
+
+  strong { color: v.$tag-blue; }
+
+  p { margin: 0.4rem 0; }
+
+  code {
+    display: block;
+    margin: 0.4rem 0;
+    padding: 0.3rem 0.6rem;
+    background: v.$bg-elevated;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    color: #e2e8f0;
+  }
+
+  ul {
+    margin: 0.5rem 0 0 1rem;
+    padding: 0;
+
+    li {
+      margin-bottom: 0.2rem;
+      code {
+        display: inline;
+        padding: 0.1rem 0.35rem;
+      }
+    }
+  }
+}
+
+.guide-note {
+  margin-top: 0.5rem !important;
+  color: v.$tag-blue;
+  font-weight: 500;
+}
+
+.guide-section {
+  h6 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: v.$tag-blue;
+    margin: 0 0 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+.guide-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.8rem;
+    color: v.$tag-neutral-light;
+
+    li {
+      margin-bottom: 0.25rem;
+      strong { color: #cbd5e1; }
+    }
+  }
+}

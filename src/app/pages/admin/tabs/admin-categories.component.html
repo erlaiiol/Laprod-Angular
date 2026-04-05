@@ -1,0 +1,44 @@
+<div class="cat-create">
+  <h3>Nouvelle catégorie</h3>
+  <div class="inline-form">
+    <input placeholder="Nom" [ngModel]="newCatName()" (ngModelChange)="newCatName.set($event)">
+    <input type="color" [ngModel]="newCatColor()" (ngModelChange)="newCatColor.set($event)" title="Couleur">
+    <button class="btn-primary" (click)="createCategory()"><i class="bi bi-plus"></i> Créer</button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+} @else if (categories().length === 0) {
+  <p class="empty">Aucune catégorie.</p>
+} @else {
+  <div class="cat-list">
+    @for (cat of categories(); track cat.id) {
+      <div class="cat-item">
+        <div class="cat-header">
+          <span class="cat-dot" [style.background]="cat.color"></span>
+          <strong>{{ cat.name }}</strong>
+          <span class="small">({{ cat.tags.length }} tag{{ cat.tags.length > 1 ? 's' : '' }})</span>
+          <button class="btn-danger-sm" (click)="deleteCategory(cat)" title="Supprimer la catégorie">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+        <div class="tag-list">
+          @for (tag of cat.tags; track tag.id) {
+            <span class="tag-chip">
+              {{ tag.name }}
+              <button (click)="deleteTag(tag.id)" title="Supprimer le tag">✕</button>
+            </span>
+          }
+          <div class="tag-add">
+            <input placeholder="Nouveau tag…"
+                   [ngModel]="tagInput(cat.id)"
+                   (ngModelChange)="setTagInput(cat.id, $event)"
+                   (keyup.enter)="createTag(cat)">
+            <button (click)="createTag(cat)" title="Ajouter"><i class="bi bi-plus"></i></button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}

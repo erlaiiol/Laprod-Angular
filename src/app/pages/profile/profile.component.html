@@ -34,6 +34,9 @@
           @if (p.roles.is_beatmaker) {
             <span class="role-badge beatmaker"><i class="bi bi-music-note-beamed"></i> Beatmaker</span>
           }
+          @if (p.is_certified_producer_arranger) {
+            <span class="role-badge producer-arranger"><i class="bi bi-music-note-list"></i> Producteur/Arrangeur</span>
+          }
           @if (p.roles.is_mixmaster_engineer) {
             <span class="role-badge mix-certified"><i class="bi bi-sliders"></i> Mix/Master Certifié</span>
           } @else if (p.roles.is_mix_engineer) {

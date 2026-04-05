@@ -13,7 +13,7 @@ from models import Favorite, ListeningHistory, Track
 # CRÉER LE BLUEPRINT
 # ============================================
 
-favorites_bp = Blueprint('favorites', __name__)
+favorites_bp = Blueprint('favorites', __name__, url_prefix='/legacy/favorites')
 
 
 # ============================================

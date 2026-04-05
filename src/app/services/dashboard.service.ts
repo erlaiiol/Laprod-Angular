@@ -213,7 +213,7 @@ export interface MixEngineerDashboard {
 export class DashboardService {
 
   private http         = inject(HttpClient);
-  private dashboardUrl = `${environment.apiUrl}/dashboard`;
+  private dashboardUrl = `${environment.apiUrl}/dashboard-api`;
 
   getBeatmakerDashboard(): Observable<ApiResponse<BeatmakerDashboard>> {
     return this.http.get<ApiResponse<BeatmakerDashboard>>(`${this.dashboardUrl}/beatmaker`);

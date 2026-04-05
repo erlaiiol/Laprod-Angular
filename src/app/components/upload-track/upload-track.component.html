@@ -56,12 +56,17 @@
 
         <div class="field">
           <label for="style">Style *</label>
-          <select id="style" [ngModel]="style()" (ngModelChange)="style.set($event)">
-            <option value="">Choisir un style</option>
+          <input id="style"
+                 type="text"
+                 list="style-suggestions"
+                 placeholder="Ex: Trap, R&B, Afrobeats…"
+                 [ngModel]="style()"
+                 (ngModelChange)="style.set($event)">
+          <datalist id="style-suggestions">
             @for (s of availableStyles(); track s) {
-              <option [value]="s">{{ s }}</option>
+              <option [value]="s"></option>
             }
-          </select>
+          </datalist>
         </div>
       </div>
 

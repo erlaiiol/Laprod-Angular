@@ -4,11 +4,12 @@ import { RouterModule } from '@angular/router';
 import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster.service';
 import { AuthService } from '../../../services/auth.service';
 import { environment } from '../../../../environments/environment';
+import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 
 @Component({
   selector: 'app-mixmaster-engineers',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MixmasterGuideComponent],
   templateUrl: './engineers.component.html',
   styleUrls: ['./engineers.component.scss'],
 })

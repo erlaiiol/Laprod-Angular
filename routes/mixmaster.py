@@ -40,7 +40,7 @@ try:
 except ImportError:
     VALIDATION_AVAILABLE = False
 
-mixmaster_bp = Blueprint('mixmaster', __name__, url_prefix='/mixmaster')
+mixmaster_bp = Blueprint('mixmaster', __name__, url_prefix='/legacy/mixmaster')
 
 # Configuration sécurité
 # Note: Stripe API key est configurée dans extensions.py via init_extensions()

@@ -1,48 +1,29 @@
-<!-- LAYOUT NAVBAR
-     Reçoit : tags via TagsService (chargés au ngOnInit)
-     Émet   : (à venir) événements filtre/@Output vers les pages
--->
-
-<!-- Indicateur de chargement discret (inline, ne bloque pas la nav) -->
-<div class="state-loading-inline" *ngIf="loading()">
-  <div class="spinner-border spinner-border-sm text-secondary" role="status">
-    <span class="visually-hidden">Chargement...</span>
+@if (loading()) {
+  <div class="state-loading-inline">
+    <div class="spinner-border spinner-border-sm text-secondary" role="status">
+      <span class="visually-hidden">Chargement...</span>
+    </div>
   </div>
-</div>
+}
 
-<div class="state-error-inline" *ngIf="error() && !loading()">
-  <i class="bi bi-exclamation-triangle-fill"></i> {{ error() }}
-</div>
+@if (error() && !loading()) {
+  <div class="state-error-inline">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ error() }}
+  </div>
+}
 
-
-<!-- ═══════════════════════════════════════════════════════════════
-     NAVBAR PRINCIPALE
-     Bootstrap sticky-top + dark theme
-════════════════════════════════════════════════════════════════ -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container-fluid">
 
-    <!-- Logo
-         [routerLink]="['/']"  →  property binding : navigue vers la page Home
-         sans rechargement complet (SPA) -->
     <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']">
       <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
            onerror="this.onerror=null; this.style.display='none'">
       <span>LaProd</span>
     </a>
 
-    <!-- Barre de recherche + bouton filtres (toujours visibles, centré)
-         order-lg-1 : sur desktop, ce bloc passe entre le logo et les liens -->
+    <!-- Barre de recherche + filtres -->
     <div class="d-flex align-items-center mx-auto flex-grow-1 order-lg-1" style="max-width: 600px;">
-
       <div class="position-relative flex-grow-1 me-2">
-        <!--
-          [value]="search()"           → property binding : affiche la valeur du signal
-          (input)="search.set(...)"    → event binding : met à jour le signal à chaque frappe
-          (keyup.enter)="onSearchEnter()" → raccourci Angular pour keyup + key === 'Enter'
-          $any($event.target).value   → cast TypeScript : $event.target est EventTarget,
-                                         $any() contourne le typage strict pour accéder à .value
-        -->
         <input type="text"
                class="form-control form-control-sm"
                placeholder="Rechercher (appuyez sur Entrée)..."
@@ -51,20 +32,18 @@
                (input)="search.set($any($event.target).value)"
                (keyup.enter)="onSearchEnter()">
 
-        <!-- Bouton clear : visible seulement si search() n'est pas vide -->
-        <button class="btn-clear-search"
-                title="Réinitialiser la recherche"
-                *ngIf="search()"
-                (click)="search.set(''); onSearchEnter()">
-          <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5.5 5.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
+        @if (search()) {
+          <button class="btn-clear-search"
+                  title="Réinitialiser la recherche"
+                  (click)="search.set(''); onSearchEnter()">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M5.5 5.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        }
       </div>
 
-      <!-- Bouton filtres
-           (click)="toggleFilters()"  →  event binding : appelle la méthode du composant -->
       <button class="btn btn-outline-light btn-sm flex-shrink-0"
               (click)="toggleFilters()"
               title="Filtres avancés">
@@ -74,22 +53,16 @@
       </button>
     </div>
 
-    <!-- Toggler mobile (Bootstrap collapse) — order-lg-2 sur desktop -->
     <button class="navbar-toggler order-lg-2" type="button"
             data-bs-toggle="collapse" data-bs-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <!-- Liens de navigation — order-lg-3 sur desktop -->
     <div class="collapse navbar-collapse order-lg-3" id="navbarNav">
       <ul class="navbar-nav ms-auto">
 
-        <!-- Liens publics (toujours visibles) -->
-
         <li class="nav-item">
-          <!-- routerLinkActive="active" : ajoute la class CSS "active" quand la route correspond
-               [routerLinkActiveOptions]="{exact: true}" : seulement si c'est exactement "/" -->
           <a class="nav-link" [routerLink]="['/']"
              routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
             <i class="bi bi-music-note-list"></i> Beats
@@ -102,115 +75,104 @@
           </a>
         </li>
 
+        @if (isLoggedIn()) {
 
-        <!-- Liens authentifiés
-             <ng-container> : balise Angular sans rendu HTML (pas de <div> inutile)
-             *ngIf="isLoggedIn()" : lecture d'un signal → () obligatoire -->
+          @if (isBeatmaker() || isMixEngineer()) {
+            <li class="nav-item">
+              <a class="nav-link" [routerLink]="['/wallet']" routerLinkActive="active">
+                <i class="bi bi-wallet2"></i> Mes gains
+              </a>
+            </li>
+          }
 
-        <ng-container>
-        @if (isLoggedIn()){
-          <!-- Mes gains (beatmakers & mix engineers uniquement) -->
-          <li class="nav-item" *ngIf="isBeatmaker() || isMixEngineer()">
-            <a class="nav-link" [routerLink]="['/wallet']" routerLinkActive="active">
-              <i class="bi bi-wallet2"></i> Mes gains
-            </a>
-          </li>
+          @if (isBeatmaker()) {
+            <li class="nav-item">
+              <a class="nav-link" [routerLink]="['/upload-track']" routerLinkActive="active">
+                <i class="bi bi-cloud-upload"></i> Publier un beat
+              </a>
+            </li>
+          }
 
-          <!-- Publier un beat (beatmakers uniquement) -->
-          <li class="nav-item" *ngIf="isBeatmaker()">
-            <a class="nav-link" [routerLink]="['/upload-track']" routerLinkActive="active">
-              <i class="bi bi-cloud-upload"></i> Publier un beat
-            </a>
-          </li>
+          @if (isBeatmaker() || isArtist() || isMixEngineer()) {
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-speedometer2"></i> Mes Espaces
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                @if (isBeatmaker()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
+                      <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
+                    </a>
+                  </li>
+                }
+                @if (isArtist()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
+                      <i class="bi bi-mic"></i> Espace Artiste
+                    </a>
+                  </li>
+                }
+                @if (isMixEngineer()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
+                      <i class="bi bi-sliders"></i> Espace Mix Engineer
+                    </a>
+                  </li>
+                }
+              </ul>
+            </li>
+          }
 
-          <!-- Dropdown "Mes Espaces" (dashboards) -->
-          <li class="nav-item dropdown" *ngIf="isBeatmaker() || isArtist() || isMixEngineer()">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-               aria-expanded="false">
-              <i class="bi bi-speedometer2"></i> Mes Espaces
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-              <li *ngIf="isBeatmaker()">
-                <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
-                  <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
-                </a>
-              </li>
-              <li *ngIf="isArtist()">
-                <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
-                  <i class="bi bi-mic"></i> Espace Artiste
-                </a>
-              </li>
-              <li *ngIf="isMixEngineer()">
-                <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
-                  <i class="bi bi-sliders"></i> Espace Mix Engineer
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          <!-- Profil
-               username() : signal → () obligatoire pour lire la valeur -->
           <li class="nav-item">
             <a class="nav-link" [routerLink]="['/profile', username()]" routerLinkActive="active">
               <i class="bi bi-person-circle"></i> Profil
             </a>
           </li>
 
-          <!-- Notifications avec badge -->
           <li class="nav-item">
             <a class="nav-link position-relative" [routerLink]="['/notifications']" routerLinkActive="active">
               <i class="bi bi-bell"></i>
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                    style="font-size: 0.6rem;"
-                    *ngIf="notifCount() > 0">
-                {{ notifCount() }}
-              </span>
+              @if (notifCount() > 0) {
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                      style="font-size: 0.6rem;">
+                  {{ notifCount() }}
+                </span>
+              }
             </a>
           </li>
 
-          <!-- Achats -->
           <li class="nav-item">
             <a class="nav-link" [routerLink]="['/purchases']" routerLinkActive="active">
               <i class="bi bi-bag-check"></i> Mes Achats
             </a>
           </li>
 
-          <!-- Admin (admins uniquement) -->
-          <li class="nav-item" *ngIf="isAdmin()">
-            <a class="nav-link" [routerLink]="['/admin']" routerLinkActive="active">
-              <i class="bi bi-shield-lock"></i>
-              <span class="badge bg-danger">Admin</span>
-            </a>
-          </li>
+          @if (isAdmin()) {
+            <li class="nav-item">
+              <a class="nav-link" [routerLink]="['/admin']" routerLinkActive="active">
+                <i class="bi bi-shield-lock"></i>
+                <span class="badge bg-danger">Admin</span>
+              </a>
+            </li>
+          }
 
-                    <!-- Déconnexion -->
           <li class="nav-item">
             <a class="nav-link" (click)="logout()" [routerLink]="'/login'" routerLinkActive="active">
               <i class="bi bi-box-arrow-right"></i> Déconnexion
             </a>
           </li>
-        }
-        @else {
-            
-          <!-- Connexion (non authentifié) -->
+
+        } @else {
+
           <li class="nav-item">
-          <a class="nav-link" [routerLink]="['/login']" routerLinkActive="active">
-            <i class="bi bi-box-arrow-in-right"></i> Connexion
-          </a>
+            <a class="nav-link" [routerLink]="['/login']" routerLinkActive="active">
+              <i class="bi bi-box-arrow-in-right"></i> Connexion
+            </a>
           </li>
 
-
         }
-                            <!-- DEBUG ONLY-->
-          <!-- <li class="nav-item">
-          <a class="nav-link" routerLinkActive="active" (click)="clearLocalStorage()">
-            <i class="bi bi-box-arrow-in-right"></i> ClearStorage
-          </a>
-          </li> -->
-
-        </ng-container>
-
-
 
       </ul>
     </div>
@@ -219,13 +181,8 @@
 </nav>
 
 
-<!-- ═══════════════════════════════════════════════════════════════
-     POPOVER DE FILTRES AVANCÉS
-     Panneau latéral / overlay — contrôlé par filtersOpen()
-     [class.open]="filtersOpen()"  →  ajoute la class CSS "open" quand le signal est true
-════════════════════════════════════════════════════════════════ -->
+<!-- Panneau filtres avancés -->
 
-<!-- Fond semi-transparent (click ferme le popover) -->
 <div class="popover-backdrop"
      [class.active]="filtersOpen()"
      (click)="closeFilters()">
@@ -253,68 +210,62 @@
       </div>
     </div>
 
-    <!-- GAMMES
-         keys() = signal<string[]> — valeurs distinctes depuis les tracks approuvés.
-         [class.selected]="selectedKeys().includes(key)" → class CSS "selected"
-           si la gamme est dans le tableau selectedKeys (signal).
-         (click)="toggleKey(key)" → event binding : ajoute/retire du tableau. -->
     <div class="filter-section">
       <label class="filter-label">Gammes</label>
       <div class="filter-tags-container">
-        <span *ngFor="let key of keys()"
-              class="filter-tag filter-tag--neutral"
-              [class.selected]="selectedKeys().includes(key)"
-              (click)="toggleKey(key)">
-          {{ key }}
-        </span>
-        <span class="no-tags" *ngIf="keys().length === 0 && !loading()">
-          Aucune gamme disponible
-        </span>
+        @for (key of keys(); track key) {
+          <span class="filter-tag filter-tag--neutral"
+                [class.selected]="selectedKeys().includes(key)"
+                (click)="toggleKey(key)">
+            {{ key }}
+          </span>
+        } @empty {
+          @if (!loading()) {
+            <span class="no-tags">Aucune gamme disponible</span>
+          }
+        }
       </div>
     </div>
 
-    <!-- STYLES — même mécanique que les gammes -->
     <div class="filter-section">
       <label class="filter-label">Styles</label>
       <div class="filter-tags-container">
-        <span *ngFor="let style of styles()"
-              class="filter-tag filter-tag--neutral"
-              [class.selected]="selectedStyles().includes(style)"
-              (click)="toggleStyle(style)">
-          {{ style }}
-        </span>
-        <span class="no-tags" *ngIf="styles().length === 0 && !loading()">
-          Aucun style disponible
-        </span>
+        @for (style of styles(); track style) {
+          <span class="filter-tag filter-tag--neutral"
+                [class.selected]="selectedStyles().includes(style)"
+                (click)="toggleStyle(style)">
+            {{ style }}
+          </span>
+        } @empty {
+          @if (!loading()) {
+            <span class="no-tags">Aucun style disponible</span>
+          }
+        }
       </div>
     </div>
 
-    <!-- TAGS — même mécanique + data-category pour la couleur -->
     <div class="filter-section">
       <label class="filter-label">Tags</label>
       <div class="filter-tags-container">
-        <span *ngFor="let tag of tags()"
-              class="filter-tag"
-              [style.--tag-color]="tag.category.color"
-              [class.selected]="selectedTags().includes(tag.name)"
-              (click)="toggleTag(tag.name)">
-          #{{ tag.name }}
-        </span>
-        <span class="no-tags" *ngIf="tags().length === 0 && !loading()">
-          Aucun tag disponible
-        </span>
+        @for (tag of tags(); track tag.name) {
+          <span class="filter-tag"
+                [style.--tag-color]="tag.category.color"
+                [class.selected]="selectedTags().includes(tag.name)"
+                (click)="toggleTag(tag.name)">
+            #{{ tag.name }}
+          </span>
+        } @empty {
+          @if (!loading()) {
+            <span class="no-tags">Aucun tag disponible</span>
+          }
+        }
       </div>
     </div>
 
   </div>
 
   <div class="filters-footer">
-    <!-- (click)="resetFilters()" → remet tous les signals locaux à zéro
-         + écrit dans FilterStateService → Home recharge sans filtres -->
     <button class="btn btn-secondary btn-sm" (click)="resetFilters()">Réinitialiser</button>
-
-    <!-- (click)="applyFilters()" → pousse les sélections locales dans FilterStateService
-         → FilterStateService.applied() s'incrémente → effect() dans Home se déclenche -->
     <button class="btn btn-primary btn-sm" (click)="applyFilters()">Appliquer</button>
   </div>
 

@@ -1,7 +1,7 @@
 """
 Admin CUD API — Create/Update/Delete endpoints pour l'administration
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
@@ -11,7 +11,7 @@ import uuid
 import config
 
 from extensions import db, csrf
-from models import Track, User, Tag, Category, MixMasterRequest, PriceChangeRequest
+from models import Track, User, Tag, Category, MixMasterRequest, PriceChangeRequest, Contract
 from helpers import generate_track_image
 from utils import email_service, notification_service
 
@@ -285,6 +285,90 @@ def toggle_premium(user_id):
 
 # ── Engineers ─────────────────────────────────────────────────────────────────
 
+@cud_admin_api_bp.route('/engineers/<int:user_id>/upload-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def admin_upload_engineer_sample(user_id):
+    """Admin uploade les fichiers brut + traité pour un engineer (bypass du formulaire utilisateur)."""
+    _, err = _require_admin()
+    if err:
+        return err
+
+    user = db.get_or_404(User, user_id)
+    if not user.is_mix_engineer:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} n\'est pas un mix engineer.'}}), 400
+
+    samples_folder = Path(config.UPLOAD_FOLDER) / 'mixmaster_samples'
+    samples_folder.mkdir(parents=True, exist_ok=True)
+
+    file_raw  = request.files.get('sample_raw')
+    file_proc = request.files.get('sample_processed')
+
+    if not file_raw and not file_proc:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Aucun fichier fourni.'}}), 400
+
+    def _save_audio(f, label):
+        ext = Path(secure_filename(f.filename)).suffix.lower()
+        if ext not in ('.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'):
+            return None, f'Format non supporté pour {label}.'
+        fname = f'sample_{label}_{user_id}_{uuid.uuid4().hex[:8]}{ext}'
+        f.save(samples_folder / fname)
+        return f'mixmaster_samples/{fname}', None
+
+    if file_raw:
+        path, errmsg = _save_audio(file_raw, 'raw')
+        if errmsg:
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': errmsg}}), 400
+        user.mixmaster_sample_raw = path
+
+    if file_proc:
+        path, errmsg = _save_audio(file_proc, 'processed')
+        if errmsg:
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': errmsg}}), 400
+        user.mixmaster_sample_processed = path
+
+    db.session.commit()
+    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Samples uploadés pour {user.username}.'},
+                    'data': {'sample_raw': user.mixmaster_sample_raw, 'sample_processed': user.mixmaster_sample_processed}})
+
+
+@cud_admin_api_bp.route('/engineers/<int:user_id>/set-info', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def admin_set_engineer_info(user_id):
+    """Admin définit les infos (prix, bio) d'un engineer pour certification directe."""
+    _, err = _require_admin()
+    if err:
+        return err
+
+    user = db.get_or_404(User, user_id)
+    data = request.get_json(silent=True) or {}
+
+    if 'reference_price' in data:
+        try:
+            ref = round(float(data['reference_price']))
+            if not (20 <= ref <= 500):
+                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix de référence entre 20€ et 500€.'}}), 400
+            user.mixmaster_reference_price = ref
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix invalide.'}}), 400
+
+    if 'price_min' in data:
+        try:
+            mn = round(float(data['price_min']))
+            if not (20 <= mn <= 500):
+                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix min entre 20€ et 500€.'}}), 400
+            user.mixmaster_price_min = mn
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix invalide.'}}), 400
+
+    if 'bio' in data:
+        user.mixmaster_bio = data['bio'].strip() or None
+
+    db.session.commit()
+    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Infos mises à jour pour {user.username}.'}})
+
+
 @cud_admin_api_bp.route('/engineers/<int:user_id>/certify', methods=['POST'])
 @jwt_required()
 @csrf.exempt
@@ -294,7 +378,12 @@ def certify_engineer(user_id):
         return err
 
     user = db.get_or_404(User, user_id)
+
+    if not user.mixmaster_sample_processed:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Un sample traité est requis avant de certifier {user.username}.'}}), 400
+
     user.is_mixmaster_engineer = True
+    user.mixmaster_sample_submitted = True
     db.session.commit()
     return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'{user.username} certifié comme mix/master engineer.'}})
 
@@ -475,6 +564,69 @@ def reject_producer_arranger(user_id):
     user.producer_arranger_request_submitted = False
     db.session.commit()
     return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Demande Producteur/Arrangeur de {user.username} rejetée.'}})
+
+
+# ── Contracts ─────────────────────────────────────────────────────────────────
+
+@cud_admin_api_bp.route('/contracts/create', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def admin_create_contract():
+    """Admin crée un contrat manuel entre un compositeur et un acheteur."""
+    _, err = _require_admin()
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+
+    track_id    = data.get('track_id')
+    client_id   = data.get('client_id')
+    price       = data.get('price')
+    is_exclusive = bool(data.get('is_exclusive', False))
+    territory   = data.get('territory', 'France').strip()
+    duration    = data.get('duration', '3 ans').strip()
+
+    if not all([track_id, client_id, price is not None]):
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'track_id, client_id et price sont requis.'}}), 400
+
+    track = db.get_or_404(Track, track_id)
+    client = db.get_or_404(User, client_id)
+
+    if not track.composer_id:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Ce track n\'a pas de compositeur.'}}), 400
+
+    from datetime import date
+    today = date.today().strftime('%d/%m/%Y')
+
+    contract = Contract(
+        track_id=track_id,
+        composer_id=track.composer_id,
+        client_id=client_id,
+        composer_email=track.composer_user.email if track.composer_user else '',
+        client_email=client.email,
+        is_exclusive=is_exclusive,
+        start_date=today,
+        end_date=duration,
+        duration_text=duration,
+        territory=territory,
+        mechanical_reproduction=True,
+        public_show=False,
+        streaming=True,
+        arrangement=False,
+        sacem_percentage_composer=70,
+        sacem_percentage_buyer=30,
+        price=int(float(price)),
+        percentage=30,
+        signature_date=today,
+    )
+    db.session.add(contract)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'feedback': {'level': 'info', 'message': f'Contrat créé entre {track.composer_user.username if track.composer_user else "?"} et {client.username} pour "{track.title}".'},
+        'data': {'contract_id': contract.id},
+    })
 
 
 # ── Categories ────────────────────────────────────────────────────────────────

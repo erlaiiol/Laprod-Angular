@@ -7,7 +7,7 @@ from sqlalchemy import select
 from extensions import db, csrf
 from models import Purchase, Track, MixMasterRequest
 
-purchases_api_bp = Blueprint('purchases_api', __name__, url_prefix='/purchases')
+purchases_api_bp = Blueprint('purchases_api', __name__, url_prefix='/purchases-api')
 
 
 @purchases_api_bp.route('', methods=['GET'])

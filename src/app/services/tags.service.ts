@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
+import { AdminCategoriesComponent } from '../pages/admin/tabs/admin-categories.component';
 
 export interface Tag {
   id:       number;
@@ -27,9 +28,36 @@ export class TagsService {
 
   private tagsApiUrl = `${environment.apiUrl}/filters/tags/all`;
 
-  constructor(private http: HttpClient) {}
+  private _tags = signal<Tag[]>([]);
+  private _keys = signal<string[]>([]);
+  private _styles = signal<string[]>([])
+
+  tags = this._tags.asReadonly();
+  keys = this._keys.asReadonly();
+  styles = this._styles.asReadonly();
+
+  constructor(private http: HttpClient ) {}
 
   getTags(): Observable<TagsResponse> {
     return this.http.get<TagsResponse>(this.tagsApiUrl);
   }
+
+  loadTags() {
+    this.http.get<TagsResponse>(this.tagsApiUrl).subscribe({
+      next: res => {
+        if (res.success) {
+          this._tags.set(res.data.tags);
+          this._keys.set(res.data.keys);
+          this._styles.set(res.data.styles);
+          console.log('tags, keys and styles loaded. loadtags() called in tags.service.ts')
+        }
+      }
+    })
+  }
+
+  refreshTags() {
+    this.loadTags();
+  }
+
+
 }

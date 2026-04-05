@@ -36,7 +36,6 @@ export class MixPaymentSuccessComponent implements OnInit {
           this.orderId.set(res.data?.order_id ?? null);
           this.state.set('success');
           this.message.set(res.feedback?.message ?? 'Paiement confirmé !');
-          if (res.feedback) this.toast.showToast(res.feedback);
         } else {
           this.state.set('error');
           this.message.set(res.feedback?.message ?? 'Erreur lors de la vérification.');

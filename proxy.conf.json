@@ -35,7 +35,7 @@
     "secure": false,
     "changeOrigin": true
   },
-  "/wallet": {
+  "/wallet-api": {
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true
@@ -50,12 +50,12 @@
     "secure": false,
     "changeOrigin": true
   },
-  "/dashboard": {
+  "/dashboard-api": {
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true
   },
-  "/purchases": {
+  "/purchases-api": {
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true

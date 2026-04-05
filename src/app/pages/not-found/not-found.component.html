@@ -1,0 +1,77 @@
+<div class="error-page">
+  <div class="error-card" [attr.data-accent]="config().accent">
+
+    <!-- Icône -->
+    <div class="error-icon">
+      <i class="bi" [class]="config().icon"></i>
+    </div>
+
+    <!-- Code -->
+    <div class="error-code">
+      @if (error().code === 0) {
+        <span>ERR</span>
+      } @else {
+        <span>{{ error().code }}</span>
+      }
+    </div>
+
+    <!-- Titre + message -->
+    <h1 class="error-title">{{ config().title }}</h1>
+    <p class="error-message">{{ config().message }}</p>
+
+    <!-- Actions contextuelles -->
+    <div class="error-actions">
+
+      @if (error().code === 503 || error().code === 0) {
+        <!-- Serveur down / offline → proposer de réessayer -->
+        <button class="btn-action btn-primary" (click)="retry()">
+          <i class="bi bi-arrow-clockwise"></i> Réessayer
+        </button>
+      }
+
+      @if (config().showBack) {
+        <button class="btn-action btn-secondary" (click)="goBack()">
+          <i class="bi bi-arrow-left"></i> Retour
+        </button>
+      }
+
+      @if (config().showHome) {
+        <a class="btn-action btn-primary" routerLink="/">
+          <i class="bi bi-house"></i> Accueil
+        </a>
+      }
+
+      @if (error().code === 403 && !auth.isLoggedIn()) {
+        <!-- Non connecté tentant d'accéder à une zone protégée -->
+        <a class="btn-action btn-primary" routerLink="/login">
+          <i class="bi bi-person-lock"></i> Se connecter
+        </a>
+      }
+
+    </div>
+
+    <!-- Informations techniques (développement) -->
+    <p class="error-hint">
+      @switch (error().code) {
+        @case (403) {
+          @if (!auth.isLoggedIn()) {
+            Connectez-vous pour accéder à cette ressource.
+          } @else {
+            Votre compte ne dispose pas des droits requis.
+          }
+        }
+        @case (404) {
+          Si vous avez suivi un lien, il est peut-être obsolète.
+        }
+        @case (503) {
+          Maintenance ou surcharge temporaire du serveur.
+        }
+        @case (0) {
+          Vérifiez que vous êtes bien connecté à internet.
+        }
+        @default {}
+      }
+    </p>
+
+  </div>
+</div>

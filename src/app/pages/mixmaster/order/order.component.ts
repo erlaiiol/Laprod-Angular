@@ -6,11 +6,12 @@ import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
+import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 
 @Component({
   selector: 'app-mixmaster-order',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, MixmasterGuideComponent],
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.scss'],
 })

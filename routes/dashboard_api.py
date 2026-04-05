@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from extensions import db, csrf, limiter
 from models import User, Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory
 
-dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/dashboard')
+dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/dashboard-api')
 
 
 # ─── Beatmaker ────────────────────────────────────────────────────────────────

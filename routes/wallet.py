@@ -16,7 +16,7 @@ from utils.wallet_service import (
     perform_withdrawal,
 )
 
-wallet_bp = Blueprint('wallet', __name__, url_prefix='/wallet')
+wallet_bp = Blueprint('wallet', __name__, url_prefix='/legacy/wallet')
 
 
 def seller_required(f):

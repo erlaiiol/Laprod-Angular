@@ -103,12 +103,11 @@ export class DashboardArtistComponent implements OnInit {
     this.actionInProgress.set(orderId);
     this.mixSvc.cancelOrder(orderId).subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) this.loadDashboard();
         this.actionInProgress.set(null);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' });
         this.actionInProgress.set(null);
       },
     });
@@ -127,12 +126,11 @@ export class DashboardArtistComponent implements OnInit {
     this.actionInProgress.set(orderId);
     this.mixSvc.requestRevision(orderId, msg).subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) { this.revisionOrderId.set(null); this.loadDashboard(); }
         this.actionInProgress.set(null);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' });
         this.actionInProgress.set(null);
       },
     });
@@ -144,12 +142,11 @@ export class DashboardArtistComponent implements OnInit {
     this.actionInProgress.set(orderId);
     this.mixSvc.approveOrder(orderId).subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) this.loadDashboard();
         this.actionInProgress.set(null);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' });
         this.actionInProgress.set(null);
       },
     });

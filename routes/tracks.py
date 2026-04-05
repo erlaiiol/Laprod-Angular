@@ -33,7 +33,7 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-tracks_bp = Blueprint('tracks', __name__)
+tracks_bp = Blueprint('tracks', __name__, url_prefix='/legacy/tracks')
 
 
 # # ============================================

@@ -1,0 +1,70 @@
+<div class="sub-tabs">
+  <button [class.active]="userType() === 'all'"        (click)="setType('all')">Tous ({{ counts()['all'] }})</button>
+  <button [class.active]="userType() === 'beatmakers'" (click)="setType('beatmakers')">Beatmakers ({{ counts()['beatmakers']  }})</button>
+  <button [class.active]="userType() === 'artists'"    (click)="setType('artists')">Artistes ({{ counts()['artists']  }})</button>
+  <button [class.active]="userType() === 'engineers'"  (click)="setType('engineers')">Engineers ({{ counts()['engineers']  }})</button>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+} @else if (users().length > 0) {
+  <table class="data-table">
+    <thead>
+      <tr><th>Avatar</th><th>Nom</th><th>Email</th><th>Rôles</th><th>Tokens</th><th>Statut</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      @for (u of users(); track u.id) {
+        <tr [class.disabled]="u.account_status !== 'active'">
+          <td><img [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
+          <td>
+            {{ u.username }}
+            @if (u.is_premium) { <span class="badge-premium">★</span> }
+            @if (u.is_admin)   { <span class="badge-admin">ADMIN</span> }
+          </td>
+          <td class="small">{{ u.email }}</td>
+          <td>
+            @if (u.is_beatmaker)                    { <span class="role-chip role-bm">BM</span> }
+            @if (u.is_artist)                       { <span class="role-chip role-art">ART</span> }
+            @if (u.is_mixmaster_engineer)           { <span class="role-chip role-eng">ENG</span> }
+            @if (u.is_certified_producer_arranger)  { <span class="role-chip role-pa">PA</span> }
+          </td>
+          <td class="small">Track: {{ u.upload_track_tokens }}<br>Topline: {{ u.topline_tokens }}</td>
+          <td><span class="status-chip" [class.active]="u.account_status === 'active'">{{ u.account_status }}</span></td>
+          <td class="actions">
+            <button class="btn-icon" [title]="u.account_status === 'active' ? 'Désactiver' : 'Activer'" (click)="toggleStatus(u)">
+              <i class="bi" [class.bi-person-check]="u.account_status !== 'active'" [class.bi-person-dash]="u.account_status === 'active'"></i>
+            </button>
+            <button class="btn-icon" title="Toggle Beatmaker"  (click)="toggleRole(u, 'beatmaker')"><i class="bi bi-music-note"></i></button>
+            <button class="btn-icon" title="Toggle Artiste"    (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
+            <button class="btn-icon" title="Toggle Engineer"   (click)="toggleRole(u, 'engineer')"><i class="bi bi-headphones"></i></button>
+            <button class="btn-icon" title="Tokens Track"      (click)="openTokenModal(u, 'track')"><i class="bi bi-plus-circle"></i> T</button>
+            <button class="btn-icon" title="Tokens Topline"    (click)="openTokenModal(u, 'topline')"><i class="bi bi-plus-circle"></i> TL</button>
+            <button class="btn-icon" [title]="u.is_premium ? 'Retirer premium' : 'Activer premium'" (click)="togglePremium(u)">
+              <i class="bi" [class.bi-star-fill]="!u.is_premium" [class.bi-star]="u.is_premium"></i>
+            </button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+} @else {
+  <p class="empty">Aucun utilisateur.</p>
+}
+
+<!-- Token modal -->
+@if (tokenUser()) {
+  <div class="modal-backdrop" (click)="tokenUser.set(null)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Ajouter des tokens {{ tokenType() === 'track' ? 'Track' : 'Topline' }}</h3>
+      <p class="modal-sub">Utilisateur : <strong>{{ tokenUser()!.username }}</strong></p>
+      <label>Nombre de tokens
+        <input type="number" min="1"
+               [ngModel]="tokenAmount()" (ngModelChange)="tokenAmount.set(+$event)">
+      </label>
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="tokenUser.set(null)">Annuler</button>
+        <button class="btn-primary"   (click)="submitTokens()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+}

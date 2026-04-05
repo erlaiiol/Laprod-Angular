@@ -22,7 +22,7 @@ from utils import email_service, notification_service
 # CRÉER LE BLUEPRINT
 # ============================================
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__, url_prefix='/legacy/auth')
 
 # ============================================
 # ROUTE 1 : OAUTH LOGIN ROUTE

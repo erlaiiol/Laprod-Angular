@@ -82,12 +82,11 @@ export class DashboardMixEngineerComponent implements OnInit {
     this.actionInProgress.set(orderId);
     this.mixSvc.acceptOrder(orderId).subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) this.loadDashboard();
         this.actionInProgress.set(null);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' });
         this.actionInProgress.set(null);
       },
     });
@@ -99,12 +98,11 @@ export class DashboardMixEngineerComponent implements OnInit {
     this.actionInProgress.set(orderId);
     this.mixSvc.rejectOrder(orderId).subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) this.loadDashboard();
         this.actionInProgress.set(null);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' });
         this.actionInProgress.set(null);
       },
     });
@@ -132,12 +130,11 @@ export class DashboardMixEngineerComponent implements OnInit {
       : this.mixSvc.uploadProcessed(orderId, fd);
     obs.subscribe({
       next: (res) => {
-        if (res.feedback) this.toast.showToast(res.feedback);
         if (res.success) { this.uploadOrderId.set(null); this.loadDashboard(); }
         this.uploading.set(false);
       },
       error: (err) => {
-        this.toast.showToast(err?.error?.feedback ?? { level: 'error', message: 'Erreur upload.' });
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur upload.' });
         this.uploading.set(false);
       },
     });

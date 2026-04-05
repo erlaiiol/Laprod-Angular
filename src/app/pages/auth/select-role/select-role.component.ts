@@ -46,11 +46,7 @@ export class SelectRoleComponent {
       .subscribe({
         next: (res) => {
           if (res.success && res.data) {
-            // Mise à jour du user en mémoire
-            const stored = JSON.parse(localStorage.getItem('user') ?? '{}');
-            const updated = { ...stored, ...res.data.user };
-            localStorage.setItem('user', JSON.stringify(updated));
-
+            this.auth.updateCurrentUser(res.data.user);
             const next = res.data.next;
             this.router.navigate([next === 'submit-sample' ? '/submit-sample' : '/']);
           } else {

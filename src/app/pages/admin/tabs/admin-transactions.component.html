@@ -1,0 +1,36 @@
+<div class="sub-tabs">
+  <button [class.active]="txStatus() === 'all'"         (click)="setStatus('all')">Tous ({{ counts()['all'] }})</button>
+  <button [class.active]="txStatus() === 'awaiting'"    (click)="setStatus('awaiting')">En attente ({{ counts()['awaiting'] }})</button>
+  <button [class.active]="txStatus() === 'in_progress'" (click)="setStatus('in_progress')">En cours ({{ counts()['in_progress'] }})</button>
+  <button [class.active]="txStatus() === 'completed'"   (click)="setStatus('completed')">Terminés ({{ counts()['completed'] }})</button>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-value text-green">{{ revenue() | number:'1.0-0' }}€</div>
+    <div class="stat-label">Revenus totaux (terminés)</div>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+} @else if (transactions().length > 0) {
+  <table class="data-table">
+    <thead>
+      <tr><th>Artiste</th><th>Engineer</th><th>Montant</th><th>Statut</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+      @for (t of transactions(); track t.id) {
+        <tr>
+          <td>{{ t.artist?.username ?? '—' }}</td>
+          <td>{{ t.engineer?.username ?? '—' }}</td>
+          <td>{{ t.total_price | number:'1.2-2' }}€</td>
+          <td><span class="status-chip" [class.active]="t.status === 'completed'">{{ t.status }}</span></td>
+          <td>{{ fmtDate(t.created_at) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+} @else {
+  <p class="empty">Aucune transaction.</p>
+}

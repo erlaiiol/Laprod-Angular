@@ -12,7 +12,7 @@ from extensions import db, csrf
 from models import User, WalletTransaction
 from utils.wallet_service import process_pending_to_available, process_expirations
 
-wallet_api_bp = Blueprint('wallet_api', __name__, url_prefix='/wallet')
+wallet_api_bp = Blueprint('wallet_api', __name__, url_prefix='/wallet-api')
 
 
 

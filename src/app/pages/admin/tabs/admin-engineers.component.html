@@ -1,0 +1,198 @@
+<div class="sub-tabs">
+  <button [class.active]="activeTab() === 'pending'"   (click)="setActiveTab('pending')">
+    En attente
+    @if (pending().length > 0) { <span class="badge">{{ pending().length }}</span> }
+  </button>
+  <button [class.active]="activeTab() === 'certified'" (click)="setActiveTab('certified')">Certifiés ({{ certified().length }})</button>
+  <button [class.active]="activeTab() === 'price'"     (click)="setActiveTab('price')">
+    Prix
+    @if (priceReqs().length > 0) { <span class="badge">{{ priceReqs().length }}</span> }
+  </button>
+  <button [class.active]="activeTab() === 'pa'"        (click)="setActiveTab('pa')">
+    Prod/Arr
+    @if (paRequests().length > 0) { <span class="badge">{{ paRequests().length }}</span> }
+  </button>
+  <button [class.active]="activeTab() === 'direct'"    (click)="setActiveTab('direct')">
+    <i class="bi bi-lightning-fill"></i> Direct
+  </button>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+}
+
+<!-- En attente de certification -->
+@if (activeTab() === 'pending') {
+  @if (!loading() && pending().length === 0) {
+    <p class="empty">Aucune demande en attente.</p>
+  }
+  @for (e of pending(); track e.id) {
+    <div class="engineer-card">
+      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <div class="engineer-info">
+        <strong>{{ e.username }}</strong>
+        <span class="small">{{ e.email }}</span>
+        <span class="small">Réf : {{ e.mixmaster_reference_price }}€ · Min : {{ e.mixmaster_price_min }}€</span>
+        @if (e.mixmaster_bio) { <p class="bio">{{ e.mixmaster_bio }}</p> }
+        @if (e.mixmaster_sample_raw) {
+          <div class="sample-links">
+            <a [href]="imgUrl(e.mixmaster_sample_raw)" target="_blank">Fichier brut</a>
+            @if (e.mixmaster_sample_processed) {
+              <a [href]="imgUrl(e.mixmaster_sample_processed)" target="_blank">Fichier traité</a>
+            }
+          </div>
+        }
+      </div>
+      <div class="engineer-actions">
+        <button class="btn-success" (click)="certify(e)"><i class="bi bi-check-lg"></i> Certifier</button>
+        <button class="btn-danger"  (click)="rejectSample(e)"><i class="bi bi-x-lg"></i> Rejeter</button>
+      </div>
+    </div>
+  }
+}
+
+<!-- Certifiés -->
+@if (activeTab() === 'certified') {
+  @if (!loading() && certified().length === 0) {
+    <p class="empty">Aucun engineer certifié.</p>
+  }
+  @for (e of certified(); track e.id) {
+    <div class="engineer-card">
+      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <div class="engineer-info">
+        <strong>{{ e.username }}</strong>
+        <span class="small">Réf : {{ e.mixmaster_reference_price }}€ · Min : {{ e.mixmaster_price_min }}€</span>
+        @if (e.is_certified_producer_arranger) { <span class="badge-pa">Producteur/Arrangeur</span> }
+      </div>
+      <div class="engineer-actions">
+        @if (priceEditId() === e.id) {
+          <input type="number" placeholder="Min €" [ngModel]="priceEditMin()" (ngModelChange)="priceEditMin.set(+$event)">
+          <input type="number" placeholder="Réf €" [ngModel]="priceEditRef()" (ngModelChange)="priceEditRef.set(+$event)">
+          <button class="btn-success"   (click)="savePrices()">OK</button>
+          <button class="btn-secondary" (click)="priceEditId.set(null)">✕</button>
+        } @else {
+          <button class="btn-edit"   (click)="openPriceEdit(e)"><i class="bi bi-pencil"></i> Prix</button>
+          <button class="btn-danger" (click)="revoke(e)"><i class="bi bi-slash-circle"></i> Révoquer</button>
+          @if (e.is_certified_producer_arranger) {
+            <button class="btn-danger" (click)="revokePA(e)">Révoquer PA</button>
+          }
+        }
+      </div>
+    </div>
+  }
+}
+
+<!-- Demandes de modification de prix -->
+@if (activeTab() === 'price') {
+  @if (!loading() && priceReqs().length === 0) {
+    <p class="empty">Aucune demande de modification de prix.</p>
+  }
+  @for (pr of priceReqs(); track pr.id) {
+    <div class="price-req-card">
+      <strong>{{ pr.engineer_username }}</strong>
+      <span class="small">Actuel : {{ pr.current_price_min }}€ – {{ pr.current_reference_price }}€ (réf)</span>
+      <span class="arrow">→</span>
+      <span class="new-price">{{ pr.new_price_min }}€ – {{ pr.new_reference_price }}€ (réf)</span>
+      <div class="req-actions">
+        <button class="btn-success" (click)="approvePriceReq(pr)"><i class="bi bi-check-lg"></i> Approuver</button>
+        <button class="btn-danger"  (click)="rejectPriceReq(pr)"><i class="bi bi-x-lg"></i> Rejeter</button>
+      </div>
+    </div>
+  }
+}
+
+<!-- Demandes Producteur/Arrangeur -->
+@if (activeTab() === 'pa') {
+  @if (!loading() && paRequests().length === 0) {
+    <p class="empty">Aucune demande Producteur/Arrangeur.</p>
+  }
+  @for (e of paRequests(); track e.id) {
+    <div class="engineer-card">
+      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <div class="engineer-info">
+        <strong>{{ e.username }}</strong>
+        <span class="small">Engineer certifié — demande certification Producteur/Arrangeur</span>
+      </div>
+      <div class="engineer-actions">
+        <button class="btn-success" (click)="approvePA(e)"><i class="bi bi-check-lg"></i> Approuver</button>
+        <button class="btn-danger"  (click)="rejectPA(e)"><i class="bi bi-x-lg"></i> Rejeter</button>
+      </div>
+    </div>
+  }
+}
+
+<!-- Certification directe (bypass formulaire utilisateur) -->
+@if (activeTab() === 'direct') {
+  <div class="direct-header">
+    <p class="small">Certifier un mix engineer directement sans passer par le formulaire de candidature. Un sample traité est obligatoire.</p>
+  </div>
+
+  @if (loadingDirect()) {
+    <div class="loading-row"><span>Chargement…</span></div>
+  } @else if (allMixEngineers().length === 0) {
+    <p class="empty">Aucun utilisateur avec le rôle Mix Engineer.</p>
+  } @else {
+    @for (e of allMixEngineers(); track e.id) {
+      <div class="engineer-card direct-card">
+        <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+
+        <div class="engineer-info">
+          <strong>{{ e.username }}</strong>
+          <span class="small">{{ e.email }}</span>
+          @if (e.is_mixmaster_engineer) {
+            <span class="badge-certified-sm"><i class="bi bi-patch-check-fill"></i> Déjà certifié</span>
+          }
+          @if (e.is_certified_producer_arranger) {
+            <span class="badge-pa">Producteur/Arrangeur</span>
+          }
+
+          <!-- Infos engineer -->
+          <div class="direct-form">
+            <div class="direct-row">
+              <label>Prix réf. (€)</label>
+              <input type="number" [ngModel]="directRefPrice[e.id]" (ngModelChange)="directRefPrice[e.id] = +$event" min="20" max="500">
+            </div>
+            <div class="direct-row">
+              <label>Prix min (€)</label>
+              <input type="number" [ngModel]="directMinPrice[e.id]" (ngModelChange)="directMinPrice[e.id] = +$event" min="20" max="500">
+            </div>
+            <div class="direct-row full">
+              <label>Bio</label>
+              <input type="text" [ngModel]="directBio[e.id]" (ngModelChange)="directBio[e.id] = $event" placeholder="Présentation de l'engineer...">
+            </div>
+            <div class="direct-row full">
+              <label>Sample brut</label>
+              <input type="file" accept=".mp3,.wav,.flac,.ogg" (change)="onDirectFileChange(e.id, 'raw', $event)">
+              @if (e.mixmaster_sample_raw) {
+                <a [href]="imgUrl(e.mixmaster_sample_raw)" target="_blank" class="small">Actuel</a>
+              }
+            </div>
+            <div class="direct-row full">
+              <label>Sample traité <span class="req">*</span></label>
+              <input type="file" accept=".mp3,.wav,.flac,.ogg" (change)="onDirectFileChange(e.id, 'proc', $event)">
+              @if (e.mixmaster_sample_processed) {
+                <a [href]="imgUrl(e.mixmaster_sample_processed)" target="_blank" class="small">Actuel ✓</a>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="engineer-actions">
+          <button class="btn-edit"    (click)="saveDirectInfo(e)"><i class="bi bi-floppy"></i> Sauver infos</button>
+          <button class="btn-upload"  (click)="uploadSample(e)"><i class="bi bi-upload"></i> Upload sample</button>
+          <button class="btn-success" (click)="certifyDirect(e)"
+                  [disabled]="!e.mixmaster_sample_processed"
+                  [title]="!e.mixmaster_sample_processed ? 'Sample traité requis' : ''">
+            <i class="bi bi-patch-check-fill"></i> Certifier
+          </button>
+          @if (e.is_mixmaster_engineer) {
+            <button class="btn-secondary" (click)="approvePA(e)"
+                    [disabled]="e.is_certified_producer_arranger">
+              PA
+            </button>
+          }
+        </div>
+      </div>
+    }
+  }
+}

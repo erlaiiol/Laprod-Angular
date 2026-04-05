@@ -32,11 +32,12 @@ export interface UserProfile {
   soundcloud:    string | null;
   signature:     string | null;
   roles: {
-    is_admin:              boolean;
-    is_artist:             boolean;
-    is_beatmaker:          boolean;
-    is_mix_engineer:       boolean;
-    is_mixmaster_engineer: boolean;
+    is_admin:                       boolean;
+    is_artist:                      boolean;
+    is_beatmaker:                   boolean;
+    is_mix_engineer:                boolean;
+    is_mixmaster_engineer:          boolean;
+    is_certified_producer_arranger: boolean;
   };
   created_at: string;
   tracks:     UserTrack[];

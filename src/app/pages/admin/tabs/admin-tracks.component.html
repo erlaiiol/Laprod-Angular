@@ -1,0 +1,61 @@
+<div class="sub-tabs">
+  <button [class.active]="trackStatus() === 'pending'"  (click)="setStatus('pending')">En attente ({{ pendingCount() }})</button>
+  <button [class.active]="trackStatus() === 'approved'" (click)="setStatus('approved')">Approuvés ({{ approvedCount() }})</button>
+  <button [class.active]="trackStatus() === 'all'"      (click)="setStatus('all')">Tous</button>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+} @else if (tracks().length > 0) {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Cover</th><th>Titre</th><th>Beatmaker</th><th>BPM / Clé</th>
+        <th>Prix MP3</th><th>Date</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (t of tracks(); track t.id) {
+        <tr>
+          <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+          <td>{{ t.title }}</td>
+          <td>{{ t.composer?.username ?? '—' }}</td>
+          <td>{{ t.bpm }} / {{ t.key }}</td>
+          <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
+          <td>{{ fmtDate(t.created_at) }}</td>
+          <td class="actions">
+            @if (!t.is_approved) {
+              <button class="btn-success" (click)="approve(t)"><i class="bi bi-check-lg"></i> Approuver</button>
+            }
+            <button class="btn-edit"   (click)="openEdit(t)"><i class="bi bi-pencil"></i></button>
+            <button class="btn-danger" (click)="reject(t)"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+} @else {
+  <p class="empty">Aucun track.</p>
+}
+
+<!-- Edit modal -->
+@if (editingTrack()) {
+  <div class="modal-backdrop" (click)="editingTrack.set(null)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Modifier le track</h3>
+      <div class="form-grid">
+        <label>Titre<input [ngModel]="editingTrack()!.title"       (ngModelChange)="patch('title', $event)"></label>
+        <label>BPM<input type="number" [ngModel]="editingTrack()!.bpm" (ngModelChange)="patch('bpm', +$event)"></label>
+        <label>Clé<input [ngModel]="editingTrack()!.key"           (ngModelChange)="patch('key', $event)"></label>
+        <label>Style<input [ngModel]="editingTrack()!.style"       (ngModelChange)="patch('style', $event)"></label>
+        <label>Prix MP3<input   type="number" [ngModel]="editingTrack()!.price_mp3"   (ngModelChange)="patch('price_mp3', +$event)"></label>
+        <label>Prix WAV<input   type="number" [ngModel]="editingTrack()!.price_wav"   (ngModelChange)="patch('price_wav', +$event)"></label>
+        <label>Prix Stems<input type="number" [ngModel]="editingTrack()!.price_stems" (ngModelChange)="patch('price_stems', +$event)"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="editingTrack.set(null)">Annuler</button>
+        <button class="btn-primary"   (click)="saveEdit()">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+}

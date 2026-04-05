@@ -24,7 +24,7 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-contracts_bp = Blueprint('contracts', __name__, url_prefix='/contract')
+contracts_bp = Blueprint('contracts', __name__, url_prefix='/legacy/contract')
 
 
 # ============================================

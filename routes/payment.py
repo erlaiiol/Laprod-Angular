@@ -36,7 +36,7 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-payment_bp = Blueprint('payment', __name__)
+payment_bp = Blueprint('payment', __name__, url_prefix='/legacy/payment')
 
 
 # ============================================

@@ -15,7 +15,7 @@ from utils.path_validator import validate_static_path
 # CRÉER LE BLUEPRINT
 # ============================================
 
-audio_bp = Blueprint('audio', __name__, url_prefix='/audio')
+audio_bp = Blueprint('audio', __name__, url_prefix='/legacy/audio')
 
 # Exempter les routes audio du rate limiter global
 # Ce sont des fichiers de streaming, pas des actions sensibles

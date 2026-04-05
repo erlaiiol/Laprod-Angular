@@ -55,7 +55,7 @@ export interface PurchasesData {
 export class PurchasesService {
 
   private http         = inject(HttpClient);
-  private purchasesUrl = `${environment.apiUrl}/purchases`;
+  private purchasesUrl = `${environment.apiUrl}/purchases-api`;
 
   getMyPurchases(): Observable<ApiResponse<PurchasesData>> {
     return this.http.get<ApiResponse<PurchasesData>>(this.purchasesUrl);

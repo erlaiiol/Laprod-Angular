@@ -38,7 +38,7 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-toplines_bp = Blueprint('toplines', __name__)
+toplines_bp = Blueprint('toplines', __name__, url_prefix='/legacy/toplines')
 
 
 # ============================================

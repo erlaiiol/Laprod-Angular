@@ -260,6 +260,7 @@ def get_engineers():
             'mixmaster_sample_processed': u.mixmaster_sample_processed,
             'is_certified_producer_arranger': u.is_certified_producer_arranger,
             'producer_arranger_request_submitted': u.producer_arranger_request_submitted,
+            'is_mixmaster_engineer': u.is_mixmaster_engineer,
             'created_at': u.created_at.isoformat() if u.created_at else None,
         }
 
@@ -425,6 +426,98 @@ def get_transactions():
     })
 
 
+# ── Engineer search (direct certification tab) ────────────────────────────────
+
+@admin_api_bp.route('/engineers/all-mix', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def get_all_mix_engineers():
+    """Tous les utilisateurs avec is_mix_engineer=True (certifiés ou non) — pour certification directe admin."""
+    _, err = _require_admin()
+    if err:
+        return err
+
+    users = db.session.scalars(
+        select(User).where(User.is_mix_engineer == True).order_by(User.username)
+    ).all()
+
+    def _u(u):
+        return {
+            'id':              u.id,
+            'username':        u.username,
+            'email':           u.email,
+            'profile_image':   u.profile_image,
+            'is_mixmaster_engineer': u.is_mixmaster_engineer,
+            'is_certified_producer_arranger': u.is_certified_producer_arranger,
+            'mixmaster_reference_price': u.mixmaster_reference_price,
+            'mixmaster_price_min':       u.mixmaster_price_min,
+            'mixmaster_bio':             u.mixmaster_bio,
+            'mixmaster_sample_raw':      u.mixmaster_sample_raw,
+            'mixmaster_sample_processed': u.mixmaster_sample_processed,
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+        }
+
+    return jsonify({'success': True, 'data': {'engineers': [_u(u) for u in users]}})
+
+
+# ── Search (for contract creation) ────────────────────────────────────────────
+
+@admin_api_bp.route('/users/search', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def search_users():
+    _, err = _require_admin()
+    if err:
+        return err
+
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify({'success': True, 'data': {'users': []}})
+
+    users = db.session.scalars(
+        select(User)
+        .where(User.username.ilike(f'%{q}%'), User.account_status == 'active')
+        .limit(10)
+    ).all()
+
+    return jsonify({'success': True, 'data': {'users': [
+        {'id': u.id, 'username': u.username, 'email': u.email}
+        for u in users
+    ]}})
+
+
+@admin_api_bp.route('/tracks/search', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def search_tracks():
+    _, err = _require_admin()
+    if err:
+        return err
+
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify({'success': True, 'data': {'tracks': []}})
+
+    tracks = db.session.scalars(
+        select(Track)
+        .where(Track.title.ilike(f'%{q}%'), Track.is_approved == True)
+        .limit(10)
+    ).all()
+
+    return jsonify({'success': True, 'data': {'tracks': [
+        {
+            'id':    t.id,
+            'title': t.title,
+            'composer_username': t.composer_user.username if t.composer_user else None,
+            'composer_id': t.composer_id,
+            'price_mp3':   t.price_mp3,
+            'price_wav':   t.price_wav,
+            'price_stems': t.price_stems,
+        }
+        for t in tracks
+    ]}})
+
+
 # ── Categories & Tags ─────────────────────────────────────────────────────────
 
 @admin_api_bp.route('/categories', methods=['GET'])
@@ -454,3 +547,25 @@ def get_categories():
         'success': True,
         'data': {'categories': categories_data}
     })
+
+
+# ── Styles ────────────────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/styles', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def get_styles():
+    user, err = _require_admin()
+    if err:
+        return err
+
+    from models import Track
+    from sqlalchemy import distinct
+
+    styles = db.session.execute(
+        select(distinct(Track.style))
+        .where(Track.style.isnot(None), Track.style != '')
+        .order_by(Track.style)
+    ).scalars().all()
+
+    return jsonify({'success': True, 'data': {'styles': list(styles)}})

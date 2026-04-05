@@ -200,10 +200,12 @@ def login():
                     'email': user.email,
                     'profile_image': user.profile_image,
                     'roles' : {
-                        'is_admin': user.is_admin,
-                        'is_beatmaker': user.is_beatmaker,
-                        'is_mix_engineer': user.is_mix_engineer,
-                        'is_artist': user.is_artist,
+                        'is_admin':                       user.is_admin,
+                        'is_beatmaker':                   user.is_beatmaker,
+                        'is_mix_engineer':                user.is_mix_engineer,
+                        'is_artist':                      user.is_artist,
+                        'is_mixmaster_engineer':          user.is_mixmaster_engineer,
+                        'is_certified_producer_arranger': user.is_certified_producer_arranger,
                     },
                     'user_type_selected': user.user_type_selected,
                     'email_verified': user.email_verified,
@@ -261,10 +263,12 @@ def get_identity():
                     'email': user.email,
                     'profile_image': user.profile_image,
                     'roles' : {
-                        'is_admin': user.is_admin,
-                        'is_beatmaker': user.is_beatmaker,
-                        'is_mix_engineer': user.is_mix_engineer,
-                        'is_artist': user.is_artist,
+                        'is_admin':                       user.is_admin,
+                        'is_beatmaker':                   user.is_beatmaker,
+                        'is_mix_engineer':                user.is_mix_engineer,
+                        'is_artist':                      user.is_artist,
+                        'is_mixmaster_engineer':          user.is_mixmaster_engineer,
+                        'is_certified_producer_arranger': user.is_certified_producer_arranger,
                     },
                     'user_type_selected': user.user_type_selected,
                     'email_verified': user.email_verified,
@@ -538,11 +542,18 @@ def select_role():
                          'message': 'Vous devez sélectionner au moins un rôle.'},
         }), 400
 
+    first_selection = not user.user_type_selected
+
     try:
         user.is_artist          = is_artist
         user.is_beatmaker       = is_beatmaker
         user.is_mix_engineer    = is_mix_engineer
         user.user_type_selected = True
+
+        # Notification Stripe Connect à la première sélection de rôle
+        if first_selection and (is_beatmaker or is_mix_engineer):
+            notification_service.notify_stripe_connect_setup(user.id)
+
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -580,10 +591,12 @@ def _user_payload(user):
         'email':             user.email,
         'profile_image':     user.profile_image,
         'roles': {
-            'is_admin':        user.is_admin,
-            'is_beatmaker':    user.is_beatmaker,
-            'is_mix_engineer': user.is_mix_engineer,
-            'is_artist':       user.is_artist,
+            'is_admin':                       user.is_admin,
+            'is_beatmaker':                   user.is_beatmaker,
+            'is_mix_engineer':                user.is_mix_engineer,
+            'is_artist':                      user.is_artist,
+            'is_mixmaster_engineer':          user.is_mixmaster_engineer,
+            'is_certified_producer_arranger': user.is_certified_producer_arranger,
         },
         'user_type_selected': user.user_type_selected,
         'email_verified':     user.email_verified,
