@@ -29,7 +29,7 @@ except ImportError:
     VALIDATION_AVAILABLE = False
 
 cud_mixmaster_engineer_api_bp = Blueprint(
-    'cud_mixmaster_engineer_api', __name__, url_prefix='/mixmaster-engineer'
+    'cud_mixmaster_engineer_api', __name__, url_prefix='/mixmaster-engineer-api'
 )
 
 ALLOWED_AUDIO_EXTENSIONS = {'wav', 'mp3'}

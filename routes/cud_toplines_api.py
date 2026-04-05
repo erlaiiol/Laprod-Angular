@@ -23,14 +23,14 @@ import config
 from extensions import db, limiter
 from models import Track, Topline, User
 
-from routes.toplines import (
+from utils.toplines_processor import (
     convert_to_wav,
     apply_audio_effects,
     merge_voice_and_beat,
     cleanup_temp_files,
 )
 
-topline_cud_api_bp = Blueprint('topline_cud_api', __name__, url_prefix='/toplines')
+cud_toplines_api_bp = Blueprint('cud_toplines_api', __name__, url_prefix='/toplines-api')
 
 
 # ── Helpers réponse unifiée ────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ def _topline_dict(topline, artist_user=None):
 
 # ── POST /toplines/upload ──────────────────────────────────────────────────────
 
-@topline_cud_api_bp.route('/upload', methods=['POST'])
+@cud_toplines_api_bp.route('/upload', methods=['POST'])
 @jwt_required()
 @limiter.limit("10 per hour")
 def upload_topline():
@@ -200,7 +200,7 @@ def upload_topline():
 
 # ── POST /toplines/<id>/publish ────────────────────────────────────────────────
 
-@topline_cud_api_bp.route('/<int:topline_id>/publish', methods=['POST'])
+@cud_toplines_api_bp.route('/<int:topline_id>/publish', methods=['POST'])
 @jwt_required()
 def publish_topline(topline_id):
     """Publier une topline (propriétaire uniquement)."""
@@ -233,7 +233,7 @@ def publish_topline(topline_id):
 
 # ── DELETE /toplines/<id> ──────────────────────────────────────────────────────
 
-@topline_cud_api_bp.route('/<int:topline_id>', methods=['DELETE'])
+@cud_toplines_api_bp.route('/<int:topline_id>', methods=['DELETE'])
 @jwt_required()
 def delete_topline(topline_id):
     """Supprimer une topline (propriétaire uniquement)."""

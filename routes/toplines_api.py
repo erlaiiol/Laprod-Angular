@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from extensions import db
 from models import Track, Topline, User
 
-topline_api_bp = Blueprint('topline_api', __name__, url_prefix='/toplines')
+toplines_api_bp = Blueprint('toplines_api', __name__, url_prefix='/toplines')
 
 
 def _topline_to_dict(tl):
@@ -28,7 +28,7 @@ def _topline_to_dict(tl):
     }
 
 
-@topline_api_bp.route('/track/<int:track_id>', methods=['GET'])
+@toplines_api_bp.route('/track/<int:track_id>', methods=['GET'])
 def get_track_toplines(track_id):
     """Toplines publiées pour une track (accès public)."""
     track = db.get_or_404(Track, track_id)
@@ -49,7 +49,7 @@ def get_track_toplines(track_id):
     })
 
 
-@topline_api_bp.route('/my/<int:track_id>', methods=['GET'])
+@toplines_api_bp.route('/my/<int:track_id>', methods=['GET'])
 @jwt_required()
 def get_my_toplines(track_id):
     """Toutes les toplines de l'utilisateur courant pour une track."""

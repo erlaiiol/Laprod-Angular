@@ -3,8 +3,8 @@ Blueprint TRACKS - Gestion des beats et toplines
 Routes pour upload, édition, toplines
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, send_file, jsonify
-from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from pathlib import Path
 import uuid
@@ -39,10 +39,10 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-cud_tracks_api_bp = Blueprint('cud_tracks_api', __name__, url_prefix='/cud_tracks')
+cud_tracks_api_bp = Blueprint('cud_tracks_api', __name__, url_prefix='/tracks-api')
 
 @cud_tracks_api_bp.route('/tracks', methods=['POST'])
-@login_required
+@jwt_required()
 @limiter.limit("20 per hour")
 def post_track():
     """
@@ -50,9 +50,12 @@ def post_track():
     Reçoit les données en multipart/form-data
     """
 
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+
 
     # Vérifier les quotas d'upload (tokens)
-    can_upload, quota_message = current_user.can_upload_track()
+    can_upload, quota_message = user.can_upload_track()
     if not can_upload:
         current_app.logger.debug('post_track() l`utilisateur ne peut pas upload (manque de token ?)')
         return jsonify({
@@ -146,7 +149,7 @@ def post_track():
         file_mp3 = request.files.get('file_mp3')
         file_wav = request.files.get('file_wav')
         file_image = request.files.get('file_image')
-        file_stems = request.files.get('file_stems') if current_user.is_premium else None
+        file_stems = request.files.get('file_stems') if user.is_premium else None
 
         # Validation du MP3 (obligatoire)
         if not file_mp3 or file_mp3.filename == '':
@@ -224,7 +227,7 @@ def post_track():
                 }), 400
 
         # Validation des stems (optionnel, premium seulement)
-        if file_stems and file_stems.filename != '' and current_user.is_premium:
+        if file_stems and file_stems.filename != '' and user.is_premium:
             is_valid, error_message = validate_stems_archive(file_stems)
             if not is_valid:
                 return jsonify({
@@ -337,7 +340,7 @@ def post_track():
             price_wav=price_wav,
             price_stems=price_stems,
             sacem_percentage_composer=sacem_percentage_composer,
-            composer_user=current_user,
+            composer_user=user,
             audio_file=mp3_filename,
             preview_file=preview_filename,
             wav_file=wav_filename,
@@ -351,7 +354,7 @@ def post_track():
         db.session.commit()
 
         # Déduire le token d'upload
-        current_user.upload_tokens -= 1
+        user.upload_tokens -= 1
         db.session.commit()
 
         return jsonify({
@@ -397,7 +400,7 @@ def post_track():
 
 
 @cud_tracks_api_bp.route('/track/<int:track_id>', methods=['PUT'])
-@login_required
+@jwt_required()
 @limiter.limit("30 per hour")
 def put_track(track_id):
     """
@@ -408,9 +411,12 @@ def put_track(track_id):
 
     track = db.get_or_404(Track, track_id)
 
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+
     # Vérifier la propriété (compositeur ou admin)
-    if not (current_user.id == track.composer_id or current_user.is_admin):
-        current_app.logger.warning(f'put_track() accès refusé user #{current_user.id} sur track #{track_id}')
+    if not (user.id == track.composer_id or user.is_admin):
+        current_app.logger.warning(f'put_track() accès refusé user #{user.id} sur track #{track_id}')
         return jsonify({
             'success': False,
             'feedback': {'level': 'error', 'message': 'Accès refusé : vous n\'êtes pas le compositeur de ce track'}
@@ -525,7 +531,7 @@ def put_track(track_id):
 
 
 @cud_tracks_api_bp.route('/track/<int:track_id>', methods=['DELETE'])
-@login_required
+@jwt_required()
 def delete_track(track_id):
     """
     API pour supprimer un track et ses fichiers associés
@@ -535,9 +541,12 @@ def delete_track(track_id):
 
     track = db.get_or_404(Track, track_id)
 
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+
     # Vérifier la propriété (compositeur ou admin)
-    if not (current_user.id == track.composer_id or current_user.is_admin):
-        current_app.logger.warning(f'delete_track() accès refusé user #{current_user.id} sur track #{track_id}')
+    if not (user.id == track.composer_id or user.is_admin):
+        current_app.logger.warning(f'delete_track() accès refusé user #{user.id} sur track #{track_id}')
         return jsonify({
             'success': False,
             'feedback': {'level': 'error', 'message': 'Accès refusé : vous n\'êtes pas le compositeur de ce track'}
@@ -575,7 +584,7 @@ def delete_track(track_id):
         db.session.delete(track)
         db.session.commit()
 
-        current_app.logger.info(f'Track #{track_id} "{title}" supprimé par user #{current_user.id}')
+        current_app.logger.info(f'Track #{track_id} "{title}" supprimé par user #{user.id}')
         return jsonify({
             'success': True,
             'feedback': {'level': 'info', 'message': f'Track "{title}" supprimé avec succès'}

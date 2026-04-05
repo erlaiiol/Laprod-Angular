@@ -210,7 +210,6 @@ def create_app():
         stripe_connect_bp,
         audio_bp,
         api_bp,
-        toplines_bp,
         mixmaster_bp,
         favorites_bp,
         premium_bp,
@@ -219,8 +218,8 @@ def create_app():
         cud_tracks_api_bp,
         tags_filters_api_bp,
         auth_api_bp,
-        topline_api_bp,
-        topline_cud_api_bp,
+        toplines_api_bp,
+        cud_toplines_api_bp,
         payment_track_api_bp,
         wallet_api_bp,
         cud_wallet_api_bp,
@@ -247,7 +246,6 @@ def create_app():
     app.register_blueprint(stripe_connect_bp)
     app.register_blueprint(audio_bp)
     app.register_blueprint(api_bp)
-    app.register_blueprint(toplines_bp)
     app.register_blueprint(mixmaster_bp)
     app.register_blueprint(favorites_bp)
     app.register_blueprint(premium_bp)
@@ -256,8 +254,8 @@ def create_app():
     app.register_blueprint(cud_tracks_api_bp)
     app.register_blueprint(tags_filters_api_bp)
     app.register_blueprint(auth_api_bp)
-    app.register_blueprint(topline_api_bp)
-    app.register_blueprint(topline_cud_api_bp)
+    app.register_blueprint(toplines_api_bp)
+    app.register_blueprint(cud_toplines_api_bp)
     app.register_blueprint(payment_track_api_bp)
     app.register_blueprint(wallet_api_bp)
     app.register_blueprint(cud_wallet_api_bp)

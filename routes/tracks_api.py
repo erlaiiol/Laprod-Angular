@@ -33,7 +33,7 @@ try:
 except ImportError:
     VALIDATION_AVAILABLE = False
 
-tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/tracks')
+tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/tracks-api')
 
 
 @tracks_api_bp.route('/track/<int:track_id>', methods=['GET'])

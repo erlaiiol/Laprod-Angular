@@ -12,7 +12,6 @@ from .payment import payment_bp
 from .contracts import contracts_bp
 from .stripe_connect import stripe_connect_bp
 from .tracks import tracks_bp
-from .toplines import toplines_bp
 from .mixmaster import mixmaster_bp
 from .favorites import favorites_bp
 from .premium import premium_bp
@@ -21,8 +20,8 @@ from .tracks_api import tracks_api_bp
 from .cud_tracks_api import cud_tracks_api_bp
 from .tags_filters_api import tags_filters_api_bp
 from .auth_api import auth_api_bp
-from .topline_api import topline_api_bp
-from .topline_cud_api import topline_cud_api_bp
+from .toplines_api import toplines_api_bp
+from .cud_toplines_api import cud_toplines_api_bp
 from .payment_track_api import payment_track_api_bp
 from .wallet_api import wallet_api_bp
 from .cud_wallet_api import cud_wallet_api_bp
@@ -49,7 +48,6 @@ __all__ = [
     'contracts_bp',
     'stripe_connect_bp',
     'audio_bp',
-    'toplines_bp',
     'mixmaster_bp',
     'favorites_bp',
     'premium_bp',
@@ -58,8 +56,8 @@ __all__ = [
     'cud_tracks_api_bp',
     'tags_filters_api_bp',
     'auth_api_bp',
-    'topline_api_bp',
-    'topline_cud_api_bp',
+    'toplines_api_bp',
+    'cud_toplines_api_bp',
     'payment_track_api_bp',
     'wallet_api_bp',
     'cud_wallet_api_bp',
