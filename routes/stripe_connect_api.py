@@ -18,7 +18,7 @@ from stripe_connect_helpers import (
     create_dashboard_link,
 )
 
-stripe_connect_api_bp = Blueprint('stripe_connect_api', __name__, url_prefix='/api/stripe')
+stripe_connect_api_bp = Blueprint('stripe_connect_api', __name__, url_prefix='/api/stripe-connect')
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

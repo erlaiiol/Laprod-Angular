@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 payment_mixmaster_api_bp = Blueprint(
-    'payment_mixmaster_api', __name__, url_prefix='/mixmaster-payment'
+    'payment_mixmaster_api', __name__, url_prefix='/api/mixmaster-payment'
 )
 
 

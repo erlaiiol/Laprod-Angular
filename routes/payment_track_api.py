@@ -15,7 +15,7 @@ from extensions import db
 from models import Track, User
 from utils.payment_validator import TrackPriceCalculator
 
-payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api/payment')
+payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api/track-payment')
 
 
 # ── Helpers réponse unifiée ────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ from extensions import db, limiter
 from models import Track, Topline, Purchase
 
 
-streaming_bp = Blueprint('streaming', __name__, url_prefix='/stream')
+streaming_bp = Blueprint('streaming', __name__, url_prefix='/api/stream')
 
 
 # ── Formats acceptés ──────────────────────────────────────────────────────────

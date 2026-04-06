@@ -202,18 +202,7 @@ def create_app():
     # ============================================
     
     from routes import (
-        auth_bp,
-        tracks_bp,
-        admin_bp,
-        payment_bp,
-        contracts_bp,
-        stripe_connect_bp,
-        audio_bp,
-        api_bp,
-        mixmaster_bp,
-        favorites_bp,
         premium_bp,
-        wallet_bp,
         tracks_api_bp,
         cud_tracks_api_bp,
         tags_filters_api_bp,
@@ -238,18 +227,8 @@ def create_app():
     )
     from routes.streaming_service import streaming_bp
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(tracks_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(payment_bp)
-    app.register_blueprint(contracts_bp)
-    app.register_blueprint(stripe_connect_bp)
-    app.register_blueprint(audio_bp)
-    app.register_blueprint(api_bp)
-    app.register_blueprint(mixmaster_bp)
-    app.register_blueprint(favorites_bp)
+
     app.register_blueprint(premium_bp)
-    app.register_blueprint(wallet_bp)
     app.register_blueprint(tracks_api_bp)
     app.register_blueprint(cud_tracks_api_bp)
     app.register_blueprint(tags_filters_api_bp)

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from extensions import db, csrf
 from models import Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest
 
-admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/admin-api')
+admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
 
 
 def _require_admin():

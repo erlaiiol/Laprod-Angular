@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { authGuard }  from './guards/auth.guard';
+import { adminGuard } from './guards/admin.guard';
 
 // Pages (smart — fetch des données)
 import { HomeComponent }           from './pages/home/home.component';
@@ -29,29 +31,29 @@ import { NotFoundComponent }                 from './pages/not-found/not-found.c
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
-  { path: 'upload-track',                  component: UploadTrackComponent },
+  { path: 'upload-track',                  component: UploadTrackComponent,            canActivate: [authGuard] },
   { path: 'login',                         component: LoginComponent },
   { path: 'register',                      component: RegisterComponent },
   { path: 'oauth-callback',                component: OauthCallbackComponent },
   { path: 'complete-profile',              component: CompleteProfileComponent },
   { path: 'select-role',                   component: SelectRoleComponent },
   { path: 'track/:id',                     component: TrackDetailComponent },
-  { path: 'contract/:trackId/:format',     component: ContractConfigComponent },
-  { path: 'wallet',                        component: WalletComponent },
-  { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent },
-  { path: 'profile/edit',                  component: EditProfileComponent },
-  { path: 'profile/security',              component: EditSecurityComponent },
+  { path: 'contract/:trackId/:format',     component: ContractConfigComponent,          canActivate: [authGuard] },
+  { path: 'wallet',                        component: WalletComponent,                  canActivate: [authGuard] },
+  { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent,   canActivate: [authGuard] },
+  { path: 'profile/edit',                  component: EditProfileComponent,             canActivate: [authGuard] },
+  { path: 'profile/security',              component: EditSecurityComponent,            canActivate: [authGuard] },
   { path: 'profile/:username',             component: ProfileComponent },
-  { path: 'notifications',                 component: NotificationsComponent },
+  { path: 'notifications',                 component: NotificationsComponent,           canActivate: [authGuard] },
   { path: 'contact',                       component: ContactComponent },
-  { path: 'dashboard/beatmaker',           component: DashboardBeatmakerComponent },
-  { path: 'dashboard/artist',              component: DashboardArtistComponent },
-  { path: 'dashboard/mix-engineer',        component: DashboardMixEngineerComponent },
-  { path: 'purchases',                     component: PurchasesComponent },
+  { path: 'dashboard/beatmaker',           component: DashboardBeatmakerComponent,      canActivate: [authGuard] },
+  { path: 'dashboard/artist',              component: DashboardArtistComponent,         canActivate: [authGuard] },
+  { path: 'dashboard/mix-engineer',        component: DashboardMixEngineerComponent,    canActivate: [authGuard] },
+  { path: 'purchases',                     component: PurchasesComponent,               canActivate: [authGuard] },
   { path: 'mix/engineers',                 component: MixmasterEngineersComponent },
-  { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent },
-  { path: 'mix/payment-success',           component: MixPaymentSuccessComponent },
-  { path: 'admin',                         component: AdminComponent },
+  { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent,          canActivate: [authGuard] },
+  { path: 'mix/payment-success',           component: MixPaymentSuccessComponent,       canActivate: [authGuard] },
+  { path: 'admin',                         component: AdminComponent,                   canActivate: [adminGuard] },
   { path: 'erreur',                        component: NotFoundComponent },
   { path: '**',                            component: NotFoundComponent },
 ];

@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from extensions import db
 from models import Purchase, Track
 
-contracts_api_bp = Blueprint('contracts_api', __name__, url_prefix='/contracts-api')
+contracts_api_bp = Blueprint('contracts_api', __name__, url_prefix='/api/contracts')
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

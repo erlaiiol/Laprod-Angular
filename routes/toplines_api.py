@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from extensions import db
 from models import Track, Topline, User
 
-toplines_api_bp = Blueprint('toplines_api', __name__, url_prefix='/toplines')
+toplines_api_bp = Blueprint('toplines_api', __name__, url_prefix='/api/toplines')
 
 
 def _topline_to_dict(tl):

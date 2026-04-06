@@ -30,7 +30,7 @@ from utils.toplines_processor import (
     cleanup_temp_files,
 )
 
-cud_toplines_api_bp = Blueprint('cud_toplines_api', __name__, url_prefix='/toplines-api')
+cud_toplines_api_bp = Blueprint('cud_toplines_api', __name__, url_prefix='/api/toplines')
 
 
 # ── Helpers réponse unifiée ────────────────────────────────────────────────────

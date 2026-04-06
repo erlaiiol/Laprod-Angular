@@ -26,7 +26,7 @@ export interface TagsResponse {
 })
 export class TagsService {
 
-  private tagsApiUrl = `${environment.apiUrl}/filters/tags/all`;
+  private tagsApiUrl = `${environment.apiUrl}/api/filters/tags/all`;
 
   private _tags = signal<Tag[]>([]);
   private _keys = signal<string[]>([]);

@@ -29,7 +29,7 @@ type NotifActionResponse = {
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
 
-  private base = environment.apiUrl;
+  private base = `${environment.apiUrl}/api/main`;
 
   // Signal centralisé partagé avec la navbar
   readonly notifications = signal<AppNotification[]>([]);

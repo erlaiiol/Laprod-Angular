@@ -5,97 +5,12 @@
     "changeOrigin": true,
     "logLevel": "debug"
   },
-  "/auth": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/tracks": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/cud_tracks": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/toplines": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/filters": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/stream": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/wallet-api": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/cud_wallet": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
   "/static": {
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true
   },
-  "/dashboard-api": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/purchases-api": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/users": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/contact": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/mixmaster-api": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/mixmaster-engineer": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/mixmaster-artist": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/mixmaster-payment": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/favorites-api": {
-    "target": "http://localhost:5000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/admin-api": {
+  "/legacy": {
     "target": "http://localhost:5000",
     "secure": false,
     "changeOrigin": true

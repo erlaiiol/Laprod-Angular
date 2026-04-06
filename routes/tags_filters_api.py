@@ -13,7 +13,7 @@ from helpers import admin_required
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
-tags_filters_api_bp = Blueprint('tags_filters_api', __name__, url_prefix='/filters')
+tags_filters_api_bp = Blueprint('tags_filters_api', __name__, url_prefix='/api/filters')
 
 
 

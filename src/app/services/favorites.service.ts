@@ -13,7 +13,7 @@ export interface ToggleFavoriteData {
 export class FavoritesService {
 
   private http   = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/favorites-api`;
+  private apiUrl = `${environment.apiUrl}/api/favorites`;
 
   toggle(trackId: number): Observable<ApiResponse<ToggleFavoriteData>> {
     return this.http.post<ApiResponse<ToggleFavoriteData>>(

@@ -15,7 +15,7 @@ from models import Track, User, Tag, Category, MixMasterRequest, PriceChangeRequ
 from helpers import generate_track_image
 from utils import email_service, notification_service
 
-cud_admin_api_bp = Blueprint('cud_admin_api', __name__, url_prefix='/admin-api')
+cud_admin_api_bp = Blueprint('cud_admin_api', __name__, url_prefix='/api/admin')
 
 
 def _require_admin():

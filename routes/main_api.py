@@ -19,7 +19,7 @@ from helpers import sanitize_html
 from utils import email_service, notification_service
 from utils.file_validator import validate_image_file
 
-main_api_bp = Blueprint('main_api', __name__)
+main_api_bp = Blueprint('main_api', __name__, url_prefix='/api/main')
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

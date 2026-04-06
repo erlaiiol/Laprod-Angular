@@ -29,7 +29,7 @@ export interface CheckoutData {
 export class PaymentService {
 
   private http   = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/api/payment`;
+  private apiUrl = `${environment.apiUrl}/api/track-payment`;
 
   /**
    * Crée une session Stripe Checkout pour l'achat d'un track.

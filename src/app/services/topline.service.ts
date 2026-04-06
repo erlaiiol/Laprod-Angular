@@ -41,7 +41,7 @@ export interface DeleteToplineData {
 export class ToplineService {
 
   private http    = inject(HttpClient);
-  private apiUrl  = `${environment.apiUrl}/toplines`;
+  private apiUrl  = `${environment.apiUrl}/api/toplines`;
 
   getTrackToplines(trackId: number): Observable<ApiResponse<{ toplines: PublishedTopline[] }>> {
     return this.http.get<ApiResponse<{ toplines: PublishedTopline[] }>>(

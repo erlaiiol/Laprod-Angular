@@ -94,7 +94,7 @@ export interface CompleteOauthProfileData {
 
 export class AuthService {  
 
-  private authUrl = `${environment.apiUrl}/auth`
+  private authUrl = `${environment.apiUrl}/api/auth`
 
   constructor(private http:HttpClient, private router:Router) {}
 

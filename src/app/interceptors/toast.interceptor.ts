@@ -40,6 +40,10 @@ export const toastInterceptor: HttpInterceptorFn = (req, next) => {
           // Réseau indisponible (CORS, serveur totalement arrêté, hors-ligne)
           errorService.set({ code: 0 });
           router.navigate(['/erreur']);
+        } else if (err.status === 403 && !err.error?.feedback) {
+          // Accès interdit sans feedback métier → page 403
+          errorService.set({ code: 403 });
+          router.navigate(['/erreur']);
         } else if (err.status === 503) {
           // Service temporairement indisponible (maintenance…)
           errorService.set({ code: 503 });

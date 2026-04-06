@@ -30,7 +30,7 @@ except ImportError:
     WATERMARK_AVAILABLE = False
 
 try:
-    from utils.file_validator import validate_specific_audio_format, validate_stems_archive
+    from utils.file_validator import validate_specific_audio_format, validate_stems_archive, validate_image_file, validate_filename
     VALIDATION_AVAILABLE = True
 except ImportError:
     VALIDATION_AVAILABLE = False
@@ -39,9 +39,9 @@ except ImportError:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-cud_tracks_api_bp = Blueprint('cud_tracks_api', __name__, url_prefix='/tracks-api')
+cud_tracks_api_bp = Blueprint('cud_tracks_api', __name__, url_prefix='/api/tracks')
 
-@cud_tracks_api_bp.route('/tracks', methods=['POST'])
+@cud_tracks_api_bp.route('/post', methods=['POST'])
 @jwt_required()
 @limiter.limit("20 per hour")
 def post_track():
@@ -244,7 +244,7 @@ def post_track():
         # Validation du nom de fichier
         try:
             safe_title = secure_filename(title)[:30]
-            safe_title = FileValidator.validate_filename(safe_title)
+            safe_title = validate_filename(safe_title)
         except ValueError as e:
             return jsonify({
                 'success': False, 
@@ -399,7 +399,7 @@ def post_track():
             }), 500
 
 
-@cud_tracks_api_bp.route('/track/<int:track_id>', methods=['PUT'])
+@cud_tracks_api_bp.route('/put/<int:track_id>', methods=['PUT'])
 @jwt_required()
 @limiter.limit("30 per hour")
 def put_track(track_id):
@@ -530,7 +530,7 @@ def put_track(track_id):
         return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur interne du serveur. Contactez le support.'}}), 500
 
 
-@cud_tracks_api_bp.route('/track/<int:track_id>', methods=['DELETE'])
+@cud_tracks_api_bp.route('/delete/<int:track_id>', methods=['DELETE'])
 @jwt_required()
 def delete_track(track_id):
     """

@@ -99,7 +99,7 @@ export class TrackService {
 
   // URL de base du blueprint Flask tracks_api_bp (url_prefix='/tracks')
   // → 'http://localhost:5000/tracks'
-  private tracksApiUrl = `${environment.apiUrl}/tracks`;
+  private tracksApiUrl = `${environment.apiUrl}/api/tracks`;
 
   constructor(private http: HttpClient) {}
   // Angular injecte HttpClient automatiquement (déclaré dans app.config.ts).

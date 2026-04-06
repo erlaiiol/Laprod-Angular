@@ -8,7 +8,7 @@ from sqlalchemy import select
 from extensions import db, csrf
 from models import User, MixMasterRequest
 
-mixmaster_api_bp = Blueprint('mixmaster_api', __name__, url_prefix='/mixmaster-api')
+mixmaster_api_bp = Blueprint('mixmaster_api', __name__, url_prefix='/api/mixmaster')
 
 
 def _engineer_dict(eng: User) -> dict:

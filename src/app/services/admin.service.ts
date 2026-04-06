@@ -155,7 +155,7 @@ type ApiResponse<T = void> = {
 @Injectable({ providedIn: 'root' })
 export class AdminService {
 
-  private base = `${environment.apiUrl.replace('/api', '')}/admin-api`;
+  private base = `${environment.apiUrl}/api/admin`;
 
   constructor(private http: HttpClient, private auth: AuthService) {}
 

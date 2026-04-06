@@ -94,13 +94,13 @@ export class MixmasterService {
 
   getEngineers(): Observable<ApiResponse<{ engineers: MixEngineerPublic[] }>> {
     return this.http.get<ApiResponse<{ engineers: MixEngineerPublic[] }>>(
-      `${this.apiUrl}/mixmaster-api/engineers`
+      `${this.apiUrl}/api/mixmaster/engineers`
     );
   }
 
   getEngineer(id: number): Observable<ApiResponse<{ engineer: MixEngineerPublic }>> {
     return this.http.get<ApiResponse<{ engineer: MixEngineerPublic }>>(
-      `${this.apiUrl}/mixmaster-api/engineers/${id}`
+      `${this.apiUrl}/api/mixmaster/engineers/${id}`
     );
   }
 
@@ -113,25 +113,25 @@ export class MixmasterService {
    */
   createOrder(engineerId: number, formData: FormData): Observable<ApiResponse<CheckoutData>> {
     return this.http.post<ApiResponse<CheckoutData>>(
-      `${this.apiUrl}/mixmaster-artist/order/${engineerId}`, formData
+      `${this.apiUrl}/api/mixmaster-artist/order/${engineerId}`, formData
     );
   }
 
   cancelOrder(orderId: number): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-artist/cancel/${orderId}`, {}
+      `${this.apiUrl}/api/mixmaster-artist/cancel/${orderId}`, {}
     );
   }
 
   requestRevision(orderId: number, message: string): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-artist/revision/${orderId}`, { revision_message: message }
+      `${this.apiUrl}/api/mixmaster-artist/revision/${orderId}`, { revision_message: message }
     );
   }
 
   approveOrder(orderId: number): Observable<ApiResponse<DownloadData>> {
     return this.http.post<ApiResponse<DownloadData>>(
-      `${this.apiUrl}/mixmaster-artist/approve/${orderId}`, {}
+      `${this.apiUrl}/api/mixmaster-artist/approve/${orderId}`, {}
     );
   }
 
@@ -139,25 +139,25 @@ export class MixmasterService {
 
   acceptOrder(orderId: number): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-engineer/accept/${orderId}`, {}
+      `${this.apiUrl}/api/mixmaster-engineer/accept/${orderId}`, {}
     );
   }
 
   rejectOrder(orderId: number): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-engineer/reject/${orderId}`, {}
+      `${this.apiUrl}/api/mixmaster-engineer/reject/${orderId}`, {}
     );
   }
 
   uploadProcessed(orderId: number, formData: FormData): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-engineer/upload/${orderId}`, formData
+      `${this.apiUrl}/api/mixmaster-engineer/upload/${orderId}`, formData
     );
   }
 
   deliverRevision(orderId: number, formData: FormData): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
-      `${this.apiUrl}/mixmaster-engineer/deliver-revision/${orderId}`, formData
+      `${this.apiUrl}/api/mixmaster-engineer/deliver-revision/${orderId}`, formData
     );
   }
 
@@ -165,7 +165,7 @@ export class MixmasterService {
 
   verifyPayment(sessionId: string): Observable<ApiResponse<OrderIdData>> {
     return this.http.post<ApiResponse<OrderIdData>>(
-      `${this.apiUrl}/mixmaster-payment/verify`, { session_id: sessionId }
+      `${this.apiUrl}/api/mixmaster-payment/verify`, { session_id: sessionId }
     );
   }
 }

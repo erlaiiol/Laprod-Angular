@@ -70,7 +70,7 @@ export class UploadService {
       formData.append('file_stems', trackData.file_stems);
     }
 
-    return this.http.post<UploadResponse>(`${this.apiUrl}/tracks`, formData);
+    return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData);
   }
 
   /**
@@ -87,6 +87,6 @@ export class UploadService {
       keys: string[];
       styles: string[];
       tags: Tag [];
-    }>(`${this.apiUrl}/filters/tags/all`);
+    }>(`${this.apiUrl}/api/filters/tags/all`);
   }
 }

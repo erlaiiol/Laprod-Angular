@@ -60,7 +60,7 @@ def _pop_oauth_code(code: str) -> dict | None:
 # CRÉER LE BLUEPRINT
 # ============================================
 
-auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth')
+auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/api/auth')
 
 
 @auth_api_bp.route('/ping', methods=['GET'])

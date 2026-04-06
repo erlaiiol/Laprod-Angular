@@ -29,7 +29,7 @@ export class PlayerService {
 
   private http = inject(HttpClient);
   private tracksApiUrl  = `${environment.apiUrl}/tracks`;
-  private favoritesUrl  = `${environment.apiUrl}/favorites-api`;
+  private favoritesUrl  = `${environment.apiUrl}/api/favorites`;
 
   constructor() {
     this.audioEl.volume = this.volume();

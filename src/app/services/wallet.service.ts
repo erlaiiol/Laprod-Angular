@@ -60,10 +60,10 @@ export interface SalesData {
 export class WalletService {
 
   private http         = inject(HttpClient);
-  private walletUrl    = `${environment.apiUrl}/wallet-api`;
-  private cudWalletUrl    = `${environment.apiUrl}/cud_wallet`;
+  private walletUrl    = `${environment.apiUrl}/api/wallet`;
+  private cudWalletUrl = `${environment.apiUrl}/api/cud_wallet`;
   private contractsUrl = `${environment.apiUrl}/api/contracts`;
-  private stripeUrl    = `${environment.apiUrl}/api/stripe`;
+  private stripeUrl    = `${environment.apiUrl}/api/stripe-connect`;
 
   // ── Wallet ────────────────────────────────────────────────────────────────
 

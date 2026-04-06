@@ -30,7 +30,7 @@ except ImportError:
     VALIDATION_AVAILABLE = False
 
 cud_mixmaster_artist_api_bp = Blueprint(
-    'cud_mixmaster_artist_api', __name__, url_prefix='/mixmaster-artist-api'
+    'cud_mixmaster_artist_api', __name__, url_prefix='/api/mixmaster-artist'
 )
 
 MAX_FILE_SIZE = 500 * 1024 * 1024

@@ -8,7 +8,7 @@ from extensions import db, csrf
 from models import Favorite, ListeningHistory, Track
 from datetime import datetime
 
-favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/favorites-api')
+favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorites')
 
 
 @favorites_api_bp.route('/toggle/<int:track_id>', methods=['POST'])

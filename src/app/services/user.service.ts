@@ -84,7 +84,7 @@ type ContactResponse = {
 @Injectable({ providedIn: 'root' })
 export class UserService {
 
-  private base = environment.apiUrl;
+  private base = `${environment.apiUrl}/api/main`;
 
   constructor(private http: HttpClient, private auth: AuthService) {}
 
