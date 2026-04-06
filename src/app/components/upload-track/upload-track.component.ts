@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TagsService, Tag } from '../../services/tags.service';
-import { UploadService } from '../../services/upload.service';
+import { UploadTrackService } from '../../services/upload-track.service';
 import { AuthService } from '../../services/auth.service';
 
 const MUSICAL_KEYS: string[] = [
@@ -89,7 +89,7 @@ export class UploadTrackComponent implements OnInit {
 
   constructor(
     private tagsService:   TagsService,
-    private uploadService: UploadService,
+    private uploadTrackService: UploadTrackService,
     private router:        Router,
     readonly auth:         AuthService,
   ) {}
@@ -131,7 +131,7 @@ export class UploadTrackComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.uploadService.uploadTrack({
+    this.uploadTrackService.postTrack({
       title:                    this.title(),
       bpm:                      this.bpm()!,
       key:                      this.key(),

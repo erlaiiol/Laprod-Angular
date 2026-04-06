@@ -17,7 +17,7 @@ from helpers import generate_track_image
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from models import Track, Tag, Category, User, Topline
 from helpers import generate_track_image
 from utils.ownership_authorizer import TrackOwnership, requires_ownership
@@ -32,7 +32,8 @@ except ImportError:
 try:
     from utils.file_validator import validate_specific_audio_format, validate_stems_archive, validate_image_file, validate_filename
     VALIDATION_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    current_app.logger.error(f'File validation utilities not available: {e}')
     VALIDATION_AVAILABLE = False
 
 # ============================================
@@ -43,6 +44,7 @@ cud_tracks_api_bp = Blueprint('cud_tracks_api', __name__, url_prefix='/api/track
 
 @cud_tracks_api_bp.route('/post', methods=['POST'])
 @jwt_required()
+@csrf.exempt
 @limiter.limit("20 per hour")
 def post_track():
     """
@@ -401,6 +403,7 @@ def post_track():
 
 @cud_tracks_api_bp.route('/put/<int:track_id>', methods=['PUT'])
 @jwt_required()
+@csrf.exempt
 @limiter.limit("30 per hour")
 def put_track(track_id):
     """
@@ -532,6 +535,7 @@ def put_track(track_id):
 
 @cud_tracks_api_bp.route('/delete/<int:track_id>', methods=['DELETE'])
 @jwt_required()
+@csrf.exempt
 def delete_track(track_id):
     """
     API pour supprimer un track et ses fichiers associés

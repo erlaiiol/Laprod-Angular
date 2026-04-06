@@ -192,6 +192,38 @@ def init_extensions(app):
 
     app.logger.info("Extensions initialisees")
 
+    # ── Checks dépendances système ─────────────────────────────────────────────
+    _check_system_deps(app)
+
+
+def _check_system_deps(app):
+    """Vérifie la disponibilité des dépendances système critiques au démarrage."""
+    import subprocess
+
+    # python-magic / libmagic
+    try:
+        import magic
+        magic.from_buffer(b'\x00' * 16)   # test réel, pas juste l'import
+        app.logger.info("  OK python-magic (validation MIME)")
+    except Exception as e:
+        app.logger.critical(f"  ERREUR python-magic indisponible — upload désactivé: {e}")
+
+    # ffmpeg (pydub, toplines, watermark)
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-version'],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            version_line = result.stdout.splitlines()[0] if result.stdout else '?'
+            app.logger.info(f"  OK ffmpeg ({version_line})")
+        else:
+            app.logger.critical("  ERREUR ffmpeg non fonctionnel (returncode != 0)")
+    except FileNotFoundError:
+        app.logger.critical("  ERREUR ffmpeg introuvable — traitement audio désactivé")
+    except Exception as e:
+        app.logger.critical(f"  ERREUR ffmpeg: {e}")
+
 
 def init_scheduler(app):
     """
