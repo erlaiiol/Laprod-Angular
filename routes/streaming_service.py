@@ -1,10 +1,10 @@
 """
 Blueprint Streaming Service — Sert les fichiers audio/PDF de façon sécurisée.
 
-GET  /stream/tracks/<track_id>/preview           → Preview watermarquée (public, rate-limité)
-GET  /stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV/Stems (JWT + achat vérifié)
-GET  /stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
-GET  /stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
+GET  /api/stream/tracks/<track_id>/preview           → Preview watermarquée (public, rate-limité)
+GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV/Stems (JWT + achat vérifié)
+GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
+GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
 """
 from flask import Blueprint, current_app, send_file, jsonify, abort
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
@@ -72,7 +72,12 @@ def stream_track_preview(track_id):
         abort(404)
     if not track.audio_file:
         abort(404)
-    return _send(track.audio_file, 'audio/mpeg')
+
+    try:
+        return _send(f'static/audio/{track.audio_file}', 'audio/mpeg')
+    except FileNotFoundError:
+        current_app.logger.error(f"Fichier de preview introuvable pour track {track_id}", exc_info=True)
+        abort(404)
 
 
 # ── 2. Download fichier acheté (MP3 / WAV / Stems) ────────────────────────────
@@ -127,7 +132,7 @@ def download_track_file(track_id, format):
     ext = 'zip' if format == 'stems' else format
     download_name = f"{_safe_filename(track.title)}.{ext}"
 
-    return _send(file_path, _FORMAT_MIME[format], as_attachment=True, download_name=download_name)
+    return _send(f'static/audio/{file_path}', _FORMAT_MIME[format], as_attachment=True, download_name=download_name)
 
 
 # ── 3. Stream topline ─────────────────────────────────────────────────────────
@@ -155,7 +160,7 @@ def stream_topline(topline_id):
     if not topline.audio_file:
         abort(404)
 
-    return _send(topline.audio_file, 'audio/mpeg')
+    return _send(f'static/{topline.audio_file}', 'audio/mpeg')
 
 
 # ── 4. Télécharger contrat PDF ────────────────────────────────────────────────
@@ -188,4 +193,4 @@ def download_contract(purchase_id):
 
     download_name = f"contrat_{_safe_filename(track.title)}_{purchase.format_purchased}.pdf"
 
-    return _send(purchase.contract_file, 'application/pdf', as_attachment=True, download_name=download_name)
+    return _send(f'static/contracts/{purchase.contract_file}', 'application/pdf', as_attachment=True, download_name=download_name)

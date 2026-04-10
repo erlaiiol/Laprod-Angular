@@ -62,7 +62,7 @@ def get_beatmaker_dashboard():
             'has_wav':      bool(t.file_wav),
             'has_stems':    bool(t.file_stems),
             'sales_count':  sales_by_track.get(t.id, 0),
-            'stream_url':   f'/stream/tracks/{t.id}/preview',
+            'stream_url':   f'/api/stream/tracks/{t.id}/preview',
         }
         for t in tracks
     ]
@@ -131,7 +131,7 @@ def get_artist_dashboard():
             'description':  tl.description,
             'is_published': tl.is_published,
             'created_at':   tl.created_at.isoformat(),
-            'stream_url':   f'/stream/toplines/{tl.id}',
+            'stream_url':   f'/api/stream/toplines/{tl.id}',
         }
         for tl in toplines
     ]
@@ -149,7 +149,7 @@ def get_artist_dashboard():
             'title':        fav.track.title if fav.track else None,
             'image_file':   fav.track.image_file if fav.track else None,
             'composer':     fav.track.composer_user.username if fav.track and fav.track.composer_user else None,
-            'stream_url':   f'/stream/tracks/{fav.track_id}/preview',
+            'stream_url':   f'/api/stream/tracks/{fav.track_id}/preview',
             'favorited_at': fav.created_at.isoformat(),
         }
         for fav in favorites
@@ -170,7 +170,7 @@ def get_artist_dashboard():
             'title':       h.track.title if h.track else None,
             'image_file':  h.track.image_file if h.track else None,
             'composer':    h.track.composer_user.username if h.track and h.track.composer_user else None,
-            'stream_url':  f'/stream/tracks/{h.track_id}/preview',
+            'stream_url':  f'/api/stream/tracks/{h.track_id}/preview',
             'listened_at': h.listened_at.isoformat(),
         }
         for h in history
@@ -326,6 +326,10 @@ def get_mix_engineer_dashboard():
                 'pending_count':    sum(1 for o in orders if o.status == 'awaiting_acceptance'),
                 'reference_price':  user.mixmaster_reference_price,
                 'price_min':        user.mixmaster_price_min,
+                'sample_submitted': user.mixmaster_sample_submitted,
+                'producer_arranger_request_submitted': user.producer_arranger_request_submitted,
+                'is_mixmaster_engineer': user.is_mixmaster_engineer,
+                'is_certified_producer_arranger': user.is_certified_producer_arranger,
             },
             'orders': {
                 'awaiting':  [order_dict(o) for o in orders if o.status == 'awaiting_acceptance'],

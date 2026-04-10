@@ -14,6 +14,37 @@
       <h1><i class="bi bi-sliders"></i> Espace Mix Engineer</h1>
     </div>
 
+    <!-- ── Notification : échantillon non soumis ────────────────────────────── -->
+    @if (!data()!.stats.sample_submitted) {
+      <div class="sample-alert">
+        <i class="bi bi-exclamation-triangle-fill alert-icon"></i>
+        <div>
+          <strong>Action requise :</strong> Vous n'avez pas encore soumis votre preview de mix engineer.
+          Sans échantillon, votre profil ne sera pas visible par les artistes et vous ne pourrez pas recevoir de commandes.
+          <div class="mt-alert">
+            <a class="btn-submit-sample" [routerLink]="['/submit-sample']">
+              <i class="bi bi-upload"></i> Soumettre ma preview
+            </a>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ── Notification : certification Producteur/Arrangeur ────────────────── -->
+    @if (data()!.stats.is_mixmaster_engineer && !data()!.stats.is_certified_producer_arranger && !data()!.stats.producer_arranger_request_submitted) {
+      <div class="arranger-alert">
+        <i class="bi bi-stars alert-icon"></i>
+        <div>
+          <strong>Certification disponible :</strong> En tant que Mix/Master Engineer certifié, vous pouvez demander la certification Producteur/Arrangeur pour élargir votre offre.
+          <div class="mt-alert">
+            <a class="btn-submit-sample btn-arranger" [routerLink]="['/profile', auth.currentUser()?.username]" [queryParams]="{ tab: 'mixmaster' }">
+              <i class="bi bi-patch-check"></i> Faire une demande
+            </a>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- ── Stats ───────────────────────────────────────────────────────────── -->
     <div class="stats-grid">
       <div class="stat-card">

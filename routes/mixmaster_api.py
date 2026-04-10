@@ -2,7 +2,7 @@
 Mixmaster API — GET endpoints (public + JWT)
 Ingénieurs certifiés, détail commande, historique artiste
 """
-from flask import Blueprint, jsonify, url_for
+from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from sqlalchemy import select
 from extensions import db, csrf
@@ -20,20 +20,21 @@ def _engineer_dict(eng: User) -> dict:
     else:
         price_max = 0
 
+    active = MixMasterRequest.get_active_requests_count(eng.id)
     return {
-        'id':                        eng.id,
-        'username':                  eng.username,
-        'profile_image':             eng.profile_image,
-        'bio':                       eng.mixmaster_bio,
-        'reference_price':           eng.mixmaster_reference_price,
-        'price_min':                 eng.mixmaster_price_min,
-        'price_max':                 price_max,
+        'id':                            eng.id,
+        'username':                      eng.username,
+        'profile_image':                 eng.profile_image,
+        'mixmaster_bio':                 eng.mixmaster_bio,
+        'mixmaster_reference_price':     eng.mixmaster_reference_price,
+        'mixmaster_price_min':           eng.mixmaster_price_min,
+        'price_max':                     price_max,
         'is_certified_producer_arranger': eng.is_certified_producer_arranger,
-        'sample_raw_url':            url_for('audio.serve_engineer_sample', user_id=eng.id, sample_type='raw', _external=False) if eng.mixmaster_sample_raw else None,
-        'sample_processed_url':      url_for('audio.serve_engineer_sample', user_id=eng.id, sample_type='processed', _external=False) if eng.mixmaster_sample_processed else None,
-        'stripe_ready':              bool(eng.stripe_onboarding_complete and eng.mixmaster_reference_price and eng.mixmaster_price_min),
-        'active_orders':             MixMasterRequest.get_active_requests_count(eng.id),
-        'slots_available':           max(0, 5 - MixMasterRequest.get_active_requests_count(eng.id)),
+        'sample_raw_url':                f'/{eng.mixmaster_sample_raw}' if eng.mixmaster_sample_raw else None,
+        'sample_processed_url':          f'/{eng.mixmaster_sample_processed}' if eng.mixmaster_sample_processed else None,
+        'stripe_ready':                  bool(eng.stripe_onboarding_complete and eng.mixmaster_reference_price and eng.mixmaster_price_min),
+        'active_orders':                 active,
+        'slots_available':               max(0, 5 - active),
     }
 
 

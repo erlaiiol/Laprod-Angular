@@ -30,10 +30,11 @@ except ImportError:
     WATERMARK_AVAILABLE = False
 
 try:
-    from utils.file_validator import validate_specific_audio_format, validate_stems_archive, validate_image_file, validate_filename
+    from utils.file_validator import validate_specific_audio_format, validate_stems_archive, validate_image_file, FileValidator
     VALIDATION_AVAILABLE = True
 except ImportError as e:
-    current_app.logger.error(f'File validation utilities not available: {e}')
+    import logging
+    logging.getLogger(__name__).critical(f'[cud_tracks_api] file_validator indisponible — upload désactivé: {e}')
     VALIDATION_AVAILABLE = False
 
 # ============================================
@@ -246,7 +247,7 @@ def post_track():
         # Validation du nom de fichier
         try:
             safe_title = secure_filename(title)[:30]
-            safe_title = validate_filename(safe_title)
+            safe_title = FileValidator.validate_filename(safe_title)
         except ValueError as e:
             return jsonify({
                 'success': False, 
@@ -343,11 +344,11 @@ def post_track():
             price_stems=price_stems,
             sacem_percentage_composer=sacem_percentage_composer,
             composer_user=user,
-            audio_file=mp3_filename,
-            preview_file=preview_filename,
-            wav_file=wav_filename,
-            stems_file=stems_filename,
-            image_file=image_filename,
+            audio_file=preview_filename,
+            file_mp3=mp3_filename,
+            file_wav=wav_filename,
+            file_stems=stems_filename,
+            image_file=f'images/tracks/{image_filename}',
             file_hash=file_hash,
             tags=selected_tags
         )
@@ -356,7 +357,7 @@ def post_track():
         db.session.commit()
 
         # Déduire le token d'upload
-        user.upload_tokens -= 1
+        user.upload_track_tokens -= 1
         db.session.commit()
 
         return jsonify({
@@ -460,8 +461,8 @@ def put_track(track_id):
                 return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Image invalide: {error_message}'}}), 400
 
             # Supprimer l'ancienne image (sauf l'image par défaut)
-            if track.image_file and track.image_file != 'default_track.png':
-                old_img_path = config.IMAGES_FOLDER / 'tracks' / track.image_file
+            if track.image_file and 'default_track' not in track.image_file:
+                old_img_path = Path(current_app.root_path) / 'static' / track.image_file
                 if old_img_path.exists():
                     old_img_path.unlink()
 
@@ -476,7 +477,7 @@ def put_track(track_id):
 
             try:
                 file_image.save(new_img_path)
-                track.image_file = new_img_filename
+                track.image_file = f'images/tracks/{new_img_filename}'
             except Exception as e:
                 current_app.logger.error(f'Erreur sauvegarde image: {e}')
                 return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors du téléchargement de l\'image'}}), 500
@@ -580,8 +581,8 @@ def delete_track(track_id):
                     file_path.unlink()
 
         # Supprimer l'image (sauf l'image par défaut)
-        if track.image_file and track.image_file != 'default_track.png':
-            image_path = config.IMAGES_FOLDER / 'tracks' / track.image_file
+        if track.image_file and 'default_track' not in track.image_file:
+            image_path = Path(current_app.root_path) / 'static' / track.image_file
             if image_path.exists():
                 image_path.unlink()
 

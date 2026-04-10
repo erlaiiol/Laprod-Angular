@@ -2,9 +2,15 @@
 Service de notifications in-app pour LaProd
 Crée des notifications visibles dans l'interface utilisateur
 """
-from flask import current_app, url_for
+from flask import current_app
 from extensions import db
 from models import Notification, User
+
+# ── URLs Angular (SPA) — pas de url_for() Flask ──────────────────────────────
+_URL_ARTIST_ORDERS  = '/dashboard/artist'     # onglet mixmaster
+_URL_ENGINEER_DASH  = '/dashboard/engineer'   # onglet commandes
+_URL_WALLET         = '/dashboard/wallet'
+_URL_MY_PURCHASES   = '/dashboard/artist'
 
 
 # ============================================
@@ -31,7 +37,7 @@ def create_notification(user_id, notif_type, title, message, link=None):
             notif_type='purchase',
             title='Achat confirmé',
             message='Votre achat de "Beat1" a été confirmé',
-            link=url_for('payment.my_purchases')
+            link=_URL_MY_PURCHASES
         )
     """
     try:
@@ -148,7 +154,7 @@ def notify_purchase_confirmed(purchase):
         notif_type='purchase',
         title='Achat confirmé',
         message=f'Votre achat de "{track.title}" ({purchase.format_purchased}) a été confirmé. Vous pouvez maintenant le télécharger.',
-        link=url_for('payment.my_purchases')
+        link=_URL_MY_PURCHASES
     )
 
 
@@ -164,7 +170,7 @@ def notify_sale_completed(purchase):
         notif_type='Beat - Vente',
         title='Vente confirmée !',
         message=f'"{track.title}" acheté par {purchase.buyer_user.username}. {purchase.composer_revenue}€ ajoutés à vos gains (disponibles dans 7 jours).',
-        link=url_for('wallet.mes_gains')
+        link=_URL_WALLET
     )
 
 
@@ -184,7 +190,7 @@ def notify_track_approved(track):
         notif_type='track_approved',
         title='Track approuvé !',
         message=f'Votre track "{track.title}" a été approuvé et est maintenant visible sur LaProd.',
-        link=url_for('main.track_detail', track_id=track.id)
+        link=f'/track/{track.id}'
     )
 
 
@@ -205,7 +211,7 @@ def notify_track_rejected(track, reason=''):
         notif_type='track_rejected',
         title='Track non approuvé',
         message=message,
-        link=url_for('main.profile', username=track.composer_user.username)
+        link=f'/profile/{track.composer_user.username}'
     )
 
 
@@ -227,15 +233,15 @@ def notify_mixmaster_request_received_and_sent(mixmaster_request):
         notif_type='mixmaster_request_received',
         title='Nouvelle demande de mixage reçue',
         message=f'{artist.username} vous a envoyé une demande de mixage pour {mixmaster_request.total_price}€.',
-        link=url_for('mixmaster.dashboard')
+        link=_URL_ENGINEER_DASH
     )
 
     create_notification(
         user_id=mixmaster_request.artist_id,
         notif_type='mixmaster_request_sent',
         title='Demande de mixage envoyée avec succès',
-        message=f'Votre demande de mixage a été envoyée à {mixmaster_request.engineer.username}, somme bloquée: {mixmaster_request.total_price}€',
-        link=url_for('payment.purchases')
+        message=f'Votre demande de mixage a été envoyée à {mixmaster_request.engineer.username}. Montant débité : {mixmaster_request.total_price}€.',
+        link=_URL_ARTIST_ORDERS
     )
 
 def notify_mixmaster_status_changed(mixmaster_request, old_status, new_status):
@@ -301,15 +307,10 @@ def notify_mixmaster_status_changed(mixmaster_request, old_status, new_status):
         notif_type='Statut de votre mixage mis à jour',
         title=get_status_title('artist'),
         message=get_status_message('artist'),
-        link=url_for('payment.purchases')
+        link=_URL_ARTIST_ORDERS
     )
-    
-    # Pour 'delivered' et 'completed', pointer l'engineer vers ses gains
-    engineer_link = (
-        url_for('wallet.mes_gains')
-        if new_status in ('delivered', 'completed')
-        else url_for('mixmaster.dashboard')
-    )
+
+    engineer_link = _URL_WALLET if new_status in ('delivered', 'completed') else _URL_ENGINEER_DASH
     create_notification(
         user_id=mixmaster_request.engineer_id,
         notif_type='Statut de votre mixage mis à jour',
@@ -337,7 +338,7 @@ def notify_topline_submitted(topline):
         notif_type='topline_submitted',
         title='Nouvelle topline sur votre track',
         message=f'{artist.username} a soumis une topline sur "{track.title}".',
-        link=url_for('main.track_detail', track_id=track.id)
+        link=f'/track/{track.id}'
     )
 
 
@@ -356,11 +357,11 @@ def notify_tokens_recharged(user, token_type='upload'):
     if token_type == 'upload':
         token_count = user.upload_track_tokens
         message = f'Vos tokens d\'upload ont été rechargés ! Vous avez {token_count} tokens disponibles.'
-        link = url_for('tracks.add_track')
+        link = '/dashboard/beatmaker'
     else:
         token_count = user.topline_tokens
         message = f'Vos tokens de topline ont été rechargés ! Vous avez {token_count} tokens disponibles.'
-        link = url_for('main.index')
+        link = '/'
 
     create_notification(
         user_id=user.id,

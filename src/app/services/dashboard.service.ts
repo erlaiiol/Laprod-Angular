@@ -145,6 +145,10 @@ export interface MixEngineerStats {
   pending_count:   number;
   reference_price: number | null;
   price_min:       number | null;
+  sample_submitted:                    boolean;
+  producer_arranger_request_submitted: boolean;
+  is_mixmaster_engineer:               boolean;
+  is_certified_producer_arranger:      boolean;
 }
 
 export interface MixOrder {

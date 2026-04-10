@@ -79,6 +79,9 @@ def create_order(engineer_id):
     user     = db.get_or_404(User, user_id)
     engineer = db.get_or_404(User, engineer_id)
 
+    if user_id == engineer_id:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Vous ne pouvez pas commander un mix/master à vous-même.'}}), 403
+
     if not engineer.is_mixmaster_engineer:
         return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Cet ingénieur n\'est pas certifié.'}}), 400
 
@@ -136,12 +139,21 @@ def create_order(engineer_id):
     success_url          = request.form.get('success_url', '')
     cancel_url           = request.form.get('cancel_url', '')
 
-    # Appliquer services obligatoires selon prix minimum de l'engineer
+    # Appliquer services obligatoires selon le palier minimum de l'engineer.
+    # Paliers : 35% = nettoyage, 55% = nettoyage+mastering, 80% = nettoyage+effets,
+    #           100% = nettoyage+effets+mastering, 160% = tout+artistique.
     if engineer.mixmaster_reference_price and engineer.mixmaster_price_min:
         min_pct = (engineer.mixmaster_price_min / engineer.mixmaster_reference_price) * 100
-        if min_pct >= 20:  service_cleaning  = True
-        if min_pct >= 50:  service_effects   = True
-        if min_pct >= 65:  service_mastering = True
+        if min_pct >= 35:
+            service_cleaning = True
+        if 55 <= min_pct < 80:
+            service_mastering = True              # palier 55% = cleaning + mastering
+        if min_pct >= 80:
+            service_effects = True               # palier 80% = cleaning + effects (sans mastering)
+        if min_pct >= 100:
+            service_mastering = True             # palier 100% = cleaning + effects + mastering
+        if min_pct >= 160 and engineer.is_certified_producer_arranger:
+            service_artistic = True              # palier 160% = tout + artistique
 
     if not any([service_cleaning, service_effects, service_artistic, service_mastering]):
         return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Sélectionnez au moins un service.'}}), 400
@@ -188,7 +200,7 @@ def create_order(engineer_id):
         'service_artistic':  str(service_artistic),
         'service_mastering': str(service_mastering),
         'has_separated_stems': str(has_separated_stems),
-        'artist_message':    (artist_message or '')[:500],
+        'artist_message':    (artist_message or '')[:2000],
         'brief_vocals':      (brief_vocals or '')[:500],
         'brief_backing_vocals': (brief_backing_vocals or '')[:500],
         'brief_ambiance':    (brief_ambiance or '')[:500],
@@ -223,7 +235,7 @@ def create_order(engineer_id):
             }],
             mode='payment',
             payment_intent_data={
-                'capture_method': 'manual',
+                'capture_method': 'automatic',  # Débit immédiat ; la plateforme gère les reversements par paliers
                 'metadata': metadata,
             },
             success_url=success_url + '?session_id={CHECKOUT_SESSION_ID}' if success_url else request.url_root.rstrip('/') + '/mix/payment-success?session_id={CHECKOUT_SESSION_ID}',
@@ -260,7 +272,7 @@ def create_order(engineer_id):
 @jwt_required()
 @csrf.exempt
 def cancel_order(order_id):
-    """Annule la demande avant acceptation par l'ingénieur. Libère les fonds Stripe."""
+    """Annule la demande avant acceptation par l'ingénieur. Rembourse l'artiste via Stripe Refund."""
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
@@ -269,12 +281,16 @@ def cancel_order(order_id):
     if order.status != 'awaiting_acceptance':
         return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette demande ne peut plus être annulée.'}}), 400
 
-    if order.stripe_payment_intent_id and order.stripe_payment_status in ('authorized', 'requires_payment_method'):
+    # capture_method=automatic : le paiement est already succeeded → remboursement par Refund
+    if order.stripe_payment_intent_id and order.stripe_payment_status == 'captured':
         try:
-            stripe.PaymentIntent.cancel(order.stripe_payment_intent_id)
-            order.stripe_payment_status = 'canceled'
+            refund = stripe.Refund.create(
+                payment_intent=order.stripe_payment_intent_id,
+                reason='requested_by_customer',
+            )
+            order.stripe_payment_status = 'refunded'
             log_stripe_transaction(
-                operation='payment_intent_canceled', resource_type='mixmaster',
+                operation='refund_artist_cancel', resource_type='mixmaster',
                 resource_id=order_id, stripe_payment_intent_id=order.stripe_payment_intent_id,
                 reason='artist_cancellation_before_acceptance',
             )

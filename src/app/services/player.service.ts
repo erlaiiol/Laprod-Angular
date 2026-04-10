@@ -67,8 +67,8 @@ export class PlayerService {
   play(track: Track): void {
     this.playOnReady = true;
     this.currentTrack.set(track);
-    // Record listening history silently (fails silently if not logged in)
-    if (track.id && track.stream_url?.includes('/preview')) {
+    // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
+    if (track.id && track.stream_url?.includes('/preview') && localStorage.getItem('access_token')) {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
         .subscribe({ error: () => {} });
     }

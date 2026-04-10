@@ -44,19 +44,30 @@
             <!-- Bio -->
             <p class="eng-bio">{{ eng.mixmaster_bio || 'Aucune description disponible.' }}</p>
 
-            <!-- Samples audio -->
+            <!-- Samples audio → player bas -->
             @if (eng.sample_raw_url || eng.sample_processed_url) {
               <div class="samples">
+                <p class="samples-title"><i class="bi bi-headphones"></i> Écouter les previews</p>
                 @if (eng.sample_raw_url) {
                   <div class="sample-row">
-                    <span class="sample-label">Brut</span>
-                    <audio controls [src]="audioUrl(eng.sample_raw_url)"></audio>
+                    <button class="sample-play-btn"
+                            [class.active]="isPlayingSample(eng.sample_raw_url)"
+                            (click)="playSample(eng.sample_raw_url, 'Brut', eng)"
+                            type="button">
+                      <i class="bi" [ngClass]="isPlayingSample(eng.sample_raw_url) ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                    </button>
+                    <span class="sample-label">Version brute</span>
                   </div>
                 }
                 @if (eng.sample_processed_url) {
                   <div class="sample-row">
-                    <span class="sample-label">Traité</span>
-                    <audio controls [src]="audioUrl(eng.sample_processed_url)"></audio>
+                    <button class="sample-play-btn"
+                            [class.active]="isPlayingSample(eng.sample_processed_url)"
+                            (click)="playSample(eng.sample_processed_url, 'Traité', eng)"
+                            type="button">
+                      <i class="bi" [ngClass]="isPlayingSample(eng.sample_processed_url) ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                    </button>
+                    <span class="sample-label">Version traitée</span>
                   </div>
                 }
               </div>
@@ -67,13 +78,12 @@
               <div class="price-range">
                 <i class="bi bi-tag"></i> {{ priceRange(eng) }}
               </div>
-              @if (eng.slots_available !== null) {
-                <div class="slots">
-                  <i class="bi bi-calendar-check"></i>
-                  {{ eng.slots_used }}/{{ eng.slots_available }} slots
-                </div>
-              }
-              @if (auth.isLoggedIn()) {
+              <div class="slots">
+                <i class="bi bi-calendar-check"></i>
+                {{ eng.active_orders }}/5 slots</div>
+              @if (eng.slots_available === 0) {
+                <span class="btn-order btn-full">Complet</span>
+              } @else if (auth.isLoggedIn()) {
                 <a class="btn-order" [routerLink]="['/mix/order', eng.id]">
                   Commander <i class="bi bi-arrow-right"></i>
                 </a>

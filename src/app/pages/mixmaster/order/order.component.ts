@@ -29,6 +29,24 @@ export class MixmasterOrderComponent implements OnInit {
   serviceMastering = signal(false);
   hasSeparatedStems = signal(false);
 
+  /**
+   * Services imposés par le palier minimum de l'ingénieur.
+   * Paliers : 35%=cleaning, 55%=cleaning+mastering, 80%=cleaning+effects,
+   *           100%=cleaning+effects+mastering, 160%=tout+artistique.
+   */
+  mandatoryServices = computed(() => {
+    const eng = this.engineer();
+    if (!eng?.mixmaster_reference_price || !eng.mixmaster_price_min) return new Set<string>();
+    const pct = (eng.mixmaster_price_min / eng.mixmaster_reference_price) * 100;
+    const m = new Set<string>();
+    if (pct >= 35)  m.add('cleaning');
+    if (pct >= 55 && pct < 80) { m.add('mastering'); }          // palier 55%
+    if (pct >= 80)  m.add('effects');                            // palier 80% (remplace mastering seul)
+    if (pct >= 100) m.add('mastering');                          // palier 100%
+    if (pct >= 160 && eng.is_certified_producer_arranger) m.add('artistic');
+    return m;
+  });
+
   // ── Briefing ─────────────────────────────────────────────────────────────
   title         = signal('');
   artistMessage = signal('');
@@ -55,8 +73,8 @@ export class MixmasterOrderComponent implements OnInit {
     let price = 0;
     if (this.serviceCleaning())  price += ref * 0.35;
     if (this.serviceEffects())   price += ref * 0.45;
-    if (this.serviceArtistic())  price += ref * 0.20;
-    if (this.serviceMastering()) price += ref * (eng.is_certified_producer_arranger ? 0.60 : 0.20);
+    if (this.serviceMastering()) price += ref * 0.20;
+    if (this.serviceArtistic())  price += ref * 0.60;
     if (this.hasSeparatedStems()) price += ref * 0.20;
     return Math.round(price * 100) / 100;
   });
@@ -74,8 +92,17 @@ export class MixmasterOrderComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('engineerId'));
     this.mixSvc.getEngineer(id).subscribe({
       next: (res) => {
-        if (res.success) this.engineer.set(res.data!.engineer);
-        else this.error.set(res.feedback?.message ?? 'Ingénieur introuvable.');
+        if (res.success) {
+          this.engineer.set(res.data!.engineer);
+          // Pré-cocher les services obligatoires selon le palier minimum
+          const m = this.mandatoryServices();
+          if (m.has('cleaning'))  this.serviceCleaning.set(true);
+          if (m.has('effects'))   this.serviceEffects.set(true);
+          if (m.has('mastering')) this.serviceMastering.set(true);
+          if (m.has('artistic'))  this.serviceArtistic.set(true);
+        } else {
+          this.error.set(res.feedback?.message ?? 'Ingénieur introuvable.');
+        }
         this.loading.set(false);
       },
       error: () => {

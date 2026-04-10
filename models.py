@@ -68,7 +68,7 @@ class User(UserMixin, db.Model):
     is_mixmaster_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Certifié par admin
     is_certified_producer_arranger = db.Column(db.Boolean, default=False, nullable=False)  # Certifié producteur/arrangeur (intervention artistique)
     mixmaster_reference_price = db.Column(db.Float, nullable=True)  # Prix de référence (base 100% pour calcul des services)
-    mixmaster_price_min = db.Column(db.Float, nullable=True)  # Prix minimum (entre 20% et 65% du prix référence)
+    mixmaster_price_min = db.Column(db.Float, nullable=True)  # Prix minimum (entre 35% et 80% du prix référence : paliers 35/55/80)
     mixmaster_bio = db.Column(db.Text, nullable=True)  # Description de ses compétences
     mixmaster_sample_raw = db.Column(db.String(200), nullable=True)  # Audio brut exemple
     mixmaster_sample_processed = db.Column(db.String(200), nullable=True)  # Audio traité exemple
@@ -685,10 +685,10 @@ class MixMasterRequest(db.Model):
     archive_file_tree = db.Column(db.JSON, nullable=True)  # Arborescence des fichiers de l'archive (pour vérification engineer)
 
     # Services sélectionnés par l'artiste
-    service_cleaning = db.Column(db.Boolean, default=False, nullable=False)  # Nettoyage et équilibre (20%)
-    service_effects = db.Column(db.Boolean, default=False, nullable=False)  # Mixage avec effets (30%)
-    service_artistic = db.Column(db.Boolean, default=False, nullable=False)  # Intervention artistique (70%)
-    service_mastering = db.Column(db.Boolean, default=False, nullable=False)  # Mastering final (15%)
+    service_cleaning = db.Column(db.Boolean, default=False, nullable=False)  # Nettoyage et équilibre (+35%)
+    service_effects = db.Column(db.Boolean, default=False, nullable=False)  # Mixage avec effets (+45%)
+    service_artistic = db.Column(db.Boolean, default=False, nullable=False)  # Intervention artistique (+60%, certif. Producteur requise)
+    service_mastering = db.Column(db.Boolean, default=False, nullable=False)  # Mastering final (+20%)
 
     # Options supplémentaires
     has_separated_stems = db.Column(db.Boolean, default=False, nullable=False)  # Pistes séparées (+20% sur total)
@@ -775,15 +775,20 @@ class MixMasterRequest(db.Model):
         IMPORTANT: Les prix sont arrondis à 2 décimales pour la précision.
         Stripe travaille en centimes donc les décimales sont supportées.
 
-        Grille de prix (% du reference_price):
-        - Nettoyage et équilibre: 35%
-        - Mixage avec effets: 45%
-        - Mastering final: 20%
-        - Base (3 services): 100%
-        - Intervention artistique: +60%
-        - Pistes séparées: +20%
+        Grille de prix (% du reference_price) — services individuels :
+        - Nettoyage et équilibre : +35%
+        - Mixage avec effets     : +45%
+        - Mastering final        : +20%
+        - Intervention artistique: +60% (requiert is_certified_producer_arranger)
+        - Pistes séparées        : +20%
 
-        Total maximum possible: 100% + 60% + 20% = 180% du reference_price
+        Paliers combinés standards :
+        - Nettoyage seul              : 35%
+        - Nettoyage + Mastering       : 55%
+        - Nettoyage + Effets          : 80%
+        - Nettoyage + Effets + Master : 100%
+        - Tous les services           : 160%
+        - Tous + pistes séparées      : 180%
         """
         base_price = 0.0
 
@@ -862,10 +867,16 @@ class MixMasterRequest(db.Model):
     def get_refund_amount(self):
         """
         Montant à rembourser à l'artiste en cas de refus de la livraison.
-        Correspond au solde restant sur le compte plateforme.
+        = total_price × (70% - révisions × 10%)
+        L'ingénieur conserve le dépôt initial (30%) + les acomptes de révision (10%/révision)
+        déjà crédités dans son wallet.
+
+        - 0 révision  : remboursement 70% du total
+        - 1 révision  : remboursement 60% du total
+        - 2 révisions : remboursement 50% du total
         """
-        gross_remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
-        return round(float(self.total_price or 0) * gross_remaining_pct * 0.90, 2)
+        remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
+        return round(float(self.total_price or 0) * remaining_pct, 2)
 
     def is_expired(self):
         """

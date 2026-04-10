@@ -16,8 +16,8 @@ export interface MixEngineerPublic {
   is_certified_producer_arranger: boolean;
   sample_raw_url:               string | null;
   sample_processed_url:         string | null;
-  slots_available:              number | null;
-  slots_used:                   number | null;
+  active_orders:                number;
+  slots_available:              number;
 }
 
 export interface MixOrderFull {

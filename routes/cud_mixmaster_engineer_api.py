@@ -10,12 +10,10 @@ from extensions import db, csrf
 from models import User, MixMasterRequest
 from utils.notification_service import notify_mixmaster_status_changed
 from utils import email_service
-from utils.stripe_validator import verify_stripe_payment_for_capture
-from utils.stripe_logger import (
-    log_stripe_payment_intent_captured, log_stripe_error,
-)
 import stripe
 import stripe._error as stripe_error
+from utils.stripe_validator import verify_stripe_payment_for_capture
+from utils.stripe_logger import log_stripe_payment_intent_captured, log_stripe_error, log_stripe_transaction
 from datetime import datetime, timedelta
 from pathlib import Path
 from pydub import AudioSegment
@@ -110,11 +108,30 @@ def reject_order(order_id):
     if order.status != 'awaiting_acceptance':
         return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande a déjà été traitée.'}}), 400
 
-    # Supprimer le fichier original
-    if order.original_file:
-        original_path = Path(current_app.root_path) / order.original_file
-        if original_path.exists():
-            original_path.unlink()
+    # Rembourser l'artiste — capture_method=automatic, le paiement est déjà prélevé
+    if order.stripe_payment_intent_id and order.stripe_payment_status == 'captured':
+        try:
+            stripe.Refund.create(
+                payment_intent=order.stripe_payment_intent_id,
+                reason='requested_by_customer',
+            )
+            order.stripe_payment_status = 'refunded'
+            log_stripe_transaction(
+                operation='refund_engineer_reject', resource_type='mixmaster',
+                resource_id=order_id, stripe_payment_intent_id=order.stripe_payment_intent_id,
+                reason='engineer_rejection',
+            )
+        except stripe_error.StripeError as e:
+            log_stripe_error(operation='reject_mixmaster_refund', error_message=str(e),
+                             resource_type='mixmaster', resource_id=order_id)
+            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur remboursement Stripe : {str(e)}'}}), 502
+
+    # Supprimer les fichiers uploadés par l'artiste
+    for f_path in [order.original_file, order.reference_file]:
+        if f_path:
+            p = Path(current_app.root_path) / f_path
+            if p.exists():
+                p.unlink()
 
     order.status      = 'rejected'
     order.rejected_at = datetime.now()
@@ -129,7 +146,7 @@ def reject_order(order_id):
 
     return jsonify({
         'success': True,
-        'feedback': {'level': 'info', 'message': 'Demande refusée.'},
+        'feedback': {'level': 'info', 'message': 'Demande refusée. L\'artiste a été remboursé intégralement.'},
     }), 200
 
 
@@ -201,22 +218,20 @@ def upload_processed(order_id):
             disk_path.unlink()
         return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur traitement audio : {str(e)}'}}), 500
 
-    # ── Capture Stripe 100% ─────────────────────────────────────────────────
-    if not order.stripe_payment_intent_id or order.stripe_payment_status != 'authorized':
+    # ── Fonds déjà prélevés (capture_method=automatic) → crédit wallet direct ──
+    if not order.stripe_payment_intent_id or order.stripe_payment_status != 'captured':
         current_app.logger.error(f'Stripe status incorrect pour #{order_id}: {order.stripe_payment_status}')
         return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Statut de paiement incorrect.'}}), 400
 
     try:
-        capture = stripe.PaymentIntent.capture(order.stripe_payment_intent_id)
-
         log_stripe_payment_intent_captured(
             payment_intent_id=order.stripe_payment_intent_id,
-            amount=capture.amount,
+            amount=int(float(order.total_price) * 100),
             resource_type='mixmaster',
             resource_id=order_id,
             engineer_id=order.engineer_id,
             artist_id=order.artist_id,
-            capture_type='full_capture_100_percent',
+            capture_type='delivery_deposit_30_percent',
         )
 
         from utils.wallet_service import credit_wallet_for_mixmaster_deposit
@@ -244,13 +259,12 @@ def upload_processed(order_id):
             'data': {'status': order.status},
         }), 200
 
-    except stripe_error.StripeError as e:
-        log_stripe_error(operation='capture_for_delivery', error_message=str(e),
-                         resource_type='mixmaster', resource_id=order_id)
+    except Exception as e:
+        current_app.logger.error(f'credit_wallet delivery #{order_id}: {e}', exc_info=True)
         for p in [disk_path, preview_disk, preview_full_disk]:
             if p.exists():
                 p.unlink()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors de la livraison.'}}), 500
 
 
 # ─── Deliver revision ─────────────────────────────────────────────────────────
@@ -333,6 +347,8 @@ def deliver_revision(order_id):
     order.processed_file_preview_full = prev_full_path
     order.status                      = 'delivered'
     order.delivered_at                = datetime.now()
+    # Rétablir deposit_captured pour que approve_and_download puisse valider
+    order.stripe_payment_status       = 'deposit_captured'
 
     notify_mixmaster_status_changed(order, old_status, 'delivered')
     db.session.commit()

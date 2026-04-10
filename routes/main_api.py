@@ -196,7 +196,7 @@ def edit_profile():
                                                  'message': 'Prix de référence invalide (10€–500€).'}}), 422
 
                 min_required = round(reference_price * 0.35)
-                max_allowed  = round(reference_price * 0.65)
+                max_allowed  = round(reference_price * 0.80)
 
                 if not (min_required <= price_min <= max_allowed):
                     return jsonify({'success': False,

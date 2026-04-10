@@ -38,7 +38,7 @@ export interface Track {
   key:           string;
   style:         string;
   price_mp3:     number;
-  tags:          { name: string; category: string; color: string }[];  // tableau d'objets
+  tags:          { id: number, name: string; category: string; color: string }[];  // tableau d'objets
   is_approved:   boolean;
 }
 
@@ -93,6 +93,22 @@ export interface TrackFilters {
 // Enregistre ce service dans l'injecteur global de l'application.
 // → une seule instance partagée par tous les composants (singleton).
 // ─────────────────────────────────────────────────────────────────────────────
+
+
+export const MUSICAL_KEYS: string[] = [
+  'A minor',  'A major',
+  'A# minor', 'A# major',
+  'B minor',  'B major',
+  'C minor',  'C major',
+  'C# minor', 'C# major',
+  'D minor',  'D major',
+  'D# minor', 'D# major',
+  'E minor',  'E major',
+  'F minor',  'F major',
+  'F# minor', 'F# major',
+  'G minor',  'G major',
+  'G# minor', 'G# major',
+];
 
 @Injectable({ providedIn: 'root' })
 export class TrackService {

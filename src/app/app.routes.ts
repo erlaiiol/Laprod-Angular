@@ -4,7 +4,7 @@ import { adminGuard } from './guards/admin.guard';
 
 // Pages (smart — fetch des données)
 import { HomeComponent }           from './pages/home/home.component';
-import { UploadTrackComponent }         from './components/upload-track/upload-track.component';
+import { UploadTrackComponent }         from './pages/upload-track/upload-track.component';
 import { LoginComponent }          from './pages/auth/login/login.component';
 import { TrackDetailComponent }    from './pages/track-detail/track-detail.component';
 import { ContractConfigComponent } from './pages/contract-config/contract-config.component';
@@ -28,6 +28,7 @@ import { MixmasterOrderComponent }            from './pages/mixmaster/order/orde
 import { MixPaymentSuccessComponent }         from './pages/mixmaster/payment-success/payment-success.component';
 import { AdminComponent }                    from './pages/admin/admin.component';
 import { NotFoundComponent }                 from './pages/not-found/not-found.component';
+import { EditTrackComponent } from './pages/edit-track/edit-track.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -38,6 +39,7 @@ export const routes: Routes = [
   { path: 'complete-profile',              component: CompleteProfileComponent },
   { path: 'select-role',                   component: SelectRoleComponent },
   { path: 'track/:id',                     component: TrackDetailComponent },
+  { path: 'edit-track/:id',                component: EditTrackComponent,               canActivate: [authGuard] },
   { path: 'contract/:trackId/:format',     component: ContractConfigComponent,          canActivate: [authGuard] },
   { path: 'wallet',                        component: WalletComponent,                  canActivate: [authGuard] },
   { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent,   canActivate: [authGuard] },

@@ -3,23 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TagsService, Tag } from '../../services/tags.service';
-import { UploadTrackService } from '../../services/upload-track.service';
+import { CudTrackService } from '../../services/cud-track.service';
 import { AuthService } from '../../services/auth.service';
+import { MUSICAL_KEYS } from '../../services/track.service';
 
-const MUSICAL_KEYS: string[] = [
-  'A minor',  'A major',
-  'A# minor', 'A# major',
-  'B minor',  'B major',
-  'C minor',  'C major',
-  'C# minor', 'C# major',
-  'D minor',  'D major',
-  'D# minor', 'D# major',
-  'E minor',  'E major',
-  'F minor',  'F major',
-  'F# minor', 'F# major',
-  'G minor',  'G major',
-  'G# minor', 'G# major',
-];
+
 
 interface TagGroup {
   name:  string;
@@ -89,9 +77,10 @@ export class UploadTrackComponent implements OnInit {
 
   constructor(
     private tagsService:   TagsService,
-    private uploadTrackService: UploadTrackService,
+    private cudTrackService: CudTrackService,
     private router:        Router,
     readonly auth:         AuthService,
+
   ) {}
 
   ngOnInit(): void {
@@ -131,7 +120,7 @@ export class UploadTrackComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.uploadTrackService.postTrack({
+    this.cudTrackService.postTrack({
       title:                    this.title(),
       bpm:                      this.bpm()!,
       key:                      this.key(),

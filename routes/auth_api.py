@@ -630,13 +630,13 @@ def submit_mixmaster_sample():
     try:
         price_min = float(request.form.get('price_min', 0))
         min_required   = round(reference_price * 0.35, 2)
-        max_allowed    = round(reference_price * 0.65, 2)
+        max_allowed    = round(reference_price * 0.80, 2)
         if price_min < min_required or price_min > max_allowed:
             raise ValueError
     except (ValueError, TypeError):
         return jsonify({'success': False,
                         'feedback': {'level': 'error',
-                                     'message': f'Prix minimum invalide (35%–65% du prix de référence).'}}), 422
+                                     'message': f'Prix minimum invalide (35%–80% du prix de référence).'}}), 422
 
     # ── Bio ─────────────────────────────────────────────────────────────────
     bio = (request.form.get('bio') or '').strip()

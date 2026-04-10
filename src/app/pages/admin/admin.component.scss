@@ -170,6 +170,30 @@
   &:hover { opacity: 0.7; }
 }
 
+.btn-icon-sm {
+  background: none; border: none; color: v.$text-muted; cursor: pointer;
+  font-size: 0.82rem; padding: 0.2rem 0.4rem;
+  &:hover { color: v.$tag-blue; }
+}
+
+.btn-primary-sm {
+  background: v.$tag-green; border: none; color: #fff; cursor: pointer;
+  font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 5px;
+  &:hover { opacity: 0.85; }
+}
+
+.btn-secondary-sm {
+  background: none; border: 1px solid v.$bg-border; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.78rem; padding: 0.2rem 0.5rem; border-radius: 5px;
+  &:hover { border-color: v.$text-secondary; }
+}
+
+.cat-edit-name {
+  flex: 1; background: v.$bg-elevated; border: 1px solid v.$tag-blue;
+  border-radius: 5px; padding: 0.2rem 0.5rem; font-size: 0.88rem;
+  color: v.$text-primary; outline: none;
+}
+
 // ── Thumbs ─────────────────────────────────────────────────────────────────────
 
 .thumb {

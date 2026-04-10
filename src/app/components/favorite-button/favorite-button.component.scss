@@ -11,8 +11,6 @@
   i { font-size: 0.9rem; line-height: 1; }
 
   &:hover:not(:disabled) {
-    background: rgba(236, 72, 153, 0.2);
-    border-color: rgba(236, 72, 153, 0.4);
     color: v.$tag-pink;
     transform: scale(1.1);
   }

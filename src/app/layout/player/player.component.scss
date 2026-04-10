@@ -8,7 +8,7 @@
   left:        0;
   right:       0;
   z-index:     1000;
-  background:  #111827;
+  background:  #0e0e11;
   border-top:  1px solid #374151;
   color:       #f3f4f6;
   padding:     0 16px 0 12px;
@@ -145,19 +145,26 @@
 }
 
 .player-meta-item {
-  background:    #1f2937;
-  border:        1px solid #374151;
+  background:    #252525;
+  border:        1px solid #ffffff;
   border-radius: 4px;
   padding:       2px 6px;
   font-size:     0.68rem;
-  color:         #9ca3af;
+  color:         #f8f8f8;
   white-space:   nowrap;
 }
 
 .player-meta-price {
   font-size:       0.68rem;
-  color:           #a78bfa;
+  color:           #000000;
+  background-color:white;
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  border-color: white;
   text-decoration: none;
+  font-weight: 700;
   white-space:     nowrap;
 
   &:hover { text-decoration: underline; }
@@ -241,7 +248,7 @@
 
 .volume-slider {
   width:        80px;
-  accent-color: #a78bfa;
+  accent-color: #d3d3d3;
   cursor:       pointer;
 }
 

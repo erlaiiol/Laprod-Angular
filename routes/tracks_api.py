@@ -77,7 +77,7 @@ def get_track(track_id):
         def tl_dict(tl):
             return {
                 'id':          tl.id,
-                'stream_url':  f'/stream/toplines/{tl.id}',
+                'stream_url':  f'/api/stream/toplines/{tl.id}',
                 'description': tl.description,
                 'created_at':  tl.created_at.isoformat(),
                 'is_published': tl.is_published,
@@ -101,7 +101,7 @@ def get_track(track_id):
                     'price_mp3':    float(track.price_mp3)    if track.price_mp3    else None,
                     'price_wav':    float(track.price_wav)    if track.price_wav    else None,
                     'price_stems':  float(track.price_stems)  if track.price_stems  else None,
-                    'stream_url':   f'/stream/tracks/{track.id}/preview',
+                    'stream_url':   f'/api/stream/tracks/{track.id}/preview',
                     'image_file':   track.image_file,
                     'composer_user': {
                         'id':            track.composer_user.id            if track.composer_user else None,
@@ -110,6 +110,7 @@ def get_track(track_id):
                     },
                     'tags': [
                         {
+                            'id' : tag.id,
                             'name':     tag.name,
                             'category': tag.category_obj.name  if tag.category_obj else 'other',
                             'color':    tag.category_obj.color if tag.category_obj else '#000000'
@@ -233,7 +234,7 @@ def get_tracks():
                 'composer_user': {
                     'username': track.composer_user.username if track.composer_user else None
                 },
-                'stream_url': f'/stream/tracks/{track.id}/preview',
+                'stream_url': f'/api/stream/tracks/{track.id}/preview',
                 'image_file': track.image_file,
                 'tags': [{'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else 'other', 'color': tag.category_obj.color if tag.category_obj else '#000000'} for tag in track.tags]
             }
@@ -300,7 +301,7 @@ def get_random_track():
             'composer_user': {
                 'username': track.composer_user.username if track.composer_user else None
             },
-            'stream_url':  f'/stream/tracks/{track.id}/preview',
+            'stream_url':  f'/api/stream/tracks/{track.id}/preview',
             'image_file':  track.image_file,
             'tags': [
                 {

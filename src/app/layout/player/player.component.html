@@ -37,7 +37,9 @@
     <!-- ── CENTER: waveform ────────────────────────────────────────────── -->
     <div class="waveform-container">
       <div #waveformContainer class="waveform-inner"></div>
-      <span class="preview-notice">Preview avec watermark (1:30)</span>
+      @if (player.currentTrack()?.id !== 0) {
+        <span class="preview-notice">Preview avec watermark (1:30)</span>
+      }
     </div>
 
     <!-- ── RIGHT: time + contextual section + volume + next ────────────── -->

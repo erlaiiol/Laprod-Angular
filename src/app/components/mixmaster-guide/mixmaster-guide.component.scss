@@ -15,7 +15,7 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 0.9rem;
-  color: v.$tag-blue;
+  color: #fff;
   list-style: none;
   user-select: none;
   border-radius: 10px;
@@ -46,9 +46,9 @@ details[open] .mix-guide__chevron {
   border-radius: 8px;
   padding: 1rem;
   font-size: 0.82rem;
-  color: v.$tag-neutral-light;
+  color: #fff;
 
-  strong { color: v.$tag-blue; }
+  strong { color: #fff; }
 
   p { margin: 0.4rem 0; }
 
@@ -78,7 +78,7 @@ details[open] .mix-guide__chevron {
 
 .guide-note {
   margin-top: 0.5rem !important;
-  color: v.$tag-blue;
+  color: #fff;
   font-weight: 500;
 }
 
@@ -86,7 +86,7 @@ details[open] .mix-guide__chevron {
   h6 {
     font-size: 0.82rem;
     font-weight: 700;
-    color: v.$tag-blue;
+    color: white;
     margin: 0 0 0.6rem;
     display: flex;
     align-items: center;

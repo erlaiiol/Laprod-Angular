@@ -32,8 +32,8 @@ def get_my_purchases():
             'contract_price':          p.contract_price,
             'has_contract':            bool(p.contract_file),
             'created_at':              p.created_at.isoformat(),
-            'stream_url':              f'/stream/tracks/{p.track_id}/download/{p.format_purchased}',
-            'contract_url':            f'/stream/contracts/{p.id}' if p.contract_file else None,
+            'stream_url':              f'/api/stream/tracks/{p.track_id}/download/{p.format_purchased}',
+            'contract_url':            f'/api/stream/contracts/{p.id}' if p.contract_file else None,
             'track': {
                 'id':                  p.track.id,
                 'title':               p.track.title,

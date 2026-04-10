@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, signal, inject,
+  Component, OnInit, OnDestroy, signal, inject, computed,
   ChangeDetectionStrategy, ChangeDetectorRef, effect
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -33,6 +33,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   auth             = inject(AuthService);
   private cdr      = inject(ChangeDetectorRef);
   private toast    = inject(ToastService);
+  
 
   constructor() {
     // Open the recorder whenever the player requests it
@@ -130,5 +131,12 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
     this.showRecorder.set(false);
     this.cdr.markForCheck();
   }
+
+  canEditTrack = computed(() => {
+    const user = this.auth.currentUser();
+    const t = this.track();
+    if (!user || !t) return false;
+    return user.id === t.composer_user.id || user.roles?.is_admin;
+  });
 
 }

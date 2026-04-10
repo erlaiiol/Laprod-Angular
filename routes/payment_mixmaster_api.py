@@ -46,7 +46,7 @@ def verify_payment():
 
         payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
 
-        if payment_intent.status not in ('requires_capture', 'succeeded'):
+        if payment_intent.status != 'succeeded':
             return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Paiement non confirmé (statut : {payment_intent.status}).'}}), 400
 
         meta = payment_intent.metadata
@@ -95,7 +95,7 @@ def verify_payment():
             brief_structure      = meta.get('brief_structure')      or None,
             status                    = 'awaiting_acceptance',
             stripe_payment_intent_id  = payment_intent_id,
-            stripe_payment_status     = 'authorized',
+            stripe_payment_status     = 'captured',  # capture_method=automatic → fonds déjà prélevés
             total_price               = 0,
             deposit_amount            = 0,
             remaining_amount          = 0,

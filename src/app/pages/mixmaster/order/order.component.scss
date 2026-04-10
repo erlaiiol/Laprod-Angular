@@ -64,37 +64,92 @@
   input[type="text"], textarea {
     background: v.$bg-elevated; border: 1px solid v.$bg-border;
     border-radius: 7px; padding: 0.55rem 0.75rem; font-size: 0.85rem;
-    color: v.$text-primary; outline: none; resize: vertical;
+    color: v.$text-primary; outline: none; resize: vertical; line-height: 1.55;
     &:focus { border-color: v.$tag-blue; }
+    &::placeholder { color: v.$text-muted; }
   }
-  input[type="file"] {
-    font-size: 0.83rem; color: v.$text-secondary;
+}
+
+// ── Zone d'upload stylisée ─────────────────────────────────────────────────
+
+.file-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+  background: v.$bg-elevated; border: 2px dashed v.$bg-border;
+  border-radius: 10px; padding: 1.25rem 1rem; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+
+  &:hover { border-color: v.$tag-blue; background: rgba(59,130,246,0.06); }
+
+  i { font-size: 1.6rem; color: v.$text-muted; }
+
+  .file-drop-hint { font-size: 0.85rem; font-weight: 600; color: v.$text-secondary; }
+  .file-drop-sub  { font-size: 0.75rem; color: v.$text-muted; }
+
+  &.has-file {
+    border-style: solid; border-color: v.$tag-green;
+    background: rgba(16,185,129,0.06);
+    i { color: v.$tag-green; }
   }
-  .file-name {
-    font-size: 0.78rem; color: v.$tag-green;
-    i { margin-right: 0.25rem; }
-  }
+  .file-drop-name   { font-size: 0.85rem; font-weight: 700; color: v.$tag-green; word-break: break-all; }
+  .file-drop-change { font-size: 0.75rem; color: v.$text-muted; text-decoration: underline; }
+}
+
+.mandatory-notice {
+  display: flex; align-items: flex-start; gap: 0.4rem;
+  font-size: 0.78rem; color: #fcd34d; margin: 0 0 0.4rem;
+  i { margin-top: 0.1rem; flex-shrink: 0; }
 }
 
 .checkboxes { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .chk-row {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
   font-size: 0.85rem; color: v.$text-secondary; cursor: pointer;
-  input[type="checkbox"] { accent-color: v.$tag-blue; width: 15px; height: 15px; }
+  input[type="checkbox"] { accent-color: v.$tag-blue; width: 15px; height: 15px; flex-shrink: 0; }
   &:hover { color: v.$text-primary; }
+
+  &.chk-artistic { color: #fcd34d; }
+}
+
+.chk-price {
+  margin-left: auto; font-size: 0.8rem; font-weight: 700; color: v.$tag-green; white-space: nowrap;
+}
+
+.chk-mandatory {
+  font-size: 0.68rem; font-weight: 700; color: #fcd34d;
+  background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3);
+  padding: 0.05rem 0.45rem; border-radius: 8px; white-space: nowrap;
+}
+
+.chk-locked {
+  opacity: 0.75; cursor: default;
+  input[type="checkbox"] { cursor: not-allowed; }
+}
+
+.chk-badge-certif {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  font-size: 0.65rem; font-weight: 600; color: #fbbf24;
+  background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3);
+  padding: 0.05rem 0.4rem; border-radius: 8px; white-space: nowrap;
 }
 
 .briefing-accordion {
   border: 1px solid v.$bg-border; border-radius: 8px; padding: 0.75rem 1rem;
   summary {
     font-size: 0.85rem; font-weight: 600; color: v.$text-secondary; cursor: pointer;
+    display: flex; align-items: center; gap: 0.4rem;
     &:hover { color: v.$text-primary; }
+    i { font-size: 0.9rem; }
   }
 }
 
+.briefing-intro {
+  font-size: 0.78rem; color: v.$text-muted; margin: 0.6rem 0 0.75rem; line-height: 1.5;
+}
+
 .briefing-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
   @media (max-width: 500px) { grid-template-columns: 1fr; }
 }
 

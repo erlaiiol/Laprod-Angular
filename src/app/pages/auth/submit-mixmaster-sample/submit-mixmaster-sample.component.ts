@@ -15,7 +15,7 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class SubmitMixmasterSampleComponent {
 
-  private apiUrl = `${environment.apiUrl}/auth/submit-mixmaster-sample`;
+  private apiUrl = `${environment.apiUrl}/api/auth/submit-mixmaster-sample`;
 
   // ── Form fields ──────────────────────────────────────────────────────────
   referencePrice = signal<number | null>(null);
@@ -37,7 +37,7 @@ export class SubmitMixmasterSampleComponent {
 
   maxAllowed = computed(() => {
     const ref = this.referencePrice();
-    return ref ? Math.round(ref * 0.65) : null;
+    return ref ? Math.round(ref * 0.80) : null;
   });
 
   priceError = computed(() => {
@@ -47,7 +47,7 @@ export class SubmitMixmasterSampleComponent {
     if (min < (this.minRequired() ?? 0))
       return `Le prix minimum doit être au moins ${this.minRequired()}€ (35% du prix de référence).`;
     if (min > (this.maxAllowed() ?? Infinity))
-      return `Le prix minimum ne peut pas dépasser ${this.maxAllowed()}€ (65% de ${Math.round(ref)}€).`;
+      return `Le prix minimum ne peut pas dépasser ${this.maxAllowed()}€ (80% de ${Math.round(ref)}€).`;
     return null;
   });
 
@@ -62,25 +62,42 @@ export class SubmitMixmasterSampleComponent {
     const mastering = r2(ref * 0.20);
     const stems     = r2(ref * 0.20);
     return [
-      { name: 'Nettoyage seul',                    pct: 35,  price: cleaning },
-      { name: 'Nettoyage + Mastering',              pct: 55,  price: r2(cleaning + mastering) },
-      { name: 'Nettoyage + Effets + Mastering',     pct: 100, price: r2(cleaning + effects + mastering) },
-      { name: 'Tous les services',                   pct: 160, price: r2(cleaning + effects + artistic + mastering) },
-      { name: 'Tous + pistes séparées',              pct: 180, price: r2(cleaning + effects + artistic + mastering + stems) },
+      { name: 'Nettoyage seul',                       pct: 35,  price: cleaning,                                          certified: false },
+      { name: 'Nettoyage + Mastering',                 pct: 55,  price: r2(cleaning + mastering),                         certified: false },
+      { name: 'Nettoyage + Effets',                    pct: 80,  price: r2(cleaning + effects),                           certified: false },
+      { name: 'Nettoyage + Effets + Mastering',        pct: 100, price: r2(cleaning + effects + mastering),               certified: false },
+      { name: 'Tous les services (+ artistique)',       pct: 160, price: r2(cleaning + effects + artistic + mastering),    certified: true  },
+      { name: 'Tous les services + pistes séparées',   pct: 180, price: r2(cleaning + effects + artistic + mastering + stems), certified: true },
     ];
   });
 
-  // ── Auto-included services at price_min ───────────────────────────────────
+  // ── Palier actif selon price_min ─────────────────────────────────────────
+  // 35%–54% → Nettoyage seul
+  // 55%–79% → Nettoyage + Mastering
+  // 80%–99% → Nettoyage + Effets  (remplace le mastering par les effets)
+  // ≥ 100%  → Nettoyage + Effets + Mastering
   autoServices = computed(() => {
     const ref = this.referencePrice();
     const min = this.priceMin();
     if (!ref || !min || ref <= 0) return [];
     const pct = (min / ref) * 100;
-    const services = [];
-    if (pct >= 35) services.push({ name: 'Nettoyage et équilibre', pct: 35, price: Math.round(ref * 0.35 * 100) / 100 });
-    if (pct >= 80) services.push({ name: 'Mixage avec effets',     pct: 45, price: Math.round(ref * 0.45 * 100) / 100 });
-    if (pct >= 100) services.push({ name: 'Mastering final',       pct: 20, price: Math.round(ref * 0.20 * 100) / 100 });
-    return services;
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    if (pct >= 100) return [
+      { name: 'Nettoyage & équilibre', pct: 35, price: r2(ref * 0.35) },
+      { name: 'Mixage avec effets',    pct: 45, price: r2(ref * 0.45) },
+      { name: 'Mastering final',       pct: 20, price: r2(ref * 0.20) },
+    ];
+    if (pct >= 80) return [
+      { name: 'Nettoyage & équilibre', pct: 35, price: r2(ref * 0.35) },
+      { name: 'Mixage avec effets',    pct: 45, price: r2(ref * 0.45) },
+    ];
+    if (pct >= 55) return [
+      { name: 'Nettoyage & équilibre', pct: 35, price: r2(ref * 0.35) },
+      { name: 'Mastering final',       pct: 20, price: r2(ref * 0.20) },
+    ];
+    return [
+      { name: 'Nettoyage & équilibre', pct: 35, price: r2(ref * 0.35) },
+    ];
   });
 
   canSubmit = computed(() =>

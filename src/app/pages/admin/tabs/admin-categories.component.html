@@ -16,12 +16,23 @@
     @for (cat of categories(); track cat.id) {
       <div class="cat-item">
         <div class="cat-header">
-          <span class="cat-dot" [style.background]="cat.color"></span>
-          <strong>{{ cat.name }}</strong>
-          <span class="small">({{ cat.tags.length }} tag{{ cat.tags.length > 1 ? 's' : '' }})</span>
-          <button class="btn-danger-sm" (click)="deleteCategory(cat)" title="Supprimer la catégorie">
-            <i class="bi bi-trash"></i>
-          </button>
+          @if (editingId() === cat.id) {
+            <input type="color" [ngModel]="editColor()" (ngModelChange)="editColor.set($event)" title="Couleur">
+            <input class="cat-edit-name" [ngModel]="editName()" (ngModelChange)="editName.set($event)"
+                   (keyup.enter)="saveEdit(cat)" (keyup.escape)="cancelEdit()" placeholder="Nom de la catégorie">
+            <button class="btn-primary-sm" (click)="saveEdit(cat)" title="Enregistrer"><i class="bi bi-check-lg"></i></button>
+            <button class="btn-secondary-sm" (click)="cancelEdit()" title="Annuler"><i class="bi bi-x-lg"></i></button>
+          } @else {
+            <span class="cat-dot" [style.background]="cat.color"></span>
+            <strong>{{ cat.name }}</strong>
+            <span class="small">({{ cat.tags.length }} tag{{ cat.tags.length > 1 ? 's' : '' }})</span>
+            <button class="btn-icon-sm" (click)="startEdit(cat)" title="Modifier nom / couleur">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn-danger-sm" (click)="deleteCategory(cat)" title="Supprimer la catégorie">
+              <i class="bi bi-trash"></i>
+            </button>
+          }
         </div>
         <div class="tag-list">
           @for (tag of cat.tags; track tag.id) {
