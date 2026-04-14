@@ -5,13 +5,14 @@
 // Écrit les filtres sélectionnés dans FilterStateService → Home recharge.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
-import { TagsService, Tag } from '../../services/tags.service';
+import { TagsService } from '../../services/tags.service';
 import { FilterStateService } from '../../services/filter-state.service';
 import { AuthService } from '../../services/auth.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-navbar',
@@ -52,12 +53,12 @@ export class NavbarComponent implements OnInit {
 
   filtersOpen = signal(false);
 
+  private notifSvc = inject(NotificationService);
+
   constructor(
-    private tagsService:      TagsService,
+    private tagsService:        TagsService,
     private filterStateService: FilterStateService,
-    private authService: AuthService,
-    // FilterStateService est injecté ici pour écrire les filtres appliqués.
-    // Home l'injecte lui aussi pour les lire — c'est le canal de communication.
+    private authService:        AuthService,
   ) {}
 
   tags = computed(() => this.tagsService.tags())
@@ -69,7 +70,7 @@ export class NavbarComponent implements OnInit {
   isMixEngineer = computed(() => this.authService.isMixEngineer());
   isAdmin       = computed(() => this.authService.isAdmin());
   username      = computed(() => this.authService.currentUser()?.username || '');
-  notifCount    = computed(() => this.authService.currentUser()?.notif_count || 0);
+  notifCount    = computed(() => this.notifSvc.unreadCount());
 
 
 
@@ -99,7 +100,11 @@ export class NavbarComponent implements OnInit {
 
 
   ngOnInit(): void {
-    this.tagsService.loadTags();
+    this.tagsService.loadTags().subscribe({
+      next:     () => this.loading.set(false),
+      error:    () => this.loading.set(false),
+      complete: () => this.loading.set(false),
+    });
   }
 
 

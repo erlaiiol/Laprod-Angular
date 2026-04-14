@@ -23,6 +23,10 @@ export interface CheckoutData {
   total:        number;
 }
 
+export interface VerifyPurchaseData {
+  purchase_id: number;
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
@@ -49,5 +53,16 @@ export class PaymentService {
   /** Redirige le navigateur vers l'URL Stripe Checkout. */
   redirectToCheckout(url: string): void {
     window.location.href = url;
+  }
+
+  /**
+   * Vérifie la session Stripe et crée le Purchase côté serveur.
+   * Appelé par TrackPaymentSuccessComponent après redirection Stripe.
+   */
+  verifyPayment(sessionId: string): Observable<ApiResponse<VerifyPurchaseData>> {
+    return this.http.post<ApiResponse<VerifyPurchaseData>>(
+      `${this.apiUrl}/verify`,
+      { session_id: sessionId },
+    );
   }
 }

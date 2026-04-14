@@ -21,15 +21,20 @@ export class RegisterComponent {
   signature       = '';
   acceptTerms     = false;
 
-  loading        = signal(false);
-  error          = signal<string | null>(null);
-  confirmedEmail = signal<string | null>(null); // success state
+  loading          = signal(false);
+  resendLoading    = signal(false);
+  error            = signal<string | null>(null);
+  confirmedEmail   = signal<string | null>(null);
+  // Email en attente de vérification (compte déjà créé, mail non vérifié)
+  pendingEmail     = signal<string | null>(null);
+  resendSuccess    = signal(false);
 
   constructor(private authService: AuthService) {}
 
   onSubmit(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.pendingEmail.set(null);
 
     this.authService.register(
       this.username,
@@ -48,10 +53,27 @@ export class RegisterComponent {
           }
         },
         error: (err) => {
-          this.error.set(
-            err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
-          );
+          if (err?.error?.code === 'PENDING_EMAIL_VERIFICATION') {
+            this.pendingEmail.set(err.error.data?.email ?? this.email);
+          } else {
+            this.error.set(
+              err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
+            );
+          }
         },
+      });
+  }
+
+  resendVerification(): void {
+    const email = this.pendingEmail();
+    if (!email || this.resendLoading()) return;
+    this.resendLoading.set(true);
+    this.resendSuccess.set(false);
+    this.authService.resendVerification(email)
+      .pipe(finalize(() => this.resendLoading.set(false)))
+      .subscribe({
+        next: () => this.resendSuccess.set(true),
+        error: () => this.error.set('Erreur lors du renvoi. Réessayez.'),
       });
   }
 }

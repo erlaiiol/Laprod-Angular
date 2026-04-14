@@ -15,6 +15,7 @@ import { RouterLink } from '@angular/router';
 import WaveSurfer from 'wavesurfer.js';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
+import { MixOrderContext } from '../../services/player.service';
 
 @Component({
   selector: 'app-player',
@@ -32,7 +33,9 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   trackSvc = inject(TrackService);
 
   /** Whether the player is in track_detail context (viewingTrack is set). */
-  isDetailContext = computed(() => this.player.viewingTrack() !== null);
+  isDetailContext    = computed(() => this.player.viewingTrack() !== null);
+  /** Whether the player is showing a mix order reference/preview. */
+  isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
 
   /** True when the currently playing track IS the viewing track → actions work directly. */
   isViewingTrackLoaded = computed(() => {
@@ -59,7 +62,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
     this.wavesurfer = WaveSurfer.create({
       container:     this.waveformContainer.nativeElement,
       waveColor:     '#4a5568',
-      progressColor: '#a78bfa',
+      progressColor: '#ffffff',
       cursorColor:   '#ffffff',
       height:        48,
       barWidth:      2,
@@ -134,6 +137,21 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
     const track = this.player.currentTrack();
     if (!track?.image_file) return 'assets/placeholder-track.png';
     return this.trackSvc.getStaticFileUrl(track.image_file);
+  }
+
+  mixStatusLabel(ctx: MixOrderContext): string {
+    const labels: Record<string, string> = {
+      awaiting_acceptance: 'En attente',
+      accepted:            'Acceptée',
+      processing:          'En cours',
+      delivered:           'Livrée',
+      revision1:           'Révision 1',
+      revision2:           'Révision 2',
+      completed:           'Terminée',
+      rejected:            'Refusée',
+      refunded:            'Remboursée',
+    };
+    return labels[ctx.status] ?? ctx.status;
   }
 
   formatTime(seconds: number): string {

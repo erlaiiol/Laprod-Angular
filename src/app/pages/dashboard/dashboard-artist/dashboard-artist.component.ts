@@ -1,14 +1,17 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../services/auth.service';
 import { DashboardService, ArtistDashboard, ArtistMixRequest } from '../../../services/dashboard.service';
 import { MixmasterService } from '../../../services/mixmaster.service';
+import { PurchasesService, PurchasesData } from '../../../services/purchases.service';
+import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
-type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster';
+type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases';
 
 @Component({
   selector: 'app-dashboard-artist',
@@ -17,26 +20,51 @@ type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster';
   templateUrl: './dashboard-artist.component.html',
   styleUrls: ['./dashboard-artist.component.scss'],
 })
-export class DashboardArtistComponent implements OnInit {
+export class DashboardArtistComponent implements OnInit, OnDestroy {
 
   loading   = signal(true);
   error     = signal<string | null>(null);
   data      = signal<ArtistDashboard | null>(null);
   activeTab = signal<Tab>('toplines');
 
-  revisionInput   = signal('');
-  revisionOrderId = signal<number | null>(null);
+  revisionInput    = signal('');
+  revisionOrderId  = signal<number | null>(null);
+  rejectOrderId    = signal<number | null>(null);
   actionInProgress = signal<number | null>(null);
 
-  readonly auth    = inject(AuthService);
-  private dashSvc  = inject(DashboardService);
-  private mixSvc   = inject(MixmasterService);
-  private router   = inject(Router);
-  private toast    = inject(ToastService);
+  purchases        = signal<PurchasesData | null>(null);
+  purchasesLoading = signal(false);
+
+  readonly auth        = inject(AuthService);
+  readonly player      = inject(PlayerService);
+  private dashSvc      = inject(DashboardService);
+  private mixSvc       = inject(MixmasterService);
+  private purchasesSvc = inject(PurchasesService);
+  private router       = inject(Router);
+  private toast        = inject(ToastService);
+  private http         = inject(HttpClient);
+  private route        = inject(ActivatedRoute);
+
+  // Blob URLs gérés localement (libérés dans ngOnDestroy)
+  private blobUrls = new Map<string, string>();
 
   ngOnInit(): void {
+    
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     this.loadDashboard();
+
+    // Synchronisation tab <-> query param
+    this.route.queryParamMap.subscribe(params => {
+      const tab = params.get('tab') as Tab | null;
+      if (tab) {
+        this.setTab(tab as any);
+      }
+    })
+  }
+
+  ngOnDestroy(): void {
+    this.blobUrls.forEach(url => URL.revokeObjectURL(url));
+    this.blobUrls.clear();
   }
 
   private loadDashboard(): void {
@@ -56,14 +84,30 @@ export class DashboardArtistComponent implements OnInit {
     });
   }
 
-  setTab(tab: Tab): void { this.activeTab.set(tab); }
+  setTab(tab: Tab): void {
+    this.activeTab.set(tab);
+    this.router.navigate([], { queryParams: { tab }, queryParamsHandling: 'merge' });
+    if (tab === 'purchases' && !this.purchases()) {
+      this.loadPurchases();
+    }
+  }
+
+  private loadPurchases(): void {
+    this.purchasesLoading.set(true);
+    this.purchasesSvc.getMyPurchases().subscribe({
+      next: (res) => {
+        if (res.success) this.purchases.set(res.data!);
+        this.purchasesLoading.set(false);
+      },
+      error: () => {
+        this.toast.showToast({ level: 'error', message: 'Impossible de charger vos achats.' });
+        this.purchasesLoading.set(false);
+      },
+    });
+  }
 
   imgUrl(path: string | null): string {
     return path ? `${environment.apiUrl}/static/${path}` : '/assets/placeholder-track.png';
-  }
-
-  fileUrl(url: string | null): string {
-    return url ? `${environment.apiUrl}${url}` : '';
   }
 
   formatDate(iso: string | null): string {
@@ -137,7 +181,7 @@ export class DashboardArtistComponent implements OnInit {
   }
 
   approveOrder(orderId: number): void {
-    if (!confirm('Approuver la livraison et finaliser la commande ?')) return;
+    if (!confirm('Confirmer la validation ? Le solde restant sera versé à l\'ingénieur et vous pourrez télécharger le fichier final. Cette action est irréversible.')) return;
     if (this.actionInProgress() !== null) return;
     this.actionInProgress.set(orderId);
     this.mixSvc.approveOrder(orderId).subscribe({
@@ -152,7 +196,145 @@ export class DashboardArtistComponent implements OnInit {
     });
   }
 
-  downloadUrl(orderId: number): string {
-    return `${environment.apiUrl}/mixmaster-artist/download/${orderId}`;
+  openRejectDelivery(orderId: number): void {
+    this.rejectOrderId.set(orderId);
+  }
+
+  confirmRejectDelivery(): void {
+    const orderId = this.rejectOrderId();
+    if (!orderId || this.actionInProgress() !== null) return;
+    this.actionInProgress.set(orderId);
+    this.mixSvc.rejectDelivery(orderId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.rejectOrderId.set(null);
+          this.loadDashboard();
+        }
+        this.actionInProgress.set(null);
+      },
+      error: (err) => {
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors du refus.' });
+        this.actionInProgress.set(null);
+      },
+    });
+  }
+
+  rejectRefundAmount(): number {
+    const id = this.rejectOrderId();
+    if (!id) return 0;
+    return this.data()?.mm_requests.find(r => r.id === id)?.refund_amount ?? 0;
+  }
+
+  // ── Audio (JWT blob → player global) ─────────────────────────────────────
+
+  /**
+   * Charge un fichier audio via l'endpoint protégé JWT → Blob URL → player global.
+   * Si le même blob est déjà dans le player, bascule play/pause.
+   * mediaType : 'preview' | 'preview_full' | 'reference'
+   */
+  private fetchAndPlayMix(
+    cacheKey:  string,
+    orderId:   number,
+    mediaType: string,
+    order:     ArtistMixRequest,
+  ): void {
+    const existing = this.blobUrls.get(cacheKey);
+    if (existing && this.player.currentTrack()?.stream_url === existing) {
+      this.player.togglePlay();
+      return;
+    }
+    const url = `${environment.apiUrl}/api/mixmaster-media/${orderId}/${mediaType}`;
+    this.http.get(url, {
+      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.blobUrls.set(cacheKey, blobUrl);
+        this.player.playMixAudio(blobUrl, {
+          orderId:    order.id,
+          orderTitle: order.title,
+          status:     order.status,
+          personName: order.engineer_username,
+        });
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Impossible de charger l\'audio.' }),
+    });
+  }
+
+  playPreview(mediaType: 'preview' | 'preview_full', order: ArtistMixRequest): void {
+    this.fetchAndPlayMix(`${order.id}_${mediaType}`, order.id, mediaType, order);
+  }
+
+  isPlayingPreview(orderId: number, mediaType: string): boolean {
+    const url = this.blobUrls.get(`${orderId}_${mediaType}`);
+    return !!url && this.player.currentTrack()?.stream_url === url && this.player.isPlaying();
+  }
+
+  playReference(order: ArtistMixRequest): void {
+    this.fetchAndPlayMix(`${order.id}_reference`, order.id, 'reference', order);
+  }
+
+  isPlayingReference(order: ArtistMixRequest): boolean {
+    const url = this.blobUrls.get(`${order.id}_reference`);
+    return !!url && this.player.currentTrack()?.stream_url === url && this.player.isPlaying();
+  }
+
+  // ── Téléchargement final (JWT blob, anti-rip) ─────────────────────────────
+
+  downloadFinal(orderId: number): void {
+    const url = `${environment.apiUrl}/api/mixmaster-artist/download/${orderId}`;
+    this.http.get(url, {
+      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href     = blobUrl;
+        a.download = `mixmaster_${orderId}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Téléchargement impossible.' }),
+    });
+  }
+
+  // ── Helpers achats ────────────────────────────────────────────────────────
+
+  formatLabel(format: string): string {
+    const labels: Record<string, string> = { mp3: 'MP3', wav: 'WAV', stems: 'STEMS' };
+    return labels[format] ?? format.toUpperCase();
+  }
+
+  private _jwtDownload(relativeUrl: string, filename: string, mime: string): void {
+    const url = `${environment.apiUrl}${relativeUrl}`;
+    this.http.get(url, {
+      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(new Blob([blob], { type: mime }));
+        const a = document.createElement('a');
+        a.href = blobUrl; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Téléchargement impossible.' }),
+    });
+  }
+
+  downloadPurchase(p: { stream_url: string; format: string; track: { title: string } | null }): void {
+    const ext  = p.format === 'stems' ? 'zip' : p.format;
+    const mime = p.format === 'stems' ? 'application/zip'
+               : p.format === 'wav'   ? 'audio/wav' : 'audio/mpeg';
+    this._jwtDownload(p.stream_url, `${p.track?.title ?? 'beat'}.${ext}`, mime);
+  }
+
+  downloadContract(p: { contract_url: string | null; track: { title: string } | null; format: string }): void {
+    if (!p.contract_url) return;
+    this._jwtDownload(p.contract_url, `contrat_${p.track?.title ?? 'beat'}_${p.format}.pdf`, 'application/pdf');
   }
 }

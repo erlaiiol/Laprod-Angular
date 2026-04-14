@@ -256,6 +256,12 @@ MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@laprod.net'
 MAIL_MAX_EMAILS = None  # Pas de limite
 MAIL_ASCII_ATTACHMENTS = False
 
+# ============================================
+# URL FRONTEND (SPA Angular)
+# ============================================
+
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
+
 
 # ============================================
 # CONFIGURATION SERVEUR

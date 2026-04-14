@@ -1,8 +1,9 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
-import { PurchasesService, PurchasesData } from '../../services/purchases.service';
+import { PurchasesService, PurchasesData, PurchaseItem } from '../../services/purchases.service';
 import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
@@ -23,6 +24,7 @@ export class PurchasesComponent implements OnInit {
   private purchasesSvc = inject(PurchasesService);
   private router       = inject(Router);
   private toast        = inject(ToastService);
+  private http         = inject(HttpClient);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -56,11 +58,31 @@ export class PurchasesComponent implements OnInit {
     return labels[format] ?? format.toUpperCase();
   }
 
-  downloadUrl(streamUrl: string): string {
-    return `${environment.apiUrl}${streamUrl}`;
+  private _jwtDownload(relativeUrl: string, filename: string, mime: string): void {
+    this.http.get(`${environment.apiUrl}${relativeUrl}`, {
+      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(new Blob([blob], { type: mime }));
+        const a = document.createElement('a');
+        a.href = blobUrl; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Téléchargement impossible.' }),
+    });
   }
 
-  contractUrl(url: string): string {
-    return `${environment.apiUrl}${url}`;
+  downloadPurchase(p: PurchaseItem): void {
+    const ext  = p.format === 'stems' ? 'zip' : p.format;
+    const mime = p.format === 'stems' ? 'application/zip'
+               : p.format === 'wav'   ? 'audio/wav' : 'audio/mpeg';
+    this._jwtDownload(p.stream_url, `${p.track?.title ?? 'beat'}.${ext}`, mime);
+  }
+
+  downloadContract(p: PurchaseItem): void {
+    if (!p.contract_url) return;
+    this._jwtDownload(p.contract_url, `contrat_${p.track?.title ?? 'beat'}_${p.format}.pdf`, 'application/pdf');
   }
 }

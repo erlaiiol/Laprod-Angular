@@ -200,6 +200,7 @@ def get_artist_dashboard():
             'can_request_revision':  can_rev,
             'is_expired':            o.is_expired(),
             'final_transfer_amount': o.get_final_transfer_amount(),
+            'refund_amount':         o.get_refund_amount(),
             'engineer_username':     o.engineer.username if o.engineer else None,
             'engineer_image':        o.engineer.profile_image if o.engineer else None,
             'engineer_id':           o.engineer_id,
@@ -305,7 +306,12 @@ def get_mix_engineer_dashboard():
             'original_file_url':               f'/static/{o.original_file}' if o.original_file else None,
             'processed_file_preview_url':      f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
             'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
-            'archive_file_tree': o.archive_file_tree or [],
+            'archive_file_tree': [
+                # Rétrocompatibilité : anciens enregistrements stockaient des dicts {path, name, ...}
+                (f['path'] if isinstance(f, dict) else f)
+                for f in (o.archive_file_tree or [])
+                if not (isinstance(f, dict) and f.get('is_dir'))
+            ],
             'created_at':      o.created_at.isoformat(),
             'accepted_at':     o.accepted_at.isoformat() if o.accepted_at else None,
             'deadline':        o.deadline.isoformat() if o.deadline else None,

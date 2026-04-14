@@ -68,13 +68,13 @@
                 }
               </div>
               <div class="card-actions">
-                <a [href]="downloadUrl(p.stream_url)" class="btn-download" target="_blank" rel="noopener">
+                <button class="btn-download" (click)="downloadPurchase(p)">
                   <i class="bi bi-download"></i> Télécharger
-                </a>
+                </button>
                 @if (p.has_contract && p.contract_url) {
-                  <a [href]="contractUrl(p.contract_url)" class="btn-contract" target="_blank" rel="noopener">
+                  <button class="btn-contract" (click)="downloadContract(p)">
                     <i class="bi bi-file-earmark-pdf"></i> Contrat
-                  </a>
+                  </button>
                 } @else {
                   <span class="no-contract"><i class="bi bi-file-earmark-x"></i> Pas de contrat</span>
                 }

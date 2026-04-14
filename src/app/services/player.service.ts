@@ -3,6 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Track } from './track.service';
 import { environment } from '../../environments/environment';
 
+/** Contexte d'une commande de mixage en cours de lecture dans le player. */
+export interface MixOrderContext {
+  orderId:    number;
+  orderTitle: string;
+  status:     string;
+  personName: string | null; // engineer (côté artiste) ou artiste (côté engineer)
+}
+
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
 
@@ -13,9 +21,11 @@ export class PlayerService {
   duration      = signal(0);
   volume        = signal(0.8);
 
-  // ── Context signals (set by TrackDetailComponent) ─────────────────────────
-  /** Track whose detail page is currently open — drives player contextual buttons. */
-  viewingTrack  = signal<Track | null>(null);
+  // ── Context signals ───────────────────────────────────────────────────────
+  /** Track dont la page détail est ouverte — active les boutons Download/REC. */
+  viewingTrack    = signal<Track | null>(null);
+  /** Commande de mixage dont l'audio est lu — affiche le statut dans le player. */
+  viewingMixOrder = signal<MixOrderContext | null>(null);
   /** Increments each time the player asks the detail page to open the recorder. */
   recRequested  = signal(0);
 
@@ -67,6 +77,8 @@ export class PlayerService {
   play(track: Track): void {
     this.playOnReady = true;
     this.currentTrack.set(track);
+    // Jouer un beat normal efface le contexte mix order (et inversement)
+    this.viewingMixOrder.set(null);
     // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
     if (track.id && track.stream_url?.includes('/preview') && localStorage.getItem('access_token')) {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
@@ -98,10 +110,35 @@ export class PlayerService {
     this.volume.set(Math.max(0, Math.min(1, value)));
   }
 
+  /**
+   * Joue un audio de commande de mixage (Blob URL JWT) et affiche le statut dans le player.
+   * blobUrl doit être un `URL.createObjectURL(blob)` créé par le composant appelant.
+   */
+  playMixAudio(blobUrl: string, ctx: MixOrderContext): void {
+    const track: Track = {
+      id:            0,
+      title:         `Référence de : ${ctx.orderTitle}`,
+      stream_url:    blobUrl,
+      image_file:    '',
+      composer_user: { username: ctx.personName ?? '' },
+      bpm:           0,
+      key:           '',
+      style:         '',
+      price_mp3:     0,
+      tags:          [],
+      is_approved:   true,
+    };
+    this.playOnReady = true;
+    this.currentTrack.set(track);
+    this.viewingTrack.set(null);
+    this.viewingMixOrder.set(ctx);
+  }
+
   close(): void {
     this.audioEl.pause();
     this.audioEl.src = '';
     this.currentTrack.set(null);
+    this.viewingMixOrder.set(null);
     this.isPlaying.set(false);
     this.currentTime.set(0);
     this.duration.set(0);
@@ -129,7 +166,10 @@ export class PlayerService {
 
   buildAudioUrl(track: Track): string {
     if (!track.stream_url) return '';
-    if (track.stream_url.startsWith('http')) return track.stream_url;
+    // Blob URLs (createObjectURL) et URLs absolues passent tels quels
+    if (track.stream_url.startsWith('blob:') || track.stream_url.startsWith('http')) {
+      return track.stream_url;
+    }
     return `${environment.apiUrl}${track.stream_url}`;
   }
 

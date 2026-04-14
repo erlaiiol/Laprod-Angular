@@ -135,6 +135,12 @@ export class MixmasterService {
     );
   }
 
+  rejectDelivery(orderId: number): Observable<ApiResponse<{ refund_amount: number }>> {
+    return this.http.post<ApiResponse<{ refund_amount: number }>>(
+      `${this.apiUrl}/api/mixmaster-artist/reject-delivery/${orderId}`, {}
+    );
+  }
+
   // ── Engineer actions ───────────────────────────────────────────────────────
 
   acceptOrder(orderId: number): Observable<ApiResponse<void>> {

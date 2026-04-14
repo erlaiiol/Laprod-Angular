@@ -16,8 +16,32 @@
       </div>
     }
 
+    <!-- ── Email en attente de vérification ───────────────────────────────── -->
+    @if (pendingEmail()) {
+      <div class="confirm-panel">
+        <div class="confirm-icon"><i class="bi bi-envelope-exclamation"></i></div>
+        <h2>Email non vérifié</h2>
+        <p>
+          Un compte existe déjà avec l'adresse <strong>{{ pendingEmail() }}</strong>
+          mais l'email n'a pas encore été vérifié.
+        </p>
+        @if (resendSuccess()) {
+          <p class="confirm-spam"><i class="bi bi-check-circle"></i> Nouveau lien envoyé. Vérifiez vos spams.</p>
+        } @else {
+          <button class="btn-primary" (click)="resendVerification()" [disabled]="resendLoading()">
+            @if (resendLoading()) {
+              <span class="spinner"></span> Envoi…
+            } @else {
+              <i class="bi bi-send"></i> Renvoyer l'email de vérification
+            }
+          </button>
+        }
+        <a routerLink="/login" class="login-link" style="margin-top:0.5rem">Déjà vérifié ? Se connecter</a>
+      </div>
+    }
+
     <!-- ── Formulaire ─────────────────────────────────────────────────────── -->
-    @if (!confirmedEmail()) {
+    @if (!confirmedEmail() && !pendingEmail()) {
 
       <h1 class="register-title">Créer un compte</h1>
 

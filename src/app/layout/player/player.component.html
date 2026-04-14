@@ -52,7 +52,7 @@
       </div>
 
       <!-- Default context: meta chips + price link -->
-      @if (!isDetailContext()) {
+      @if (!isDetailContext() && !isMixOrderContext()) {
         <div class="player-metadata">
           @if (player.currentTrack()?.bpm) {
             <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
@@ -89,6 +89,18 @@
             <span class="rec-dot"></span>
             REC
           </button>
+        </div>
+      }
+
+      <!-- Mix order context: statut de la commande -->
+      @if (isMixOrderContext()) {
+        <div class="player-mix-context">
+          <span class="player-mix-status status-{{ player.viewingMixOrder()!.status }}">
+            {{ mixStatusLabel(player.viewingMixOrder()!) }}
+          </span>
+          @if (player.viewingMixOrder()!.personName) {
+            <span class="player-mix-person">{{ player.viewingMixOrder()!.personName }}</span>
+          }
         </div>
       }
 

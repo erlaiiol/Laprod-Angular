@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 import config
 
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from models import Track, Topline, User
 
 from utils.toplines_processor import (
@@ -62,7 +62,8 @@ def _topline_dict(topline, artist_user=None):
     user = artist_user or topline.artist_user
     return {
         'id':           topline.id,
-        'audio_file':   topline.audio_file,
+        'artist_id':    topline.artist_id,
+        'stream_url':   f'/api/stream/toplines/{topline.id}',
         'description':  topline.description,
         'is_published': topline.is_published,
         'created_at':   topline.created_at.isoformat() if topline.created_at else None,
@@ -77,6 +78,7 @@ def _topline_dict(topline, artist_user=None):
 
 @cud_toplines_api_bp.route('/upload', methods=['POST'])
 @jwt_required()
+@csrf.exempt
 @limiter.limit("10 per hour")
 def upload_topline():
     """
@@ -202,6 +204,7 @@ def upload_topline():
 
 @cud_toplines_api_bp.route('/<int:topline_id>/publish', methods=['POST'])
 @jwt_required()
+@csrf.exempt
 def publish_topline(topline_id):
     """Publier une topline (propriétaire uniquement)."""
     current_user_id = int(get_jwt_identity())
@@ -231,10 +234,43 @@ def publish_topline(topline_id):
         return _err(str(e), code='SERVER_ERROR', status=500)
 
 
+# ── POST /toplines/<id>/unpublish ─────────────────────────────────────────────
+
+@cud_toplines_api_bp.route('/<int:topline_id>/unpublish', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def unpublish_topline(topline_id):
+    """Repasser une topline en privée (propriétaire uniquement)."""
+    current_user_id = int(get_jwt_identity())
+
+    topline = (
+        db.session.query(Topline)
+        .options(selectinload(Topline.artist_user))
+        .get(topline_id)
+    )
+    if not topline:
+        return _err('Topline introuvable.', code='NOT_FOUND', status=404)
+    if topline.artist_id != current_user_id:
+        return _err('Accès refusé.', code='FORBIDDEN', status=403)
+
+    try:
+        topline.is_published = False
+        db.session.commit()
+        return _ok(
+            data={'topline': _topline_dict(topline)},
+            message='Topline repassée en privée.',
+        )
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur unpublish topline #{topline_id}: {e}", exc_info=True)
+        return _err(str(e), code='SERVER_ERROR', status=500)
+
+
 # ── DELETE /toplines/<id> ──────────────────────────────────────────────────────
 
 @cud_toplines_api_bp.route('/<int:topline_id>', methods=['DELETE'])
 @jwt_required()
+@csrf.exempt
 def delete_topline(topline_id):
     """Supprimer une topline (propriétaire uniquement)."""
     current_user_id = int(get_jwt_identity())

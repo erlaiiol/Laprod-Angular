@@ -130,7 +130,7 @@
       <div class="toplines-header">
         <h2>Toplines ({{ track()!.toplines.length }})</h2>
         @if (auth.isLoggedIn()) {
-          <button class="btn-record" (click)="showRecorder.set(!showRecorder())">
+          <button class="btn-record" (click)="toggleRecorder()">
             <i class="bi bi-mic-fill"></i>
             {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
           </button>
@@ -163,9 +163,28 @@
               }
               <span class="topline-date">{{ formatDate(tl.created_at) }}</span>
             </div>
-            <button class="btn-play-topline" (click)="playTopline(tl)" aria-label="Écouter">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-            </button>
+            <div class="topline-actions">
+              <button class="btn-play-topline" (click)="playTopline(tl)" aria-label="Écouter">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+              </button>
+              @if (isOwnTopline(tl)) {
+                @if (tl.is_published) {
+                  <button class="btn-topline-unpublish" (click)="unpublishTopline(tl)"
+                          title="Remettre en privé" aria-label="Remettre en privé">
+                    <i class="bi bi-eye-slash"></i>
+                  </button>
+                } @else {
+                  <button class="btn-topline-unpublish" (click)="republishTopline(tl)"
+                          title="Remettre en public" aria-label="Remettre en public">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                }
+                <button class="btn-topline-delete" (click)="deleteTopline(tl)"
+                        title="Supprimer" aria-label="Supprimer">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              }
+            </div>
           </div>
         }
       </div>

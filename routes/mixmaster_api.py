@@ -58,6 +58,7 @@ def _order_dict_full(o: MixMasterRequest, perspective: str = 'artist') -> dict:
         # Finances
         'total_transferred':     o.get_total_transferred_to_engineer(),
         'final_transfer_amount': o.get_final_transfer_amount(),
+        'refund_amount':         o.get_refund_amount(),
         # Artiste
         'artist_id':             o.artist_id,
         'artist_username':       o.artist.username if o.artist else None,
@@ -91,8 +92,12 @@ def _order_dict_full(o: MixMasterRequest, perspective: str = 'artist') -> dict:
         'original_file_url':            f'/static/{o.original_file}' if o.original_file else None,
         'processed_file_preview_url':   f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
         'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
-        # Arborescence de l'archive
-        'archive_file_tree': o.archive_file_tree or [],
+        # Arborescence de l'archive (rétrocompat : anciens enregistrements = dicts, nouveaux = strings)
+        'archive_file_tree': [
+            (f['path'] if isinstance(f, dict) else f)
+            for f in (o.archive_file_tree or [])
+            if not (isinstance(f, dict) and f.get('is_dir'))
+        ],
         # Dates
         'created_at':   o.created_at.isoformat() if o.created_at else None,
         'accepted_at':  o.accepted_at.isoformat() if o.accepted_at else None,

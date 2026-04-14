@@ -145,16 +145,7 @@ def login():
         }), 401
 
 
-    if user.account_status != 'active':
-        current_app.logger.debug('utilisateur supprimé ou désactivé')
-        return jsonify({
-            'success' : False,
-            'feedback' : {
-                'level' : 'error',
-                'message' : 'compte désactivé ou suspendu.'
-            }
-        }), 403
-
+    # Email non vérifié — prioritaire sur le statut du compte
     if not user.email_verified:
         current_app.logger.debug('Utilisateur non vérifié par email')
         return jsonify({
@@ -162,11 +153,21 @@ def login():
             'code' : 'SHOW_EMAIL_CONFIRMATION_LINK',
             'feedback' : {
                 'level' : 'warning',
-                'message' : 'veuillez vérifier votre email avant de vous connecter. Renvoyer le mail de confirmation ?'
-            }, 
-
+                'message' : 'Veuillez vérifier votre email avant de vous connecter.'
+            },
             'data' : {
                 'confirmation_email' : user.email
+            }
+        }), 403
+
+    # Compte supprimé ou banni (jamais pending_completion ici : déjà géré ci-dessus)
+    if user.account_status not in ('active', 'pending_completion'):
+        current_app.logger.debug('utilisateur supprimé ou désactivé')
+        return jsonify({
+            'success' : False,
+            'feedback' : {
+                'level' : 'error',
+                'message' : 'Compte désactivé ou suspendu.'
             }
         }), 403
 
@@ -207,9 +208,12 @@ def login():
                         'is_mixmaster_engineer':          user.is_mixmaster_engineer,
                         'is_certified_producer_arranger': user.is_certified_producer_arranger,
                     },
-                    'user_type_selected': user.user_type_selected,
-                    'email_verified': user.email_verified,
-                    'notif_count' : notification_service.get_unread_count(user.id)
+                    'user_type_selected':  user.user_type_selected,
+                    'email_verified':      user.email_verified,
+                    'notif_count':         notification_service.get_unread_count(user.id),
+                    'upload_track_tokens': user.upload_track_tokens,
+                    'topline_tokens':      user.topline_tokens,
+                    'is_premium':          bool(user.is_premium_active),
                 }
             }
         }), 200
@@ -232,14 +236,19 @@ def login():
                 'email': user.email,
                 'profile_image': user.profile_image,
                 'roles' : {
-                    'is_admin': user.is_admin,
-                    'is_beatmaker': user.is_beatmaker,
-                    'is_mix_engineer': user.is_mix_engineer,
-                    'is_artist': user.is_artist,
+                    'is_admin':                       user.is_admin,
+                    'is_beatmaker':                   user.is_beatmaker,
+                    'is_mix_engineer':                user.is_mix_engineer,
+                    'is_artist':                      user.is_artist,
+                    'is_mixmaster_engineer':          user.is_mixmaster_engineer,
+                    'is_certified_producer_arranger': user.is_certified_producer_arranger,
                 },
-                'user_type_selected': user.user_type_selected,
-                'email_verified': user.email_verified,
-                'notif_count' : notification_service.get_unread_count(user.id)
+                'user_type_selected':  user.user_type_selected,
+                'email_verified':      user.email_verified,
+                'notif_count':         notification_service.get_unread_count(user.id),
+                'upload_track_tokens': user.upload_track_tokens,
+                'topline_tokens':      user.topline_tokens,
+                'is_premium':          bool(user.is_premium_active),
             }
         }
     }), 200
@@ -270,9 +279,12 @@ def get_identity():
                         'is_mixmaster_engineer':          user.is_mixmaster_engineer,
                         'is_certified_producer_arranger': user.is_certified_producer_arranger,
                     },
-                    'user_type_selected': user.user_type_selected,
-                    'email_verified': user.email_verified,
-                    'notif_count' : notification_service.get_unread_count(user.id)
+                    'user_type_selected':  user.user_type_selected,
+                    'email_verified':      user.email_verified,
+                    'notif_count':         notification_service.get_unread_count(user.id),
+                    'upload_track_tokens': user.upload_track_tokens,
+                    'topline_tokens':      user.topline_tokens,
+                    'is_premium':          bool(user.is_premium_active),
                 }
             }
         }), 200
@@ -324,6 +336,7 @@ def logout():
 
 
 @auth_api_bp.route('/register', methods=['POST'])
+@csrf.exempt
 def register_user():
 
     data = request.get_json()
@@ -455,7 +468,19 @@ def register_user():
             }
         }), 400
 
-    if db.session.query(User).filter_by(email=email).first():
+    existing_email_user = db.session.query(User).filter_by(email=email).first()
+    if existing_email_user:
+        # Compte créé mais email pas encore vérifié → proposer le renvoi
+        if existing_email_user.account_status == 'pending_completion' and not existing_email_user.email_verified:
+            return jsonify({
+                'success': False,
+                'code': 'PENDING_EMAIL_VERIFICATION',
+                'feedback': {
+                    'level': 'warning',
+                    'message': 'Un compte avec cet email existe déjà mais n\'a pas encore été vérifié.'
+                },
+                'data': {'email': email}
+            }), 409
         return jsonify({
             'success' : False,
             'feedback' : {
@@ -513,6 +538,81 @@ def register_user():
             }
         }
     }), 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VÉRIFICATION EMAIL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@auth_api_bp.route('/verify-email', methods=['POST'])
+@csrf.exempt
+def verify_email():
+    """Vérifie le token d'email et active le compte."""
+    data = request.get_json()
+    token = data.get('token') if data else None
+
+    if not token:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Token manquant.'}}), 400
+
+    email = email_service.verify_email_token(token)
+    if not email:
+        return jsonify({'success': False, 'code': 'TOKEN_EXPIRED', 'feedback': {
+            'level': 'error',
+            'message': 'Lien de vérification invalide ou expiré.'
+        }}), 400
+
+    user = db.session.query(User).filter_by(email=email).first()
+    if not user:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Compte introuvable.'}}), 404
+
+    if user.email_verified:
+        return jsonify({'success': True, 'code': 'ALREADY_VERIFIED', 'feedback': {
+            'level': 'info', 'message': 'Email déjà vérifié. Vous pouvez vous connecter.'
+        }}), 200
+
+    user.email_verified = True
+    db.session.commit()
+
+    return jsonify({'success': True, 'feedback': {
+        'level': 'success',
+        'message': 'Email vérifié ! Vous pouvez maintenant vous connecter.'
+    }}), 200
+
+
+@auth_api_bp.route('/resend-verification', methods=['POST'])
+@csrf.exempt
+@limiter.limit('3 per hour')
+def resend_verification():
+    """Renvoie l'email de vérification pour un compte non vérifié.
+    Accepte 'identifier' (username ou email) ou 'email' pour la rétrocompatibilité.
+    """
+    data = request.get_json()
+    identifier = (data.get('identifier') or data.get('email')) if data else None
+
+    if not identifier:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Identifiant requis.'}}), 400
+
+    user = db.session.query(User).filter(
+        or_(User.email == identifier, User.username == identifier)
+    ).first()
+
+    # Réponse identique que l'utilisateur existe ou non (évite l'énumération d'emails)
+    if not user or user.email_verified:
+        return jsonify({'success': True, 'feedback': {
+            'level': 'info',
+            'message': 'Si un compte non vérifié existe avec cet email, un nouveau lien a été envoyé.'
+        }}), 200
+
+    if not email_service.send_verification_email(user):
+        current_app.logger.error(f"Échec renvoi email vérification pour user #{user.id}")
+        return jsonify({'success': False, 'feedback': {
+            'level': 'error', 'message': 'Erreur lors de l\'envoi. Réessayez plus tard.'
+        }}), 500
+
+    return jsonify({'success': True, 'feedback': {
+        'level': 'info',
+        'message': 'Si un compte non vérifié existe avec cet email, un nouveau lien a été envoyé.'
+    }}), 200
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

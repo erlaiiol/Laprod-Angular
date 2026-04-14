@@ -5,9 +5,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
 import { ToplineService } from '../../services/topline.service';
 import { PlayerService } from '../../services/player.service';
+import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environments/environment';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
 
@@ -27,10 +30,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   @ViewChild('visualizerCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  state      = signal<RecorderState>('idle');
-  timer      = signal(0);
-  errorMsg   = signal<string | null>(null);
+  state         = signal<RecorderState>('idle');
+  timer         = signal(0);
+  errorMsg      = signal<string | null>(null);
   resultTopline = signal<PublishedTopline | null>(null);
+  isPublished   = signal(false);
+  loadingAudio  = signal(false);
 
   useAutotune  = false;
   useMonitor   = false;
@@ -39,6 +44,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private toplineSvc = inject(ToplineService);
   private player     = inject(PlayerService);
   private cdr        = inject(ChangeDetectorRef);
+  readonly auth      = inject(AuthService);
+  private http       = inject(HttpClient);
+
+  private resultBlobUrl: string | null = null;
 
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
@@ -60,6 +69,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   async startRecording(): Promise<void> {
     this.errorMsg.set(null);
+    this.player.pause();
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     } catch {
@@ -157,7 +167,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       next: (res) => {
         if (res.success && res.data?.topline) {
           this.resultTopline.set(res.data.topline);
+          this.isPublished.set(false);
           this.state.set('result');
+          this.auth.me().subscribe();
         } else {
           this.errorMsg.set(res.feedback?.message ?? 'Erreur lors du traitement.');
           this.state.set('idle');
@@ -174,14 +186,40 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   playResult(): void {
     const tl = this.resultTopline();
-    if (!tl) return;
-    this.player.play({
-      id:            tl.id,
-      title:         `Topline (aperçu)`,
-      composer_user: tl.artist_user as any,
-      stream_url:    tl.stream_url,
-      image_file:    this.track.image_file,
-      bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
+    if (!tl || this.loadingAudio()) return;
+
+    // Si déjà chargé en blob, toggle play/pause
+    if (this.resultBlobUrl && this.player.currentTrack()?.stream_url === this.resultBlobUrl) {
+      this.player.togglePlay();
+      return;
+    }
+
+    // Fetch avec JWT (topline non publiée = accès protégé)
+    this.loadingAudio.set(true);
+    this.cdr.markForCheck();
+    this.http.get(`${environment.apiUrl}${tl.stream_url}`, {
+      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        if (this.resultBlobUrl) URL.revokeObjectURL(this.resultBlobUrl);
+        this.resultBlobUrl = URL.createObjectURL(blob);
+        this.player.play({
+          id:            tl.id,
+          title:         `Topline — aperçu`,
+          composer_user: tl.artist_user as any,
+          stream_url:    this.resultBlobUrl,
+          image_file:    this.track.image_file,
+          bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
+        });
+        this.loadingAudio.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorMsg.set('Impossible de charger l\'audio.');
+        this.loadingAudio.set(false);
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -191,9 +229,31 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.toplineSvc.publishTopline(tl.id).subscribe({
       next: (res) => {
         if (res.success && res.data?.topline) {
+          this.isPublished.set(true);
           this.published.emit(res.data.topline);
+          this.cdr.markForCheck();
         } else {
           this.errorMsg.set(res.feedback?.message ?? 'Erreur lors de la publication.');
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => {
+        this.errorMsg.set('Impossible de contacter le serveur.');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  unpublishResult(): void {
+    const tl = this.resultTopline();
+    if (!tl) return;
+    this.toplineSvc.unpublishTopline(tl.id).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.isPublished.set(false);
+          this.cdr.markForCheck();
+        } else {
+          this.errorMsg.set(res.feedback?.message ?? 'Erreur.');
           this.cdr.markForCheck();
         }
       },
@@ -224,7 +284,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   }
 
   resetToIdle(): void {
+    if (this.resultBlobUrl) { URL.revokeObjectURL(this.resultBlobUrl); this.resultBlobUrl = null; }
     this.resultTopline.set(null);
+    this.isPublished.set(false);
+    this.loadingAudio.set(false);
     this.errorMsg.set(null);
     this.timer.set(0);
     this.state.set('idle');
@@ -266,6 +329,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
+    if (this.resultBlobUrl) URL.revokeObjectURL(this.resultBlobUrl);
   }
 
 }

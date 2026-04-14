@@ -1,0 +1,31 @@
+<div class="verify-wrapper">
+  <div class="verify-card">
+
+    @if (state() === 'loading') {
+      <div class="verify-icon spin"><i class="bi bi-arrow-repeat"></i></div>
+      <h2>Vérification en cours…</h2>
+    }
+
+    @if (state() === 'success') {
+      <div class="verify-icon success"><i class="bi bi-check-circle"></i></div>
+      <h2>Email vérifié !</h2>
+      <p>{{ message() }}</p>
+      <a routerLink="/login" class="btn-primary">Se connecter</a>
+    }
+
+    @if (state() === 'expired') {
+      <div class="verify-icon warning"><i class="bi bi-clock-history"></i></div>
+      <h2>Lien expiré</h2>
+      <p>{{ message() }}</p>
+      <a routerLink="/register" class="btn-primary">Retour à l'inscription</a>
+    }
+
+    @if (state() === 'error') {
+      <div class="verify-icon danger"><i class="bi bi-x-circle"></i></div>
+      <h2>Lien invalide</h2>
+      <p>{{ message() }}</p>
+      <a routerLink="/register" class="btn-primary">Retour à l'inscription</a>
+    }
+
+  </div>
+</div>

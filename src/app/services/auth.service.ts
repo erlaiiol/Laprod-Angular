@@ -37,15 +37,18 @@ export interface User {
       is_mixmaster_engineer:          boolean;
       is_certified_producer_arranger: boolean;
     },
-    user_type_selected: boolean,
-    email_verified: boolean,
-    notif_count : number
+    user_type_selected:  boolean,
+    email_verified:      boolean,
+    notif_count:         number,
+    upload_track_tokens: number,
+    topline_tokens:      number,
+    is_premium:          boolean,
 }
 
 
 export interface MeResponse {
-  success : boolean,
-  user : User
+  success: boolean,
+  data: { user: User },
 }
 
 
@@ -203,7 +206,8 @@ export class AuthService {
     return this.http.get<MeResponse>(`${this.authUrl}/me`).pipe(
       tap((res) => {
         if (res.success) {
-          this._currentUser.set(res.user);
+          this._currentUser.set(res.data.user);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
         }
       })
     );
@@ -302,6 +306,14 @@ export class AuthService {
     }).pipe(
       catchError((err) => throwError(() => err))
     );
+  }
+
+  verifyEmail(token: string): Observable<any> {
+    return this.http.post(`${this.authUrl}/verify-email`, { token });
+  }
+
+  resendVerification(identifier: string): Observable<any> {
+    return this.http.post(`${this.authUrl}/resend-verification`, { identifier });
   }
 
 }

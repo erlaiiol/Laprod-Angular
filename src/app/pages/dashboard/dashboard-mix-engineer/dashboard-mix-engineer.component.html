@@ -187,19 +187,19 @@
               </div>
             }
 
-            <!-- Fichiers -->
+            <!-- Fichiers protégés -->
             @if (order.reference_file_url || order.original_file_url) {
               <div class="order-files">
                 @if (order.reference_file_url) {
-                  <audio class="order-audio" controls [src]="fileUrl(order.reference_file_url)">
-                    <track kind="captions">
-                  </audio>
-                  <span class="file-label">Référence</span>
+                  <button class="btn-load-audio" (click)="playReference(order)">
+                    <i class="bi" [class.bi-pause-fill]="isPlayingReference(order)" [class.bi-play-circle]="!isPlayingReference(order)"></i>
+                    {{ isPlayingReference(order) ? 'Pause' : 'Écouter la référence' }}
+                  </button>
                 }
                 @if (order.original_file_url) {
-                  <a class="btn-download-file" [href]="fileUrl(order.original_file_url)" download>
+                  <button class="btn-download-file" (click)="downloadMedia(order)">
                     <i class="bi bi-download"></i> Télécharger les stems
-                  </a>
+                  </button>
                 }
               </div>
             }

@@ -26,11 +26,11 @@ def toggle_favorite(track_id):
     if existing:
         db.session.delete(existing)
         db.session.commit()
-        return jsonify({'success': True, 'action': 'removed', 'is_favorite': False}), 200
+        return jsonify({'success': True, 'data': {'action': 'removed', 'is_favorite': False}}), 200
     else:
         db.session.add(Favorite(user_id=user_id, track_id=track_id))
         db.session.commit()
-        return jsonify({'success': True, 'action': 'added', 'is_favorite': True}), 200
+        return jsonify({'success': True, 'data': {'action': 'added', 'is_favorite': True}}), 200
 
 
 @favorites_api_bp.route('/check/<int:track_id>', methods=['GET'])
@@ -63,23 +63,31 @@ def add_listening_history(track_id):
     user_id = int(get_jwt_identity())
     db.get_or_404(Track, track_id)
 
-    db.session.add(ListeningHistory(
-        user_id=user_id,
-        track_id=track_id,
-        listened_at=datetime.now(),
-    ))
+    existing = db.session.query(ListeningHistory).filter_by(
+        user_id=user_id, track_id=track_id
+    ).first()
 
-    total = db.session.query(ListeningHistory).filter_by(user_id=user_id).count()
-    if total > 10:
-        oldest = (
-            db.session.query(ListeningHistory)
-            .filter_by(user_id=user_id)
-            .order_by(ListeningHistory.listened_at.asc())
-            .limit(total - 10)
-            .all()
-        )
-        for entry in oldest:
-            db.session.delete(entry)
+    if existing:
+        # Track déjà dans l'historique → mettre à jour la date (pas de doublon)
+        existing.listened_at = datetime.now()
+    else:
+        db.session.add(ListeningHistory(
+            user_id=user_id,
+            track_id=track_id,
+            listened_at=datetime.now(),
+        ))
+        # Trimmer à 10 entrées uniques seulement lors d'un ajout
+        total = db.session.query(ListeningHistory).filter_by(user_id=user_id).count()
+        if total > 10:
+            oldest = (
+                db.session.query(ListeningHistory)
+                .filter_by(user_id=user_id)
+                .order_by(ListeningHistory.listened_at.asc())
+                .limit(total - 10)
+                .all()
+            )
+            for entry in oldest:
+                db.session.delete(entry)
 
     db.session.commit()
     return jsonify({'success': True}), 200

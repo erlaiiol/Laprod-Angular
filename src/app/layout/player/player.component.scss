@@ -1,17 +1,20 @@
+@use 'variables' as v;
+@use 'mixins'    as m;
+
 // ── Bottom Player ─────────────────────────────────────────────────────────────
 
 .hidden { display: none !important; }
 
 .bottom-player {
-  position:    fixed;
-  bottom:      0;
-  left:        0;
-  right:       0;
-  z-index:     1000;
-  background:  #0e0e11;
-  border-top:  1px solid #374151;
-  color:       #f3f4f6;
-  padding:     0 16px 0 12px;
+  position:   fixed;
+  bottom:     0;
+  left:       0;
+  right:      0;
+  z-index:    1000;
+  background: v.$bg-base;
+  border-top: 1px solid v.$bg-border;
+  color:      v.$text-primary;
+  padding:    0 16px 0 12px;
 }
 
 // ── Close button ─────────────────────────────────────────────────────────────
@@ -22,13 +25,13 @@
   right:      8px;
   background: transparent;
   border:     none;
-  color:      #6b7280;
+  color:      v.$text-muted;
   font-size:  0.8rem;
   cursor:     pointer;
   line-height: 1;
   padding:    2px 4px;
 
-  &:hover { color: #f3f4f6; }
+  &:hover { color: v.$text-primary; }
 }
 
 // ── Content row ──────────────────────────────────────────────────────────────
@@ -37,7 +40,7 @@
   display:     flex;
   align-items: center;
   gap:         16px;
-  height:      80px;  // taller than before (was 68px)
+  height:      80px;
 }
 
 // ── LEFT: cover + info ───────────────────────────────────────────────────────
@@ -88,8 +91,8 @@
   p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
-.player-title  { font-size: 0.84rem; font-weight: 600; }
-.player-artist { font-size: 0.73rem; color: #9ca3af; margin-top: 3px !important; }
+.player-title  { font-size: 0.84rem; font-weight: 600; color: v.$text-primary; }
+.player-artist { font-size: 0.73rem; color: v.$text-secondary; margin-top: 3px !important; }
 
 // ── CENTER: waveform ──────────────────────────────────────────────────────────
 
@@ -110,7 +113,7 @@
 
 .preview-notice {
   font-size:  0.6rem;
-  color:      #4b5563;
+  color:      v.$text-muted;
   text-align: center;
   line-height: 1;
 }
@@ -128,14 +131,14 @@
   display:   flex;
   gap:       3px;
   font-size: 0.75rem;
-  color:     #9ca3af;
+  color:     v.$text-secondary;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.time-sep { color: #4b5563; }
+.time-sep { color: v.$text-muted; }
 
-// ── Default context: meta chips ───────────────────────────────────────────────
+// ── Meta chips (beat context) ─────────────────────────────────────────────────
 
 .player-metadata {
   display:     flex;
@@ -145,29 +148,29 @@
 }
 
 .player-meta-item {
-  background:    #252525;
-  border:        1px solid #ffffff;
+  background:    v.$bg-elevated;
+  border:        1px solid v.$bg-border-subtle;
   border-radius: 4px;
   padding:       2px 6px;
   font-size:     0.68rem;
-  color:         #f8f8f8;
+  color:         v.$text-primary;
   white-space:   nowrap;
 }
 
 .player-meta-price {
-  font-size:       0.68rem;
-  color:           #000000;
-  background-color:white;
-  border-style: solid;
-  border-width: 1px;
-  border-radius: 6px;
-  padding: 0.15rem 0.4rem;
-  border-color: white;
-  text-decoration: none;
-  font-weight: 700;
-  white-space:     nowrap;
+  display:          inline-block;
+  font-size:        0.68rem;
+  font-weight:      700;
+  color:            #000;
+  background-color: #fff;
+  border:           1px solid #fff;
+  border-radius:    6px;
+  padding:          0.15rem 0.4rem;
+  text-decoration:  none;
+  white-space:      nowrap;
+  transition:       background 0.15s, color 0.15s;
 
-  &:hover { text-decoration: underline; }
+  &:hover { background: v.$primary; border-color: v.$primary; color: #fff; }
 }
 
 // ── Track-detail context: Download + REC ─────────────────────────────────────
@@ -183,17 +186,18 @@
   align-items:   center;
   gap:           5px;
   padding:       5px 10px;
-  background:    #065f46;
-  color:         #a7f3d0;
-  border:        none;
+  background:    v.$tag-green-dark;
+  color:         v.$tag-green-light;
+  border:        1px solid v.$tag-green;
   border-radius: 6px;
   font-size:     0.75rem;
   font-weight:   600;
   cursor:        pointer;
   white-space:   nowrap;
+  text-decoration: none;
   transition:    background 0.15s;
 
-  &:hover { background: #047857; }
+  &:hover { background: v.$tag-green; color: #000; }
 }
 
 .btn-rec {
@@ -201,25 +205,25 @@
   align-items:   center;
   gap:           5px;
   padding:       5px 10px;
-  background:    #7f1d1d;
-  color:         #fca5a5;
-  border:        none;
+  background:    v.$tag-red-dark;
+  color:         v.$tag-red-light;
+  border:        1px solid v.$tag-red;
   border-radius: 6px;
   font-size:     0.75rem;
   font-weight:   700;
   cursor:        pointer;
   white-space:   nowrap;
-  transition:    background 0.15s;
   letter-spacing: 0.05em;
+  transition:    background 0.15s;
 
-  &:hover { background: #991b1b; }
+  &:hover { background: v.$tag-red; color: #fff; }
 }
 
 .rec-dot {
   width:         8px;
   height:        8px;
   border-radius: 50%;
-  background:    #ef4444;
+  background:    v.$tag-red;
   animation:     pulse-rec 1s infinite;
 }
 
@@ -239,7 +243,7 @@
 .volume-icon {
   width:    18px;
   height:   18px;
-  color:    #9ca3af;
+  color:    v.$text-secondary;
   flex-shrink: 0;
 
   path    { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -248,7 +252,7 @@
 
 .volume-slider {
   width:        80px;
-  accent-color: #d3d3d3;
+  accent-color: v.$primary;
   cursor:       pointer;
 }
 
@@ -258,7 +262,7 @@
   border-radius: 50%;
   border:        none;
   background:    transparent;
-  color:         #9ca3af;
+  color:         v.$text-secondary;
   cursor:        pointer;
   display:       flex;
   align-items:   center;
@@ -266,10 +270,45 @@
   transition:    color 0.15s;
   flex-shrink:   0;
 
-  &:hover { color: #f3f4f6; }
+  &:hover { color: v.$text-primary; }
 }
 
-// ── Confirmation modal ────────────────────────────────────────────────────────
+// ── Mix order context ─────────────────────────────────────────────────────────
+
+.player-mix-context {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-shrink: 0;
+}
+
+.player-mix-person {
+  font-size:  0.72rem;
+  color:      v.$text-muted;
+  white-space: nowrap;
+}
+
+.player-mix-status {
+  display:       inline-flex;
+  align-items:   center;
+  padding:       0.2rem 0.55rem;
+  border-radius: 5px;
+  font-size:     0.7rem;
+  font-weight:   700;
+  white-space:   nowrap;
+
+  &.status-awaiting_acceptance { background: rgba(251,191,36,0.12); color: #fcd34d; }
+  &.status-accepted             { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  &.status-processing           { background: rgba(99,102,241,0.15); color: #c4b5fd; }
+  &.status-delivered            { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  &.status-revision1,
+  &.status-revision2            { background: rgba(249,115,22,0.15); color: #fdba74; }
+  &.status-completed            { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  &.status-rejected,
+  &.status-refunded             { background: rgba(239,68,68,0.12);  color: #fca5a5; }
+}
+
+// ── Modal de confirmation ────────────────────────────────────────────────────
 
 .confirm-modal-backdrop {
   position:        absolute;
@@ -283,8 +322,8 @@
 }
 
 .confirm-modal {
-  background:    #1f2937;
-  border:        1px solid #4b5563;
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border-subtle;
   border-radius: 10px;
   padding:       1rem 1.25rem;
   max-width:     380px;
@@ -294,15 +333,15 @@
 }
 
 .confirm-msg {
-  font-size:     0.85rem;
-  color:         #d1d5db;
-  margin:        0 0 0.4rem;
+  font-size:  0.85rem;
+  color:      v.$text-primary;
+  margin:     0 0 0.4rem;
 }
 
 .confirm-sub {
-  font-size:     0.82rem;
-  color:         #9ca3af;
-  margin:        0 0 0.9rem;
+  font-size:  0.82rem;
+  color:      v.$text-secondary;
+  margin:     0 0 0.9rem;
 }
 
 .confirm-actions {
@@ -313,29 +352,29 @@
 
 .btn-confirm-yes {
   padding:       0.45rem 1rem;
-  background:    #7c3aed;
+  background:    #000;
   color:         #fff;
-  border:        none;
+  border:        1px solid v.$primary;
   border-radius: 6px;
   font-size:     0.82rem;
-  font-weight:   600;
+  font-weight:   700;
   cursor:        pointer;
-  transition:    background 0.15s;
+  transition:    background 0.15s, border-color 0.15s;
 
-  &:hover { background: #6d28d9; }
+  &:hover { background: v.$primary; border-color: v.$primary; }
 }
 
 .btn-confirm-no {
   padding:       0.45rem 1rem;
-  background:    #374151;
-  color:         #d1d5db;
-  border:        none;
+  background:    v.$bg-elevated;
+  color:         v.$text-secondary;
+  border:        1px solid v.$bg-border;
   border-radius: 6px;
   font-size:     0.82rem;
   cursor:        pointer;
   transition:    background 0.15s;
 
-  &:hover { background: #4b5563; }
+  &:hover { background: v.$bg-border; }
 }
 
 // ── Responsive ───────────────────────────────────────────────────────────────

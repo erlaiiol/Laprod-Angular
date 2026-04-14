@@ -109,6 +109,7 @@ export interface ArtistMixRequest {
   can_request_revision:  boolean;
   is_expired:            boolean;
   final_transfer_amount: number | null;
+  refund_amount:         number;
   engineer_username:     string | null;
   engineer_image:        string | null;
   engineer_id:           number | null;

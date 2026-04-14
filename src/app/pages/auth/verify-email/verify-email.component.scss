@@ -1,0 +1,61 @@
+@use 'variables' as v;
+
+.verify-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.verify-card {
+  width: 100%;
+  max-width: 400px;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  border-radius: 8px;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+
+  h2 { font-size: 1.25rem; font-weight: 700; margin: 0; color: v.$text-primary; }
+  p  { font-size: 0.9rem; color: v.$text-secondary; margin: 0; }
+}
+
+.verify-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+
+  &.success { color: v.$tag-green; }
+  &.warning { color: v.$tag-orange; }
+  &.danger  { color: v.$tag-red; }
+
+  &.spin i {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+    color: v.$primary;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.25rem;
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  margin-top: 0.25rem;
+
+  &:hover { background: v.$primary; border-color: v.$primary; }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

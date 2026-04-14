@@ -58,6 +58,7 @@ export interface TracksResponse {
 
 export interface PublishedTopline {
   id:           number;
+  artist_id:    number;
   stream_url:   string;
   description:  string | null;
   created_at:   string;

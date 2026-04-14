@@ -24,7 +24,7 @@ from pathlib import Path
 import config
 
 try:
-    from utils.file_validator import validate_archive_file, validate_audio_file
+    from utils.file_validator import validate_stems_archive, validate_audio_file
     VALIDATION_AVAILABLE = True
 except ImportError:
     VALIDATION_AVAILABLE = False
@@ -102,7 +102,7 @@ def create_order(engineer_id):
     if not _allowed(stems_file.filename, {'zip', 'rar'}):
         return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Les pistes séparées doivent être en .zip ou .rar.'}}), 422
 
-    is_valid, err = validate_archive_file(stems_file)
+    is_valid, err = validate_stems_archive(stems_file)
     if not is_valid:
         return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Archive invalide : {err}'}}), 422
 
@@ -373,6 +373,71 @@ def request_revision(order_id):
         'success': True,
         'feedback': {'level': 'success', 'message': f'Révision {order.revision_count}/2 demandée. {revision_amount}€ ajoutés aux gains de l\'ingénieur.'},
         'data': {'status': order.status, 'revision_count': order.revision_count},
+    }), 200
+
+
+# ─── Refuser la livraison (remboursement partiel) ────────────────────────────
+
+@cud_mixmaster_artist_api_bp.route('/reject-delivery/<int:order_id>', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def reject_delivery(order_id):
+    """
+    L'artiste refuse la livraison après écoute des previews (avant toute validation).
+    L'ingénieur conserve les acomptes déjà crédités dans son wallet.
+    Remboursement partiel Stripe (solde brut restant) :
+      - 0 révision  → 70% du total remboursé
+      - 1 révision  → 60% du total remboursé
+      - 2 révisions → 50% du total remboursé
+    Aucun remboursement possible si status = 'completed' (artiste a déjà validé).
+    """
+    user_id = int(get_jwt_identity())
+    order   = _get_order_for_artist(order_id, user_id)
+    if not order:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+
+    if order.status != 'delivered':
+        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande ne peut pas être refusée dans son état actuel.'}}), 400
+
+    if order.stripe_payment_status != 'deposit_captured':
+        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Statut de paiement incorrect.'}}), 400
+
+    refund_amount = order.get_refund_amount()  # toujours > 0 : 70/60/50% selon révisions
+
+    try:
+        stripe.Refund.create(
+            payment_intent=order.stripe_payment_intent_id,
+            amount=int(round(refund_amount * 100)),  # centimes
+            reason='requested_by_customer',
+        )
+        log_stripe_transaction(
+            operation='partial_refund_artist_reject_delivery',
+            resource_type='mixmaster',
+            resource_id=order_id,
+            stripe_payment_intent_id=order.stripe_payment_intent_id,
+            reason=f'artist_rejected_delivery_after_{order.revision_count}_revisions',
+        )
+    except stripe_error.StripeError as e:
+        log_stripe_error(operation='reject_delivery_refund', error_message=str(e),
+                         resource_type='mixmaster', resource_id=order_id)
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+
+    order.status                = 'refunded'
+    order.stripe_payment_status = 'partially_refunded'
+    order.rejected_at           = datetime.now()
+
+    notify_mixmaster_status_changed(order, 'delivered', 'refunded')
+    db.session.commit()
+
+    try:
+        email_service.send_mixmaster_status_update_email(order, 'delivered', 'refunded')
+    except Exception as e:
+        current_app.logger.warning(f'Email reject_delivery #{order_id}: {e}')
+
+    return jsonify({
+        'success': True,
+        'feedback': {'level': 'info', 'message': f'Livraison refusée. Vous serez remboursé de {refund_amount:.2f}€ (solde restant après {order.revision_count} révision(s)).'},
+        'data': {'refund_amount': refund_amount},
     }), 200
 
 

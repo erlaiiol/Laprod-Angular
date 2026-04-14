@@ -160,7 +160,8 @@ def stream_topline(topline_id):
     if not topline.audio_file:
         abort(404)
 
-    return _send(f'static/{topline.audio_file}', 'audio/mpeg')
+    mime = 'audio/wav' if topline.audio_file.endswith('.wav') else 'audio/mpeg'
+    return _send(f'static/{topline.audio_file}', mime)
 
 
 # ── 4. Télécharger contrat PDF ────────────────────────────────────────────────

@@ -67,7 +67,7 @@ def credit_wallet_for_mixmaster_deposit(mixmaster_request):
         status='pending',
         available_at=available_at,
         mixmaster_request_id=mixmaster_request.id,
-        description=f"Acompte mix/master #{mixmaster_request.id} (30% · commission 10% déduite)"
+        description=f"Acompte mix/master #{mixmaster_request.id} (30%)"
     )
     db.session.add(txn)
 
@@ -97,7 +97,7 @@ def credit_wallet_for_mixmaster_revision(mixmaster_request):
         status='pending',
         available_at=available_at,
         mixmaster_request_id=mixmaster_request.id,
-        description=f"Acompte révision {revision_num} mix/master #{mixmaster_request.id} (10% · commission 10% déduite)"
+        description=f"Acompte révision {revision_num} mix/master #{mixmaster_request.id} (10%)"
     )
     db.session.add(txn)
 

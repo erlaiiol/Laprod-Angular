@@ -79,6 +79,11 @@ def get_wallet():
         .all()
     )
 
+    # Toast informatif si Stripe non configuré et gains disponibles
+    stripe_hint = ''
+    if not user.stripe_onboarding_complete and float(wallet.balance_available) > 0:
+        stripe_hint = 'Configurez Stripe Connect pour retirer vos gains.'
+
     return _ok(data={
         'wallet': {
             'balance_available':       float(wallet.balance_available),
@@ -101,4 +106,4 @@ def get_wallet():
             for t in transactions
         ],
         'show_connect_alert': show_connect_alert,
-    })
+    }, message=stripe_hint)

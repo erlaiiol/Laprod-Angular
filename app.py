@@ -222,6 +222,7 @@ def create_app():
         cud_mixmaster_engineer_api_bp,
         cud_mixmaster_artist_api_bp,
         payment_mixmaster_api_bp,
+        mixmaster_media_api_bp,
         admin_api_bp,
         cud_admin_api_bp,
     )
@@ -249,6 +250,7 @@ def create_app():
     app.register_blueprint(cud_mixmaster_engineer_api_bp)
     app.register_blueprint(cud_mixmaster_artist_api_bp)
     app.register_blueprint(payment_mixmaster_api_bp)
+    app.register_blueprint(mixmaster_media_api_bp)
     app.register_blueprint(admin_api_bp)
     app.register_blueprint(cud_admin_api_bp)
 
@@ -533,4 +535,4 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=app.config.get('DEBUG', False), port=5000)
+    app.run(debug=app.config.get('DEBUG', False), port=5000, threaded=True)

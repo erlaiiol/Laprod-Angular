@@ -1,12 +1,14 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../services/auth.service';
 import {
   DashboardService, MixEngineerDashboard, MixOrder,
 } from '../../../services/dashboard.service';
 import { MixmasterService } from '../../../services/mixmaster.service';
+import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
@@ -19,7 +21,7 @@ type Tab = 'awaiting' | 'active' | 'revisions' | 'completed' | 'refused';
   templateUrl: './dashboard-mix-engineer.component.html',
   styleUrls: ['./dashboard-mix-engineer.component.scss'],
 })
-export class DashboardMixEngineerComponent implements OnInit {
+export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
 
   loading      = signal(true);
   error        = signal<string | null>(null);
@@ -35,11 +37,16 @@ export class DashboardMixEngineerComponent implements OnInit {
   // Briefing panel
   expandedOrderId = signal<number | null>(null);
 
+  // Blob URLs gérés localement (libérés dans ngOnDestroy)
+  private blobUrls = new Map<string, string>();
+
   readonly auth    = inject(AuthService);
+  readonly player  = inject(PlayerService);
   private dashSvc  = inject(DashboardService);
   private mixSvc   = inject(MixmasterService);
   private router   = inject(Router);
   private toast    = inject(ToastService);
+  private http     = inject(HttpClient);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -183,5 +190,75 @@ export class DashboardMixEngineerComponent implements OnInit {
 
   isRevisionTab(): boolean {
     return this.activeTab() === 'revisions';
+  }
+
+  // ── Fichiers protégés ─────────────────────────────────────────────────────
+
+  /** Ouvre la référence audio dans le player global (JWT → Blob URL → PlayerService). */
+  playReference(order: MixOrder): void {
+    // Si déjà en train de jouer cette référence → toggle play/pause
+    const existingUrl = this.blobUrls.get(`${order.id}_reference`);
+    if (existingUrl && this.player.currentTrack()?.stream_url === existingUrl) {
+      this.player.togglePlay();
+      return;
+    }
+
+    const url = `${environment.apiUrl}/api/mixmaster-media/${order.id}/reference`;
+    this.http.get(url, {
+      headers: { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.blobUrls.set(`${order.id}_reference`, blobUrl);
+        this.player.playMixAudio(blobUrl, {
+          orderId:    order.id,
+          orderTitle: order.title,
+          status:     order.status,
+          personName: order.artist_username,
+        });
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Impossible de charger la référence.' }),
+    });
+  }
+
+  isPlayingReference(order: MixOrder): boolean {
+    const url = this.blobUrls.get(`${order.id}_reference`);
+    return !!url && this.player.currentTrack()?.stream_url === url && this.player.isPlaying();
+  }
+
+  /** Télécharge les stems via JWT. */
+  downloadMedia(order: MixOrder): void {
+    const key = `${order.id}_original`;
+    const existing = this.blobUrls.get(key);
+
+    const triggerDownload = (blobUrl: string) => {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `stems_${order.title}_${order.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    if (existing) { triggerDownload(existing); return; }
+
+    const url = `${environment.apiUrl}/api/mixmaster-media/${order.id}/original`;
+    this.http.get(url, {
+      headers: { Authorization: `Bearer ${this.auth.getToken()}` },
+      responseType: 'blob',
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.blobUrls.set(key, blobUrl);
+        triggerDownload(blobUrl);
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Impossible de télécharger les stems.' }),
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.blobUrls.forEach(url => URL.revokeObjectURL(url));
+    this.blobUrls.clear();
   }
 }

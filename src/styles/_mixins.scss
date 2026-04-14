@@ -1,0 +1,83 @@
+// ════════════════════════════════════════════════════════════════════════════
+// LaProd — Shared SCSS mixins
+// Usage in any component:
+//   @use 'variables' as v;
+//   @use 'mixins'    as m;
+//   .my-badge { @include m.badge(v.$tag-green, v.$tag-green-dark); }
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Badge: dark tinted bg + vivid border + white text ────────────────────────
+//
+// $color    — the vivid color used as border (e.g. v.$tag-green)
+// $dark-bg  — the very dark tinted bg      (e.g. v.$tag-green-dark)
+// $text     — text color, default #fff
+//
+@mixin badge($color, $dark-bg, $text: #fff) {
+  background:    $dark-bg;
+  border:        1px solid $color;
+  color:         $text;
+  border-radius: 20px;
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.2rem 0.65rem;
+  font-size:     0.75rem;
+  font-weight:   600;
+  line-height:   1.4;
+}
+
+// Flat (rectangular) variant — same palette, square pill
+@mixin badge-flat($color, $dark-bg, $text: #fff) {
+  background:    $dark-bg;
+  border:        1px solid $color;
+  color:         $text;
+  border-radius: 5px;
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.18rem 0.5rem;
+  font-size:     0.72rem;
+  font-weight:   700;
+  line-height:   1.4;
+}
+
+// ── Ghost button: black bg + white border → fills with color on hover ─────────
+//
+// $color       — fill color on hover (e.g. v.$tag-violet)
+// $hover-text  — text color on hover, default #fff
+//
+@mixin btn-ghost($color, $hover-text: #fff) {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.4rem;
+  padding:         0.4rem 0.9rem;
+  background:      #000000;
+  color:           #ffffff;
+  border:          1px solid rgba(255, 255, 255, 0.5);
+  border-radius:   6px;
+  font-size:       0.82rem;
+  font-weight:     700;
+  letter-spacing:  0.02em;
+  text-decoration: none;
+  cursor:          pointer;
+  transition:      background 0.2s, border-color 0.2s, color 0.2s;
+
+  &:hover, &:focus-visible {
+    background:   $color;
+    border-color: $color;
+    color:        $hover-text;
+  }
+
+  &:disabled, &[disabled] {
+    opacity:        0.4;
+    cursor:         not-allowed;
+    pointer-events: none;
+  }
+}
+
+// Compact variant (icon-only or icon+short label)
+@mixin btn-ghost-sm($color, $hover-text: #fff) {
+  @include btn-ghost($color, $hover-text);
+  padding:   0.25rem 0.6rem;
+  font-size: 0.75rem;
+}

@@ -176,9 +176,12 @@
 }
 .order-audio { height: 30px; flex: 1; min-width: 180px; }
 .file-label { font-size: 0.72rem; color: v.$text-muted; }
+
+.btn-load-audio,
 .btn-download-file {
   display: inline-flex; align-items: center; gap: 0.35rem;
   font-size: 0.78rem; font-weight: 600; color: v.$tag-blue;
+  background: none; border: none; cursor: pointer; padding: 0;
   text-decoration: none;
   &:hover { text-decoration: underline; }
 }
@@ -211,14 +214,22 @@
 }
 .btn-action {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.4rem 0.9rem; border-radius: 6px; border: none;
-  font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+  padding: 0.4rem 0.9rem; border-radius: 6px; border: 1px solid transparent;
+  font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s;
   &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &:hover:not(:disabled) { opacity: 0.85; }
 }
-.btn-accept { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-.btn-reject { background: rgba(239,68,68,0.12); color: #fca5a5; }
-.btn-upload { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.btn-accept {
+  background: v.$tag-green-dark; border-color: v.$tag-green; color: v.$tag-green-light;
+  &:hover:not(:disabled) { background: v.$tag-green; color: #000; opacity: 1; }
+}
+.btn-reject {
+  background: v.$tag-red-dark; border-color: v.$tag-red; color: v.$tag-red-light;
+  &:hover:not(:disabled) { background: v.$tag-red; color: #fff; opacity: 1; }
+}
+.btn-upload {
+  background: v.$tag-blue-dark; border-color: v.$tag-blue; color: v.$tag-blue-light;
+  &:hover:not(:disabled) { background: v.$tag-blue; color: #fff; opacity: 1; }
+}
 
 // ── Upload modal ──────────────────────────────────────────────────────────────
 
@@ -239,12 +250,17 @@
 .btn-cancel {
   background: v.$bg-elevated; color: v.$text-secondary; border: 1px solid v.$bg-border;
   padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.83rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: v.$bg-border; }
   &:disabled { opacity: 0.5; }
 }
 .btn-confirm {
-  background: v.$tag-blue; color: #fff; border: none;
-  padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.83rem; font-weight: 700; cursor: pointer;
+  background: v.$tag-blue-dark; color: v.$tag-blue-light;
+  border: 1px solid v.$tag-blue; border-radius: 6px;
+  padding: 0.45rem 1rem; font-size: 0.83rem; font-weight: 700; cursor: pointer;
   display: inline-flex; align-items: center; gap: 0.35rem;
+  transition: background 0.15s, color 0.15s;
+  &:hover:not(:disabled) { background: v.$tag-blue; color: #fff; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 

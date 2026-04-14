@@ -460,12 +460,6 @@ def put_track(track_id):
             if not is_valid:
                 return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Image invalide: {error_message}'}}), 400
 
-            # Supprimer l'ancienne image (sauf l'image par défaut)
-            if track.image_file and 'default_track' not in track.image_file:
-                old_img_path = Path(current_app.root_path) / 'static' / track.image_file
-                if old_img_path.exists():
-                    old_img_path.unlink()
-
             original_filename = secure_filename(file_image.filename)
             extension = Path(original_filename).suffix.lower()
             safe_title = secure_filename(title)[:30]
@@ -477,10 +471,17 @@ def put_track(track_id):
 
             try:
                 file_image.save(new_img_path)
-                track.image_file = f'images/tracks/{new_img_filename}'
             except Exception as e:
                 current_app.logger.error(f'Erreur sauvegarde image: {e}')
                 return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors du téléchargement de l\'image'}}), 500
+
+            # Supprimer l'ancienne image seulement après que la nouvelle est sauvegardée
+            if track.image_file and 'default_track' not in track.image_file:
+                old_img_path = Path(current_app.root_path) / 'static' / track.image_file
+                if old_img_path.exists():
+                    old_img_path.unlink()
+
+            track.image_file = f'images/tracks/{new_img_filename}'
 
         # Gestion des tags
         tag_ids_str = request.form.get('tag_ids', '')
@@ -500,7 +501,7 @@ def put_track(track_id):
         track.style     = style
         track.price_mp3 = price_mp3
         track.price_wav = price_wav
-        if track.stems_file:
+        if track.file_stems:
             track.price_stems = price_stems
 
         db.session.commit()
@@ -574,7 +575,7 @@ def delete_track(track_id):
 
     try:
         # Supprimer les fichiers audio du disque
-        for filename in [track.audio_file, track.preview_file, track.wav_file, track.stems_file]:
+        for filename in [track.audio_file, track.file_mp3, track.file_wav, track.file_stems]:
             if filename:
                 file_path = config.UPLOAD_FOLDER / filename
                 if file_path.exists():

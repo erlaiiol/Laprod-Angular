@@ -1,5 +1,6 @@
 // @use must come before any other rules
 @use 'styles/variables' as v;
+@use 'styles/mixins'    as m;
 
 // ── CSS custom properties — available globally via var() ─────────────────────
 
@@ -12,7 +13,7 @@
   --tag-green:   #{v.$tag-green};
   --tag-pink:    #{v.$tag-pink};
 
-  // Tag colors — light (40 % white tint)
+  // Tag colors — light (40% white mix)
   --tag-violet-light:  #{v.$tag-violet-light};
   --tag-blue-light:    #{v.$tag-blue-light};
   --tag-red-light:     #{v.$tag-red-light};
@@ -20,7 +21,7 @@
   --tag-green-light:   #{v.$tag-green-light};
   --tag-pink-light:    #{v.$tag-pink-light};
 
-  // Tag colors — dark backgrounds (from admin preset palette)
+  // Tag colors — dark tinted backgrounds
   --tag-violet-dark:  #{v.$tag-violet-dark};
   --tag-blue-dark:    #{v.$tag-blue-dark};
   --tag-red-dark:     #{v.$tag-red-dark};
@@ -28,12 +29,12 @@
   --tag-green-dark:   #{v.$tag-green-dark};
   --tag-pink-dark:    #{v.$tag-pink-dark};
 
-  // Neutral (uncolored / "other" tags)
+  // Neutral
   --tag-neutral:        #{v.$tag-neutral};
   --tag-neutral-light:  #{v.$tag-neutral-light};
   --tag-neutral-dark:   #{v.$tag-neutral-dark};
 
-  // App background layers (dark blue — NOT grey)
+  // App background layers (dark grey, faint blue undertone)
   --bg-base:          #{v.$bg-base};
   --bg-surface:       #{v.$bg-surface};
   --bg-elevated:      #{v.$bg-elevated};
@@ -49,10 +50,21 @@
   --white:     #{v.$white};
   --off-white: #{v.$off-white};
 
-  // Brand accent
-  --accent:        #{v.$accent};
-  --accent-dark:   #{v.$accent-dark};
-  --accent-darker: #{v.$accent-darker};
+  // Primary CTA — violet; $accent kept as alias
+  --primary:        #{v.$primary};
+  --primary-dark:   #{v.$primary-dark};
+  --primary-darker: #{v.$primary-darker};
+  --accent:         #{v.$accent};
+  --accent-dark:    #{v.$accent-dark};
+  --accent-darker:  #{v.$accent-darker};
+
+  // Format badge palette (track purchase cards)
+  --format-mp3-bg:      #{v.$format-mp3-bg};
+  --format-mp3-color:   #{v.$format-mp3-color};
+  --format-wav-bg:      #{v.$format-wav-bg};
+  --format-wav-color:   #{v.$format-wav-color};
+  --format-stems-bg:    #{v.$format-stems-bg};
+  --format-stems-color: #{v.$format-stems-color};
 }
 
 // ── Global dark-theme overrides (loaded after Bootstrap CDN) ─────────────────
@@ -107,3 +119,58 @@ img { max-width: 100%; }
 ::-webkit-scrollbar-track       { background: v.$bg-base; }
 ::-webkit-scrollbar-thumb       { background: v.$bg-elevated; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: v.$bg-border-subtle; }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Bootstrap overrides — replaces Bootstrap semantic colors with LaProd palette
+// All loaded AFTER Bootstrap CDN so specificity wins cleanly.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Badge overrides ───────────────────────────────────────────────────────────
+//
+// Map Bootstrap semantic names to our dark-bg + vivid-border pattern.
+// Works for .badge.bg-* (Bootstrap 4/5) and .badge.text-bg-* (Bootstrap 5).
+//
+.badge {
+  border-radius: 20px !important;
+
+  &.bg-success,    &.text-bg-success    { background: v.$tag-green-dark  !important; border: 1px solid v.$tag-green;  color: #fff !important; }
+  &.bg-info,       &.text-bg-info       { background: v.$tag-blue-dark   !important; border: 1px solid v.$tag-blue;   color: #fff !important; }
+  &.bg-warning,    &.text-bg-warning    { background: v.$tag-orange-dark !important; border: 1px solid v.$tag-orange; color: #fff !important; }
+  &.bg-danger,     &.text-bg-danger     { background: v.$tag-red-dark    !important; border: 1px solid v.$tag-red;    color: #fff !important; }
+  &.bg-primary,    &.text-bg-primary    { background: v.$tag-violet-dark !important; border: 1px solid v.$tag-violet; color: #fff !important; }
+  &.bg-secondary,  &.text-bg-secondary  { background: v.$tag-neutral-dark !important; border: 1px solid v.$tag-neutral; color: #fff !important; }
+}
+
+// ── Standalone badge utilities (no Bootstrap dependency) ──────────────────────
+//
+// Usage: <span class="lp-badge lp-badge-green">Publié</span>
+// Or directly on a semantic element.
+//
+.lp-badge          { display: inline-flex; align-items: center; gap: 0.3rem;
+                     padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid;
+                     font-size: 0.75rem; font-weight: 600; line-height: 1.4; }
+
+.lp-badge-green    { @include m.badge(v.$tag-green,   v.$tag-green-dark); }
+.lp-badge-blue     { @include m.badge(v.$tag-blue,    v.$tag-blue-dark); }
+.lp-badge-orange   { @include m.badge(v.$tag-orange,  v.$tag-orange-dark); }
+.lp-badge-red      { @include m.badge(v.$tag-red,     v.$tag-red-dark); }
+.lp-badge-pink     { @include m.badge(v.$tag-pink,    v.$tag-pink-dark); }
+.lp-badge-violet   { @include m.badge(v.$tag-violet,  v.$tag-violet-dark); }
+.lp-badge-neutral  { @include m.badge(v.$tag-neutral, v.$tag-neutral-dark); }
+// "Premium" / featured — violet
+.lp-badge-premium  { @include m.badge(v.$tag-violet,  v.$tag-violet-dark); }
+
+// ── Button overrides ──────────────────────────────────────────────────────────
+//
+// Ghost pattern: black bg + white border at rest → fills with color on hover.
+// Overrides Bootstrap's filled buttons with our premium look.
+//
+.btn-success  { @include m.btn-ghost(v.$tag-green,   #000); }  // green fill → dark text
+.btn-info     { @include m.btn-ghost(v.$tag-blue); }
+.btn-warning  { @include m.btn-ghost(v.$tag-orange); }
+.btn-danger   { @include m.btn-ghost(v.$tag-red); }
+.btn-primary  { @include m.btn-ghost(v.$tag-violet); }
+.btn-secondary{ @include m.btn-ghost(v.$tag-neutral); }
+
+// "Premium" — violet, for CTAs without a Bootstrap semantic equivalent
+.btn-premium  { @include m.btn-ghost(v.$tag-violet); }

@@ -17,7 +17,8 @@ toplines_api_bp = Blueprint('toplines_api', __name__, url_prefix='/api/toplines'
 def _topline_to_dict(tl):
     return {
         'id':           tl.id,
-        'audio_file':   tl.audio_file,
+        'artist_id':    tl.artist_id,
+        'stream_url':   f'/api/stream/toplines/{tl.id}',
         'description':  tl.description,
         'is_published': tl.is_published,
         'created_at':   tl.created_at.isoformat() if tl.created_at else None,

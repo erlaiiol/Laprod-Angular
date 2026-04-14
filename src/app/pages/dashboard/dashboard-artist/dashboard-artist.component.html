@@ -38,13 +38,48 @@
     @if (revisionOrderId() !== null) {
       <div class="modal-backdrop" (click)="revisionOrderId.set(null)">
         <div class="modal-box" (click)="$event.stopPropagation()">
-          <h3>Demander une révision</h3>
-          <textarea rows="4" [ngModel]="revisionInput()" (ngModelChange)="revisionInput.set($event)"
-                    placeholder="Décrivez les modifications souhaitées..."></textarea>
+          <h3><i class="bi bi-arrow-clockwise"></i> Demander une révision</h3>
+          <p class="modal-note">
+            <i class="bi bi-info-circle"></i>
+            Cette révision déclenchera un versement de <strong>10% supplémentaires</strong> à l'ingénieur.
+            Il vous reste {{ 2 - (data()!.mm_requests.find(r => r.id === revisionOrderId())?.revision_count ?? 0) }} révision(s) possible(s).
+          </p>
+          <textarea rows="4" maxlength="1000"
+                    [ngModel]="revisionInput()" (ngModelChange)="revisionInput.set($event)"
+                    placeholder="Décrivez précisément les modifications souhaitées..."></textarea>
           <div class="modal-actions">
             <button class="btn-cancel" (click)="revisionOrderId.set(null)">Annuler</button>
             <button class="btn-confirm" (click)="submitRevision()" [disabled]="!revisionInput().trim() || actionInProgress() !== null">
               Envoyer la révision
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ── Reject delivery modal ────────────────────────────────────────────── -->
+    @if (rejectOrderId() !== null) {
+      <div class="modal-backdrop" (click)="rejectOrderId.set(null)">
+        <div class="modal-box modal-box--danger" (click)="$event.stopPropagation()">
+          <h3><i class="bi bi-x-circle"></i> Refuser la livraison</h3>
+          <div class="reject-warning">
+            <p>
+              Vous allez refuser ce mix/master. <strong>L'ingénieur conserve ses acomptes déjà versés.</strong>
+              Vous serez remboursé du solde restant.
+            </p>
+            <div class="refund-summary">
+              <span class="refund-label">Remboursement estimé</span>
+              <span class="refund-value">{{ rejectRefundAmount().toFixed(2) }}€</span>
+            </div>
+            <p class="refund-sub">
+              Ce montant correspond au solde restant après déduction des acomptes déjà versés à l'ingénieur.
+              <strong>Cette action est irréversible.</strong>
+            </p>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" (click)="rejectOrderId.set(null)">Annuler</button>
+            <button class="btn-danger-confirm" (click)="confirmRejectDelivery()" [disabled]="actionInProgress() !== null">
+              <i class="bi bi-x-circle"></i> Confirmer le refus et être remboursé
             </button>
           </div>
         </div>
@@ -68,6 +103,12 @@
       <button class="tab-btn" [class.active]="activeTab() === 'mixmaster'" (click)="setTab('mixmaster')">
         <i class="bi bi-sliders"></i> Mix/Master
         <span class="tab-count">{{ data()!.mm_requests.length }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'purchases'" (click)="setTab('purchases')">
+        <i class="bi bi-bag-check"></i> Mes Achats
+        @if (purchases()) {
+          <span class="tab-count">{{ (purchases()!.purchases.length + purchases()!.mm_orders.length) }}</span>
+        }
       </button>
     </div>
 
@@ -196,13 +237,48 @@
                 </div>
               </div>
 
-              <!-- Preview audio (si livrée) -->
-              @if (req.processed_file_preview_url) {
+              <!-- Référence audio -->
+              @if (req.reference_file_url) {
                 <div class="mm-preview">
-                  <span class="preview-label"><i class="bi bi-music-note"></i> Aperçu (dégradé)</span>
-                  <audio controls [src]="fileUrl(req.processed_file_preview_url)">
-                    <track kind="captions">
-                  </audio>
+                  <span class="preview-label"><i class="bi bi-music-note"></i> Référence soumise</span>
+                  <div class="sample-row">
+                    <button class="sample-play-btn"
+                            [class.active]="isPlayingReference(req)"
+                            (click)="playReference(req)"
+                            type="button">
+                      <i class="bi" [ngClass]="isPlayingReference(req) ? 'bi-pause-fill' : 'bi-play-circle'"></i>
+                    </button>
+                    <span class="sample-label">{{ isPlayingReference(req) ? 'Pause' : 'Votre maquette' }}</span>
+                  </div>
+                </div>
+              }
+
+              <!-- Preview audio (si livrée) -->
+              @if (req.processed_file_preview_url || req.processed_file_preview_full_url) {
+                <div class="mm-preview">
+                  <span class="preview-label"><i class="bi bi-headphones"></i> Écouter les previews</span>
+                  @if (req.processed_file_preview_url) {
+                    <div class="sample-row">
+                      <button class="sample-play-btn"
+                              [class.active]="isPlayingPreview(req.id, 'preview')"
+                              (click)="playPreview('preview', req)"
+                              type="button">
+                        <i class="bi" [ngClass]="isPlayingPreview(req.id, 'preview') ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                      </button>
+                      <span class="sample-label">Aperçu HD (coupé à la moitié)</span>
+                    </div>
+                  }
+                  @if (req.processed_file_preview_full_url) {
+                    <div class="sample-row">
+                      <button class="sample-play-btn"
+                              [class.active]="isPlayingPreview(req.id, 'preview_full')"
+                              (click)="playPreview('preview_full', req)"
+                              type="button">
+                        <i class="bi" [ngClass]="isPlayingPreview(req.id, 'preview_full') ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                      </button>
+                      <span class="sample-label">Preview dégradée (fréquences basses coupées -  titre en entier) <span class="badge badge-warning">PROTECTION ENGINEER</span></span>
+                    </div>
+                  }
                 </div>
               }
 
@@ -233,17 +309,117 @@
                           (click)="approveOrder(req.id)">
                     <i class="bi bi-check-lg"></i> Approuver et télécharger
                   </button>
+                  <button class="btn-mm btn-danger" [disabled]="actionInProgress() !== null"
+                          (click)="openRejectDelivery(req.id)">
+                    <i class="bi bi-x-circle"></i> Refuser la livraison
+                  </button>
                 }
                 @if (req.status === 'completed') {
-                  <a class="btn-mm btn-download" [href]="downloadUrl(req.id)" download>
+                  <button class="btn-mm btn-download" (click)="downloadFinal(req.id)">
                     <i class="bi bi-download"></i> Télécharger
-                  </a>
+                  </button>
                 }
               </div>
 
             </div>
           }
         </div>
+      }
+    }
+
+    <!-- ── Mes Achats ───────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'purchases') {
+      @if (purchasesLoading()) {
+        <div class="state-loading"><div class="spinner"></div></div>
+      } @else if (!purchases()) {
+        <div class="empty-state">
+          <i class="bi bi-bag"></i>
+          <p>Cliquez sur l'onglet pour charger vos achats.</p>
+        </div>
+      } @else {
+
+        <!-- Beats achetés -->
+        <h2 class="purchases-section-title"><i class="bi bi-music-note-beamed"></i> Beats & Contrats</h2>
+        @if (purchases()!.purchases.length === 0) {
+          <div class="empty-state">
+            <i class="bi bi-bag"></i>
+            <p>Aucun beat acheté pour l'instant.</p>
+            <small><a routerLink="/">Parcourir les beats</a></small>
+          </div>
+        } @else {
+          <div class="purchases-list">
+            @for (p of purchases()!.purchases; track p.id) {
+              <div class="purchase-card">
+                <a [routerLink]="['/track', p.track?.id]" class="purchase-cover-link">
+                  <img class="purchase-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
+                </a>
+                <div class="purchase-info">
+                  <a [routerLink]="['/track', p.track?.id]" class="purchase-title">
+                    {{ p.track?.title ?? 'Beat supprimé' }}
+                  </a>
+                  @if (p.track?.composer_username) {
+                    <span class="purchase-composer"><i class="bi bi-person"></i> {{ p.track!.composer_username }}</span>
+                  }
+                  <div class="purchase-meta">
+                    <span class="fmt-badge fmt-{{ p.format }}">{{ formatLabel(p.format) }}</span>
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(p.created_at) }}</span>
+                  </div>
+                </div>
+                <div class="purchase-right">
+                  <span class="purchase-price">{{ p.price_paid.toFixed(2) }}€</span>
+                  <div class="purchase-actions">
+                    <button class="btn-purchase btn-dl" (click)="downloadPurchase(p)">
+                      <i class="bi bi-download"></i> Télécharger
+                    </button>
+                    @if (p.has_contract && p.contract_url) {
+                      <button class="btn-purchase btn-contract" (click)="downloadContract(p)">
+                        <i class="bi bi-file-earmark-pdf"></i> Contrat
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Commandes Mix/Master -->
+        <h2 class="purchases-section-title purchases-section-title--mt"><i class="bi bi-sliders"></i> Commandes Mix/Master</h2>
+        @if (purchases()!.mm_orders.length === 0) {
+          <div class="empty-state">
+            <i class="bi bi-sliders"></i>
+            <p>Aucune commande mix/master terminée.</p>
+            <small><a [routerLink]="['/dashboard/artist']" [queryParams]="{ tab: 'mixmaster' }">Voir mes commandes en cours</a></small>
+          </div>
+        } @else {
+          <div class="purchases-list">
+            @for (mm of purchases()!.mm_orders; track mm.id) {
+              <div class="purchase-card purchase-card--mm">
+                <div class="purchase-info purchase-info--full">
+                  <span class="purchase-title">{{ mm.title }}</span>
+                  @if (mm.engineer_username) {
+                    <span class="purchase-composer"><i class="bi bi-person-badge"></i> {{ mm.engineer_username }}</span>
+                  }
+                  <div class="purchase-meta">
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(mm.created_at) }}</span>
+                    @if (mm.completed_at) {
+                      <span class="purchase-date text-green"><i class="bi bi-check2"></i> Terminé le {{ formatDate(mm.completed_at) }}</span>
+                    }
+                  </div>
+                </div>
+                <div class="purchase-right">
+                  <span class="purchase-price">{{ mm.total_price.toFixed(2) }}€</span>
+                  <div class="purchase-actions">
+                    <a [routerLink]="['/dashboard/artist']" [queryParams]="{ tab: 'mixmaster' }" class="btn-purchase btn-see-mm">
+                      <i class="bi bi-arrow-right"></i> Voir le détail
+                    </a>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
       }
     }
 

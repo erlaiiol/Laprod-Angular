@@ -1,9 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from './layout/navbar/navbar.component';
 import { ToastComponent } from './components/ui/toast.component/toast.component';
 import { FooterComponent } from './layout/footer/footer.component';
 import { PlayerComponent } from './layout/player/player.component';
+import { AuthService } from './services/auth.service';
+import { NotificationService } from './services/notification.service';
 
 @Component({
   selector: 'app-root',
@@ -11,6 +13,17 @@ import { PlayerComponent } from './layout/player/player.component';
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('Laprod-Angular');
+
+  private auth    = inject(AuthService);
+  private notifSvc = inject(NotificationService);
+
+  ngOnInit(): void {
+    // Charge les notifications dès le démarrage si l'utilisateur est connecté,
+    // ce qui alimente NotificationService.unreadCount (utilisé par la navbar).
+    if (this.auth.isLoggedIn()) {
+      this.notifSvc.load().subscribe();
+    }
+  }
 }

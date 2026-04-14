@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, csrf
 from models import User, MixMasterRequest
 from utils.notification_service import notify_mixmaster_request_received_and_sent
+from utils.email_service import send_mixmaster_request_notification
 from utils.stripe_logger import (
     log_stripe_payment_intent_created, log_stripe_error,
 )
@@ -109,11 +110,14 @@ def verify_payment():
         mm.platform_fee   = round(mm.total_price * 0.10, 2)
         mm.engineer_revenue = round(mm.total_price - mm.platform_fee, 2)
 
-        # Arborescence complète de l'archive
+        # Arborescence complète de l'archive (liste de chemins strings)
         if mm.original_file:
             stems_disk = Path(current_app.root_path) / mm.original_file
             if stems_disk.exists():
-                mm.archive_file_tree = get_archive_file_tree(str(stems_disk))
+                raw_tree = get_archive_file_tree(str(stems_disk))
+                mm.archive_file_tree = [
+                    f['path'] for f in raw_tree if not f['is_dir']
+                ] if raw_tree else []
 
         db.session.add(mm)
         db.session.flush()  # obtenir mm.id avant commit
@@ -130,6 +134,12 @@ def verify_payment():
 
         notify_mixmaster_request_received_and_sent(mm)
         db.session.commit()
+
+        # Email à l'engineer (hors transaction — un échec email ne doit pas annuler la commande)
+        try:
+            send_mixmaster_request_notification(mm)
+        except Exception as e:
+            current_app.logger.error(f'Erreur envoi email mixmaster #{mm.id}: {e}', exc_info=True)
 
         return jsonify({
             'success': True,

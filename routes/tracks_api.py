@@ -76,10 +76,11 @@ def get_track(track_id):
 
         def tl_dict(tl):
             return {
-                'id':          tl.id,
-                'stream_url':  f'/api/stream/toplines/{tl.id}',
-                'description': tl.description,
-                'created_at':  tl.created_at.isoformat(),
+                'id':           tl.id,
+                'artist_id':    tl.artist_id,
+                'stream_url':   f'/api/stream/toplines/{tl.id}',
+                'description':  tl.description,
+                'created_at':   tl.created_at.isoformat(),
                 'is_published': tl.is_published,
                 'artist_user': {
                     'username':      tl.artist_user.username      if tl.artist_user else None,

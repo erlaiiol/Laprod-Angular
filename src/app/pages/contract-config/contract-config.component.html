@@ -31,9 +31,6 @@
       <div class="price-box">
         <div class="price-box-total">{{ totalPrice().toFixed(2) }}€</div>
         <div class="price-box-label">Total TTC</div>
-        <div class="price-box-composer">
-          Compositeur recevra {{ composerEarnings() }}€
-        </div>
       </div>
     </aside>
 
@@ -240,15 +237,12 @@
           <span>Total TTC</span>
           <span class="total-price">{{ totalPrice().toFixed(2) }}€</span>
         </div>
-        <p class="composer-line">
-          Le compositeur recevra {{ composerEarnings() }}€ (après commission plateforme 10%)
-        </p>
       </div>
 
       <!-- SACEM notice -->
       <div class="sacem-notice">
         <i class="bi bi-exclamation-circle"></i>
-        Ce contrat doit être accompagné des démarches obligatoires auprès de la
+        Il est vivement conseillé d'accompagner ce contrat des démarches habituelles auprès de la
         <a href="https://www.sacem.fr" target="_blank" rel="noopener">SACEM</a>.
         Le contrat PDF sera automatiquement généré après le paiement.
       </div>

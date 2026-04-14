@@ -1,9 +1,9 @@
 @use 'variables' as v;
 
 .mix-guide {
-  border: 1px solid v.$bg-border;
+  border: 1px solid v.$tag-blue;
   border-radius: 10px;
-  background: v.$bg-surface;
+  background: v.$tag-blue-dark;
   margin-bottom: 1.5rem;
 }
 
@@ -13,19 +13,22 @@
   gap: 0.5rem;
   padding: 0.875rem 1.25rem;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
-  color: #fff;
+  color: v.$tag-blue-light;
   list-style: none;
   user-select: none;
   border-radius: 10px;
   transition: background 0.15s;
 
-  &:hover { background: v.$bg-elevated; }
+  i:first-child { color: v.$tag-blue; }
+
+  &:hover { background: rgba(59, 130, 246, 0.08); }
 
   .mix-guide__chevron {
     margin-left: auto;
     transition: transform 0.2s;
+    color: v.$tag-blue;
   }
 }
 
@@ -40,15 +43,20 @@ details[open] .mix-guide__chevron {
   gap: 1.25rem;
 }
 
+// ── Bloc IMPORTANT ────────────────────────────────────────────────────────────
+
 .guide-alert {
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: v.$tag-orange-dark;
+  border: 1px solid v.$tag-orange;
   border-radius: 8px;
   padding: 1rem;
   font-size: 0.82rem;
-  color: #fff;
+  color: v.$tag-orange-light;
 
-  strong { color: #fff; }
+  strong {
+    color: #fff;
+    i { color: v.$tag-orange; margin-right: 0.3rem; }
+  }
 
   p { margin: 0.4rem 0; }
 
@@ -56,22 +64,25 @@ details[open] .mix-guide__chevron {
     display: block;
     margin: 0.4rem 0;
     padding: 0.3rem 0.6rem;
-    background: v.$bg-elevated;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(249,115,22,0.3);
     border-radius: 4px;
     font-size: 0.78rem;
-    color: #e2e8f0;
+    color: #fff;
+
+    // inline variant (in <li>)
+    &:not(:only-child) {
+      display: inline;
+      padding: 0.1rem 0.35rem;
+    }
   }
 
   ul {
     margin: 0.5rem 0 0 1rem;
     padding: 0;
-
     li {
       margin-bottom: 0.2rem;
-      code {
-        display: inline;
-        padding: 0.1rem 0.35rem;
-      }
+      code { display: inline; padding: 0.1rem 0.35rem; }
     }
   }
 }
@@ -79,18 +90,22 @@ details[open] .mix-guide__chevron {
 .guide-note {
   margin-top: 0.5rem !important;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
 }
+
+// ── Sections ──────────────────────────────────────────────────────────────────
 
 .guide-section {
   h6 {
     font-size: 0.82rem;
     font-weight: 700;
-    color: white;
+    color: v.$tag-blue-light;
     margin: 0 0 0.6rem;
     display: flex;
     align-items: center;
     gap: 0.4rem;
+
+    i { color: v.$tag-blue; }
   }
 }
 
@@ -99,19 +114,17 @@ details[open] .mix-guide__chevron {
   grid-template-columns: 1fr 1fr;
   gap: 0 1.5rem;
 
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
 
   ul {
     margin: 0;
     padding-left: 1.1rem;
     font-size: 0.8rem;
-    color: v.$tag-neutral-light;
+    color: v.$text-secondary;
 
     li {
       margin-bottom: 0.25rem;
-      strong { color: #cbd5e1; }
+      strong { color: v.$text-primary; }
     }
   }
 }

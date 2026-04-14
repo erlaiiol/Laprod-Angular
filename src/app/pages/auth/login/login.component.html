@@ -1,32 +1,36 @@
 <div class="login-wrapper">
   <div class="login-card">
 
-    <!-- ── Alerte : compte Google sans mot de passe ──────────────────────── -->
-    <!-- @if (showPasswordSetLink()) {
+    <!-- ── Compte Google sans mot de passe ──────────────────────────────── -->
+    @if (showPasswordSetLink()) {
       <div class="alert-box alert-warning">
-        Ce compte est lié à Google. Voulez-vous créer un mot de passe ?
+        Ce compte est lié à Google. Vous ne pouvez pas vous connecter avec un mot de passe.
         <a routerLink="/forgot-password" [queryParams]="{ email: passwordEmail() }" class="alert-link">
-          Recevoir un lien par email
+          Créer un mot de passe par email
         </a>
       </div>
-    } -->
+    }
 
-    <!-- ── Alerte : email non vérifié ───────────────────────────────────── -->
-    <!-- @if (showConfirmationEmail()) {
-      <div class="alert-box alert-warning">
-        Veuillez vérifier votre email avant de vous connecter.
-        <button type="button" class="btn-link" (click)="resendVerification()">
-          Renvoyer l'email
-        </button>
+    <!-- ── Email non vérifié ────────────────────────────────────────────── -->
+    @if (pendingEmail()) {
+      <div class="pending-email-panel">
+        <div class="pending-icon"><i class="bi bi-envelope-exclamation"></i></div>
+        <p>L'adresse <strong>{{ pendingEmail() }}</strong> n'a pas encore été vérifiée.</p>
+        @if (resendSuccess()) {
+          <p class="resend-ok"><i class="bi bi-check-circle"></i> Lien renvoyé. Vérifiez vos spams.</p>
+        } @else {
+          <button type="button" class="btn-resend" (click)="resendVerification()" [disabled]="resendLoading()">
+            @if (resendLoading()) { <span class="spinner"></span> Envoi… }
+            @else { <i class="bi bi-send"></i> Renvoyer le lien de vérification }
+          </button>
+        }
       </div>
-    } -->
+    }
 
-    <!-- ── Alerte : erreur générale ─────────────────────────────────────── -->
-    <!-- @if (error()) {
-      <div class="alert-box alert-danger">
-        {{ error() }}
-      </div>
-    } -->
+    <!-- ── Erreur générale ───────────────────────────────────────────────── -->
+    @if (error()) {
+      <div class="alert-box alert-danger">{{ error() }}</div>
+    }
 
     <!-- ── Formulaire ────────────────────────────────────────────────────── -->
     <form (ngSubmit)="onSubmit()" #loginForm="ngForm" novalidate>

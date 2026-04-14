@@ -86,6 +86,8 @@ export class UploadTrackComponent implements OnInit {
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
+    this.auth.me().subscribe();  // rafraîchit les tokens depuis le serveur
+
     this.tagsService.getTags().subscribe({
       next: res => {
         if (res.success) {
@@ -139,6 +141,7 @@ export class UploadTrackComponent implements OnInit {
         this.loading.set(false);
         if (res.success) {
           this.success.set(true);
+          this.auth.me().subscribe();  // rafraîchit le compteur de tokens
         } else {
           this.error.set(res.error ?? 'Erreur lors de l\'upload.');
         }

@@ -2,12 +2,23 @@
 
   <!-- ── Header ──────────────────────────────────────────────────────────── -->
   <div class="page-header">
-    <h1><i class="bi bi-sliders"></i> Mix/Master Engineers Certifiés</h1>
+    <div class="header-title-row">
+      <h1><i class="bi bi-sliders"></i> Mix/Master Engineers Certifiés</h1>
+      @if (auth.isLoggedIn()) {
+        <div class="mixmaster-link" routerLink="/dashboard/artist" [queryParams]="{ tab: 'mixmaster' }">
+          <i class="bi bi-sliders2"></i> Mes mixages en cours
+        </div>
+      }
+    </div>
     <p class="subtitle">Sélectionnez un ingénieur du son professionnel pour mixer et masteriser vos pistes.</p>
   </div>
 
+
+
   <!-- Guide mixage -->
   <app-mixmaster-guide></app-mixmaster-guide>
+
+
 
   @if (loading()) {
     <div class="state-loading"><div class="spinner"></div></div>

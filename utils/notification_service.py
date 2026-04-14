@@ -256,41 +256,66 @@ def notify_mixmaster_status_changed(mixmaster_request, old_status, new_status):
     engineer = mixmaster_request.engineer
     artist = mixmaster_request.artist
 
+    # Message 'refunded' dépend du scénario (old_status)
+    deposit_net = round(float(mixmaster_request.deposit_amount) * 0.90, 2)
+    final_net   = round(float(mixmaster_request.get_final_transfer_amount()), 2)
+    refund_amt  = round(float(mixmaster_request.get_refund_amount()), 2)
+
+    if old_status == 'awaiting_acceptance':
+        # Annulation artiste ou rejet ingénieur → remboursement total
+        artist_refunded_msg  = f"Remboursement intégral de {mixmaster_request.total_price:.2f}€ en cours."
+        engineer_refund_msg  = f"Demande de {artist.username} remboursée intégralement. Aucun montant versé."
+    elif old_status == 'delivered':
+        # Refus de livraison → remboursement partiel
+        artist_refunded_msg  = f"Livraison refusée. Remboursement partiel de {refund_amt:.2f}€ en cours (l'ingénieur conserve ses acomptes)."
+        engineer_refund_msg  = f"{artist.username} a refusé votre livraison. Vous conservez vos acomptes déjà crédités ({mixmaster_request.total_price - refund_amt:.2f}€)."
+    else:
+        artist_refunded_msg  = f"Commande annulée. Remboursement de {refund_amt:.2f}€ en cours."
+        engineer_refund_msg  = f"Commande de {artist.username} annulée."
+
     status_messages = {
         'artist': {
-            'accepted': f"{engineer.username} a accepté votre demande ! Le mixage est en cours. 1 semaine avant livraison ou vous serez remboursé automatiquement",
-            'rejected': f"{engineer.username} a refusé votre demande. Vous avez été remboursé automatiquement.",
-            'processing': "Votre mixage est en cours de traitement.",
-            'delivered': f"Votre mixage est prêt ! Écoutez la preview et validez. Acompte de 30% versé: {mixmaster_request.deposit_amount:.2f}€",
-            'completed': f"Mixage terminé ! Téléchargez votre fichier final. Paiement final envoyé: {mixmaster_request.total_price:.2f}€. Plus de remboursement automatique possible. Contactez le support en cas de problème.",
-            'refunded': f"Délai dépassé ou annulation. Vous êtes en cours de remboursement intégral. {mixmaster_request.total_price:.2f}€. Contactez le support en cas de problème.",
+            'accepted':    f"{engineer.username} a accepté votre demande ! Mixage en cours. Deadline : 7 jours.",
+            'rejected':    f"{engineer.username} a refusé votre demande. Remboursement intégral de {mixmaster_request.total_price:.2f}€ en cours.",
+            'processing':  "Votre mixage est en cours de traitement.",
+            'delivered':   f"Votre mixage est prêt ! Écoutez les previews puis validez ou demandez une révision.",
+            'revision1':   f"Révision 1 demandée à {engineer.username}.",
+            'revision2':   f"Révision 2 demandée à {engineer.username}.",
+            'completed':   f"Mixage validé ! Téléchargez votre fichier final. Aucun remboursement possible après validation.",
+            'refunded':    artist_refunded_msg,
         },
         'engineer': {
-            'accepted': f"Vous avez accepté la demande de {artist.username}. 1 semaine pour livrer.",
-            'rejected': f"Vous avez refusé la demande de {artist.username}. Artiste remboursé automatiquement.",
+            'accepted':    f"Vous avez accepté la demande de {artist.username}. 7 jours pour livrer.",
+            'rejected':    f"Vous avez refusé la demande de {artist.username}. Artiste remboursé intégralement.",
             'processing':  f"Mixage en cours pour {artist.username}.",
-            'delivered': f"Mixage livré à {artist.username}. Acompte de {round(float(mixmaster_request.deposit_amount)*0.90,2)}€ ajouté à vos gains (dispo dans 7j).",
-            'completed': f"Mixage validé par {artist.username}. Solde de {round(float(mixmaster_request.remaining_amount)*0.90,2)}€ ajouté à vos gains (dispo dans 7j).",
-            'refunded': f"Demande de {artist.username} remboursée (délai dépassé ou annulation). Contactez le support en cas de problème.",
+            'delivered':   f"Mixage livré à {artist.username}. {deposit_net:.2f}€ ajoutés à vos gains (dispo dans 7j).",
+            'revision1':   f"{artist.username} demande la révision 1. +{round(float(mixmaster_request.get_revision_transfer_amount()),2):.2f}€ ajoutés à vos gains.",
+            'revision2':   f"{artist.username} demande la révision 2. +{round(float(mixmaster_request.get_revision_transfer_amount()),2):.2f}€ ajoutés à vos gains.",
+            'completed':   f"Mixage validé par {artist.username}. Solde final de {final_net:.2f}€ ajouté à vos gains (dispo dans 7j).",
+            'refunded':    engineer_refund_msg,
         }
     }
 
     status_title = {
         'artist': {
-            'accepted': "Mixage accepté",
-            'rejected': "Mixage refusé",
+            'accepted':   "Mixage accepté",
+            'rejected':   "Mixage refusé — remboursé",
             'processing': "Mixage en cours",
-            'delivered': f"Mixage reçu",
-            'completed': f"Téléchargement disponible",
-            'refunded': f"Mixage annulé",
+            'delivered':  "Mixage reçu — à valider",
+            'revision1':  "Révision 1 en cours",
+            'revision2':  "Révision 2 en cours",
+            'completed':  "Téléchargement disponible",
+            'refunded':   "Livraison refusée",
         },
         'engineer': {
-            'accepted': "1 semaine pour mixer",
-            'rejected': "Mixage refusé",
-            'processing': "Mix",
-            'delivered': f"Mixage envoyé",
-            'completed': f"Mixage validé",
-            'refunded': f"Mixage annulé",
+            'accepted':   "Nouvelle commande acceptée",
+            'rejected':   "Commande refusée",
+            'processing': "Mixage en cours",
+            'delivered':  "Mixage livré",
+            'revision1':  "Révision 1 demandée",
+            'revision2':  "Révision 2 demandée",
+            'completed':  "Mixage validé — gains crédités",
+            'refunded':   "Commande remboursée",
         }
     }
 

@@ -2,7 +2,7 @@
 Service d'envoi d'emails pour LaProd
 Gère l'envoi d'emails de vérification, notifications, et factures
 """
-from flask import current_app, render_template, url_for
+from flask import current_app, render_template
 import extensions
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
@@ -141,11 +141,8 @@ def send_verification_email(user):
         send_verification_email(new_user)
     """
     token = generate_verification_token(user.email)
-    verification_url = url_for(
-        'auth.verify_email',
-        token=token,
-        _external=True
-    )
+    frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
+    verification_url = f"{frontend_url}/verify-email?token={token}"
 
     # Texte brut
     text_body = f"""

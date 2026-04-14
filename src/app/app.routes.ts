@@ -10,6 +10,7 @@ import { TrackDetailComponent }    from './pages/track-detail/track-detail.compo
 import { ContractConfigComponent } from './pages/contract-config/contract-config.component';
 import { WalletComponent }         from './pages/wallet/wallet.component';
 import { RegisterComponent }        from './pages/auth/register/register.component';
+import { VerifyEmailComponent }     from './pages/auth/verify-email/verify-email.component';
 import { OauthCallbackComponent }   from './pages/auth/oauth-callback/oauth-callback.component';
 import { CompleteProfileComponent } from './pages/auth/complete-profile/complete-profile.component';
 import { SelectRoleComponent }           from './pages/auth/select-role/select-role.component';
@@ -26,6 +27,7 @@ import { PurchasesComponent }                 from './pages/purchases/purchases.
 import { MixmasterEngineersComponent }        from './pages/mixmaster/engineers/engineers.component';
 import { MixmasterOrderComponent }            from './pages/mixmaster/order/order.component';
 import { MixPaymentSuccessComponent }         from './pages/mixmaster/payment-success/payment-success.component';
+import { TrackPaymentSuccessComponent }       from './pages/payment-success/payment-success.component';
 import { AdminComponent }                    from './pages/admin/admin.component';
 import { NotFoundComponent }                 from './pages/not-found/not-found.component';
 import { EditTrackComponent } from './pages/edit-track/edit-track.component';
@@ -35,6 +37,7 @@ export const routes: Routes = [
   { path: 'upload-track',                  component: UploadTrackComponent,            canActivate: [authGuard] },
   { path: 'login',                         component: LoginComponent },
   { path: 'register',                      component: RegisterComponent },
+  { path: 'verify-email',                  component: VerifyEmailComponent },
   { path: 'oauth-callback',                component: OauthCallbackComponent },
   { path: 'complete-profile',              component: CompleteProfileComponent },
   { path: 'select-role',                   component: SelectRoleComponent },
@@ -55,6 +58,7 @@ export const routes: Routes = [
   { path: 'mix/engineers',                 component: MixmasterEngineersComponent },
   { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent,          canActivate: [authGuard] },
   { path: 'mix/payment-success',           component: MixPaymentSuccessComponent,       canActivate: [authGuard] },
+  { path: 'payment/track/success',         component: TrackPaymentSuccessComponent,     canActivate: [authGuard] },
   { path: 'admin',                         component: AdminComponent,                   canActivate: [adminGuard] },
   { path: 'erreur',                        component: NotFoundComponent },
   { path: '**',                            component: NotFoundComponent },

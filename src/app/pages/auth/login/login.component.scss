@@ -1,4 +1,7 @@
-/* ── Layout centré ────────────────────────────────────────────────────────── */
+@use 'variables' as v;
+@use 'mixins'    as m;
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
 
 .login-wrapper {
   min-height: 100vh;
@@ -6,21 +9,19 @@
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  background: #1a1d20;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: #2c3034;
-  border: 1px solid #495057;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
   border-radius: 8px;
   padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
-
 
 /* ── Alertes ──────────────────────────────────────────────────────────────── */
 
@@ -30,30 +31,54 @@
   font-size: 0.875rem;
 
   &.alert-warning {
-    background: rgba(255, 193, 7, 0.12);
-    border: 1px solid rgba(255, 193, 7, 0.35);
-    color: #ffc107;
+    background: v.$tag-orange-dark;
+    border: 1px solid v.$tag-orange;
+    color: v.$tag-orange-light;
   }
 
   &.alert-danger {
-    background: rgba(220, 53, 69, 0.12);
-    border: 1px solid rgba(220, 53, 69, 0.35);
-    color: #dc3545;
+    background: v.$tag-red-dark;
+    border: 1px solid v.$tag-red;
+    color: v.$tag-red-light;
   }
 
-  .alert-link,
-  .btn-link {
+  .alert-link {
     color: inherit;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: underline;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
     margin-left: 0.25rem;
   }
 }
 
+/* ── Email non vérifié ────────────────────────────────────────────────────── */
+
+.pending-email-panel {
+  background: v.$tag-orange-dark;
+  border: 1px solid v.$tag-orange;
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+
+  p { margin: 0; font-size: 0.875rem; color: v.$tag-orange-light; }
+  strong { color: #fff; }
+}
+
+.pending-icon { font-size: 1.6rem; color: v.$tag-orange; }
+
+.resend-ok {
+  font-size: 0.85rem;
+  color: v.$tag-green-light;
+  i { margin-right: 0.3rem; }
+}
+
+.btn-resend {
+  @include m.btn-ghost(v.$tag-orange);
+  font-size: 0.82rem;
+}
 
 /* ── Champs ───────────────────────────────────────────────────────────────── */
 
@@ -63,23 +88,23 @@
   gap: 0.4rem;
 
   label {
-    color: #adb5bd;
+    color: v.$text-secondary;
     font-size: 0.85rem;
     font-weight: 500;
   }
 
   input {
-    background: #1a1d20;
-    border: 1px solid #495057;
+    background: v.$bg-elevated;
+    border: 1px solid v.$bg-border;
     border-radius: 5px;
-    color: #f8f9fa;
+    color: v.$text-primary;
     padding: 0.55rem 0.75rem;
     font-size: 0.95rem;
     outline: none;
     transition: border-color 0.2s;
 
-    &::placeholder { color: #6c757d; }
-    &:focus        { border-color: #0d6efd; }
+    &::placeholder { color: v.$text-muted; }
+    &:focus        { border-color: v.$primary; }
   }
 }
 
@@ -91,12 +116,10 @@
 
 .forgot-link {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: v.$text-muted;
   text-decoration: none;
-
-  &:hover { color: #adb5bd; }
+  &:hover { color: v.$text-secondary; }
 }
-
 
 /* ── Checkbox ─────────────────────────────────────────────────────────────── */
 
@@ -105,68 +128,32 @@
   align-items: center;
   gap: 0.5rem;
 
-  input[type="checkbox"] { accent-color: #0d6efd; }
+  input[type="checkbox"] { accent-color: v.$primary; }
 
   label {
-    color: #adb5bd;
+    color: v.$text-secondary;
     font-size: 0.875rem;
     cursor: pointer;
   }
 }
 
-
 /* ── Boutons ──────────────────────────────────────────────────────────────── */
 
 .btn-primary {
+  @include m.btn-ghost(v.$primary);
   width: 100%;
-  padding: 0.6rem;
-  background: transparent;
-  border: 1px solid #0d6efd;
-  border-radius: 5px;
-  color: #0d6efd;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  transition: background 0.2s, color 0.2s;
-
-  &:hover:not(:disabled) {
-    background: #0d6efd;
-    color: #fff;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  font-size: 0.95rem;
+  padding: 0.6rem;
 }
 
 .btn-google {
+  @include m.btn-ghost(v.$tag-red);
   width: 100%;
-  padding: 0.6rem;
-  background: transparent;
-  border: 1px solid #dc3545;
-  border-radius: 5px;
-  color: #dc3545;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  transition: background 0.2s, color 0.2s;
-
-  &:hover {
-    background: #dc3545;
-    color: #fff;
-  }
+  font-size: 0.95rem;
+  padding: 0.6rem;
 }
-
 
 /* ── Spinner ──────────────────────────────────────────────────────────────── */
 
@@ -181,39 +168,32 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-
 /* ── Séparateur ───────────────────────────────────────────────────────────── */
 
 .divider {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: #495057;
   font-size: 0.8rem;
 
-  &::before,
-  &::after {
+  &::before, &::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: #495057;
+    background: v.$bg-border;
   }
 
-  span { color: #6c757d; }
+  span { color: v.$text-muted; }
 }
-
 
 /* ── Lien inscription ─────────────────────────────────────────────────────── */
 
 .register-link {
   text-align: center;
   font-size: 0.85rem;
-  color: #6c757d;
+  color: v.$text-muted;
   margin: 0;
 
-  a {
-    color: #0d6efd;
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
-  }
+  a { color: v.$primary; text-decoration: none;
+      &:hover { text-decoration: underline; } }
 }

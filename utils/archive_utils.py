@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 
+MAX_UNCOMPRESSED_SIZE = 4 * 1024 * 1024 * 1024  # 4 Go — protection zip bomb
+
+
 def get_archive_file_tree(archive_path: str) -> Optional[List[Dict]]:
     """
     Extrait l'arborescence des fichiers d'une archive zip ou rar.
@@ -34,6 +37,17 @@ def get_archive_file_tree(archive_path: str) -> Optional[List[Dict]]:
         # Déterminer le type d'archive
         if path.suffix.lower() == '.zip':
             with zipfile.ZipFile(archive_path, 'r') as archive:
+                total_uncompressed = sum(
+                    i.file_size for i in archive.filelist if not i.is_dir()
+                )
+                if total_uncompressed > MAX_UNCOMPRESSED_SIZE:
+                    from flask import current_app
+                    current_app.logger.warning(
+                        f"Archive rejetée (zip bomb potentiel) : {archive_path} "
+                        f"({total_uncompressed / 1e9:.1f} Go décompressé)"
+                    )
+                    return None
+
                 for info in archive.filelist:
                     # Ignorer les fichiers système macOS
                     if '__MACOSX' in info.filename or info.filename.startswith('.'):
@@ -49,6 +63,17 @@ def get_archive_file_tree(archive_path: str) -> Optional[List[Dict]]:
 
         elif path.suffix.lower() == '.rar':
             with rarfile.RarFile(archive_path, 'r') as archive:
+                total_uncompressed = sum(
+                    i.file_size for i in archive.infolist() if not i.isdir()
+                )
+                if total_uncompressed > MAX_UNCOMPRESSED_SIZE:
+                    from flask import current_app
+                    current_app.logger.warning(
+                        f"Archive rejetée (zip bomb potentiel) : {archive_path} "
+                        f"({total_uncompressed / 1e9:.1f} Go décompressé)"
+                    )
+                    return None
+
                 for info in archive.infolist():
                     # Ignorer les fichiers système
                     if '__MACOSX' in info.filename or info.filename.startswith('.'):

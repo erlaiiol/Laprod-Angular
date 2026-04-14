@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, signal, computed,
+  Component, OnInit, signal, computed, effect,
   inject, ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -106,6 +106,13 @@ export class ContractConfigComponent implements OnInit {
   readonly MECHANICAL_PRICE  = MECHANICAL_PRICE;
   readonly PUBLIC_SHOW_PRICE = PUBLIC_SHOW_PRICE;
   readonly ARRANGEMENT_PRICE = ARRANGEMENT_PRICE;
+
+  constructor() {
+    // Quand un droit devient auto-inclus, on efface la sélection manuelle
+    // pour éviter un double-comptage si le seuil repasse en dessous.
+    effect(() => { if (this.mechanicalAutoIncluded()) this.rightMechanical.set(false); });
+    effect(() => { if (this.publicShowAutoIncluded())  this.rightPublicShow.set(false); });
+  }
 
   ngOnInit(): void {
     const trackId = Number(this.route.snapshot.paramMap.get('trackId'));

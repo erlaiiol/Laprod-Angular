@@ -16,7 +16,7 @@ export const toastInterceptor: HttpInterceptorFn = (req, next) => {
     tap((event) => {
       if (event instanceof HttpResponse) {
         const body = event.body as { feedback?: Toast };
-        if (body?.feedback) {
+        if (body?.feedback?.message) {
           toastService.showToast(body.feedback);
         }
       }
