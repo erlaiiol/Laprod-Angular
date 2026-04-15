@@ -31,11 +31,14 @@ oauth = OAuth()  # OAuth2 pour Google
 scheduler = BackgroundScheduler(daemon=True)
 jwt = JWTManager()
 
+_is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
+
 limiter = Limiter(
     key_func=get_remote_address,
-    # CHANGE THIS ABSOLUTELY FOR PRODUCTION PURPOSE TO 300 PER DAY 50 PER HOUR
-    default_limits=["300 per day", "50 per hour"],
-    storage_uri=os.getenv("REDIS_URL", "redis://redis:6379"),  # Utiliser Redis pour stocker les compteurs de rate limit
+    # En développement : aucune limite globale (les @limiter.limit() par route restent actifs).
+    # En production : 300/jour et 50/heure par IP.
+    default_limits=[] if _is_dev else ["300 per day", "50 per hour"],
+    storage_uri=os.getenv("REDIS_URL", "redis://redis:6379"),
 )
 
 redis_client: redis.Redis | None = None  # Initialisé dans init_extensions()

@@ -38,7 +38,7 @@ export class PlayerService {
   playOnReady = false;
 
   private http = inject(HttpClient);
-  private tracksApiUrl  = `${environment.apiUrl}/tracks`;
+  private tracksApiUrl  = `${environment.apiUrl}/api/tracks`;
   private favoritesUrl  = `${environment.apiUrl}/api/favorites`;
 
   constructor() {
@@ -54,7 +54,10 @@ export class PlayerService {
 
     this.audioEl.onended = () => {
       this.isPlaying.set(false);
-      this.playNext();
+      // Ne pas auto-avancer sur un audio mix order : l'utilisateur décide lui-même
+      if (!this.viewingMixOrder()) {
+        this.playNext();
+      }
     };
 
     this.audioEl.onpause = () => this.isPlaying.set(false);
