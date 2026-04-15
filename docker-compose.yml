@@ -74,7 +74,7 @@ services:
       REDIS_PORT:   "6379"
       REDIS_DB:     "0"
     volumes:
-      - ./static:/usr/src/app/static    # uploads persistants
+      - ./db_assets:/usr/src/app/db_assets    # uploads persistants
       - ./logs:/usr/src/app/logs
     expose:
       - "5000"
@@ -102,7 +102,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./static:/usr/src/app/static:ro       # fichiers statiques Flask (images, audio)
+      - ./db_assets:/usr/src/app/db_assets:ro  # fichiers statiques Flask (images, audio)
       - certbot_www:/var/www/certbot:ro        # challenge Let's Encrypt
       - certbot_conf:/etc/letsencrypt:ro       # certificats SSL
     depends_on:

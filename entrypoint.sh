@@ -6,7 +6,7 @@ set -e
 # L'entrypoint tourne en root pour pouvoir chown, puis bascule vers appuser
 # via gosu avant de lancer gunicorn.
 # =============================================================================
-chown -R appuser:appuser /usr/src/app/static /usr/src/app/logs 2>/dev/null || true
+chown -R appuser:appuser /usr/src/app/db_assets /usr/src/app/logs 2>/dev/null || true
 
 echo "=== LaProd - Démarrage ==="
 
