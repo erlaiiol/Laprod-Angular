@@ -10,6 +10,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/db_assets": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/legacy": {
     "target": "http://localhost:5000",
     "secure": false,

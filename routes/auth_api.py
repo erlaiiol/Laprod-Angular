@@ -788,8 +788,8 @@ def submit_mixmaster_sample():
         raw_file.save(config.MIXMASTER_SAMPLES_FOLDER / raw_name)
         processed_file.save(config.MIXMASTER_SAMPLES_FOLDER / proc_name)
 
-        raw_path  = Path('static', 'mixmaster', 'samples', raw_name).as_posix()
-        proc_path = Path('static', 'mixmaster', 'samples', proc_name).as_posix()
+        raw_path  = Path('db_assets', 'mixmaster', 'samples', raw_name).as_posix()
+        proc_path = Path('db_assets', 'mixmaster', 'samples', proc_name).as_posix()
 
         user.mixmaster_reference_price   = reference_price
         user.mixmaster_price_min         = price_min

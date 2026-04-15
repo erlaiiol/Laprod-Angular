@@ -46,7 +46,7 @@ export class PurchasesComponent implements OnInit {
   }
 
   imgUrl(path: string | null): string {
-    return path ? `${environment.apiUrl}/static/${path}` : '/assets/placeholder-track.png';
+    return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/placeholder-track.png';
   }
 
   formatDate(iso: string): string {

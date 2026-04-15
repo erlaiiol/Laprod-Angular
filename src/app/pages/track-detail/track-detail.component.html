@@ -22,7 +22,7 @@
            [class.is-playing]="isThisTrackPlaying()"
            (click)="playThisTrack()">
         <img [src]="getImageUrl(track()!.image_file)" [alt]="track()!.title"
-             onerror="this.src='assets/placeholder-track.png'">
+             onerror="this.src='assets/placeholders/placeholder-track.png'">
         <div class="cover-play-overlay">
           @if (isThisTrackPlaying()) {
             <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
@@ -50,7 +50,7 @@
         <div class="track-composer">
           <img class="composer-avatar"
                [src]="getImageUrl(track()!.composer_user.profile_image)"
-               onerror="this.src='assets/placeholder-avatar.png'"
+               onerror="this.src='assets/placeholders/default_profile.png'"
                alt="">
           <a [routerLink]="['/profile', track()!.composer_user.username]">
             {{ track()!.composer_user.username }}
@@ -154,7 +154,7 @@
           <div class="topline-item">
             <img class="topline-avatar"
                  [src]="getImageUrl(tl.artist_user.profile_image)"
-                 onerror="this.src='assets/placeholder-avatar.png'"
+                 onerror="this.src='assets/placeholders/default_profile.png'"
                  alt="">
             <div class="topline-info">
               <span class="topline-artist">{{ tl.artist_user.username }}</span>

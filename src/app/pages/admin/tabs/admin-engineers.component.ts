@@ -228,7 +228,7 @@ export class AdminEngineersComponent implements OnInit {
   }
 
   imgUrl(path: string): string {
-    if (!path) return '/assets/placeholder-track.png';
+    if (!path) return '/assets/placeholders/placeholder-track.png';
     if (path.startsWith('http')) return path;
     return this.staticBase + path;
   }

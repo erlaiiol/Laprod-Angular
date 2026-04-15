@@ -267,7 +267,7 @@ def verify_payment():
             from utils.contract_generator import generate_contract_pdf
             from pathlib import Path
 
-            contracts_dir = Path(current_app.root_path) / 'static' / 'contracts'
+            contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
             contracts_dir.mkdir(parents=True, exist_ok=True)
 
             is_lifetime = meta.get('is_lifetime') == 'True'

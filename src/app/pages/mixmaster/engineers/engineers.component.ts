@@ -40,7 +40,7 @@ export class MixmasterEngineersComponent implements OnInit {
   }
 
   imgUrl(path: string | null): string {
-    return path ? `${environment.apiUrl}/static/${path}` : '/assets/placeholder-avatar.png';
+    return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/default_profile.png';
   }
 
   /** Joue ou met en pause un sample engineer dans le player bas. */

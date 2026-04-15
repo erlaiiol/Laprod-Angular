@@ -1,7 +1,7 @@
 """
 LaProd - Application Factory (PostgreSQL + Flask-Migrate)
 """
-from flask import Flask, session, jsonify
+from flask import Flask, session, jsonify, send_from_directory
 import os
 from dotenv import load_dotenv
 from helpers import admin_required
@@ -124,6 +124,7 @@ def create_app():
     config.CONTRACTS_FOLDER.mkdir(parents=True, exist_ok=True)
     config.IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.IMAGES_FOLDER / 'tracks').mkdir(parents=True, exist_ok=True)
+    config.PROFILES_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_UPLOADS_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_PREVIEWS_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -197,6 +198,14 @@ def create_app():
             db.session.commit()
             app.logger.info("Compte admin cree")
     
+    # ============================================
+    # ROUTE STATIQUE DB_ASSETS (images, profils…)
+    # ============================================
+
+    @app.route('/db_assets/<path:filename>')
+    def serve_db_assets(filename):
+        return send_from_directory(str(config.BASE_DIR / 'db_assets'), filename)
+
     # ============================================
     # ENREGISTRER LES BLUEPRINTS
     # ============================================

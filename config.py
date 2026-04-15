@@ -93,7 +93,7 @@ MAX_ARCHIVE_SIZE = 800 * 1024 * 1024 # 800 MB pour les archives (mixmasterreques
 # ============================================
 # WATERMARK
 # ============================================
-WATERMARK_AUDIO_PATH = BASE_DIR / 'static' / 'audio' / 'watermark.mp3'
+WATERMARK_AUDIO_PATH = BASE_DIR / 'db_assets' / 'audio' / 'watermark.mp3'
 PREVIEW_DURATION = 90  # 1:30 en secondes
 WATERMARK_INTERVALS = [20, 45]  # Positions en secondes où insérer le watermark
 
@@ -152,16 +152,16 @@ Pour plus d'informations, consultez www.sacem.fr
 # DOSSIERS DE L'APPLICATION
 # ============================================
 # Tous les chemins sont des objets Path (pathlib)
-UPLOAD_FOLDER = BASE_DIR / 'static' / 'audio'
-CONTRACTS_FOLDER = BASE_DIR / 'static' / 'contracts'
-IMAGES_FOLDER = BASE_DIR / 'static' / 'images'
-PROFILES_FOLDER = BASE_DIR / 'static' / 'images' / 'profiles'
+UPLOAD_FOLDER = BASE_DIR / 'db_assets' / 'audio'
+CONTRACTS_FOLDER = BASE_DIR / 'db_assets' / 'contracts'
+IMAGES_FOLDER = BASE_DIR / 'db_assets' / 'images'
+PROFILES_FOLDER = BASE_DIR / 'db_assets' / 'images' / 'profiles'
 
 # DOSSIERS MIX/MASTER
-MIXMASTER_UPLOADS_FOLDER = BASE_DIR / 'static' / 'mixmaster' / 'uploads'
-MIXMASTER_PROCESSED_FOLDER = BASE_DIR / 'static' / 'mixmaster' / 'processed'
-MIXMASTER_PREVIEWS_FOLDER = BASE_DIR / 'static' / 'mixmaster' / 'previews'
-MIXMASTER_SAMPLES_FOLDER = BASE_DIR / 'static' / 'mixmaster' / 'samples'
+MIXMASTER_UPLOADS_FOLDER = BASE_DIR / 'db_assets' / 'mixmaster' / 'uploads'
+MIXMASTER_PROCESSED_FOLDER = BASE_DIR / 'db_assets' / 'mixmaster' / 'processed'
+MIXMASTER_PREVIEWS_FOLDER = BASE_DIR / 'db_assets' / 'mixmaster' / 'previews'
+MIXMASTER_SAMPLES_FOLDER = BASE_DIR / 'db_assets' / 'mixmaster' / 'samples'
 
 # ============================================
 # SÉCURITÉ

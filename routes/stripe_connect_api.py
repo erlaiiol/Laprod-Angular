@@ -9,7 +9,7 @@ POST  /api/stripe/refresh       → Rafraîchit le statut depuis Stripe
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from extensions import db
+from extensions import db, csrf
 from models import User
 from stripe_connect_helpers import (
     create_connect_account,
@@ -58,6 +58,7 @@ def get_status():
 # ── POST /api/stripe/setup-url ─────────────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/setup-url', methods=['POST'])
+@csrf.exempt
 @jwt_required()
 def get_setup_url():
     """
@@ -104,6 +105,7 @@ def get_setup_url():
 # ── POST /api/stripe/dashboard-url ────────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/dashboard-url', methods=['POST'])
+@csrf.exempt
 @jwt_required()
 def get_dashboard_url():
     """Retourne l'URL du dashboard Express Stripe pour l'utilisateur."""
@@ -124,6 +126,7 @@ def get_dashboard_url():
 # ── POST /api/stripe/refresh ───────────────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/refresh', methods=['POST'])
+@csrf.exempt
 @jwt_required()
 def refresh_status():
     """Rafraîchit le statut du compte Stripe Connect depuis l'API Stripe."""

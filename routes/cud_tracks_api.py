@@ -271,7 +271,7 @@ def post_track():
 
         if WATERMARK_AVAILABLE:
             try:
-                watermark_path = Path(current_app.root_path) / 'static' / 'audio' / 'watermark.mp3'
+                watermark_path = Path(current_app.root_path) / 'db_assets' / 'audio' / 'watermark.mp3'
                 apply_watermark_and_trim(
                     input_path=str(mp3_disk_path),
                     output_path=str(preview_disk_path),
@@ -477,7 +477,7 @@ def put_track(track_id):
 
             # Supprimer l'ancienne image seulement après que la nouvelle est sauvegardée
             if track.image_file and 'default_track' not in track.image_file:
-                old_img_path = Path(current_app.root_path) / 'static' / track.image_file
+                old_img_path = Path(current_app.root_path) / 'db_assets' / track.image_file
                 if old_img_path.exists():
                     old_img_path.unlink()
 
@@ -583,7 +583,7 @@ def delete_track(track_id):
 
         # Supprimer l'image (sauf l'image par défaut)
         if track.image_file and 'default_track' not in track.image_file:
-            image_path = Path(current_app.root_path) / 'static' / track.image_file
+            image_path = Path(current_app.root_path) / 'db_assets' / track.image_file
             if image_path.exists():
                 image_path.unlink()
 

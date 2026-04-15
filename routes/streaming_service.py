@@ -74,7 +74,7 @@ def stream_track_preview(track_id):
         abort(404)
 
     try:
-        return _send(f'static/audio/{track.audio_file}', 'audio/mpeg')
+        return _send(f'db_assets/audio/{track.audio_file}', 'audio/mpeg')
     except FileNotFoundError:
         current_app.logger.error(f"Fichier de preview introuvable pour track {track_id}", exc_info=True)
         abort(404)
@@ -132,7 +132,7 @@ def download_track_file(track_id, format):
     ext = 'zip' if format == 'stems' else format
     download_name = f"{_safe_filename(track.title)}.{ext}"
 
-    return _send(f'static/audio/{file_path}', _FORMAT_MIME[format], as_attachment=True, download_name=download_name)
+    return _send(f'db_assets/audio/{file_path}', _FORMAT_MIME[format], as_attachment=True, download_name=download_name)
 
 
 # ── 3. Stream topline ─────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ def stream_topline(topline_id):
         abort(404)
 
     mime = 'audio/wav' if topline.audio_file.endswith('.wav') else 'audio/mpeg'
-    return _send(f'static/{topline.audio_file}', mime)
+    return _send(f'db_assets/{topline.audio_file}', mime)
 
 
 # ── 4. Télécharger contrat PDF ────────────────────────────────────────────────
@@ -194,4 +194,4 @@ def download_contract(purchase_id):
 
     download_name = f"contrat_{_safe_filename(track.title)}_{purchase.format_purchased}.pdf"
 
-    return _send(f'static/contracts/{purchase.contract_file}', 'application/pdf', as_attachment=True, download_name=download_name)
+    return _send(f'db_assets/contracts/{purchase.contract_file}', 'application/pdf', as_attachment=True, download_name=download_name)

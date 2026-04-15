@@ -149,7 +149,7 @@ def upload_topline():
         # ── Étape 4 : fusion voix + beat ──────────────────────────────────────
         beat_path = config.UPLOAD_FOLDER / track.audio_file.replace('audio/', '', 1)
         if not beat_path.exists():
-            beat_path_alt = Path(current_app.root_path) / 'static' / track.audio_file
+            beat_path_alt = Path(current_app.root_path) / 'db_assets' / 'audio' / track.audio_file
             if beat_path_alt.exists():
                 beat_path = beat_path_alt
             else:

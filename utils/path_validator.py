@@ -60,7 +60,7 @@ def validate_static_path(relative_path, check_exists=True):
         >>> validate_static_path('../../.env')
         ValueError: Path traversal détecté
     """
-    static_folder = Path(current_app.root_path) / 'static'
+    static_folder = Path(current_app.root_path) / 'db_assets'
     full_path = safe_join_path(static_folder, relative_path)
 
     if check_exists and not full_path.exists():

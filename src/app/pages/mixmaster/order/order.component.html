@@ -19,23 +19,27 @@
 
         <div class="price-summary">
           <div class="price-row">
-            <span>Prix estimé</span>
+            <span>Prix:</span>
             <strong class="price-value">{{ estimatedPrice().toFixed(2) }}€</strong>
           </div>
           <div class="price-row small">
-            <span>Acompte (30%)</span>
+            <span>Acompte (30%):</span>
             <span>{{ depositAmount().toFixed(2) }}€</span>
           </div>
           <div class="price-row small">
-            <span>Solde à la livraison</span>
+            <span>Solde à la validation du mix:</span>
             <span>{{ (estimatedPrice() - depositAmount()).toFixed(2) }}€</span>
           </div>
           <p class="price-note">
             Le montant total est <strong>débité immédiatement</strong> et conservé sur la plateforme.
+            <br>
             <br>• Livraison initiale → <strong>30%</strong> reversés à l'ingénieur
             <br>• Chaque révision demandée → <strong>+10%</strong> supplémentaires reversés
             <br>• Validation finale → solde reversé (70%, 60% ou 50% selon révisions)
-            <br><em>Refus de l'ingénieur = remboursement intégral. 2 révisions incluses.</em>
+            <br>
+            <br><em>Refus de <b>l'ingénieur</b> avant révision = remboursement intégral.</em>
+            <br>
+            <br><em>Refus de <b>votre part</b> = remboursement du solde restant.</em>
           </p>
         </div>
       </aside>
@@ -223,6 +227,17 @@
           </div>
         </details>
 
+        <!-- Tooltip nommage pistes -->
+        <div class="stems-naming-tip">
+          <i class="bi bi-info-circle-fill"></i>
+          <p>
+            <strong>Nommez soigneusement vos pistes.</strong>
+            L'ingénieur du son se base sur les noms de vos fichiers pour organiser et travailler le mix.
+            Un nommage confus ou générique (<em>track1, piste, final_v3…</em>) représente un travail supplémentaire
+            important — il peut entraîner un refus de la commande.
+          </p>
+        </div>
+
         <button type="submit" class="btn-submit" [disabled]="submitting()">
           @if (submitting()) {
             <span class="spinner-sm"></span> Redirection vers Stripe...
@@ -230,6 +245,8 @@
             <i class="bi bi-credit-card"></i> Payer {{ estimatedPrice().toFixed(2) }}€ maintenant via Stripe
           }
         </button>
+
+
 
       </form>
     </div>

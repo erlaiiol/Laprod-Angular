@@ -190,7 +190,7 @@ def upload_processed(order_id):
     config.MIXMASTER_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     disk_path = config.MIXMASTER_PROCESSED_FOLDER / unique
     file.save(disk_path)
-    filepath = Path('static', 'mixmaster', 'processed', unique).as_posix()
+    filepath = Path('db_assets', 'mixmaster', 'processed', unique).as_posix()
 
     # ── Génération des previews (pydub) ─────────────────────────────────────
     try:
@@ -204,13 +204,13 @@ def upload_processed(order_id):
         preview_name          = f'preview_{order_id}_{ts}_{filename}'
         preview_disk          = config.MIXMASTER_PREVIEWS_FOLDER / preview_name
         preview_half.export(preview_disk, format=audio_format)
-        preview_path          = Path('static', 'mixmaster', 'previews', preview_name).as_posix()
+        preview_path          = Path('db_assets', 'mixmaster', 'previews', preview_name).as_posix()
 
         preview_full_deg      = _generate_telephone_preview(audio)
         preview_full_name     = f'preview_full_{order_id}_{ts}_{filename}'
         preview_full_disk     = config.MIXMASTER_PREVIEWS_FOLDER / preview_full_name
         preview_full_deg.export(preview_full_disk, format=audio_format)
-        preview_full_path     = Path('static', 'mixmaster', 'previews', preview_full_name).as_posix()
+        preview_full_path     = Path('db_assets', 'mixmaster', 'previews', preview_full_name).as_posix()
 
     except Exception as e:
         current_app.logger.error(f'Erreur pydub upload #{order_id}: {e}', exc_info=True)
@@ -306,7 +306,7 @@ def deliver_revision(order_id):
     config.MIXMASTER_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     disk_path = config.MIXMASTER_PROCESSED_FOLDER / unique
     file.save(disk_path)
-    filepath = Path('static', 'mixmaster', 'processed', unique).as_posix()
+    filepath = Path('db_assets', 'mixmaster', 'processed', unique).as_posix()
 
     try:
         audio        = AudioSegment.from_file(disk_path)
@@ -319,13 +319,13 @@ def deliver_revision(order_id):
         prev_name        = f'preview_rev{order.revision_count}_{order_id}_{ts}_{filename}'
         prev_disk        = config.MIXMASTER_PREVIEWS_FOLDER / prev_name
         preview_half.export(prev_disk, format=audio_format)
-        prev_path        = Path('static', 'mixmaster', 'previews', prev_name).as_posix()
+        prev_path        = Path('db_assets', 'mixmaster', 'previews', prev_name).as_posix()
 
         prev_full_deg    = _generate_telephone_preview(audio)
         prev_full_name   = f'preview_full_rev{order.revision_count}_{order_id}_{ts}_{filename}'
         prev_full_disk   = config.MIXMASTER_PREVIEWS_FOLDER / prev_full_name
         prev_full_deg.export(prev_full_disk, format=audio_format)
-        prev_full_path   = Path('static', 'mixmaster', 'previews', prev_full_name).as_posix()
+        prev_full_path   = Path('db_assets', 'mixmaster', 'previews', prev_full_name).as_posix()
 
     except Exception as e:
         current_app.logger.error(f'Erreur pydub revision #{order_id}: {e}', exc_info=True)

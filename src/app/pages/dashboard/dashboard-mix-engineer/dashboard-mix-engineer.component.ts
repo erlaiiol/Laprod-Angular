@@ -152,7 +152,7 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   imgUrl(path: string | null): string {
-    return path ? `${environment.apiUrl}/static/${path}` : '/assets/placeholder-avatar.png';
+    return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/default_profile.png';
   }
 
   fileUrl(url: string | null): string {

@@ -95,7 +95,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   }
 
   getImageUrl(path: string | null | undefined): string {
-    if (!path) return 'assets/placeholder-track.png';
+    if (!path) return 'assets/placeholders/placeholder-track.png';
     return this.trackSvc.getStaticFileUrl(path);
   }
 

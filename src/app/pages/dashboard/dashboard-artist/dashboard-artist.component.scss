@@ -203,7 +203,8 @@
   &.btn-success { background: rgba(16,185,129,0.15); color: #6ee7b7; }
   &.btn-warning { background: rgba(249,115,22,0.15); color: #fdba74; }
   &.btn-danger  { background: rgba(239,68,68,0.12);  color: #fca5a5; }
-  &.btn-download { background: v.$tag-blue; color: #fff; }
+  &.btn-download { background: v.$tag-blue-dark; border:v.$tag-blue 1px solid; color: #fff; }
+  &:hover.btn-download { background: v.$tag-blue; color: #000000; }
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
@@ -331,7 +332,7 @@
   }
   &.btn-contract {
     background: v.$tag-blue-dark; border-color: v.$tag-blue; color: v.$tag-blue-light;
-    &:hover { background: v.$tag-blue; color: #fff; }
+    &:hover { background: v.$tag-blue; color: #000000; }
   }
   &.btn-see-mm {
     background: v.$bg-elevated; border-color: v.$bg-border; color: v.$text-secondary;

@@ -16,7 +16,7 @@
       <img class="sidebar-cover"
            [src]="getImageUrl(track()!.image_file)"
            [alt]="track()!.title"
-           onerror="this.src='assets/placeholder-track.png'">
+           onerror="this.src='assets/placeholders/placeholder-track.png'">
       <h2 class="sidebar-title">{{ track()!.title }}</h2>
       <p class="sidebar-artist">{{ track()!.composer_user.username }}</p>
       <div class="format-badge {{ format() }}">{{ formatLabel() }}</div>

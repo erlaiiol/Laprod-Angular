@@ -41,8 +41,13 @@
 }
 
 .price-note {
-  font-size: 0.72rem; color: v.$text-muted; margin: 0.5rem 0 0;
-  border-top: 1px solid v.$bg-border; padding-top: 0.5rem;
+  font-size: 0.72rem; color: #000; margin: 0.75rem 0 0;
+  background: #fff; border: 1px solid #000; border-radius: 8px;
+  padding: 0.65rem 0.75rem; line-height: 1.65;
+  transition: background 0.15s;
+  &:hover { background: #f3f4f6; }
+  strong { color: #000; }
+  em { color: #374151; }
 }
 
 // ── Form ─────────────────────────────────────────────────────────────────────
@@ -155,10 +160,10 @@
 
 .btn-submit {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  background: v.$tag-blue; color: #fff; border: none; border-radius: 8px;
+  background: v.$tag-blue-dark; color: #ffffff; border: v.$tag-blue 1px solid; border-radius: 8px;
   padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 700; cursor: pointer;
   transition: opacity 0.15s;
-  &:hover:not(:disabled) { opacity: 0.85; }
+  &:hover:not(:disabled) { opacity: 0.85; background: v.$tag-blue; color: #000000; transition: border-color 0.15s, background 0.15s;}
   &:disabled { opacity: 0.55; cursor: not-allowed; }
   i { font-size: 1rem; }
 }
@@ -167,6 +172,22 @@
   width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
   border-top-color: #fff; border-radius: 50%;
   animation: spin 0.7s linear infinite; display: inline-block;
+}
+
+// ── Stems naming tip ─────────────────────────────────────────────────────────
+
+.stems-naming-tip {
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 8px; padding: 0.75rem 1rem;
+
+  i { color: #fbbf24; font-size: 1rem; flex-shrink: 0; margin-top: 0.15rem; }
+
+  p {
+    margin: 0; font-size: 0.78rem; color: v.$text-secondary; line-height: 1.6;
+    strong { color: #fcd34d; }
+    em { font-style: normal; color: v.$text-muted; }
+  }
 }
 
 // ── States ────────────────────────────────────────────────────────────────────

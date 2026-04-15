@@ -179,8 +179,8 @@ def create_order(engineer_id):
     ref_disk     = config.MIXMASTER_UPLOADS_FOLDER / ref_name
     stems_file.save(stems_disk)
     reference_file.save(ref_disk)
-    stems_web = Path('static', 'mixmaster', 'uploads', stems_name).as_posix()
-    ref_web   = Path('static', 'mixmaster', 'uploads', ref_name).as_posix()
+    stems_web = Path('db_assets', 'mixmaster', 'uploads', stems_name).as_posix()
+    ref_web   = Path('db_assets', 'mixmaster', 'uploads', ref_name).as_posix()
 
     archive_file_tree = get_archive_file_tree(str(stems_disk))
 

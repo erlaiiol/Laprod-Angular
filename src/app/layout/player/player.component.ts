@@ -135,7 +135,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
 
   getImageUrl(): string {
     const track = this.player.currentTrack();
-    if (!track?.image_file) return 'assets/placeholder-track.png';
+    if (!track?.image_file) return 'assets/placeholders/placeholder-track.png';
     return this.trackSvc.getStaticFileUrl(track.image_file);
   }
 

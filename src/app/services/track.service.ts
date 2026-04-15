@@ -182,7 +182,7 @@ export class TrackService {
   // → "http://localhost:5000/static/images/tracks/mon_beat.png"
 
   getStaticFileUrl(filename: string): string {
-    return `${environment.apiUrl}/static/${filename}`;
+    return `${environment.apiUrl}/db_assets/${filename}`;
   }
 
 

@@ -34,7 +34,7 @@
           <div class="header-cover">
             <img [src]="getImageUrl(t.image_file)"
                  [alt]="t.title"
-                 onerror="this.src='assets/placeholder-track.png'" />
+                 onerror="this.src='assets/placeholders/placeholder-track.png'" />
             <label class="cover-replace-btn" title="Remplacer l'image">
               <i class="bi bi-camera-fill"></i>
               <input type="file" accept="image/*" (change)="onFileSelected($event, 'image')" />
