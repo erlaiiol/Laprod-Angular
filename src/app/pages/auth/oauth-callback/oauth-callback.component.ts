@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { take } from 'rxjs/internal/operators/take';
 
 /**
  * Page intermédiaire transparente : reçoit ?code=XXX depuis le callback Flask,
@@ -49,7 +50,12 @@ export class OauthCallbackComponent implements OnInit {
     private auth:   AuthService,
   ) {}
 
+  private exchanged = false;
+
+
   ngOnInit(): void {
+    if (this.exchanged) return;
+      this.exchanged = true;
     // Vérifier les erreurs retournées par Flask
     const urlError = this.route.snapshot.queryParamMap.get('error');
     if (urlError) {
