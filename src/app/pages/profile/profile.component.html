@@ -20,7 +20,8 @@
     <!-- En-tête -->
     <div class="profile-header">
       <div class="profile-avatar">
-        <img [src]="imgUrl(p.profile_image)" [alt]="p.username" />
+        <img [src]="imgUrl(p.profile_image)" [alt]="p.username"
+             onerror="this.onerror=null;this.src='assets/placeholders/default_profile.png'" />
       </div>
 
       <div class="profile-info">
@@ -108,7 +109,8 @@
             <div class="track-row">
               <!-- Pochette -->
               <div class="track-cover" (click)="playTrack(track)">
-                <img [src]="imgUrl(track.image_file)" [alt]="track.title" />
+                <img [src]="imgUrl(track.image_file)" [alt]="track.title"
+                     onerror="this.onerror=null;this.src='assets/placeholders/placeholder-track.png'" />
                 <div class="play-overlay"><i class="bi bi-play-fill"></i></div>
               </div>
 

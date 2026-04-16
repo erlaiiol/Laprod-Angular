@@ -32,7 +32,7 @@ def _track_payload(track):
         'key':           track.key,
         'style':         track.style,
         'image_file':    track.image_file,
-        'audio_file':    track.audio_file,
+        'stream_url':    f'/api/stream/tracks/{track.id}/preview',
         'price_mp3':     track.price_mp3,
         'price_wav':     track.price_wav,
         'price_stems':   track.price_stems,
@@ -248,6 +248,7 @@ def edit_profile():
         picture.seek(0)
         picture.save(str(config.PROFILES_FOLDER / filename))
         user.profile_image = f"images/profiles/{filename}"
+        user.profile_picture_url = None  # photo locale prend le dessus sur l'avatar OAuth
 
     try:
         db.session.commit()
