@@ -43,6 +43,11 @@ def create_app():
 
     app.config['DEBUG'] = config.DEBUG
 
+    # En production derrière nginx : forcer HTTPS pour url_for(_external=True)
+    # ProxyFix lit X-Forwarded-Proto mais PREFERRED_URL_SCHEME est le fallback
+    if os.environ.get('FLASK_ENV') == 'production':
+        app.config['PREFERRED_URL_SCHEME'] = 'https'
+
     # Base de données PostgreSQL
     app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS

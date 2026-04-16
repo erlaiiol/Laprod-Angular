@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { finalize } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -13,6 +14,8 @@ import { finalize } from 'rxjs';
   styleUrl: './register.component.scss',
 })
 export class RegisterComponent {
+
+  readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
 
   username        = '';
   email           = '';
