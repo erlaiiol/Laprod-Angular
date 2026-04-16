@@ -23,9 +23,11 @@ loglevel   = "info"
 # héritées du processus parent. Chaque worker créera ses propres connexions
 # propres, évitant les transactions zombies inter-workers.
 def post_fork(server, worker):
-    from extensions import db
     try:
-        db.engine.dispose(close=False)
+        from app import app
+        with app.app_context():
+            from extensions import db
+            db.engine.dispose(close=False)
         server.log.info(f"[gunicorn] worker {worker.pid}: SQLAlchemy pool disposé (post_fork)")
     except Exception as exc:
         server.log.warning(f"[gunicorn] post_fork dispose failed: {exc}")

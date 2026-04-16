@@ -135,8 +135,8 @@ def init_extensions(app):
         # PRODUCTION : Sécurité maximale
         Talisman(
             app,
-            force_https=True,
-            force_https_permanent=True,
+            force_https=False,          # nginx gère la redirection HTTP→HTTPS
+            force_https_permanent=False,
             strict_transport_security=True,
             strict_transport_security_max_age=31536000,  # 1 an
             content_security_policy={
