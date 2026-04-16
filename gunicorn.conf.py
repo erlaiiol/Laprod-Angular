@@ -5,7 +5,7 @@ Fix critique: dispose SQLAlchemy pool après fork (--preload safety)
 
 # ── Connexion ──────────────────────────────────────────────────────────────────
 bind = "0.0.0.0:5000"
-workers = None          # calculé dynamiquement dans entrypoint.sh (via --workers)
+# workers: passé via --workers dans entrypoint.sh (2*nproc+1)
 timeout = 120
 worker_tmp_dir = "/dev/shm"
 
