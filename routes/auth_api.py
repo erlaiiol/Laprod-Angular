@@ -832,7 +832,7 @@ def google_callback():
     Crée / retrouve l'utilisateur, génère un code court-durée et redirige
     vers la SPA Angular qui l'échangera contre les JWT.
     """
-    angular_base = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
+    angular_base = current_app.config.get('FRONTEND_URL', 'laprod.net')
 
     current_app.logger.debug('google_callback() called')
 
