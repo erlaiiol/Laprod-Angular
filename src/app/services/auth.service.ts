@@ -206,6 +206,13 @@ export class AuthService {
           this._currentUser.set(res.data.user);
           localStorage.setItem('user', JSON.stringify(res.data.user));
         }
+      }),
+      catchError((err) => {
+        // 404 = user introuvable en DB (session stale) → logout silencieux
+        if (err.status === 404) {
+          this._clearAuth();
+        }
+        return throwError(() => err);
       })
     );
   }

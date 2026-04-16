@@ -20,9 +20,10 @@ export class App implements OnInit {
   private notifSvc = inject(NotificationService);
 
   ngOnInit(): void {
-    // Charge les notifications dès le démarrage si l'utilisateur est connecté,
-    // ce qui alimente NotificationService.unreadCount (utilisé par la navbar).
     if (this.auth.isLoggedIn()) {
+      // Vérifie que le user localStorage est toujours valide en DB.
+      // Si le token est expiré ou l'user supprimé, l'interceptor appelle silentLogout().
+      this.auth.me().subscribe();
       this.notifSvc.load().subscribe();
     }
   }
