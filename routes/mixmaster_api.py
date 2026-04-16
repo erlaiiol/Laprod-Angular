@@ -24,7 +24,7 @@ def _engineer_dict(eng: User) -> dict:
     return {
         'id':                            eng.id,
         'username':                      eng.username,
-        'profile_image':                 eng.profile_image,
+        'profile_image':                 eng.profile_picture_url or eng.profile_image,
         'mixmaster_bio':                 eng.mixmaster_bio,
         'mixmaster_reference_price':     eng.mixmaster_reference_price,
         'mixmaster_price_min':           eng.mixmaster_price_min,

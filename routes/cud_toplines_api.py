@@ -69,7 +69,7 @@ def _topline_dict(topline, artist_user=None):
         'created_at':   topline.created_at.isoformat() if topline.created_at else None,
         'artist_user': {
             'username':      user.username,
-            'profile_image': user.profile_image,
+            'profile_image': user.profile_picture_url or user.profile_image,
         } if user else None,
     }
 

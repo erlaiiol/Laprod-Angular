@@ -24,7 +24,7 @@ def _topline_to_dict(tl):
         'created_at':   tl.created_at.isoformat() if tl.created_at else None,
         'artist_user': {
             'username':      tl.artist_user.username,
-            'profile_image': tl.artist_user.profile_image,
+            'profile_image': tl.artist_user.profile_picture_url or tl.artist_user.profile_image,
         } if tl.artist_user else None,
     }
 

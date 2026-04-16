@@ -350,6 +350,7 @@ def post_track():
             file_stems=stems_filename,
             image_file=f'images/tracks/{image_filename}',
             file_hash=file_hash,
+            is_approved=True,
             tags=selected_tags
         )
 

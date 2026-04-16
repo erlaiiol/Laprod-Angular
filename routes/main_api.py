@@ -51,7 +51,7 @@ def _profile_payload(user, tracks, is_own=False):
     data = {
         'id':           user.id,
         'username':     user.username,
-        'profile_image': user.profile_image,
+        'profile_image': user.profile_picture_url or user.profile_image,
         'bio':          user.bio,
         'instagram':    user.instagram,
         'twitter':      user.twitter,
@@ -266,7 +266,7 @@ def edit_profile():
             'user': {
                 'id':            user.id,
                 'username':      user.username,
-                'profile_image': user.profile_image,
+                'profile_image': user.profile_picture_url or user.profile_image,
                 'bio':           user.bio,
                 'instagram':     user.instagram,
                 'twitter':       user.twitter,

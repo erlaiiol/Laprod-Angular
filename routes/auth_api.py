@@ -236,7 +236,7 @@ def login():
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'profile_image': user.profile_image,
+                    'profile_image': user.profile_picture_url or user.profile_image,
                     'roles' : {
                         'is_admin':                       user.is_admin,
                         'is_beatmaker':                   user.is_beatmaker,
@@ -271,7 +271,7 @@ def login():
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'profile_image': user.profile_image,
+                'profile_image': user.profile_picture_url or user.profile_image,
                 'roles' : {
                     'is_admin':                       user.is_admin,
                     'is_beatmaker':                   user.is_beatmaker,
@@ -307,7 +307,7 @@ def get_identity():
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'profile_image': user.profile_image,
+                    'profile_image': user.profile_picture_url or user.profile_image,
                     'roles' : {
                         'is_admin':                       user.is_admin,
                         'is_beatmaker':                   user.is_beatmaker,
@@ -737,7 +737,7 @@ def _user_payload(user):
         'id':                user.id,
         'username':          user.username,
         'email':             user.email,
-        'profile_image':     user.profile_image,
+        'profile_image':     user.profile_picture_url or user.profile_image,
         'roles': {
             'is_admin':                       user.is_admin,
             'is_beatmaker':                   user.is_beatmaker,

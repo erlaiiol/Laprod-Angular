@@ -84,7 +84,7 @@ def get_track(track_id):
                 'is_published': tl.is_published,
                 'artist_user': {
                     'username':      tl.artist_user.username      if tl.artist_user else None,
-                    'profile_image': tl.artist_user.profile_image if tl.artist_user else None,
+                    'profile_image': (tl.artist_user.profile_picture_url or tl.artist_user.profile_image) if tl.artist_user else None,
                 }
             }
 
@@ -107,7 +107,7 @@ def get_track(track_id):
                     'composer_user': {
                         'id':            track.composer_user.id            if track.composer_user else None,
                         'username':      track.composer_user.username      if track.composer_user else None,
-                        'profile_image': track.composer_user.profile_image if track.composer_user else None,
+                        'profile_image': (track.composer_user.profile_picture_url or track.composer_user.profile_image) if track.composer_user else None,
                     },
                     'tags': [
                         {

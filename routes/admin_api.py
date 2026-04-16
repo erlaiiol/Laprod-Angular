@@ -100,7 +100,7 @@ def get_stats():
                 {
                     'id':            u.id,
                     'username':      u.username,
-                    'profile_image': u.profile_image,
+                    'profile_image': u.profile_picture_url or u.profile_image,
                     'created_at':    u.created_at.isoformat() if u.created_at else None,
                 }
                 for u in recent_users
@@ -143,7 +143,7 @@ def get_tracks():
                     'key':            t.key,
                     'style':          t.style,
                     'image_file':     t.image_file,
-                    'stream_url':     t.stream_url,
+                    'audio_file':     t.audio_file,
                     'price_mp3':      t.price_mp3,
                     'price_wav':      t.price_wav,
                     'price_stems':    t.price_stems,
@@ -154,7 +154,7 @@ def get_tracks():
                     'composer': {
                         'id':            t.composer_user.id,
                         'username':      t.composer_user.username,
-                        'profile_image': t.composer_user.profile_image,
+                        'profile_image': t.composer_user.profile_picture_url or t.composer_user.profile_image,
                     } if t.composer_user else None,
                     'tags': [
                         {'id': tag.id, 'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else None}
@@ -200,7 +200,7 @@ def get_users():
             'id':              u.id,
             'username':        u.username,
             'email':           u.email,
-            'profile_image':   u.profile_image,
+            'profile_image':   u.profile_picture_url or u.profile_image,
             'account_status':  u.account_status,
             'is_admin':        u.is_admin,
             'is_beatmaker':    u.is_beatmaker,
@@ -252,7 +252,7 @@ def get_engineers():
             'id':              u.id,
             'username':        u.username,
             'email':           u.email,
-            'profile_image':   u.profile_image,
+            'profile_image':   u.profile_picture_url or u.profile_image,
             'mixmaster_reference_price': u.mixmaster_reference_price,
             'mixmaster_price_min':       u.mixmaster_price_min,
             'mixmaster_bio':             u.mixmaster_bio,
@@ -446,7 +446,7 @@ def get_all_mix_engineers():
             'id':              u.id,
             'username':        u.username,
             'email':           u.email,
-            'profile_image':   u.profile_image,
+            'profile_image':   u.profile_picture_url or u.profile_image,
             'is_mixmaster_engineer': u.is_mixmaster_engineer,
             'is_certified_producer_arranger': u.is_certified_producer_arranger,
             'mixmaster_reference_price': u.mixmaster_reference_price,

@@ -17,7 +17,7 @@ type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'direct';
 export class AdminEngineersComponent implements OnInit {
   @Output() pendingCountChange = new EventEmitter<number>();
 
-  staticBase = `${environment.apiUrl.replace('/api', '')}/static/`;
+  staticBase = `/db_assets/`;
 
   loading    = signal(false);
   activeTab  = signal<EngTab>('pending');
