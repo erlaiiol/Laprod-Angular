@@ -112,6 +112,11 @@
   &.selected { border-color: v.$accent; background: rgba(167,139,250,0.1); .btn-fee { color: v.$accent; } }
 }
 
+.stream-btn { border-color: v.$tag-green; color: v.$tag-green;
+  .btn-fee { color: v.$tag-green; }
+  &.selected { background: rgba(16,185,129,0.1); border-color: v.$tag-green; }
+}
+
 .duration-selected { font-size: 0.8rem; color: v.$text-secondary; margin: 0.25rem 0 0; }
 .fee-badge {
   display: inline-block; background: v.$bg-elevated; border-radius: 4px;

@@ -96,10 +96,10 @@
           }
         </div>
 
-        <div class="purchase-card" [class.unavailable]="!track()!.price_wav">
+        <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav">
           <div class="format-badge wav">WAV</div>
           <p class="format-desc">Qualité studio non compressée</p>
-          @if (track()!.price_wav) {
+          @if (track()!.price_wav && track()!.file_wav) {
             <p class="format-price">{{ ((track()!.price_wav ?? 0) + 5).toFixed(2) }}€</p>
             <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'wav']">
               Acheter WAV
@@ -109,10 +109,10 @@
           }
         </div>
 
-        <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems">
+        <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems">
           <div class="format-badge stems">STEMS</div>
           <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
-          @if (track()!.price_stems) {
+          @if (track()!.price_stems && track()!.file_stems) {
             <p class="format-price">{{ ((track()!.price_stems ?? 0) + 5).toFixed(2) }}€</p>
             <a class="btn-buy featured" [routerLink]="['/contract', track()!.id, 'stems']">
               Acheter STEMS

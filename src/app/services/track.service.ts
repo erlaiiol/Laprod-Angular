@@ -70,6 +70,8 @@ export interface TrackDetail extends Track {
   created_at:    string | null;
   price_wav:     number | null;
   price_stems:   number | null;
+  file_wav:      string | null;
+  file_stems:    string | null;
   composer_user: { id: number; username: string; profile_image: string | null };
   toplines:      PublishedTopline[];
   my_toplines:   PublishedTopline[];

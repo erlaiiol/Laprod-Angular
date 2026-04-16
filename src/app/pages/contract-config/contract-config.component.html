@@ -141,6 +141,13 @@
           en ligne indéfiniment sur les plateformes.
         </div>
         <div class="duration-group">
+          <button type="button"
+                  class="duration-btn stream-btn"
+                  [class.selected]="!isLifetime() && duration() === 'stream'"
+                  (click)="setDuration('stream')">
+            Stream uniquement
+            <span class="btn-fee">+0€</span>
+          </button>
           @for (opt of [['3','3 ans','5'],['5','5 ans','10'],['10','10 ans','15']]; track opt[0]) {
             <button type="button"
                     class="duration-btn"

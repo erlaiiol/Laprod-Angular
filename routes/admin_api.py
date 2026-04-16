@@ -143,7 +143,7 @@ def get_tracks():
                     'key':            t.key,
                     'style':          t.style,
                     'image_file':     t.image_file,
-                    'audio_file':     t.audio_file,
+                    'stream_url':     f'/api/stream/tracks/{t.id}/preview',
                     'price_mp3':      t.price_mp3,
                     'price_wav':      t.price_wav,
                     'price_stems':    t.price_stems,

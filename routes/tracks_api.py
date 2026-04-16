@@ -102,6 +102,8 @@ def get_track(track_id):
                     'price_mp3':    float(track.price_mp3)    if track.price_mp3    else None,
                     'price_wav':    float(track.price_wav)    if track.price_wav    else None,
                     'price_stems':  float(track.price_stems)  if track.price_stems  else None,
+                    'file_wav':     track.file_wav,
+                    'file_stems':   track.file_stems,
                     'stream_url':   f'/api/stream/tracks/{track.id}/preview',
                     'image_file':   track.image_file,
                     'composer_user': {

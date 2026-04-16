@@ -11,10 +11,10 @@ import { AuthService } from '../../services/auth.service';
 
 type Format    = 'mp3' | 'wav' | 'stems';
 type Territory = 'France' | 'Europe' | 'Monde entier';
-type DurationKey = '3' | '5' | '10' | 'lifetime';
+type DurationKey = 'stream' | '3' | '5' | '10' | 'lifetime';
 
 const DURATION_FEES: Record<DurationKey, number> = {
-  '3': 5, '5': 10, '10': 15, 'lifetime': 50,
+  'stream': 0, '3': 5, '5': 10, '10': 15, 'lifetime': 50,
 };
 
 const TERRITORY_FEES: Record<Territory, number> = {
@@ -43,7 +43,7 @@ export class ContractConfigComponent implements OnInit {
   paying   = signal(false);
   format   = signal<Format>('mp3');
 
-  duration   = signal<DurationKey>('3');
+  duration   = signal<DurationKey>('stream');
   territory  = signal<Territory>('Monde entier');
   isLifetime = signal(false);
 
@@ -98,7 +98,7 @@ export class ContractConfigComponent implements OnInit {
 
   durationLabel = computed(() =>
     this.isLifetime() ? 'À vie + 70 ans'
-    : ({ '3': '3 ans', '5': '5 ans', '10': '10 ans', 'lifetime': 'À vie' } as Record<DurationKey, string>)[this.duration()]
+    : ({ 'stream': 'Stream uniquement', '3': '3 ans', '5': '5 ans', '10': '10 ans', 'lifetime': 'À vie' } as Record<DurationKey, string>)[this.duration()]
   );
 
   readonly DURATION_FEES     = DURATION_FEES;
@@ -161,7 +161,7 @@ export class ContractConfigComponent implements OnInit {
 
     this.paymentSvc.createCheckout(track.id, this.format(), {
       is_lifetime:             this.isLifetime(),
-      duration_years:          this.isLifetime() ? 999 : Number(this.duration()),
+      duration_years:          this.isLifetime() ? 999 : this.duration() === 'stream' ? 0 : Number(this.duration()),
       territory:               this.territory(),
       mechanical_reproduction: this.mechanicalAutoIncluded() || this.rightMechanical(),
       public_show:             this.publicShowAutoIncluded() || this.rightPublicShow(),
