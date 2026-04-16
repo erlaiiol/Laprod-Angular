@@ -55,7 +55,6 @@ else
         --workers $WORKERS \
         --bind 0.0.0.0:5000 \
         --timeout 120 \
-        --preload \
         --worker-tmp-dir /dev/shm \
         --max-requests 1000 \
         --max-requests-jitter 50 \

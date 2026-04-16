@@ -35,22 +35,37 @@ from flask_jwt_extended import (
 # En production, remplacer par Redis.
 _oauth_pending: dict = {}  # { code: { expires_at, tokens, user, next } }
 
+def _get_redis():
+    """Retourne le client Redis en s'assurant que la connexion est valide (post-fork safe)."""
+    r = _ext.redis_client
+    if r is None:
+        raise RuntimeError("redis_client non initialisé")
+    # Force redis-py à vérifier le PID et recréer la connexion si nécessaire (gunicorn --preload)
+    r.connection_pool.reset()
+    return r
+
 def _store_oauth_code(payload: dict) -> str:
+    from flask import current_app
     code = str(uuid.uuid4())
-    _ext.redis_client.setex(
-        f"oauth:{code}",
-        60,
-        json.dumps(payload)
-    )
+    key  = f"oauth:{code}"
+    _get_redis().setex(key, 300, json.dumps(payload))
+    current_app.logger.info(f"[OAuth] _store_oauth_code key={key}")
     return code
 
 def _pop_oauth_code(code: str) -> dict | None:
+    from flask import current_app
     key  = f"oauth:{code}"
-    data = _ext.redis_client.get(key)
-    if not data:
+    try:
+        r    = _get_redis()
+        data = r.get(key)
+        current_app.logger.info(f"[OAuth] _pop_oauth_code key={key} found={data is not None}")
+        if not data:
+            return None
+        r.delete(key)
+        return json.loads(data)
+    except Exception as exc:
+        current_app.logger.error(f"[OAuth] _pop_oauth_code Redis error: {exc}", exc_info=True)
         return None
-    _ext.redis_client.delete(key)
-    return json.loads(data)
 
 # ============================================
 # CRÉER LE BLUEPRINT
