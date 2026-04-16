@@ -68,27 +68,25 @@ def _store_oauth_code(payload: dict) -> str:
 
 def _pop_oauth_code(code: str) -> dict | None:
     from flask import current_app
+
     key = f"oauth:{code}"
     current_app.logger.info(f"[OAuth] GETDEL {key}")
 
     try:
         r = _get_redis()
-        data = r.get(key)  # 🔥 ATOMIQUE
-        
 
-        
+        data = r.getdel(key)  # ✅ ATOMIQUE
+
         if not data:
-            current_app.logger.info(f"POP oauth code={code} raw={data}")
             return None
 
-        if data:
-            r.delete(key)
-
-        
         return json.loads(data)
 
     except Exception as exc:
-        current_app.logger.error(f"[OAuth] REDIS ERROR in GETDEL: {exc}", exc_info=True)
+        current_app.logger.error(
+            f"[OAuth] REDIS ERROR in GETDEL: {exc}",
+            exc_info=True
+        )
         return None
 
 # ============================================
