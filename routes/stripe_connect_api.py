@@ -79,7 +79,7 @@ def get_setup_url():
 
     try:
         data         = request.get_json() or {}
-        base_angular = current_app.config.get('ANGULAR_BASE_URL', 'http://localhost:4200')
+        base_angular = current_app.config.get('FRONTEND_URL', 'laprod.net')
         return_url   = data.get('return_url',  f"{base_angular}/wallet")
         refresh_url  = data.get('refresh_url', f"{base_angular}/wallet")
 
