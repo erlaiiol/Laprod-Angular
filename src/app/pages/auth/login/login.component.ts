@@ -29,6 +29,8 @@ export class LoginComponent {
   showPasswordSetLink  = signal(false);                // compte OAuth sans mot de passe
   passwordEmail        = signal<string | null>(null);
 
+  private hasCalled = false;
+
   constructor(private authService : AuthService, private router : Router ) {}
 
   onSubmit() {

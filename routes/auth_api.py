@@ -1,6 +1,7 @@
 """
 Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
+import code
 import json
 import re
 import uuid
@@ -31,7 +32,7 @@ from flask_jwt_extended import (
     get_jwt
 )
 
-# ── Stockage temporaire des codes OAuth (60 s) ───────────────────────────────
+# ── Stockage temporaire des codes OAuth (300 s) ───────────────────────────────
 # En production, remplacer par Redis.
 _oauth_pending: dict = {}  # { code: { expires_at, tokens, user, next } }
 
@@ -59,6 +60,7 @@ def _store_oauth_code(payload: dict) -> str:
     try:
         _get_redis().setex(key, 300, json.dumps(payload))
         current_app.logger.info(f"[OAuth] stored {key} OK")
+        current_app.logger.info(f"STORE oauth code={code} payload={payload}")
     except Exception as exc:
         current_app.logger.error(f"[OAuth] REDIS ERROR in store: {exc}", exc_info=True)
         raise
@@ -71,15 +73,18 @@ def _pop_oauth_code(code: str) -> dict | None:
 
     try:
         r = _get_redis()
-        data = r.execute_command("GETDEL", key)  # 🔥 ATOMIQUE
+        data = r.get(key)  # 🔥 ATOMIQUE
+        
 
-        current_app.logger.info(f"[OAuth] GETDEL {key} found={data is not None}")
-
-        current_app.logger.warning(f"[OAuth] MISS code={code}")
         
         if not data:
+            current_app.logger.info(f"POP oauth code={code} raw={data}")
             return None
 
+        if data:
+            r.delete(key)
+
+        
         return json.loads(data)
 
     except Exception as exc:
@@ -139,7 +144,7 @@ def login():
             }
         }), 400
 
-    if len(password) > 200:
+    if len(password) > 50:
         return jsonify({
             'success': False, 
             'feedback': {
