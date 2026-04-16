@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="margin: 0; padding: 0; background-color: #1a1a2e; font-family: Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #1a1a2e; padding: 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #16213e; border-radius: 8px;">
+
+                    <!-- HEADER -->
+                    <tr>
+                        <td style="padding: 30px; text-align: center; border-bottom: 2px solid #0f3460;">
+                            <h1 style="color: #e94560; margin: 0; font-size: 28px;">LaProd</h1>
+                            <p style="color: #8899aa; margin: 5px 0 0; font-size: 14px;">
+                                Plateforme musicale
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- CONTENU -->
+                    <tr>
+                        <td style="padding: 30px; color: #ffffff;">
+                            {% block content %}{% endblock %}
+                        </td>
+                    </tr>
+
+                    <!-- FOOTER -->
+                    <tr>
+                        <td style="padding: 20px 30px; text-align: center; border-top: 1px solid #0f3460;">
+                            <p style="color: #667788; font-size: 12px; margin: 0;">
+                                Cet email a ete envoye par LaProd.<br>
+                                Si vous n'attendiez pas cet email, ignorez-le.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

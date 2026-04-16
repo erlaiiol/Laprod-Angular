@@ -43,9 +43,6 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-#old templates
-/templates/*
-/static/js/*
 
 # ====================================
 # SECRETS - NE JAMAIS COMMIT !
