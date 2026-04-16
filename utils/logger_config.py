@@ -60,9 +60,19 @@ def setup_logging(app):
     )
 
     # ============================================
-    # HANDLER 1: CONSOLE (développement)
+    # HANDLER 1: CONSOLE
+    # Toujours actif en développement.
+    # En production: branché sur gunicorn.error pour apparaître dans
+    # `docker compose logs web` — niveau INFO minimum.
     # ============================================
-    if app.debug:
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        # Production : réutiliser les handlers gunicorn (stdout/stderr de docker)
+        for h in gunicorn_logger.handlers:
+            h.setLevel(logging.INFO)
+            app.logger.addHandler(h)
+    else:
+        # Développement ou hors gunicorn
         console_handler = logging.StreamHandler()
         console_handler.setLevel(console_level)
         console_handler.setFormatter(simple_formatter)

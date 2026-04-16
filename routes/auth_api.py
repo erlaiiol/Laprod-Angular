@@ -2,9 +2,7 @@
 Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
 import code
-import json
 import re
-import uuid
 import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
@@ -53,40 +51,38 @@ def _get_redis():
     )
 
 def _store_oauth_code(payload: dict) -> str:
+    """
+    Encode le payload OAuth dans un token itsdangerous signé + horodaté.
+    Stateless — pas de Redis, fonctionne avec tous les workers gunicorn.
+    """
     from flask import current_app
-    code = str(uuid.uuid4())
-    key  = f"oauth:{code}"
-    current_app.logger.info(f"[OAuth] storing {key}")
-    try:
-        _get_redis().setex(key, 300, json.dumps(payload))
-        current_app.logger.info(f"[OAuth] stored {key} OK")
-        current_app.logger.info(f"STORE oauth code={code} payload={payload}")
-    except Exception as exc:
-        current_app.logger.error(f"[OAuth] REDIS ERROR in store: {exc}", exc_info=True)
-        raise
-    return code
+    from itsdangerous import URLSafeTimedSerializer
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    token = s.dumps(payload, salt='oauth-code-2026')
+    current_app.logger.info(f"[OAuth] code token généré (len={len(token)})")
+    return token
 
 def _pop_oauth_code(code: str) -> dict | None:
+    """
+    Vérifie et décode le token OAuth signé (expire après 300 s).
+    Retourne le payload ou None si invalide/expiré.
+    """
     from flask import current_app
-
-    key = f"oauth:{code}"
-    current_app.logger.info(f"[OAuth] GETDEL {key}")
-
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    current_app.logger.info(f"[OAuth] décodage token (len={len(code) if code else 0})")
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        r = _get_redis()
-
-        data = r.getdel(key)  # ✅ ATOMIQUE
-
-        if not data:
-            return None
-
-        return json.loads(data)
-
+        payload = s.loads(code, salt='oauth-code-2026', max_age=300)
+        current_app.logger.info(f"[OAuth] token OK → next={payload.get('next')}")
+        return payload
+    except SignatureExpired:
+        current_app.logger.warning("[OAuth] token expiré (>300s)")
+        return None
+    except BadSignature as exc:
+        current_app.logger.warning(f"[OAuth] token signature invalide: {exc}")
+        return None
     except Exception as exc:
-        current_app.logger.error(
-            f"[OAuth] REDIS ERROR in GETDEL: {exc}",
-            exc_info=True
-        )
+        current_app.logger.error(f"[OAuth] token decode erreur: {exc}", exc_info=True)
         return None
 
 # ============================================
