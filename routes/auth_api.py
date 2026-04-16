@@ -66,18 +66,24 @@ def _store_oauth_code(payload: dict) -> str:
 
 def _pop_oauth_code(code: str) -> dict | None:
     from flask import current_app
-    key  = f"oauth:{code}"
-    current_app.logger.info(f"[OAuth] looking up {key}")
+    key = f"oauth:{code}"
+    current_app.logger.info(f"[OAuth] GETDEL {key}")
+
     try:
-        r    = _get_redis()
-        data = r.get(key)
-        current_app.logger.info(f"[OAuth] pop {key} found={data is not None}")
+        r = _get_redis()
+        data = r.execute_command("GETDEL", key)  # 🔥 ATOMIQUE
+
+        current_app.logger.info(f"[OAuth] GETDEL {key} found={data is not None}")
+
+        current_app.logger.warning(f"[OAuth] MISS code={code}")
+        
         if not data:
             return None
-        r.delete(key)
+
         return json.loads(data)
+
     except Exception as exc:
-        current_app.logger.error(f"[OAuth] REDIS ERROR in pop: {exc}", exc_info=True)
+        current_app.logger.error(f"[OAuth] REDIS ERROR in GETDEL: {exc}", exc_info=True)
         return None
 
 # ============================================
@@ -914,18 +920,15 @@ def google_callback():
                     'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
                     'user':   _user_payload(user),
                     'next':   'select-role',
-                }
-                current_app.logger.info(f"[OAuth] storing {key} on Redis {id(_get_redis())}")
-            )
+                })
+                
                 return redirect(f'{angular_base}/oauth-callback?code={code}')
 
             code = _store_oauth_code({
                 'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
                 'user':   _user_payload(user),
                 'next':   '/',
-            }
-                current_app.logger.info(f"[OAuth] storing {key} on Redis {id(_get_redis())}")
-            )
+            })
 
             return redirect(f'{angular_base}/oauth-callback?code={code}')
 
