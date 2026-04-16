@@ -52,26 +52,30 @@ def _get_redis():
     )
 
 def _store_oauth_code(payload: dict) -> str:
-    from flask import current_app
     code = str(uuid.uuid4())
     key  = f"oauth:{code}"
-    _get_redis().setex(key, 300, json.dumps(payload))
-    current_app.logger.warning(f"[OAuth] stored key={key}")
+    print(f"[OAuth] _store_oauth_code: storing {key}", flush=True)
+    try:
+        _get_redis().setex(key, 300, json.dumps(payload))
+        print(f"[OAuth] _store_oauth_code: OK {key}", flush=True)
+    except Exception as exc:
+        print(f"[OAuth] _store_oauth_code: REDIS ERROR {exc}", flush=True)
+        raise
     return code
 
 def _pop_oauth_code(code: str) -> dict | None:
-    from flask import current_app
     key  = f"oauth:{code}"
+    print(f"[OAuth] _pop_oauth_code: looking up {key}", flush=True)
     try:
         r    = _get_redis()
         data = r.get(key)
-        current_app.logger.warning(f"[OAuth] pop key={key} found={data is not None}")
+        print(f"[OAuth] _pop_oauth_code: found={data is not None} key={key}", flush=True)
         if not data:
             return None
         r.delete(key)
         return json.loads(data)
     except Exception as exc:
-        current_app.logger.error(f"[OAuth] Redis error in _pop_oauth_code: {exc}", exc_info=True)
+        print(f"[OAuth] _pop_oauth_code: REDIS ERROR {exc}", flush=True)
         return None
 
 # ============================================
@@ -855,6 +859,7 @@ def google_callback():
     if not angular_base.startswith('http'):
         angular_base = f'https://{angular_base}'
 
+    print("[OAuth] google_callback() called", flush=True)
     current_app.logger.debug('google_callback() called')
 
     try:
