@@ -80,7 +80,16 @@ def init_extensions(app):
     app.logger.info("  OK Rate Limiting")
 
     #  OAuth2 - Google
-    oauth.init_app(app)
+    # Utilise Redis comme cache pour le state OAuth (multi-workers safe).
+    # Sans ça, Authlib stocke le state dans le cookie de session Flask qui
+    # peut être perdu entre google/login (worker A) et google/callback (worker B).
+    _oauth_redis = redis.Redis(
+        host=app.config['REDIS_HOST'],
+        port=app.config['REDIS_PORT'],
+        db=app.config['REDIS_DB'],
+        decode_responses=True,
+    )
+    oauth.init_app(app, cache=_oauth_redis)
 
     # flask-mail
     mail.init_app(app)
