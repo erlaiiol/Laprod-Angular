@@ -86,8 +86,9 @@ def init_extensions(app):
     mail.init_app(app)
 
     # flask-CORS
-    CORS(app, origins=['http://localhost:4200'], supports_credentials=True)
-    app.logger.info("  OK CORS (Angular dev: localhost:4200)")
+    _cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',')
+    CORS(app, origins=_cors_origins, supports_credentials=True)
+    app.logger.info(f"  OK CORS (origins: {_cors_origins})")
 
     #JWTManager
     jwt.init_app(app)
