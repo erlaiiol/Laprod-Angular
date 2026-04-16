@@ -1005,17 +1005,34 @@ def token_exchange():
     """
     Échange un code OAuth court-durée contre les tokens JWT.
     GET /auth/token-exchange?code=XXX
+    Relit toujours l'utilisateur depuis la DB pour garantir des données fraîches.
     """
     code  = request.args.get('code', '')
     entry = _pop_oauth_code(code)
-
-    current_app.logger.debug(f'token_exchange() called code: {code}, entry: {entry}')
 
     if not entry:
         return jsonify({
             'success':  False,
             'feedback': {'level': 'error', 'message': 'Code invalide ou expiré.'},
         }), 400
+
+    # ── Valider que l'user existe toujours en DB (token peut être stale) ─────
+    user_id = (entry.get('user') or {}).get('id')
+    if not user_id:
+        current_app.logger.error(f'[OAuth] token_exchange: payload sans user.id')
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error', 'message': 'Payload OAuth invalide.'}}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        current_app.logger.warning(f'[OAuth] token_exchange: user id={user_id} introuvable en DB')
+        return jsonify({'success': False,
+                        'feedback': {'level': 'error',
+                                     'message': 'Compte introuvable. Reconnectez-vous avec Google.'}}), 404
+
+    # Rafraîchir le payload depuis la DB (évite username/rôles stale)
+    entry['user'] = _user_payload(user)
+    current_app.logger.info(f'[OAuth] token_exchange: user id={user_id} username={user.username} OK')
 
     return jsonify({
         'success':  True,

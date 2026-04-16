@@ -56,8 +56,12 @@ export class RegisterComponent {
           }
         },
         error: (err) => {
-          if (err?.error?.code === 'PENDING_EMAIL_VERIFICATION') {
+          const code = err?.error?.code;
+          if (code === 'PENDING_EMAIL_VERIFICATION') {
             this.pendingEmail.set(err.error.data?.email ?? this.email);
+          } else if (code === 'SEND_CONFIRM_EMAIL_MESSAGE') {
+            // Compte créé mais email non envoyé : afficher le panel resend
+            this.pendingEmail.set(err.error.data?.user?.email ?? this.email);
           } else {
             this.error.set(
               err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
