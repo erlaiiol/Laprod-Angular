@@ -52,30 +52,32 @@ def _get_redis():
     )
 
 def _store_oauth_code(payload: dict) -> str:
+    from flask import current_app
     code = str(uuid.uuid4())
     key  = f"oauth:{code}"
-    print(f"[OAuth] _store_oauth_code: storing {key}", flush=True)
+    current_app.logger.info(f"[OAuth] storing {key}")
     try:
         _get_redis().setex(key, 300, json.dumps(payload))
-        print(f"[OAuth] _store_oauth_code: OK {key}", flush=True)
+        current_app.logger.info(f"[OAuth] stored {key} OK")
     except Exception as exc:
-        print(f"[OAuth] _store_oauth_code: REDIS ERROR {exc}", flush=True)
+        current_app.logger.error(f"[OAuth] REDIS ERROR in store: {exc}", exc_info=True)
         raise
     return code
 
 def _pop_oauth_code(code: str) -> dict | None:
+    from flask import current_app
     key  = f"oauth:{code}"
-    print(f"[OAuth] _pop_oauth_code: looking up {key}", flush=True)
+    current_app.logger.info(f"[OAuth] looking up {key}")
     try:
         r    = _get_redis()
         data = r.get(key)
-        print(f"[OAuth] _pop_oauth_code: found={data is not None} key={key}", flush=True)
+        current_app.logger.info(f"[OAuth] pop {key} found={data is not None}")
         if not data:
             return None
         r.delete(key)
         return json.loads(data)
     except Exception as exc:
-        print(f"[OAuth] _pop_oauth_code: REDIS ERROR {exc}", flush=True)
+        current_app.logger.error(f"[OAuth] REDIS ERROR in pop: {exc}", exc_info=True)
         return None
 
 # ============================================
@@ -89,8 +91,16 @@ auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/api/auth')
 @csrf.exempt
 @limiter.exempt
 def ping():
-    """Healthcheck Docker — retourne 200 si l'app est démarrée."""
-    return jsonify({'status': 'ok'}), 200
+    """Healthcheck Docker — retourne 200 si l'app est démarrée. Teste aussi Redis."""
+    redis_ok = False
+    redis_error = None
+    try:
+        r = _get_redis()
+        r.ping()
+        redis_ok = True
+    except Exception as exc:
+        redis_error = str(exc)
+    return jsonify({'status': 'ok', 'redis': redis_ok, 'redis_error': redis_error}), 200
 
 
 @auth_api_bp.route('/login', methods=['POST'])
@@ -523,18 +533,6 @@ def register_user():
     try:
         db.session.add(new_user)
         db.session.commit()
-
-        if not email_service.send_verification_email(new_user):
-            current_app.logger.error(f"Échec envoi email vérification pour user #{new_user.id}, {new_user.email}")
-            return jsonify({
-                'success' : False,
-                'feedback' : {
-                    'level' : 'error',
-                    'message' : 'Erreur lors de l\'envoi de l\'email de vérification. Contactez le support.'
-                },
-                'code' : 'SEND_CONFIRM_EMAIL_MESSAGE'
-            }), 500
-
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur création utilisateur : {e}", exc_info=True)
@@ -542,8 +540,25 @@ def register_user():
             'success' : False,
             'feedback' : {
                 'level' : 'error',
-                'message' : 'Erreur à la création de l`utilisateur'
+                'message' : 'Erreur à la création du compte. Réessayez.'
             },
+        }), 500
+
+    try:
+        email_sent = email_service.send_verification_email(new_user)
+    except Exception as e:
+        email_sent = False
+        current_app.logger.error(f"Erreur envoi email vérification user #{new_user.id}: {e}", exc_info=True)
+
+    if not email_sent:
+        current_app.logger.error(f"Échec envoi email vérification pour user #{new_user.id}, {new_user.email}")
+        return jsonify({
+            'success' : False,
+            'feedback' : {
+                'level' : 'error',
+                'message' : 'Compte créé mais email de vérification non envoyé. Contactez le support.'
+            },
+            'code' : 'SEND_CONFIRM_EMAIL_MESSAGE'
         }), 500
 
     return jsonify({
@@ -859,8 +874,7 @@ def google_callback():
     if not angular_base.startswith('http'):
         angular_base = f'https://{angular_base}'
 
-    print("[OAuth] google_callback() called", flush=True)
-    current_app.logger.debug('google_callback() called')
+    current_app.logger.info("[OAuth] google_callback() called")
 
     try:
         token      = oauth.google.authorize_access_token()

@@ -3,6 +3,8 @@ LaProd - Application Factory (PostgreSQL + Flask-Migrate)
 """
 from flask import Flask, session, jsonify, send_from_directory
 import os
+import logging
+import sys
 from dotenv import load_dotenv
 from helpers import admin_required
 from pathlib import Path
@@ -15,7 +17,19 @@ def create_app():
     """Factory pour créer l'application Flask"""
     
     app = Flask(__name__)
-    
+
+    # ── Logger : branché sur gunicorn.error (visible dans docker compose logs) ─
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(gunicorn_logger.level or logging.INFO)
+    else:
+        _h = logging.StreamHandler(sys.stdout)
+        _h.setLevel(logging.DEBUG)
+        app.logger.addHandler(_h)
+        app.logger.setLevel(logging.DEBUG)
+    app.logger.propagate = False
+
     # ============================================
     # PROXY FIX POUR NGINX (CRITIQUE EN PRODUCTION)
     # ============================================
