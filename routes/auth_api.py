@@ -898,8 +898,11 @@ def google_callback():
         picture        = user_info.get('picture')
         email_verified = user_info.get('email_verified', False)
 
-        # ── CAS 1 : google_id connu ──────────────────────────────────────────
-        user = db.session.query(User).filter_by(google_id=google_id).first()
+        # ── CAS 1 : google_id connu (exclut les comptes soft-deleted) ──────────
+        user = (db.session.query(User)
+                .filter_by(google_id=google_id)
+                .filter(User.deleted_at.is_(None))
+                .first())
 
         if user:
             if picture and getattr(user, 'profile_picture_url', None) != picture:
@@ -933,8 +936,11 @@ def google_callback():
 
         current_app.logger.debug(f'user: {user}, authorize_access_token ?: {token}, resp ? {resp}.')
 
-        # ── CAS 2 : google_id inconnu ────────────────────────────────────────
-        user_by_email = db.session.query(User).filter_by(email=email).first()
+        # ── CAS 2 : google_id inconnu (exclut les comptes soft-deleted) ────────
+        user_by_email = (db.session.query(User)
+                         .filter_by(email=email)
+                         .filter(User.deleted_at.is_(None))
+                         .first())
 
         if user_by_email:
             if user_by_email.oauth_provider is None:

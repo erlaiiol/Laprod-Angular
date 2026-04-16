@@ -85,8 +85,14 @@ export class OauthCallbackComponent implements OnInit {
         this.auth.storeOauthAuth(res.data);
         this.navigate(res.data.next, res.data.suggested_name);
       },
-      error: () => {
-        this.error.set('Erreur serveur lors de l\'échange OAuth.');
+      error: (err) => {
+        sessionStorage.removeItem('oauth_done');
+        if (err.status === 404) {
+          // Compte introuvable en DB (session stale) → relancer le flux Google
+          window.location.href = `${this.auth.getAuthUrl()}/google/login`;
+        } else {
+          this.error.set('Erreur serveur lors de l\'échange OAuth.');
+        }
       },
     });
   }
