@@ -63,6 +63,7 @@ export class OauthCallbackComponent implements OnInit {
     }
 
     const code = this.route.snapshot.queryParamMap.get('code');
+    console.log('OAUTH CALLBACK INIT', code);
     if (!code) {
       this.error.set('Code OAuth manquant.');
       return;
@@ -75,7 +76,6 @@ export class OauthCallbackComponent implements OnInit {
           return;
         }
         this.auth.storeOauthAuth(res.data);
-        console.log('OAUTH CALLBACK INIT', code);
         this.navigate(res.data.next, res.data.suggested_name);
       },
       error: () => {
