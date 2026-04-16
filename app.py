@@ -22,7 +22,7 @@ def create_app():
     gunicorn_logger = logging.getLogger('gunicorn.error')
     if gunicorn_logger.handlers:
         app.logger.handlers = gunicorn_logger.handlers
-        app.logger.setLevel(gunicorn_logger.level or logging.INFO)
+        app.logger.setLevel(logging.INFO)  # toujours INFO min, indépendant du niveau gunicorn
     else:
         _h = logging.StreamHandler(sys.stdout)
         _h.setLevel(logging.DEBUG)

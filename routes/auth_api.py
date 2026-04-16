@@ -640,7 +640,13 @@ def resend_verification():
             'message': 'Si un compte non vérifié existe avec cet email, un nouveau lien a été envoyé.'
         }}), 200
 
-    if not email_service.send_verification_email(user):
+    try:
+        email_sent = email_service.send_verification_email(user)
+    except Exception as e:
+        email_sent = False
+        current_app.logger.error(f"Erreur renvoi email vérification user #{user.id}: {e}", exc_info=True)
+
+    if not email_sent:
         current_app.logger.error(f"Échec renvoi email vérification pour user #{user.id}")
         return jsonify({'success': False, 'feedback': {
             'level': 'error', 'message': 'Erreur lors de l\'envoi. Réessayez plus tard.'
@@ -908,14 +914,19 @@ def google_callback():
                     'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
                     'user':   _user_payload(user),
                     'next':   'select-role',
-                })
+                }
+                current_app.logger.info(f"[OAuth] storing {key} on Redis {id(_get_redis())}")
+            )
                 return redirect(f'{angular_base}/oauth-callback?code={code}')
 
             code = _store_oauth_code({
                 'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
                 'user':   _user_payload(user),
                 'next':   '/',
-            })
+            }
+                current_app.logger.info(f"[OAuth] storing {key} on Redis {id(_get_redis())}")
+            )
+
             return redirect(f'{angular_base}/oauth-callback?code={code}')
 
         current_app.logger.debug(f'user: {user}, authorize_access_token ?: {token}, resp ? {resp}.')
