@@ -863,13 +863,20 @@ def submit_mixmaster_sample():
 @auth_api_bp.route('/google/login')
 @csrf.exempt
 def google_login():
-    """Démarre le flux OAuth Google — redirige le navigateur vers Google."""
-    
-    
-    current_app.logger.debug('google_login() called. User should see Google interface.')
-    
+    """
+    Démarre le flux OAuth Google.
+    Génère un state CSRF stocké dans Redis (fiable multi-workers) plutôt que
+    dans le cookie de session Flask (trop fragile en prod derrière nginx).
+    """
+    import secrets
     redirect_uri = url_for('auth_api.google_callback', _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    state = secrets.token_urlsafe(32)
+    try:
+        _get_redis().setex(f'oauth_state:{state}', 300, '1')
+        current_app.logger.info(f'[OAuth] login state stocké (len={len(state)})')
+    except Exception as exc:
+        current_app.logger.error(f'[OAuth] login Redis error: {exc}')
+    return oauth.google.authorize_redirect(redirect_uri, state=state)
 
 
 @auth_api_bp.route('/google/callback')
@@ -877,15 +884,35 @@ def google_login():
 def google_callback():
     """
     Callback Google OAuth.
-    Crée / retrouve l'utilisateur, génère un code court-durée et redirige
-    vers la SPA Angular qui l'échangera contre les JWT.
+    Vérifie le state CSRF via Redis, injecte-le dans la session Flask pour
+    satisfaire Authlib, puis poursuit le flux standard.
     """
     angular_base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
-    # Garantit que l'URL a bien un scheme (évite une interprétation en chemin relatif)
     if not angular_base.startswith('http'):
         angular_base = f'https://{angular_base}'
 
     current_app.logger.info("[OAuth] google_callback() called")
+
+    # ── Vérification CSRF state via Redis ────────────────────────────────────
+    state_param = request.args.get('state', '')
+    if not state_param:
+        current_app.logger.warning('[OAuth] callback sans state param')
+        return redirect(f'{angular_base}/login?error=oauth_failed')
+
+    state_valid = False
+    try:
+        state_valid = bool(_get_redis().getdel(f'oauth_state:{state_param}'))
+    except Exception as exc:
+        current_app.logger.error(f'[OAuth] Redis state check error: {exc}')
+        # Redis down : on laisse passer (dégradé) plutôt que bloquer tous les logins
+
+    if not state_valid:
+        current_app.logger.warning(f'[OAuth] state invalide ou expiré: {state_param[:16]}…')
+        return redirect(f'{angular_base}/login?error=oauth_failed')
+
+    # Injecter le state dans la session Flask pour satisfaire la vérification
+    # interne d'Authlib (qui cherche _state_google_{state} dans la session).
+    session[f'_state_google_{state_param}'] = {'data': state_param, 'nonce': None}
 
     try:
         token      = oauth.google.authorize_access_token()
