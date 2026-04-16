@@ -75,6 +75,7 @@ export class OauthCallbackComponent implements OnInit {
           return;
         }
         this.auth.storeOauthAuth(res.data);
+        console.log('OAUTH CALLBACK INIT', code);
         this.navigate(res.data.next, res.data.suggested_name);
       },
       error: () => {

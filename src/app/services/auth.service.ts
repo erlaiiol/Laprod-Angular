@@ -135,9 +135,6 @@ export class AuthService {
       tap((res) => {
         if (res.success === true) {
           this.storeAuth(res);
-          if (res.code === 'SHOW_SELECT_ROLE') {
-            this.router.navigate(['/select-role']);
-          }
         }
 
       }),
