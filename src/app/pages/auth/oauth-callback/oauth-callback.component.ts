@@ -50,12 +50,8 @@ export class OauthCallbackComponent implements OnInit {
     private auth:   AuthService,
   ) {}
 
-  private exchanged = false;
-
 
   ngOnInit(): void {
-    if (this.exchanged) return;
-      this.exchanged = true;
     // Vérifier les erreurs retournées par Flask
     const urlError = this.route.snapshot.queryParamMap.get('error');
     if (urlError) {
@@ -73,6 +69,12 @@ export class OauthCallbackComponent implements OnInit {
       this.error.set('Code OAuth manquant.');
       return;
     }
+
+      // 🔒 protection réelle anti double call
+    if (sessionStorage.getItem('oauth_done') === code) {
+      return;
+    }
+    sessionStorage.setItem('oauth_done', code);
 
     this.auth.tokenExchange(code).subscribe({
       next: (res) => {
