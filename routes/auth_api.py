@@ -16,7 +16,8 @@ import config
 from utils.file_validator import validate_image_file
 from sqlalchemy import select, or_
 
-from extensions import db, limiter, oauth, csrf, redis_client
+from extensions import db, limiter, oauth, csrf
+import extensions as _ext
 from models import User, PriceChangeRequest
 from helpers import sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens
 from utils import email_service, notification_service
@@ -36,24 +37,19 @@ _oauth_pending: dict = {}  # { code: { expires_at, tokens, user, next } }
 
 def _store_oauth_code(payload: dict) -> str:
     code = str(uuid.uuid4())
-    redis_client.setex(
+    _ext.redis_client.setex(
         f"oauth:{code}",
         60,
         json.dumps(payload)
     )
-
     return code
 
 def _pop_oauth_code(code: str) -> dict | None:
-    key = f"oauth:{code}"
-
-    data = redis_client.get(key)
-
+    key  = f"oauth:{code}"
+    data = _ext.redis_client.get(key)
     if not data:
         return None
-
-    redis_client.delete(key)
-
+    _ext.redis_client.delete(key)
     return json.loads(data)
 
 # ============================================
