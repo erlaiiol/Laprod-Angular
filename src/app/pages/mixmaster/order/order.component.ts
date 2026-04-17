@@ -171,6 +171,8 @@ export class MixmasterOrderComponent implements OnInit {
   }
 
   imgUrl(path: string | null): string {
-    return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/default_profile.png';
+    if (!path) return '/assets/placeholders/default_profile.png';
+    if (path.startsWith('http')) return path;
+    return `/db_assets/${path}`;
   }
 }

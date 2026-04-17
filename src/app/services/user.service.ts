@@ -18,7 +18,7 @@ export interface UserTrack {
   is_approved:   boolean;
   purchase_count: number;
   created_at:    string;
-  tags: { id: number; name: string; category: string | null }[];
+  tags: { id: number; name: string; category: string | null; color: string | null }[];
 }
 
 export interface UserProfile {

@@ -33,6 +33,37 @@ def toggle_favorite(track_id):
         return jsonify({'success': True, 'data': {'action': 'added', 'is_favorite': True}}), 200
 
 
+@favorites_api_bp.route('/check-batch', methods=['GET'])
+@csrf.exempt
+def check_favorites_batch():
+    """Vérifie si plusieurs tracks sont en favoris en une seule requête."""
+    from flask import request as flask_request
+    ids_param = flask_request.args.get('ids', '')
+    try:
+        track_ids = [int(i) for i in ids_param.split(',') if i.strip()]
+    except ValueError:
+        return jsonify({'success': False, 'data': {}}), 400
+
+    try:
+        verify_jwt_in_request(optional=True)
+        from flask_jwt_extended import get_jwt_identity as _gji
+        raw = _gji()
+        user_id = int(raw) if raw else None
+    except Exception:
+        user_id = None
+
+    result = {str(tid): False for tid in track_ids}
+    if user_id and track_ids:
+        favs = db.session.query(Favorite.track_id).filter(
+            Favorite.user_id == user_id,
+            Favorite.track_id.in_(track_ids)
+        ).all()
+        for (tid,) in favs:
+            result[str(tid)] = True
+
+    return jsonify({'success': True, 'data': result}), 200
+
+
 @favorites_api_bp.route('/check/<int:track_id>', methods=['GET'])
 @csrf.exempt
 def check_favorite(track_id):

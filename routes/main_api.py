@@ -41,7 +41,8 @@ def _track_payload(track):
         'created_at':    track.created_at.isoformat(),
         'tags': [
             {'id': t.id, 'name': t.name,
-             'category': t.category_obj.name if t.category_obj else None}
+             'category': t.category_obj.name  if t.category_obj else None,
+             'color':    t.category_obj.color if t.category_obj else None}
             for t in track.tags
         ],
     }

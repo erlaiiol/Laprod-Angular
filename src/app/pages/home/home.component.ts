@@ -6,11 +6,14 @@
 
 import { Component, OnInit, signal, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
+import { FavoritesService } from '../../services/favorites.service';
+import { AuthService } from '../../services/auth.service';
 //                             └── service partagé : Navbar écrit, Home lit
 
 
@@ -30,6 +33,8 @@ export class HomeComponent implements OnInit {
   private trackService       = inject(TrackService);
   private filterStateService = inject(FilterStateService);
   private toast              = inject(ToastService);
+  private favSvc             = inject(FavoritesService);
+  private auth               = inject(AuthService);
   // inject() est l'équivalent de "private x: X" dans le constructeur.
   // Il peut être utilisé en dehors du constructeur, pratique ici car
   // effect() doit être créé dans le contexte d'injection (champ de classe).
@@ -65,7 +70,16 @@ export class HomeComponent implements OnInit {
     // Convertit ActiveFilters (format Navbar) → TrackFilters (format API Flask)
     const apiFilters = this.toTrackFilters(this.filterStateService.filters());
 
-    this.trackService.getTracks(apiFilters).subscribe({
+    this.trackService.getTracks(apiFilters).pipe(
+      switchMap(response => {
+        if (!response.success || !this.auth.isLoggedIn()) return of(response);
+        const ids = (response.data.tracks as Track[]).map(t => t.id);
+        return this.favSvc.prefetch(ids).pipe(
+          // prefetch errors are silent — still render tracks
+          switchMap(() => of(response)),
+        );
+      })
+    ).subscribe({
       next: (response) => {
         if (response.success) {
           this.tracks.set(response.data.tracks);

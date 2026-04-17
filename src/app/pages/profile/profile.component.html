@@ -123,7 +123,11 @@
                 <div class="track-meta">{{ track.style ?? 'Inconnu' }} · {{ track.bpm }} BPM · {{ track.key }}</div>
                 <div class="track-tags">
                   @for (tag of track.tags; track tag.id) {
-                    <span class="tag">#{{ tag.name }}</span>
+                    <span class="tag"
+                          [style.background-color]="tagBgColor(tag.color)"
+                          [style.border-color]="tagBorderColor(tag.color)">
+                      #{{ tag.name }}
+                    </span>
                   }
                 </div>
               </div>
@@ -132,7 +136,7 @@
               <div class="track-right">
                 @if (track.price_mp3) {
                   <a [routerLink]="['/track', track.id]" class="track-price">
-                    à partir de {{ (track.price_mp3 + 5).toFixed(2) }}€
+                    à partir de {{ track.price_mp3.toFixed(2) }}€
                   </a>
                 }
                 @if (isOwnProfile()) {

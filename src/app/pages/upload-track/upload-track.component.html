@@ -201,6 +201,9 @@
             <i class="bi bi-image"></i>
             <span>
               <strong>Image de couverture</strong> <em class="opt">optionnel</em>
+              <span class="tooltip-icon" title="Si vous n'ajoutez pas de cover, une image par défaut sera générée automatiquement.">
+                <i class="bi bi-info-circle"></i>
+              </span>
               @if (fileImage()) {
                 <em class="file-name">{{ fileImage()!.name }}</em>
               } @else {

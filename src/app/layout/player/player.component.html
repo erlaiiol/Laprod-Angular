@@ -29,80 +29,86 @@
       </div>
 
       <div class="player-info">
-        <p class="player-title">{{ player.currentTrack()?.title }}</p>
+        <p class="player-title">
+          {{ player.currentTrack()?.title }}
+          @if (player.currentTrack()?.id !== 0) {
+            <span class="preview-tag">(preview 1:30)</span>
+          }
+        </p>
         <p class="player-artist">{{ player.currentTrack()?.composer_user?.username }}</p>
       </div>
     </div>
 
-    <!-- ── CENTER: waveform ────────────────────────────────────────────── -->
-    <div class="waveform-container">
-      <div #waveformContainer class="waveform-inner"></div>
-      @if (player.currentTrack()?.id !== 0) {
-        <span class="preview-notice">Preview avec watermark (1:30)</span>
-      }
+    <!-- ── CENTER: waveform + actions (desktop side-by-side, mobile row 2) ── -->
+    <div class="player-center">
+      <div class="waveform-container">
+        <div #waveformContainer class="waveform-inner"></div>
+        @if (player.currentTrack()?.id !== 0) {
+          <span class="preview-notice">Preview avec watermark (1:30)</span>
+        }
+      </div>
+
+      <!-- Actions — always visible, adapt layout per context -->
+      <div class="player-actions">
+        @if (!isDetailContext() && !isMixOrderContext()) {
+          <div class="player-metadata">
+            @if (player.currentTrack()?.bpm) {
+              <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
+            }
+            @if (player.currentTrack()?.key) {
+              <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
+            }
+            @if (player.currentTrack()?.style) {
+              <span class="player-meta-item hide-xs">{{ player.currentTrack()!.style }}</span>
+            }
+            @if (player.currentTrack()?.price_mp3) {
+              <a class="player-meta-price"
+                 [routerLink]="['/track', player.currentTrack()!.id]">
+                à partir de {{ player.currentTrack()!.price_mp3.toFixed(2) }}€
+              </a>
+            }
+          </div>
+        }
+
+        @if (isDetailContext()) {
+          <div class="player-context-actions">
+            <button class="btn-download" (click)="onDownloadClick()" title="Télécharger la preview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span class="btn-label">Télécharger</span>
+            </button>
+            <button class="btn-rec" (click)="onRecClick()" title="Enregistrer une topline">
+              <span class="rec-dot"></span>
+              REC
+            </button>
+          </div>
+        }
+
+        @if (isMixOrderContext()) {
+          <div class="player-mix-context">
+            <span class="player-mix-status status-{{ player.viewingMixOrder()!.status }}">
+              {{ mixStatusLabel(player.viewingMixOrder()!) }}
+            </span>
+            @if (player.viewingMixOrder()!.personName) {
+              <span class="player-mix-person">{{ player.viewingMixOrder()!.personName }}</span>
+            }
+          </div>
+        }
+      </div>
     </div>
 
-    <!-- ── RIGHT: time + contextual section + volume + next ────────────── -->
-    <div class="player-controls">
+    <!-- ── RIGHT: time + volume + next ──────────────────────────────────── -->
+    <div class="player-right">
 
       <div class="player-time">
         <span>{{ formatTime(player.currentTime()) }}</span>
         <span class="time-sep">/</span>
         <span>{{ formatTime(player.duration()) }}</span>
       </div>
-
-      <!-- Default context: meta chips + price link -->
-      @if (!isDetailContext() && !isMixOrderContext()) {
-        <div class="player-metadata">
-          @if (player.currentTrack()?.bpm) {
-            <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
-          }
-          @if (player.currentTrack()?.key) {
-            <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
-          }
-          @if (player.currentTrack()?.style) {
-            <span class="player-meta-item">{{ player.currentTrack()!.style }}</span>
-          }
-          @if (player.currentTrack()?.price_mp3) {
-            <a class="player-meta-price"
-               [routerLink]="['/track', player.currentTrack()!.id]">
-              preview gratuite ou lease à partir de
-              {{ (player.currentTrack()!.price_mp3 + 5).toFixed(2) }}€
-            </a>
-          }
-        </div>
-      }
-
-      <!-- Track-detail context: Download + REC buttons -->
-      @if (isDetailContext()) {
-        <div class="player-context-actions">
-          <button class="btn-download" (click)="onDownloadClick()" title="Télécharger la preview">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Télécharger
-          </button>
-          <button class="btn-rec" (click)="onRecClick()" title="Enregistrer une topline">
-            <span class="rec-dot"></span>
-            REC
-          </button>
-        </div>
-      }
-
-      <!-- Mix order context: statut de la commande -->
-      @if (isMixOrderContext()) {
-        <div class="player-mix-context">
-          <span class="player-mix-status status-{{ player.viewingMixOrder()!.status }}">
-            {{ mixStatusLabel(player.viewingMixOrder()!) }}
-          </span>
-          @if (player.viewingMixOrder()!.personName) {
-            <span class="player-mix-person">{{ player.viewingMixOrder()!.personName }}</span>
-          }
-        </div>
-      }
 
       <div class="volume-control">
         <svg class="volume-icon" viewBox="0 0 24 24">

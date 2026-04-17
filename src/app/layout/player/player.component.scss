@@ -30,11 +30,12 @@
   cursor:     pointer;
   line-height: 1;
   padding:    2px 4px;
+  z-index:    1;
 
   &:hover { color: v.$text-primary; }
 }
 
-// ── Content row ──────────────────────────────────────────────────────────────
+// ── Content row — DESKTOP ────────────────────────────────────────────────────
 
 .player-content {
   display:     flex;
@@ -51,6 +52,7 @@
   gap:         10px;
   flex-shrink: 0;
   width:       200px;
+  min-width:   0;
 }
 
 .player-cover-wrapper {
@@ -91,10 +93,25 @@
   p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
-.player-title  { font-size: 0.84rem; font-weight: 600; color: v.$text-primary; }
+.player-title  {
+  font-size: 0.84rem; font-weight: 600; color: v.$text-primary;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.preview-tag {
+  font-size: 0.65rem; font-weight: 400; color: v.$text-secondary;
+  opacity: 0.75; white-space: nowrap;
+}
 .player-artist { font-size: 0.73rem; color: v.$text-secondary; margin-top: 3px !important; }
 
-// ── CENTER: waveform ──────────────────────────────────────────────────────────
+// ── CENTER: waveform + actions (desktop) ─────────────────────────────────────
+
+.player-center {
+  flex:           1;
+  min-width:      0;
+  display:        flex;
+  align-items:    center;
+  gap:            12px;
+}
 
 .waveform-container {
   flex:           1;
@@ -118,9 +135,15 @@
   line-height: 1;
 }
 
-// ── RIGHT: controls ───────────────────────────────────────────────────────────
+// ── Actions area (inside center) ─────────────────────────────────────────────
 
-.player-controls {
+.player-actions {
+  flex-shrink: 0;
+}
+
+// ── RIGHT: time + volume + next ───────────────────────────────────────────────
+
+.player-right {
   display:     flex;
   align-items: center;
   gap:         10px;
@@ -138,7 +161,7 @@
 
 .time-sep { color: v.$text-muted; }
 
-// ── Meta chips (beat context) ─────────────────────────────────────────────────
+// ── Meta chips ────────────────────────────────────────────────────────────────
 
 .player-metadata {
   display:     flex;
@@ -173,7 +196,7 @@
   &:hover { background: v.$primary; border-color: v.$primary; color: #fff; }
 }
 
-// ── Track-detail context: Download + REC ─────────────────────────────────────
+// ── Download + REC ────────────────────────────────────────────────────────────
 
 .player-context-actions {
   display:     flex;
@@ -185,7 +208,7 @@
   display:       flex;
   align-items:   center;
   gap:           5px;
-  padding:       5px 10px;
+  padding:       6px 11px;
   background:    v.$tag-green-dark;
   color:         v.$tag-green-light;
   border:        1px solid v.$tag-green;
@@ -204,7 +227,7 @@
   display:       flex;
   align-items:   center;
   gap:           5px;
-  padding:       5px 10px;
+  padding:       6px 11px;
   background:    v.$tag-red-dark;
   color:         v.$tag-red-light;
   border:        1px solid v.$tag-red;
@@ -379,14 +402,89 @@
 
 // ── Responsive ───────────────────────────────────────────────────────────────
 
+// Tablette : masquer volume, réduire left-group
 @media (max-width: 768px) {
-  .player-metadata        { display: none; }
-  .player-context-actions { display: none; }
-  .volume-control         { display: none; }
-  .player-left-group      { width: 150px; }
+  .volume-control  { display: none; }
+  .player-left-group { width: 160px; }
+  .hide-xs { display: none; }
 }
 
-@media (max-width: 480px) {
-  .player-left-group { width: 120px; }
-  .player-time       { display: none; }
+// Mobile : layout 2 rangées
+// Rangée 1 : cover + info  |  time + next
+// Rangée 2 : waveform (court) + boutons d'action
+@media (max-width: 600px) {
+  .bottom-player {
+    padding: 0 10px 6px 10px;
+  }
+
+  .player-content {
+    flex-wrap:  wrap;
+    height:     auto;
+    gap:        0;
+    padding:    6px 0 0;
+    align-items: center;
+  }
+
+  // Rangée 1 : left + right côte à côte
+  .player-left-group {
+    flex:    1 1 auto;
+    width:   auto;
+    min-width: 0;
+    order:   1;
+  }
+
+  .player-right {
+    order:      2;
+    flex-shrink: 0;
+    gap:        8px;
+  }
+
+  // Rangée 2 : center prend toute la largeur
+  .player-center {
+    order:   3;
+    width:   100%;
+    flex:    0 0 100%;
+    gap:     8px;
+    margin-top: 4px;
+    align-items: center;
+  }
+
+  // Waveform réduite sur mobile
+  .waveform-inner {
+    height: 28px;
+  }
+
+  .preview-notice {
+    display: none;  // pas assez de place
+  }
+
+  // Boutons compacts sur mobile
+  .btn-download {
+    padding: 5px 9px;
+    font-size: 0.72rem;
+  }
+
+  .btn-rec {
+    padding: 5px 9px;
+    font-size: 0.72rem;
+  }
+
+  // Chips meta : 2 max (BPM + key), style masqué
+  .player-meta-item:nth-child(n+3) { display: none; }
+
+  // Prix : version courte
+  .player-meta-price {
+    font-size: 0.65rem;
+    padding:   0.12rem 0.35rem;
+  }
+
+  // Pochette plus petite
+  .player-cover-wrapper {
+    width:  44px;
+    height: 44px;
+  }
+
+  // Titre/artiste
+  .player-title  { font-size: 0.78rem; }
+  .player-artist { font-size: 0.68rem; }
 }
