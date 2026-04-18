@@ -50,44 +50,71 @@
 
       <!-- Actions — always visible, adapt layout per context -->
       <div class="player-actions">
+
+        <!-- ── Contexte home / catalogue ──────────────────────────────────── -->
         @if (!isDetailContext() && !isMixOrderContext()) {
-          <div class="player-metadata">
-            @if (player.currentTrack()?.bpm) {
-              <span class="player-meta-item">{{ player.currentTrack()!.bpm }} BPM</span>
-            }
-            @if (player.currentTrack()?.key) {
-              <span class="player-meta-item">{{ player.currentTrack()!.key }}</span>
-            }
-            @if (player.currentTrack()?.style) {
-              <span class="player-meta-item hide-xs">{{ player.currentTrack()!.style }}</span>
-            }
-            @if (player.currentTrack()?.price_mp3) {
-              <a class="player-meta-price"
-                 [routerLink]="['/track', player.currentTrack()!.id]">
-                à partir de {{ player.currentTrack()!.price_mp3.toFixed(2) }}€
+          <div class="player-catalog-actions">
+            @if (player.currentTrack()?.id !== 0) {
+              <!-- Télécharger la preview -->
+              <a class="btn-free-dl"
+                 [routerLink]="['/track', player.currentTrack()!.id]"
+                 title="Télécharger la preview gratuitement">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span class="btn-free-dl__text">Télécharger</span>
+                <span class="btn-free-dl__badge">GRATUIT</span>
+              </a>
+              <!-- Voir les détails -->
+              <a class="btn-track-detail"
+                 [routerLink]="['/track', player.currentTrack()!.id]"
+                 title="Voir les détails du beat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span class="btn-track-detail__text">Détails</span>
               </a>
             }
           </div>
         }
 
+        <!-- ── Contexte track-detail ──────────────────────────────────────── -->
         @if (isDetailContext()) {
           <div class="player-context-actions">
-            <button class="btn-download" (click)="onDownloadClick()" title="Télécharger la preview">
+
+            <button class="btn-download" (click)="onDownloadClick()"
+                    title="Télécharger la preview gratuitement">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                   stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              <span class="btn-label">Télécharger</span>
+              <span class="btn-action-inner">
+                <span class="btn-action-label">Télécharger</span>
+                <span class="btn-action-free">gratuit</span>
+              </span>
             </button>
-            <button class="btn-rec" (click)="onRecClick()" title="Enregistrer une topline">
+
+            <button class="btn-rec" (click)="onRecClick()"
+                    title="Enregistrer une topline gratuitement">
               <span class="rec-dot"></span>
-              REC
+              <span class="btn-action-inner">
+                <span class="btn-action-label">Topline</span>
+                <span class="btn-action-free btn-action-free--rec">gratuite</span>
+              </span>
             </button>
+
           </div>
         }
 
+        <!-- ── Contexte mix/order ─────────────────────────────────────────── -->
         @if (isMixOrderContext()) {
           <div class="player-mix-context">
             <span class="player-mix-status status-{{ player.viewingMixOrder()!.status }}">
@@ -98,6 +125,7 @@
             }
           </div>
         }
+
       </div>
     </div>
 

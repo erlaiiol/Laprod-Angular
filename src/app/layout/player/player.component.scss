@@ -124,7 +124,7 @@
 
 .waveform-inner {
   width:  100%;
-  height: 48px;
+  height: 36px;
   cursor: pointer;
 }
 
@@ -161,42 +161,94 @@
 
 .time-sep { color: v.$text-muted; }
 
-// ── Meta chips ────────────────────────────────────────────────────────────────
+// ── Catalog actions (home / browse) ──────────────────────────────────────────
 
-.player-metadata {
+.player-catalog-actions {
   display:     flex;
   align-items: center;
-  gap:         5px;
+  gap:         6px;
   flex-wrap:   nowrap;
 }
 
-.player-meta-item {
-  background:    v.$bg-elevated;
-  border:        1px solid v.$bg-border-subtle;
+// ── "Télécharger GRATUIT" — bouton home/catalogue ────────────────────────────
+
+.btn-free-dl {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             6px;
+  padding:         5px 10px 5px 9px;
+  background:      rgba(16, 185, 129, 0.12);
+  color:           v.$tag-green;
+  border:          1px solid rgba(16, 185, 129, 0.35);
+  border-radius:   20px;         // pill
+  font-size:       0.72rem;
+  font-weight:     600;
+  cursor:          pointer;
+  white-space:     nowrap;
+  text-decoration: none;
+  transition:      background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+
+  svg { flex-shrink: 0; opacity: 0.85; transition: opacity 0.15s; }
+
+  &:hover {
+    background:   rgba(16, 185, 129, 0.22);
+    border-color: v.$tag-green;
+    box-shadow:   0 0 8px rgba(16, 185, 129, 0.25);
+    color:        #fff;
+    svg { opacity: 1; }
+  }
+}
+
+.btn-free-dl__text {
+  // Visible sur desktop
+}
+
+.btn-free-dl__badge {
+  display:       inline-block;
+  background:    v.$tag-green;
+  color:         #000;
+  font-size:     0.56rem;
+  font-weight:   800;
+  letter-spacing: 0.07em;
+  padding:       1px 5px;
   border-radius: 4px;
-  padding:       2px 6px;
-  font-size:     0.68rem;
-  color:         v.$text-primary;
-  white-space:   nowrap;
+  line-height:   1.5;
+  text-transform: uppercase;
 }
 
-.player-meta-price {
-  display:          inline-block;
-  font-size:        0.68rem;
-  font-weight:      700;
-  color:            #000;
-  background-color: #fff;
-  border:           1px solid #fff;
-  border-radius:    6px;
-  padding:          0.15rem 0.4rem;
-  text-decoration:  none;
-  white-space:      nowrap;
-  transition:       background 0.15s, color 0.15s;
+// ── "Voir les détails du beat" — bouton secondaire home ──────────────────────
 
-  &:hover { background: v.$primary; border-color: v.$primary; color: #fff; }
+.btn-track-detail {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             5px;
+  padding:         5px 10px 5px 9px;
+  background:      transparent;
+  color:           v.$text-secondary;
+  border:          1px solid v.$bg-border-subtle;
+  border-radius:   20px;
+  font-size:       0.72rem;
+  font-weight:     500;
+  cursor:          pointer;
+  white-space:     nowrap;
+  text-decoration: none;
+  transition:      background 0.18s, border-color 0.18s, color 0.18s;
+
+  svg { flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
+
+  &:hover {
+    background:   v.$bg-elevated;
+    border-color: v.$bg-border;
+    color:        v.$text-primary;
+    svg { opacity: 1; }
+  }
 }
 
-// ── Download + REC ────────────────────────────────────────────────────────────
+.btn-track-detail__text {
+  // visible desktop, masqué mobile
+}
+
+// ── Download + REC — contexte track-detail ────────────────────────────────────
 
 .player-context-actions {
   display:     flex;
@@ -204,55 +256,91 @@
   gap:         8px;
 }
 
+// Structure interne partagée : icône + texte empilé
+.btn-action-inner {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  line-height:    1.15;
+  gap:            1px;
+}
+
+.btn-action-label {
+  font-size:   0.76rem;
+  font-weight: 700;
+}
+
+.btn-action-free {
+  font-size:   0.6rem;
+  font-weight: 600;
+  color:       v.$tag-green;
+  opacity:     0.9;
+  letter-spacing: 0.03em;
+
+  &--rec {
+    color: v.$tag-red-light;
+  }
+}
+
 .btn-download {
   display:       flex;
   align-items:   center;
-  gap:           5px;
-  padding:       6px 11px;
-  background:    v.$tag-green-dark;
+  gap:           7px;
+  padding:       6px 12px 6px 10px;
+  background:    rgba(16, 185, 129, 0.10);
   color:         v.$tag-green-light;
-  border:        1px solid v.$tag-green;
-  border-radius: 6px;
-  font-size:     0.75rem;
-  font-weight:   600;
+  border:        1px solid rgba(16, 185, 129, 0.30);
+  border-radius: 8px;
   cursor:        pointer;
   white-space:   nowrap;
   text-decoration: none;
-  transition:    background 0.15s;
+  transition:    background 0.18s, border-color 0.18s, box-shadow 0.18s;
 
-  &:hover { background: v.$tag-green; color: #000; }
+  svg { flex-shrink: 0; color: v.$tag-green; opacity: 0.85; transition: opacity 0.15s; }
+
+  &:hover {
+    background:   rgba(16, 185, 129, 0.22);
+    border-color: v.$tag-green;
+    box-shadow:   0 0 10px rgba(16, 185, 129, 0.2);
+    svg { opacity: 1; }
+    .btn-action-free { opacity: 1; }
+  }
 }
 
 .btn-rec {
   display:       flex;
   align-items:   center;
-  gap:           5px;
-  padding:       6px 11px;
+  gap:           7px;
+  padding:       6px 12px 6px 10px;
   background:    v.$tag-red-dark;
   color:         v.$tag-red-light;
-  border:        1px solid v.$tag-red;
-  border-radius: 6px;
-  font-size:     0.75rem;
-  font-weight:   700;
+  border:        1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
   cursor:        pointer;
   white-space:   nowrap;
-  letter-spacing: 0.05em;
-  transition:    background 0.15s;
+  letter-spacing: 0.02em;
+  transition:    background 0.18s, border-color 0.18s, box-shadow 0.18s;
 
-  &:hover { background: v.$tag-red; color: #fff; }
+  &:hover {
+    background:   rgba(239, 68, 68, 0.22);
+    border-color: v.$tag-red;
+    box-shadow:   0 0 10px rgba(239, 68, 68, 0.2);
+    .btn-action-free--rec { opacity: 1; }
+  }
 }
 
 .rec-dot {
   width:         8px;
   height:        8px;
+  flex-shrink:   0;
   border-radius: 50%;
   background:    v.$tag-red;
-  animation:     pulse-rec 1s infinite;
+  animation:     pulse-rec 1.2s ease-in-out infinite;
 }
 
 @keyframes pulse-rec {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.3; transform: scale(0.7); }
 }
 
 // ── Volume + Next ────────────────────────────────────────────────────────────
@@ -402,89 +490,92 @@
 
 // ── Responsive ───────────────────────────────────────────────────────────────
 
-// Tablette : masquer volume, réduire left-group
+// Tablette : masquer volume
 @media (max-width: 768px) {
-  .volume-control  { display: none; }
+  .volume-control    { display: none; }
   .player-left-group { width: 160px; }
-  .hide-xs { display: none; }
 }
 
-// Mobile : layout 2 rangées
-// Rangée 1 : cover + info  |  time + next
-// Rangée 2 : waveform (court) + boutons d'action
+// Mobile ≤ 600px
+// Layout 2 rangées compactes — le player reste visible et utilisable
+// Rangée 1 : pochette + titre  |  time + next
+// Rangée 2 : waveform fine + CTA
 @media (max-width: 600px) {
+
   .bottom-player {
-    padding: 0 10px 6px 10px;
+    padding:    0 8px 8px 8px;
+    // Ombre plus marquée → le player "flotte" visuellement, moins noyé
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
   }
 
   .player-content {
-    flex-wrap:  wrap;
-    height:     auto;
-    gap:        0;
-    padding:    6px 0 0;
+    flex-wrap:   wrap;
+    height:      auto;
+    gap:         0;
+    padding-top: 8px;
     align-items: center;
   }
 
-  // Rangée 1 : left + right côte à côte
+  // Rangée 1
   .player-left-group {
-    flex:    1 1 auto;
-    width:   auto;
+    flex:      1 1 auto;
+    width:     auto;
     min-width: 0;
-    order:   1;
+    order:     1;
+    gap:       8px;
   }
 
   .player-right {
-    order:      2;
+    order:       2;
     flex-shrink: 0;
-    gap:        8px;
+    gap:         6px;
   }
 
-  // Rangée 2 : center prend toute la largeur
+  // Rangée 2 : waveform + CTA sur toute la largeur
   .player-center {
-    order:   3;
-    width:   100%;
-    flex:    0 0 100%;
-    gap:     8px;
-    margin-top: 4px;
+    order:      3;
+    width:      100%;
+    flex:       0 0 100%;
+    gap:        8px;
+    margin-top: 6px;
     align-items: center;
   }
 
-  // Waveform réduite sur mobile
-  .waveform-inner {
-    height: 28px;
+  // Waveform très fine — décorative, indicateur de position
+  .waveform-inner { height: 20px; }
+
+  .preview-notice { display: none; }
+
+  // Pochette compacte
+  .player-cover-wrapper {
+    width:  40px;
+    height: 40px;
   }
 
-  .preview-notice {
-    display: none;  // pas assez de place
-  }
+  // Titre/artiste serrés
+  .player-title  { font-size: 0.78rem; }
+  .player-artist { font-size: 0.66rem; }
+  .preview-tag   { display: none; } // trop verbeux sur mobile
 
-  // Boutons compacts sur mobile
-  .btn-download {
-    padding: 5px 9px;
-    font-size: 0.72rem;
+  // Boutons detail + download : icône seule sur mobile (texte masqué)
+  .btn-free-dl {
+    padding: 5px 8px;
+    gap:     4px;
   }
+  .btn-free-dl__text     { display: none; }
 
+  .btn-track-detail {
+    padding: 5px 8px;
+    gap:     4px;
+  }
+  .btn-track-detail__text { display: none; }
+
+  // Boutons download/rec contexte detail : garder label court
+  .btn-download,
   .btn-rec {
     padding: 5px 9px;
-    font-size: 0.72rem;
+    gap:     5px;
   }
-
-  // Chips meta : 2 max (BPM + key), style masqué
-  .player-meta-item:nth-child(n+3) { display: none; }
-
-  // Prix : version courte
-  .player-meta-price {
-    font-size: 0.65rem;
-    padding:   0.12rem 0.35rem;
-  }
-
-  // Pochette plus petite
-  .player-cover-wrapper {
-    width:  44px;
-    height: 44px;
-  }
-
-  // Titre/artiste
-  .player-title  { font-size: 0.78rem; }
-  .player-artist { font-size: 0.68rem; }
+  .btn-action-label { font-size: 0.68rem; }
+  .btn-action-free  { font-size: 0.54rem; }
 }
