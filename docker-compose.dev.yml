@@ -42,6 +42,18 @@ services:
       - /usr/src/app/.venv
       - /usr/src/app/node_modules
 
+  worker:
+    environment:
+      FLASK_ENV:   development
+      REDIS_URL:   redis://redis:6379/0
+      REDIS_HOST:  redis
+      REDIS_PORT:  "6379"
+      REDIS_DB:    "0"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/.venv
+      - /usr/src/app/node_modules
+
   # Frontend et certbot désactivés en dev
   frontend:
     profiles:

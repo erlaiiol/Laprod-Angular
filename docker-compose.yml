@@ -91,6 +91,36 @@ services:
       start_period: 15s
 
   # ---------------------------------------------------------------------------
+  # RQ Worker — traitement asynchrone des beats (watermark, image, DB)
+  # Utilise le même Dockerfile que web, commande différente.
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    mem_limit: 1g
+    entrypoint: []   # bypass entrypoint.sh (migrations/admin inutiles pour le worker)
+    command: ["gosu", "appuser", "uv", "run", "rq", "worker", "--url", "redis://redis:6379/0"]
+    env_file: .env
+    environment:
+      FLASK_ENV:    production
+      FLASK_APP:    app.py
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_URL:    redis://redis:6379/0
+      REDIS_HOST:   redis
+      REDIS_PORT:   "6379"
+      REDIS_DB:     "0"
+    volumes:
+      - ./db_assets:/usr/src/app/db_assets
+      - ./logs:/usr/src/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   # Frontend : Angular (build) + Nginx (reverse proxy + SPA)
   # ---------------------------------------------------------------------------
   frontend:

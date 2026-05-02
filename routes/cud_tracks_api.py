@@ -2,18 +2,17 @@
 Blueprint TRACKS - Gestion des beats et toplines
 Routes pour upload, édition, toplines
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, send_file, jsonify
+from flask import Blueprint, request, current_app, jsonify
 from werkzeug.utils import secure_filename
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity 
 from datetime import datetime
 from pathlib import Path
-import uuid
 import shutil
 import config
+import uuid as _uuid
 
 from flask_wtf.csrf import generate_csrf, validate_csrf
 from werkzeug.exceptions import BadRequest
-from helpers import generate_track_image
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
@@ -21,6 +20,9 @@ from extensions import db, limiter, csrf
 from models import Track, Tag, Category, User, Topline
 from helpers import generate_track_image
 from utils.ownership_authorizer import TrackOwnership, requires_ownership
+
+from rq import Queue
+from extensions import redis_client
 
 # Imports pour watermarking et validation
 try:
@@ -242,7 +244,7 @@ def post_track():
                 }), 400
 
         # Générer des noms de fichiers uniques
-        unique_id = str(uuid.uuid4())[:8]
+        unique_id = str(_uuid.uuid4())[:8]
 
         # Validation du nom de fichier
         try:
@@ -269,21 +271,25 @@ def post_track():
         preview_filename = f"{safe_title}_{unique_id}_preview.mp3"
         preview_disk_path = config.UPLOAD_FOLDER / preview_filename
 
-        if WATERMARK_AVAILABLE:
-            try:
-                watermark_path = Path(current_app.root_path) / 'db_assets' / 'audio' / 'watermark.mp3'
-                apply_watermark_and_trim(
-                    input_path=str(mp3_disk_path),
-                    output_path=str(preview_disk_path),
-                    watermark_path=str(watermark_path),
-                    preview_duration=90,
-                    watermark_positions=[20, 45]
-                )
-            except Exception as e:
-                current_app.logger.error(f"Erreur watermark: {e}")
-                shutil.copy(mp3_disk_path, preview_disk_path)
-        else:
-            shutil.copy(mp3_disk_path, preview_disk_path)
+
+
+
+
+        # if WATERMARK_AVAILABLE:
+        #     try:
+        #         watermark_path = Path(current_app.root_path) / 'db_assets' / 'audio' / 'watermark.mp3'
+        #         apply_watermark_and_trim(
+        #             input_path=str(mp3_disk_path),
+        #             output_path=str(preview_disk_path),
+        #             watermark_path=str(watermark_path),
+        #             preview_duration=90,
+        #             watermark_positions=[20, 45]
+        #         )
+        #     except Exception as e:
+        #         current_app.logger.error(f"Erreur watermark: {e}")
+        #         shutil.copy(mp3_disk_path, preview_disk_path)
+        # else:
+        #     shutil.copy(mp3_disk_path, preview_disk_path)
 
         # Traitement du WAV (optionnel)
         wav_filename = None
@@ -310,90 +316,72 @@ def post_track():
             image_disk_path = tracks_img_folder / image_filename
             file_image.save(image_disk_path)
         else:
-            # Générer une image automatiquement
+            # Générer une image automatiquement; vérifier l'existence du nécessaire (fait dans redis)
             image_filename = f"{safe_title}_{unique_id}.png"
             tracks_img_folder = config.IMAGES_FOLDER / 'tracks'
             tracks_img_folder.mkdir(parents=True, exist_ok=True)
             image_disk_path = tracks_img_folder / image_filename
 
-            try:
-                generate_track_image(title=title, scale=key, output_path=image_disk_path)
-            except Exception as e:
-                current_app.logger.error(f"Erreur génération image: {e}")
-                image_filename = 'default_track.png'
 
-        # Traitement des tags
+        # Traitement des tags — on passe uniquement les IDs au worker (pas d'objets SQLAlchemy)
         tag_ids_str = request.form.get('tag_ids', '')
-        selected_tags = []
-
+        tag_ids = []
         if tag_ids_str:
             try:
                 tag_ids = [int(tid) for tid in tag_ids_str.split(',') if tid.strip().isdigit()]
-                selected_tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
             except Exception as e:
                 current_app.logger.warning(f'Erreur parsing tag_ids: {e}')
 
-        # Créer le track
-        track = Track(
-            title=title,
-            bpm=bpm,
-            key=key,
-            style=style,
-            price_mp3=price_mp3,
-            price_wav=price_wav,
-            price_stems=price_stems,
-            sacem_percentage_composer=sacem_percentage_composer,
-            composer_user=user,
-            audio_file=preview_filename,
-            file_mp3=mp3_filename,
-            file_wav=wav_filename,
-            file_stems=stems_filename,
-            image_file=f'images/tracks/{image_filename}',
-            file_hash=file_hash,
-            is_approved=True,
-            tags=selected_tags
-        )
+        job_id = str(_uuid.uuid4())
 
-        db.session.add(track)
-        db.session.commit()
+        job_payload = {
+            'job_id':                    job_id,
+            'user_id':                   current_user_id,
+            'title':                     title,
+            'bpm':                       bpm,
+            'key':                       key,
+            'style':                     style,
+            'price_mp3':                 price_mp3,
+            'price_wav':                 price_wav,
+            'price_stems':               price_stems,
+            'sacem_percentage_composer': sacem_percentage_composer,
+            'file_hash':                 file_hash,
+            'mp3_disk_path':             str(mp3_disk_path),
+            'mp3_filename':              mp3_filename,
+            'preview_disk_path':         str(preview_disk_path),
+            'preview_filename':          preview_filename,
+            'wav_filename':              wav_filename,
+            'stems_filename':            stems_filename,
+            'image_filename':            image_filename if (file_image and file_image.filename != '') else None,
+            'image_disk_path':           str(image_disk_path) if (file_image and file_image.filename != '') else None,
+            'tag_ids':                   tag_ids,
+        }
 
-        # Déduire le token d'upload
-        user.upload_track_tokens -= 1
-        db.session.commit()
+        # Stocker user_id dans Redis pour vérification ownership dans job_status_api
+        redis_client.hset(f"job:{job_id}", mapping={
+            'status':  'queued',
+            'user_id': str(current_user_id),
+        })
+        redis_client.expire(f"job:{job_id}", 7200)
+
+        q = Queue(connection=redis_client)
+        q.enqueue('tasks.track_processing.process_track_data', job_payload, job_timeout=720)
 
         return jsonify({
             'success': True,
             'feedback': {
-                'level' : 'info',
-                'message' : 'Track uploadé avec succès',
+                'level':   'info',
+                'message': 'Beat soumis — traitement en cours.',
             },
-            'data' : {
-                'track': {
-                    'id': track.id,
-                    'title': track.title,
-                    'bpm': track.bpm,
-                    'key': track.key,
-                    'style': track.style,
-                    'price_mp3': track.price_mp3,
-                    'price_wav': track.price_wav,
-                    'price_stems': track.price_stems,
-                    'is_approved': track.is_approved,
-                    'composer_user': {
-                        'username': track.composer_user.username
-                    },
-                    'audio_file': track.audio_file,
-                    'image_file': track.image_file,
-                    'tags': [
-                        {'name': tag.name, 
-                        'category': tag.category_obj.name if tag.category_obj else 'other'} for tag in track.tags
-                    ]
-                }
-            }
-        }), 201
+            'data': {
+                'job_id': job_id,
+                'title': title,
+                'image_url': f'/db_assets/images/tracks/{image_filename}' if image_filename else None
+            },
+        }), 202
 
     except Exception as e:
         current_app.logger.error(f'Erreur upload track: {e}', exc_info=True)
-        db.session.rollback()
         return jsonify({
             'success': False,
             'feedback' : {
@@ -464,7 +452,7 @@ def put_track(track_id):
             original_filename = secure_filename(file_image.filename)
             extension = Path(original_filename).suffix.lower()
             safe_title = secure_filename(title)[:30]
-            new_img_filename = f"{safe_title}_{str(uuid.uuid4())[:8]}{extension}"
+            new_img_filename = f"{safe_title}_{str(_uuid.uuid4())[:8]}{extension}"
 
             tracks_img_folder = config.IMAGES_FOLDER / 'tracks'
             tracks_img_folder.mkdir(parents=True, exist_ok=True)

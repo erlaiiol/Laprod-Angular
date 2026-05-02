@@ -1,18 +1,7 @@
 <div class="upload-wrapper">
   <div class="upload-page">
 
-    @if (success()) {
-      <div class="success-state">
-        <i class="bi bi-cloud-check-fill success-icon"></i>
-        <h2>Beat mis en ligne !</h2>
-        <p>Votre beat a été soumis avec succès. Il sera visible une fois validé par notre équipe.</p>
-        <button type="button" class="btn-submit" (click)="reset()">
-          Uploader un autre beat
-        </button>
-      </div>
-    } @else {
-
-      <div class="page-header">
+    <div class="page-header">
         <h1><i class="bi bi-cloud-arrow-up-fill"></i> Uploader un beat</h1>
         @if (auth.currentUser(); as u) {
           <div class="token-info">
@@ -228,6 +217,5 @@
         }
       </button>
 
-    }
   </div>
 </div>

@@ -241,6 +241,7 @@ def create_app():
         mixmaster_media_api_bp,
         admin_api_bp,
         cud_admin_api_bp,
+        job_status_api
     )
     from routes.streaming_service import streaming_bp
 
@@ -269,6 +270,7 @@ def create_app():
     app.register_blueprint(mixmaster_media_api_bp)
     app.register_blueprint(admin_api_bp)
     app.register_blueprint(cud_admin_api_bp)
+    app.register_blueprint(job_status_api)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

@@ -6,10 +6,11 @@ import { FooterComponent } from './layout/footer/footer.component';
 import { PlayerComponent } from './layout/player/player.component';
 import { AuthService } from './services/auth.service';
 import { NotificationService } from './services/notification.service';
+import { UploadProgressToastComponent } from './components/ui/upload-progress-toast/upload-progress-toast.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent],
+  imports: [RouterOutlet, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
