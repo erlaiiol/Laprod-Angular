@@ -80,10 +80,11 @@ export class PlayerService {
   play(track: Track): void {
     this.playOnReady = true;
 
-    // Called synchronously inside the user-gesture event stack.
-    // The call will fail (no src loaded yet) but the browser registers
-    // the intent and unlocks autoplay for the async 'ready' callback.
-    this.audioEl.play().catch(() => {});
+    // Do NOT call audioEl.play() here with no src set — it corrupts the
+    // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
+    // WaveSurfer from loading audio on the same element.
+    // Document is already user-activated by the click event; the async
+    // play() in WaveSurfer's 'ready' callback will be allowed by the browser.
 
     this.currentTrack.set(track);
     // Jouer un beat normal efface le contexte mix order (et inversement)

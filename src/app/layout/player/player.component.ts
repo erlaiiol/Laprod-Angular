@@ -83,6 +83,15 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
     this.wavesurfer.on('interaction', (newTime) => {
       this.player.seek(newTime);
     });
+
+    // Fix race condition: effect() in constructor may have fired before
+    // ngAfterViewInit (this.wavesurfer was null → early return → no load).
+    // If a track is already queued, load it now that WaveSurfer is ready.
+    const pending = this.player.currentTrack();
+    if (pending && this.player.playOnReady) {
+      const url = this.player.buildAudioUrl(pending);
+      if (url) this.wavesurfer.load(url);
+    }
   }
 
   // ── Contextual actions ───────────────────────────────────────────────────
