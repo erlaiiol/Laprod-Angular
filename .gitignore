@@ -131,5 +131,11 @@ static/contracts/*.pdf
 static/audio/audio/toplines/*
 static/mixmaster/*
 static/images/profile/*
+db_assets/images/profile/*
+db_assets/images/track/*
+db_assets/images/tracks/*
+db_assets/contracts/*
+db_assets/audio/*
+
 
 apppassword.txt
