@@ -212,7 +212,7 @@ class User(UserMixin, db.Model):
         if additional_tokens <= 0:
             raise ValueError("Le nombre de tokens doit être positif")
 
-        self.upload_track_tokens += additional_tokens
+        self.upload_track_tokens = (self.upload_track_tokens or 0) + additional_tokens
 
     def apply_premium_tokens(self):
         """Monte immédiatement les tokens au plafond premium lors d'une activation ou d'un renouvellement.
@@ -368,7 +368,7 @@ class User(UserMixin, db.Model):
         if additional_tokens <= 0:
             raise ValueError("Le nombre de tokens doit être positif")
 
-        self.topline_tokens += additional_tokens
+        self.topline_tokens = (self.topline_tokens or 0) + additional_tokens
 
 
 
