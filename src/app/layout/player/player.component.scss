@@ -3,8 +3,6 @@
 
 // ── Bottom Player ─────────────────────────────────────────────────────────────
 
-.hidden { display: none !important; }
-
 .bottom-player {
   position:   fixed;
   bottom:     0;
@@ -15,6 +13,14 @@
   border-top: 1px solid v.$bg-border;
   color:      v.$text-primary;
   padding:    0 16px 0 12px;
+  transition: transform 0.25s ease;
+
+  // Slide off-screen instead of display:none — WaveSurfer needs layout
+  // dimensions at init time; display:none gives 0×0 → waveform broken
+  &.hidden {
+    transform:      translateY(100%);
+    pointer-events: none;
+  }
 }
 
 // ── Close button ─────────────────────────────────────────────────────────────

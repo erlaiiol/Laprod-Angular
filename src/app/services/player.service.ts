@@ -79,6 +79,12 @@ export class PlayerService {
    */
   play(track: Track): void {
     this.playOnReady = true;
+
+    // Called synchronously inside the user-gesture event stack.
+    // The call will fail (no src loaded yet) but the browser registers
+    // the intent and unlocks autoplay for the async 'ready' callback.
+    this.audioEl.play().catch(() => {});
+
     this.currentTrack.set(track);
     // Jouer un beat normal efface le contexte mix order (et inversement)
     this.viewingMixOrder.set(null);
