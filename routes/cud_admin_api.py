@@ -1,7 +1,7 @@
 """
 Admin CUD API — Create/Update/Delete endpoints pour l'administration
 """
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
@@ -12,6 +12,7 @@ import config
 
 from extensions import db, csrf
 from models import Track, User, Tag, Category, MixMasterRequest, PriceChangeRequest, Contract
+from serializers import ok, err as ser_err
 from helpers import generate_track_image
 from utils import email_service, notification_service
 
@@ -22,7 +23,7 @@ def _require_admin():
     user_id = int(get_jwt_identity())
     user = db.get_or_404(User, user_id)
     if not user.is_admin:
-        return None, (jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès réservé aux administrateurs.'}}), 403)
+        return None, ser_err('Accès réservé aux administrateurs.', status=403)
     return user, None
 
 
@@ -50,7 +51,7 @@ def approve_track(track_id):
     except Exception as e:
         current_app.logger.warning(f"Notif approbation track: {e}")
 
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Track "{track.title}" approuvé.'}})
+    return ok(message=f'Track "{track.title}" approuvé.', level='info')
 
 
 @cud_admin_api_bp.route('/tracks/<int:track_id>', methods=['DELETE'])
@@ -76,7 +77,7 @@ def reject_track(track_id):
     db.session.delete(track)
     db.session.commit()
 
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Track "{title}" supprimé.'}})
+    return ok(message=f'Track "{title}" supprimé.', level='info')
 
 
 @cud_admin_api_bp.route('/tracks/<int:track_id>', methods=['PUT'])
@@ -136,15 +137,15 @@ def edit_track(track_id):
             file_image.save(new_img_path)
             track.image_file = f'images/tracks/{new_img_filename}'
         else:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Image invalide : {error_message}'}}), 400
+            return ser_err(f'Image invalide : {error_message}', status=400)
 
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': str(e)}}), 500
+        return ser_err(str(e), status=500)
 
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Track "{track.title}" mis à jour.'}})
+    return ok(message=f'Track "{track.title}" mis à jour.', level='info')
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -158,7 +159,7 @@ def toggle_user_status(user_id):
         return err
 
     if current.id == user_id:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Vous ne pouvez pas vous désactiver.'}}), 400
+        return ser_err('Vous ne pouvez pas vous désactiver.')
 
     user = db.get_or_404(User, user_id)
     if user.account_status == 'active':
@@ -169,7 +170,7 @@ def toggle_user_status(user_id):
         msg = f'Utilisateur {user.username} activé.'
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': msg}, 'data': {'account_status': user.account_status}})
+    return ok({'account_status': user.account_status}, message=msg, level='info')
 
 
 @cud_admin_api_bp.route('/users/<int:user_id>/toggle-role/<string:role>', methods=['POST'])
@@ -193,14 +194,14 @@ def toggle_user_role(user_id, role):
         msg = f'Rôle Engineer {"activé" if user.is_mixmaster_engineer else "désactivé"} pour {user.username}.'
     elif role == 'producer_arranger':
         if not user.is_mixmaster_engineer:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} doit d\'abord être Engineer.'}}), 400
+            return ser_err(f"{user.username} doit d'abord être Engineer.")
         user.is_certified_producer_arranger = not user.is_certified_producer_arranger
         msg = f'Certification Producteur/Arrangeur {"activée" if user.is_certified_producer_arranger else "désactivée"} pour {user.username}.'
     else:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Rôle invalide.'}}), 400
+        return ser_err('Rôle invalide.')
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': msg}})
+    return ok(message=msg, level='info')
 
 
 @cud_admin_api_bp.route('/users/<int:user_id>/add-track-tokens', methods=['POST'])
@@ -216,19 +217,16 @@ def add_track_tokens(user_id):
     tokens = int(data.get('tokens', 0))
 
     if tokens <= 0:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nombre de tokens doit être positif.'}}), 400
+        return ser_err('Le nombre de tokens doit être positif.')
 
     try:
         user.upload_track_tokens_promotion(tokens)
         db.session.commit()
     except Exception as e:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': str(e)}}), 500
+        return ser_err(str(e), status=500)
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'{tokens} token(s) d\'upload ajouté(s) à {user.username}.'},
-        'data': {'upload_track_tokens': user.upload_track_tokens},
-    })
+    return ok({'upload_track_tokens': user.upload_track_tokens},
+              message=f"{tokens} token(s) d'upload ajouté(s) à {user.username}.", level='info')
 
 
 @cud_admin_api_bp.route('/users/<int:user_id>/add-topline-tokens', methods=['POST'])
@@ -244,19 +242,16 @@ def add_topline_tokens(user_id):
     tokens = int(data.get('tokens', 0))
 
     if tokens <= 0:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nombre de tokens doit être positif.'}}), 400
+        return ser_err('Le nombre de tokens doit être positif.')
 
     try:
         user.topline_tokens_promotion(tokens)
         db.session.commit()
     except Exception as e:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': str(e)}}), 500
+        return ser_err(str(e), status=500)
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'{tokens} token(s) de topline ajouté(s) à {user.username}.'},
-        'data': {'topline_tokens': user.topline_tokens},
-    })
+    return ok({'topline_tokens': user.topline_tokens},
+              message=f"{tokens} token(s) de topline ajouté(s) à {user.username}.", level='info')
 
 
 @cud_admin_api_bp.route('/users/<int:user_id>/toggle-premium', methods=['POST'])
@@ -280,7 +275,7 @@ def toggle_premium(user_id):
         msg = f'Premium désactivé pour {user.username}.'
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': msg}, 'data': {'is_premium': user.is_premium}})
+    return ok({'is_premium': user.is_premium}, message=msg, level='info')
 
 
 # ── Engineers ─────────────────────────────────────────────────────────────────
@@ -296,7 +291,7 @@ def admin_upload_engineer_sample(user_id):
 
     user = db.get_or_404(User, user_id)
     if not user.is_mix_engineer:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} n\'est pas un mix engineer.'}}), 400
+        return ser_err(f"{user.username} n'est pas un mix engineer.")
 
     samples_folder = Path(config.UPLOAD_FOLDER) / 'mixmaster_samples'
     samples_folder.mkdir(parents=True, exist_ok=True)
@@ -305,7 +300,7 @@ def admin_upload_engineer_sample(user_id):
     file_proc = request.files.get('sample_processed')
 
     if not file_raw and not file_proc:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Aucun fichier fourni.'}}), 400
+        return ser_err('Aucun fichier fourni.')
 
     def _save_audio(f, label):
         ext = Path(secure_filename(f.filename)).suffix.lower()
@@ -318,18 +313,18 @@ def admin_upload_engineer_sample(user_id):
     if file_raw:
         path, errmsg = _save_audio(file_raw, 'raw')
         if errmsg:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': errmsg}}), 400
+            return ser_err(errmsg)
         user.mixmaster_sample_raw = path
 
     if file_proc:
         path, errmsg = _save_audio(file_proc, 'processed')
         if errmsg:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': errmsg}}), 400
+            return ser_err(errmsg)
         user.mixmaster_sample_processed = path
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Samples uploadés pour {user.username}.'},
-                    'data': {'sample_raw': user.mixmaster_sample_raw, 'sample_processed': user.mixmaster_sample_processed}})
+    return ok({'sample_raw': user.mixmaster_sample_raw, 'sample_processed': user.mixmaster_sample_processed},
+              message=f'Samples uploadés pour {user.username}.', level='info')
 
 
 @cud_admin_api_bp.route('/engineers/<int:user_id>/set-info', methods=['POST'])
@@ -348,25 +343,25 @@ def admin_set_engineer_info(user_id):
         try:
             ref = round(float(data['reference_price']))
             if not (20 <= ref <= 500):
-                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix de référence entre 20€ et 500€.'}}), 400
+                return ser_err('Prix de référence entre 20€ et 500€.')
             user.mixmaster_reference_price = ref
         except (ValueError, TypeError):
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix invalide.'}}), 400
+            return ser_err('Prix invalide.')
 
     if 'price_min' in data:
         try:
             mn = round(float(data['price_min']))
             if not (20 <= mn <= 500):
-                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix min entre 20€ et 500€.'}}), 400
+                return ser_err('Prix min entre 20€ et 500€.')
             user.mixmaster_price_min = mn
         except (ValueError, TypeError):
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix invalide.'}}), 400
+            return ser_err('Prix invalide.')
 
     if 'bio' in data:
         user.mixmaster_bio = data['bio'].strip() or None
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Infos mises à jour pour {user.username}.'}})
+    return ok(message=f'Infos mises à jour pour {user.username}.', level='info')
 
 
 @cud_admin_api_bp.route('/engineers/<int:user_id>/certify', methods=['POST'])
@@ -380,12 +375,12 @@ def certify_engineer(user_id):
     user = db.get_or_404(User, user_id)
 
     if not user.mixmaster_sample_processed:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Un sample traité est requis avant de certifier {user.username}.'}}), 400
+        return ser_err(f'Un sample traité est requis avant de certifier {user.username}.')
 
     user.is_mixmaster_engineer = True
     user.mixmaster_sample_submitted = True
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'{user.username} certifié comme mix/master engineer.'}})
+    return ok(message=f'{user.username} certifié comme mix/master engineer.', level='info')
 
 
 @cud_admin_api_bp.route('/engineers/<int:user_id>/revoke', methods=['POST'])
@@ -404,11 +399,11 @@ def revoke_engineer(user_id):
     ).count()
 
     if active_requests > 0:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} a {active_requests} demande(s) en cours. Impossible de révoquer.'}}), 400
+        return ser_err(f'{user.username} a {active_requests} demande(s) en cours. Impossible de révoquer.')
 
     user.is_mixmaster_engineer = False
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Certification de {user.username} révoquée.'}})
+    return ok(message=f'Certification de {user.username} révoquée.', level='info')
 
 
 @cud_admin_api_bp.route('/engineers/<int:user_id>/reject-sample', methods=['POST'])
@@ -427,7 +422,7 @@ def reject_engineer_sample(user_id):
     user.mixmaster_reference_price = None
     user.mixmaster_price_min = None
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Demande de certification de {user.username} rejetée.'}})
+    return ok(message=f'Demande de certification de {user.username} rejetée.', level='info')
 
 
 @cud_admin_api_bp.route('/engineers/<int:user_id>/update-prices', methods=['POST'])
@@ -440,30 +435,27 @@ def update_engineer_prices(user_id):
 
     user = db.get_or_404(User, user_id)
     if not user.is_mixmaster_engineer:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} n\'est pas un mix/master engineer.'}}), 400
+        return ser_err(f"{user.username} n'est pas un mix/master engineer.")
 
     data = request.get_json(silent=True) or {}
     try:
         new_price_min       = round(float(data.get('price_min', 0)))
         new_reference_price = round(float(data.get('reference_price', 0)))
     except (ValueError, TypeError):
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Prix invalides.'}}), 400
+        return ser_err('Prix invalides.')
 
     if not (20 <= new_price_min <= 500):
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le prix minimum doit être entre 20€ et 500€.'}}), 400
+        return ser_err('Le prix minimum doit être entre 20€ et 500€.')
     if not (20 <= new_reference_price <= 500):
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le prix de référence doit être entre 20€ et 500€.'}}), 400
+        return ser_err('Le prix de référence doit être entre 20€ et 500€.')
     if new_price_min > new_reference_price:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le prix minimum ne peut pas être supérieur au prix de référence.'}}), 400
+        return ser_err('Le prix minimum ne peut pas être supérieur au prix de référence.')
 
     user.mixmaster_price_min = new_price_min
     user.mixmaster_reference_price = new_reference_price
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Prix mis à jour pour {user.username}: {new_price_min}€ - {new_reference_price}€ (réf.)'},
-    })
+    return ok(message=f'Prix mis à jour pour {user.username}: {new_price_min}€ - {new_reference_price}€ (réf.)', level='info')
 
 
 # ── Price change requests ─────────────────────────────────────────────────────
@@ -478,7 +470,7 @@ def approve_price_change(request_id):
 
     pr = db.get_or_404(PriceChangeRequest, request_id)
     if pr.status != 'pending':
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Cette demande a déjà été traitée.'}}), 400
+        return ser_err('Cette demande a déjà été traitée.')
 
     admin_id = int(get_jwt_identity())
     engineer = pr.engineer
@@ -489,10 +481,7 @@ def approve_price_change(request_id):
     pr.processed_by = admin_id
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Prix approuvés pour {engineer.username}: {engineer.mixmaster_price_min}€ - {engineer.mixmaster_reference_price}€ (réf.)'},
-    })
+    return ok(message=f'Prix approuvés pour {engineer.username}: {engineer.mixmaster_price_min}€ - {engineer.mixmaster_reference_price}€ (réf.)', level='info')
 
 
 @cud_admin_api_bp.route('/price-requests/<int:request_id>/reject', methods=['POST'])
@@ -505,7 +494,7 @@ def reject_price_change(request_id):
 
     pr = db.get_or_404(PriceChangeRequest, request_id)
     if pr.status != 'pending':
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Cette demande a déjà été traitée.'}}), 400
+        return ser_err('Cette demande a déjà été traitée.')
 
     admin_id = int(get_jwt_identity())
     pr.status = 'rejected'
@@ -513,7 +502,7 @@ def reject_price_change(request_id):
     pr.processed_by = admin_id
     db.session.commit()
 
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Demande de prix rejetée pour {pr.engineer.username}.'}})
+    return ok(message=f'Demande de prix rejetée pour {pr.engineer.username}.', level='info')
 
 
 # ── Producer/Arranger ─────────────────────────────────────────────────────────
@@ -528,13 +517,13 @@ def approve_producer_arranger(user_id):
 
     user = db.get_or_404(User, user_id)
     if not user.producer_arranger_request_submitted:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} n\'a pas demandé la certification.'}}), 400
+        return ser_err(f"{user.username} n'a pas demandé la certification.")
     if not user.is_mixmaster_engineer:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'{user.username} doit d\'abord être mix/master engineer.'}}), 400
+        return ser_err(f"{user.username} doit d'abord être mix/master engineer.")
 
     user.is_certified_producer_arranger = True
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'{user.username} certifié comme producteur/arrangeur.'}})
+    return ok(message=f'{user.username} certifié comme producteur/arrangeur.', level='info')
 
 
 @cud_admin_api_bp.route('/producer-arranger/<int:user_id>/revoke', methods=['POST'])
@@ -549,7 +538,7 @@ def revoke_producer_arranger(user_id):
     user.is_certified_producer_arranger = False
     user.producer_arranger_request_submitted = False
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Certification Producteur/Arrangeur de {user.username} révoquée.'}})
+    return ok(message=f'Certification Producteur/Arrangeur de {user.username} révoquée.', level='info')
 
 
 @cud_admin_api_bp.route('/producer-arranger/<int:user_id>/reject', methods=['POST'])
@@ -563,7 +552,7 @@ def reject_producer_arranger(user_id):
     user = db.get_or_404(User, user_id)
     user.producer_arranger_request_submitted = False
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Demande Producteur/Arrangeur de {user.username} rejetée.'}})
+    return ok(message=f'Demande Producteur/Arrangeur de {user.username} rejetée.', level='info')
 
 
 # ── Contracts ─────────────────────────────────────────────────────────────────
@@ -587,13 +576,13 @@ def admin_create_contract():
     duration    = data.get('duration', '3 ans').strip()
 
     if not all([track_id, client_id, price is not None]):
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'track_id, client_id et price sont requis.'}}), 400
+        return ser_err('track_id, client_id et price sont requis.')
 
     track = db.get_or_404(Track, track_id)
     client = db.get_or_404(User, client_id)
 
     if not track.composer_id:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Ce track n\'a pas de compositeur.'}}), 400
+        return ser_err("Ce track n'a pas de compositeur.")
 
     from datetime import date
     today = date.today().strftime('%d/%m/%Y')
@@ -622,11 +611,8 @@ def admin_create_contract():
     db.session.add(contract)
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Contrat créé entre {track.composer_user.username if track.composer_user else "?"} et {client.username} pour "{track.title}".'},
-        'data': {'contract_id': contract.id},
-    })
+    return ok({'contract_id': contract.id},
+              message=f'Contrat créé entre {track.composer_user.username if track.composer_user else "?"} et {client.username} pour "{track.title}".', level='info')
 
 
 # ── Categories ────────────────────────────────────────────────────────────────
@@ -644,7 +630,7 @@ def create_category():
     color = data.get('color', '#6b7280').strip()
 
     if not name:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nom est requis.'}}), 400
+        return ser_err('Le nom est requis.')
 
     cat = Category(name=name)
     if hasattr(cat, 'color'):
@@ -652,11 +638,8 @@ def create_category():
     db.session.add(cat)
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Catégorie "{name}" créée.'},
-        'data': {'category': {'id': cat.id, 'name': cat.name, 'color': color, 'tags': []}},
-    })
+    return ok({'category': {'id': cat.id, 'name': cat.name, 'color': color, 'tags': []}},
+              message=f'Catégorie "{name}" créée.', level='info')
 
 
 @cud_admin_api_bp.route('/categories/<int:cat_id>', methods=['PUT'])
@@ -676,7 +659,7 @@ def edit_category(cat_id):
         cat.color = data['color'].strip()
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Catégorie "{cat.name}" mise à jour.'}})
+    return ok(message=f'Catégorie "{cat.name}" mise à jour.', level='info')
 
 
 @cud_admin_api_bp.route('/categories/<int:cat_id>', methods=['DELETE'])
@@ -691,7 +674,7 @@ def delete_category(cat_id):
     name = cat.name
     db.session.delete(cat)
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Catégorie "{name}" supprimée.'}})
+    return ok(message=f'Catégorie "{name}" supprimée.', level='info')
 
 
 # ── Tags ──────────────────────────────────────────────────────────────────────
@@ -709,17 +692,14 @@ def create_tag():
     category_id = data.get('category_id')
 
     if not name:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nom est requis.'}}), 400
+        return ser_err('Le nom est requis.')
 
     tag = Tag(name=name, category_id=category_id)
     db.session.add(tag)
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Tag "{name}" créé.'},
-        'data': {'tag': {'id': tag.id, 'name': tag.name}},
-    })
+    return ok({'tag': {'id': tag.id, 'name': tag.name}},
+              message=f'Tag "{name}" créé.', level='info')
 
 
 @cud_admin_api_bp.route('/tags/<int:tag_id>', methods=['PUT'])
@@ -739,7 +719,7 @@ def edit_tag(tag_id):
         tag.category_id = data['category_id']
 
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Tag "{tag.name}" mis à jour.'}})
+    return ok(message=f'Tag "{tag.name}" mis à jour.', level='info')
 
 
 @cud_admin_api_bp.route('/tags/<int:tag_id>', methods=['DELETE'])
@@ -754,4 +734,4 @@ def delete_tag(tag_id):
     name = tag.name
     db.session.delete(tag)
     db.session.commit()
-    return jsonify({'success': True, 'feedback': {'level': 'info', 'message': f'Tag "{name}" supprimé.'}})
+    return ok(message=f'Tag "{name}" supprimé.', level='info')

@@ -2,7 +2,7 @@
 Blueprint TRACKS - Gestion des beats et toplines
 Routes pour upload, édition, toplines
 """
-from flask import Blueprint, request, current_app, jsonify
+from flask import Blueprint, request, current_app
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity 
 from datetime import datetime
@@ -20,6 +20,7 @@ from extensions import db, limiter, csrf
 from models import Track, Tag, Category, User, Topline
 from helpers import generate_track_image
 from utils.ownership_authorizer import TrackOwnership, requires_ownership
+from serializers import ok, err
 
 from rq import Queue
 from extensions import redis_client
@@ -63,13 +64,7 @@ def post_track():
     can_upload, quota_message = user.can_upload_track()
     if not can_upload:
         current_app.logger.debug('post_track() l`utilisateur ne peut pas upload (manque de token ?)')
-        return jsonify({
-            'success': False,
-            'feedback' : {
-                'level' : 'error',
-                'message' : 'erreur : upload impossible(manque de token ?)'
-            }
-        }), 403
+        return err('erreur : upload impossible(manque de token ?)', status=403)
 
     try:
         # Récupérer les données du formulaire
@@ -80,40 +75,16 @@ def post_track():
 
         # Validation des champs obligatoires
         if not title:
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level':'warning',
-                    'message' : 'Le titre est obligatoire'
-                }
-            }), 400
+            return err('Le titre est obligatoire', level='warning')
         if not bpm_str:
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level' : 'warning',
-                    'message' : 'Le BPM est obligatoire'
-                }
-            }), 400
+            return err('Le BPM est obligatoire', level='warning')
 
         try:
             bpm = int(bpm_str)
             if bpm < 60 or bpm > 200:
-                return jsonify({
-                    'success': False, 
-                    'feedback' : {
-                        'level' : 'warning',
-                        'message': 'le BPM doit être compris entre 60 et 200'
-                    }
-                }), 400
+                return err('le BPM doit être compris entre 60 et 200', level='warning')
         except ValueError:
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level' : 'warning',
-                    'message' : 'le BPM doit être un nombre entier'
-                }
-            }), 400
+            return err('le BPM doit être un nombre entier', level='warning')
 
         # Prix avec valeurs par défaut
         try:
@@ -121,34 +92,15 @@ def post_track():
             price_wav = float(request.form.get('price_wav', 19.99))
             price_stems = float(request.form.get('price_stems', 49.99))
         except ValueError:
-            return jsonify({
-                'success': False, 
-                'feedback' : {
-                    'level' : 'warning',
-                    'message': 'Prix invalides'
-                }
-            }), 400
+            return err('Prix invalides', level='warning')
 
         # Pourcentage SACEM
         try:
             sacem_percentage_composer = int(request.form.get('sacem_percentage_composer', 50))
             if sacem_percentage_composer > 85 or sacem_percentage_composer < 0:
-                return jsonify({
-                    'success': False, 
-                    'feedback': {
-                        'level' : 'warning',
-                        'message' : 'Le pourcentage SACEM doit être entre 0 et 85%'
-                    }
-                }), 400
-        
+                return err('Le pourcentage SACEM doit être entre 0 et 85%', level='warning')
         except ValueError:
-            return jsonify({
-                'success': False, 
-                'feedback' : {
-                    'level' : 'warning',
-                    'message': 'Pourcentage SACEM invalide'
-                    }
-                }), 400
+            return err('Pourcentage SACEM invalide', level='warning')
 
         # Récupérer les fichiers
         file_mp3 = request.files.get('file_mp3')
@@ -158,90 +110,41 @@ def post_track():
 
         # Validation du MP3 (obligatoire)
         if not file_mp3 or file_mp3.filename == '':
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level' : 'warning',
-                    'message' : 'Le fichier MP3 est obligatoire'
-                }
-            }), 400
+            return err('Le fichier MP3 est obligatoire', level='warning')
 
         if not VALIDATION_AVAILABLE:
-            return jsonify({
-                'success': False, 
-                'feedback' : {
-                    'level' : 'error',
-                    'message': 'Service de validation non disponible'
-                }
-            }), 500
+            return err('Service de validation non disponible', status=500)
 
         is_valid, error_message = validate_specific_audio_format(file_mp3, 'mp3')
         if not is_valid:
-            return jsonify({
-                'success': False, 
-                'feedback' : {
-                    'level' : 'error',
-                    'message': f'MP3 invalide: {error_message}'
-                }
-            }), 400
+            return err(f'MP3 invalide: {error_message}', status=400)
 
         # Vérifier doublon via hash
         try:
             file_hash = Track.compute_file_hash(file_mp3)
             if Track.hash_exists(file_hash):
-                return jsonify({
-                    'success': False, 
-                    'feedback' : {
-                        'level' : 'error',
-                        'message': 'Ce beat a déjà été uploadé'
-                    }
-                }), 409
-
+                return err('Ce beat a déjà été uploadé', status=409)
         except Exception as e:
             current_app.logger.error(f'Erreur vérification doublon: {e}')
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level' : 'error',
-                    'message' : 'Erreur de vérification du fichier'
-                }
-            }), 500
+            return err('Erreur de vérification du fichier', status=500)
 
         # Validation du WAV (optionnel)
         if file_wav and file_wav.filename != '':
             is_valid, error_message = validate_specific_audio_format(file_wav, 'wav')
             if not is_valid:
-                return jsonify({
-                    'success': False, 
-                    'feedback' : {
-                        'level' : 'error',
-                        'message': f'WAV invalide: {error_message}'
-                    }
-                }), 400
+                return err(f'WAV invalide: {error_message}', status=400)
 
         # Validation de l'image (optionnel)
         if file_image and file_image.filename != '':
             is_valid, error_message = validate_image_file(file_image)
             if not is_valid:
-                return jsonify({
-                    'success': False, 
-                    'feedback' : {
-                        'level': 'error',
-                        'message' : f'Image invalide: {error_message}'
-                    }
-                }), 400
+                return err(f'Image invalide: {error_message}', status=400)
 
         # Validation des stems (optionnel, premium seulement)
         if file_stems and file_stems.filename != '' and user.is_premium:
             is_valid, error_message = validate_stems_archive(file_stems)
             if not is_valid:
-                return jsonify({
-                    'success': False, 
-                    'feedback' : {
-                        'level' : 'error',
-                        'message': f'Archive stems invalide: {error_message}'
-                    }
-                }), 400
+                return err(f'Archive stems invalide: {error_message}', status=400)
 
         # Générer des noms de fichiers uniques
         unique_id = str(_uuid.uuid4())[:8]
@@ -251,13 +154,7 @@ def post_track():
             safe_title = secure_filename(title)[:30]
             safe_title = FileValidator.validate_filename(safe_title)
         except ValueError as e:
-            return jsonify({
-                'success': False, 
-                'feedback': {
-                    'level' : 'error',
-                    'message' : f'Nom de track invalide: {str(e)}'
-                }
-            }), 400
+            return err(f'Nom de track invalide: {str(e)}', status=400)
 
         # Créer le dossier upload si nécessaire
         config.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -367,28 +264,15 @@ def post_track():
         q = Queue(connection=redis_client)
         q.enqueue('tasks.track_processing.process_track_data', job_payload, job_timeout=720)
 
-        return jsonify({
-            'success': True,
-            'feedback': {
-                'level':   'info',
-                'message': 'Beat soumis — traitement en cours.',
-            },
-            'data': {
-                'job_id': job_id,
-                'title': title,
-                'image_url': f'/db_assets/images/tracks/{image_filename}' if image_filename else None
-            },
-        }), 202
+        return ok({
+            'job_id':    job_id,
+            'title':     title,
+            'image_url': f'/db_assets/images/tracks/{image_filename}' if image_filename else None,
+        }, message='Beat soumis — traitement en cours.', status=202, level='info')
 
     except Exception as e:
         current_app.logger.error(f'Erreur upload track: {e}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'feedback' : {
-                'level' : 'error',
-                'message': 'Erreur interne du serveur. Contactez le support.'
-                }
-            }), 500
+        return err('Erreur interne du serveur. Contactez le support.', status=500)
 
 
 @cud_tracks_api_bp.route('/put/<int:track_id>', methods=['PUT'])
@@ -410,10 +294,7 @@ def put_track(track_id):
     # Vérifier la propriété (compositeur ou admin)
     if not (user.id == track.composer_id or user.is_admin):
         current_app.logger.warning(f'put_track() accès refusé user #{user.id} sur track #{track_id}')
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': 'Accès refusé : vous n\'êtes pas le compositeur de ce track'}
-        }), 403
+        return err("Accès refusé : vous n'êtes pas le compositeur de ce track", status=403)
 
     try:
         title   = request.form.get('title',  '').strip()
@@ -422,24 +303,23 @@ def put_track(track_id):
         style   = request.form.get('style',  '').strip()
 
         if not title:
-            return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Le titre est obligatoire'}}), 400
-
+            return err('Le titre est obligatoire', level='warning')
         if not bpm_str:
-            return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Le BPM est obligatoire'}}), 400
+            return err('Le BPM est obligatoire', level='warning')
 
         try:
             bpm = int(bpm_str)
             if bpm < 60 or bpm > 200:
-                return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Le BPM doit être entre 60 et 200'}}), 400
+                return err('Le BPM doit être entre 60 et 200', level='warning')
         except ValueError:
-            return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Le BPM doit être un nombre entier'}}), 400
+            return err('Le BPM doit être un nombre entier', level='warning')
 
         try:
             price_mp3   = float(request.form.get('price_mp3',   track.price_mp3))
             price_wav   = float(request.form.get('price_wav',   track.price_wav))
             price_stems = float(request.form.get('price_stems', track.price_stems or 0))
         except ValueError:
-            return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Prix invalides'}}), 400
+            return err('Prix invalides', level='warning')
 
         # Gestion de la nouvelle image (optionnel)
         file_image = request.files.get('file_image')
@@ -447,7 +327,7 @@ def put_track(track_id):
             from utils.file_validator import validate_image_file
             is_valid, error_message = validate_image_file(file_image)
             if not is_valid:
-                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Image invalide: {error_message}'}}), 400
+                return err(f'Image invalide: {error_message}', status=400)
 
             original_filename = secure_filename(file_image.filename)
             extension = Path(original_filename).suffix.lower()
@@ -462,7 +342,7 @@ def put_track(track_id):
                 file_image.save(new_img_path)
             except Exception as e:
                 current_app.logger.error(f'Erreur sauvegarde image: {e}')
-                return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors du téléchargement de l\'image'}}), 500
+                return err("Erreur lors du téléchargement de l'image", status=500)
 
             # Supprimer l'ancienne image seulement après que la nouvelle est sauvegardée
             if track.image_file and 'default_track' not in track.image_file:
@@ -495,33 +375,29 @@ def put_track(track_id):
 
         db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'feedback': {'level': 'info', 'message': 'Track mis à jour avec succès'},
-            'data': {
-                'track': {
-                    'id':          track.id,
-                    'title':       track.title,
-                    'bpm':         track.bpm,
-                    'key':         track.key,
-                    'style':       track.style,
-                    'price_mp3':   track.price_mp3,
-                    'price_wav':   track.price_wav,
-                    'price_stems': track.price_stems,
-                    'is_approved': track.is_approved,
-                    'image_file':  track.image_file,
-                    'tags': [
-                        {'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else 'other'}
-                        for tag in track.tags
-                    ]
-                }
+        return ok({
+            'track': {
+                'id':          track.id,
+                'title':       track.title,
+                'bpm':         track.bpm,
+                'key':         track.key,
+                'style':       track.style,
+                'price_mp3':   track.price_mp3,
+                'price_wav':   track.price_wav,
+                'price_stems': track.price_stems,
+                'is_approved': track.is_approved,
+                'image_file':  track.image_file,
+                'tags': [
+                    {'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else 'other'}
+                    for tag in track.tags
+                ],
             }
-        }), 200
+        }, message='Track mis à jour avec succès', level='info')
 
     except Exception as e:
         current_app.logger.error(f'Erreur édition track #{track_id}: {e}', exc_info=True)
         db.session.rollback()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur interne du serveur. Contactez le support.'}}), 500
+        return err('Erreur interne du serveur. Contactez le support.', status=500)
 
 
 @cud_tracks_api_bp.route('/delete/<int:track_id>', methods=['DELETE'])
@@ -542,23 +418,17 @@ def delete_track(track_id):
     # Vérifier la propriété (compositeur ou admin)
     if not (user.id == track.composer_id or user.is_admin):
         current_app.logger.warning(f'delete_track() accès refusé user #{user.id} sur track #{track_id}')
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': 'Accès refusé : vous n\'êtes pas le compositeur de ce track'}
-        }), 403
+        return err("Accès refusé : vous n'êtes pas le compositeur de ce track", status=403)
 
     # Bloquer si le track a déjà été acheté
     from models import Purchase
     purchase_count = db.session.query(Purchase).filter_by(track_id=track.id).count()
     if purchase_count > 0:
-        return jsonify({
-            'success': False,
-            'feedback': {
-                'level': 'error',
-                'message': (f'Impossible de supprimer ce track : il a été acheté {purchase_count} fois. '
-                            f'Les acheteurs doivent pouvoir accéder à leurs fichiers et contrats.')
-            }
-        }), 403
+        return err(
+            f'Impossible de supprimer ce track : il a été acheté {purchase_count} fois. '
+            f'Les acheteurs doivent pouvoir accéder à leurs fichiers et contrats.',
+            status=403,
+        )
 
     title = track.title
 
@@ -580,12 +450,9 @@ def delete_track(track_id):
         db.session.commit()
 
         current_app.logger.info(f'Track #{track_id} "{title}" supprimé par user #{user.id}')
-        return jsonify({
-            'success': True,
-            'feedback': {'level': 'info', 'message': f'Track "{title}" supprimé avec succès'}
-        }), 200
+        return ok(message=f'Track "{title}" supprimé avec succès', level='info')
 
     except Exception as e:
         current_app.logger.error(f'Erreur suppression track #{track_id}: {e}', exc_info=True)
         db.session.rollback()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors de la suppression'}}), 500
+        return err('Erreur lors de la suppression', status=500)

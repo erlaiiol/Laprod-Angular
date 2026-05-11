@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_req
 from sqlalchemy import select
 from extensions import db, csrf
 from models import Favorite, ListeningHistory, Track
+from serializers import ok, err
 from datetime import datetime
 
 favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorites')
@@ -26,11 +27,11 @@ def toggle_favorite(track_id):
     if existing:
         db.session.delete(existing)
         db.session.commit()
-        return jsonify({'success': True, 'data': {'action': 'removed', 'is_favorite': False}}), 200
+        return ok({'action': 'removed', 'is_favorite': False})
     else:
         db.session.add(Favorite(user_id=user_id, track_id=track_id))
         db.session.commit()
-        return jsonify({'success': True, 'data': {'action': 'added', 'is_favorite': True}}), 200
+        return ok({'action': 'added', 'is_favorite': True})
 
 
 @favorites_api_bp.route('/check-batch', methods=['GET'])
@@ -61,7 +62,7 @@ def check_favorites_batch():
         for (tid,) in favs:
             result[str(tid)] = True
 
-    return jsonify({'success': True, 'data': result}), 200
+    return ok(result)
 
 
 @favorites_api_bp.route('/check/<int:track_id>', methods=['GET'])
@@ -121,4 +122,4 @@ def add_listening_history(track_id):
                 db.session.delete(entry)
 
     db.session.commit()
-    return jsonify({'success': True}), 200
+    return ok()

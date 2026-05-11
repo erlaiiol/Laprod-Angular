@@ -5,32 +5,15 @@ GET  /api/wallet       → soldes + historique des transactions (jwt_required)
 """
 from datetime import datetime, timedelta
 
-from flask import Blueprint, jsonify
+from flask import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import db, csrf
 from models import User, WalletTransaction
 from utils.wallet_service import process_pending_to_available, process_expirations
+from serializers import ok, err, wallet_transaction as ser_wallet_txn
 
 wallet_api_bp = Blueprint('wallet_api', __name__, url_prefix='/api/wallet')
-
-
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _ok(data=None, message='', status=200):
-    body = {'success': True, 'feedback': {'level': 'success', 'message': message}}
-    if data is not None:
-        body['data'] = data
-    return jsonify(body), status
-
-
-def _err(message, level='error', code=None, status=400):
-    body = {'success': False, 'feedback': {'level': level, 'message': message}}
-    if code:
-        body['code'] = code
-    return jsonify(body), status
 
 
 # ── GET /api/wallet ────────────────────────────────────────────────────────────
@@ -46,7 +29,7 @@ def get_wallet():
         return _err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
 
     if not (user.is_beatmaker or user.is_mix_engineer):
-        return _err(
+        return err(
             'Accès réservé aux beatmakers et mix engineers.',
             code='FORBIDDEN', status=403,
         )
@@ -84,7 +67,7 @@ def get_wallet():
     if not user.stripe_onboarding_complete and float(wallet.balance_available) > 0:
         stripe_hint = 'Configurez Stripe Connect pour retirer vos gains.'
 
-    return _ok(data={
+    return ok(data={
         'wallet': {
             'balance_available':       float(wallet.balance_available),
             'balance_pending':         float(wallet.balance_pending),
@@ -92,18 +75,6 @@ def get_wallet():
             'stripe_onboarding_complete': user.stripe_onboarding_complete,
             'stripe_account_status':   user.stripe_account_status,
         },
-        'transactions': [
-            {
-                'id':                 t.id,
-                'type':               t.type,
-                'amount':             float(t.amount),
-                'status':             t.status,
-                'description':        t.description,
-                'available_at':       t.available_at.isoformat() if t.available_at else None,
-                'created_at':         t.created_at.isoformat(),
-                'stripe_transfer_id': t.stripe_transfer_id,
-            }
-            for t in transactions
-        ],
+        'transactions':      [ser_wallet_txn(t) for t in transactions],
         'show_connect_alert': show_connect_alert,
     }, message=stripe_hint)

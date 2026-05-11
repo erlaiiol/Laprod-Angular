@@ -2,7 +2,7 @@
 Blueprint TRACKS version API - Gestion des beats et toplines
 Routes pour GET, POST, PUT, DELETE Tracks
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, send_file, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from extensions import db, limiter
 from models import Track, Tag, Category, User, Topline
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from serializers import ok, err, track_card, track_detail, topline as ser_topline
 from helpers import generate_track_image
 from utils.ownership_authorizer import TrackOwnership, requires_ownership
 
@@ -54,10 +55,7 @@ def get_track(track_id):
         ).scalar_one_or_none()
 
         if not track:
-            return jsonify({
-                'success': False,
-                'feedback': {'level': 'warning', 'message': 'Track introuvable'}
-            }), 404
+            return err('Track introuvable', level='warning', status=404)
 
         # Identité JWT optionnelle (non bloquante)
         current_user_id = None
@@ -74,64 +72,15 @@ def get_track(track_id):
             if current_user_id else []
         )
 
-        def tl_dict(tl):
-            return {
-                'id':           tl.id,
-                'artist_id':    tl.artist_id,
-                'stream_url':   f'/api/stream/toplines/{tl.id}',
-                'description':  tl.description,
-                'created_at':   tl.created_at.isoformat(),
-                'is_published': tl.is_published,
-                'artist_user': {
-                    'username':      tl.artist_user.username      if tl.artist_user else None,
-                    'profile_image': (tl.artist_user.profile_picture_url or tl.artist_user.profile_image) if tl.artist_user else None,
-                }
-            }
+        track_data = track_detail(track)
+        track_data['toplines']    = [ser_topline(tl) for tl in published_toplines]
+        track_data['my_toplines'] = [ser_topline(tl) for tl in my_toplines]
 
-        return jsonify({
-            'success': True,
-            'data': {
-                'track': {
-                    'id':           track.id,
-                    'title':        track.title,
-                    'bpm':          track.bpm,
-                    'key':          track.key,
-                    'style':        track.style,
-                    'created_at':   track.created_at.isoformat() if track.created_at else None,
-                    'is_approved':  track.is_approved,
-                    'price_mp3':    float(track.price_mp3)    if track.price_mp3    else None,
-                    'price_wav':    float(track.price_wav)    if track.price_wav    else None,
-                    'price_stems':  float(track.price_stems)  if track.price_stems  else None,
-                    'file_wav':     track.file_wav,
-                    'file_stems':   track.file_stems,
-                    'stream_url':   f'/api/stream/tracks/{track.id}/preview',
-                    'image_file':   track.image_file,
-                    'composer_user': {
-                        'id':            track.composer_user.id            if track.composer_user else None,
-                        'username':      track.composer_user.username      if track.composer_user else None,
-                        'profile_image': (track.composer_user.profile_picture_url or track.composer_user.profile_image) if track.composer_user else None,
-                    },
-                    'tags': [
-                        {
-                            'id' : tag.id,
-                            'name':     tag.name,
-                            'category': tag.category_obj.name  if tag.category_obj else 'other',
-                            'color':    tag.category_obj.color if tag.category_obj else '#000000'
-                        }
-                        for tag in track.tags
-                    ],
-                    'toplines':    [tl_dict(tl) for tl in published_toplines],
-                    'my_toplines': [tl_dict(tl) for tl in my_toplines],
-                }
-            }
-        })
+        return ok({'track': track_data})
 
     except Exception as e:
         current_app.logger.warning(f'erreur API get_track(): {e}')
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération du track'}
-        }), 500
+        return err('Erreur lors de la récupération du track', status=500)
 
 
 @tracks_api_bp.route('/tracks', methods=['GET'])
@@ -221,47 +170,19 @@ def get_tracks():
         count_query = track_query.with_only_columns(func.count()).order_by(None)
         total = db.session.execute(count_query).scalar()
 
-        # Formater la réponse
-        tracks_data = []
-        for track in tracks:
-            track_dict = {
-                'id': track.id,
-                'title': track.title,
-                'bpm': track.bpm,
-                'key': track.key,
-                'style': track.style,
-                'price_mp3': float(track.price_mp3) if track.price_mp3 else None,
-                'price_wav': float(track.price_wav) if track.price_wav else None,
-                'price_stems': float(track.price_stems) if track.price_stems else None,
-                'is_approved': track.is_approved,
-                'composer_user': {
-                    'username': track.composer_user.username if track.composer_user else None
-                },
-                'stream_url': f'/api/stream/tracks/{track.id}/preview',
-                'image_file': track.image_file,
-                'tags': [{'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else 'other', 'color': tag.category_obj.color if tag.category_obj else '#000000'} for tag in track.tags]
-            }
-            tracks_data.append(track_dict)
-
-        return jsonify({
-            'success': True,
-            'data': {
-                'tracks': tracks_data,
-                'pagination': {
-                    'page': page,
-                    'per_page': per_page,
-                    'total': total,
-                    'pages': max(1, (total + per_page - 1) // per_page)
-                }
-            }
+        return ok({
+            'tracks': [track_card(t) for t in tracks],
+            'pagination': {
+                'page':     page,
+                'per_page': per_page,
+                'total':    total,
+                'pages':    max(1, (total + per_page - 1) // per_page),
+            },
         })
 
     except Exception as e:
         current_app.logger.warning(f'Erreur api get_tracks(): {e}')
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération des tracks'}
-        }), 500
+        return err('Erreur lors de la récupération des tracks', status=500)
 
 
 @tracks_api_bp.route('/random', methods=['GET'])
@@ -286,41 +207,10 @@ def get_random_track():
         ).scalar_one_or_none()
 
         if not track:
-            return jsonify({
-                'success': False,
-                'feedback': {'level': 'info', 'message': 'Aucun track disponible'}
-            }), 404
+            return err('Aucun track disponible', level='info', status=404)
 
-        track_data = {
-            'id':    track.id,
-            'title': track.title,
-            'bpm':   track.bpm,
-            'key':   track.key,
-            'style': track.style,
-            'price_mp3':   float(track.price_mp3)   if track.price_mp3   else None,
-            'price_wav':   float(track.price_wav)   if track.price_wav   else None,
-            'price_stems': float(track.price_stems) if track.price_stems else None,
-            'is_approved': track.is_approved,
-            'composer_user': {
-                'username': track.composer_user.username if track.composer_user else None
-            },
-            'stream_url':  f'/api/stream/tracks/{track.id}/preview',
-            'image_file':  track.image_file,
-            'tags': [
-                {
-                    'name':     tag.name,
-                    'category': tag.category_obj.name  if tag.category_obj else 'other',
-                    'color':    tag.category_obj.color if tag.category_obj else '#000000'
-                }
-                for tag in track.tags
-            ]
-        }
-
-        return jsonify({'success': True, 'data': {'track': track_data}})
+        return ok({'track': track_card(track)})
 
     except Exception as e:
         current_app.logger.warning(f'Erreur api get_random_track(): {e}')
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': 'Erreur lors de la récupération du track aléatoire'}
-        }), 500
+        return err('Erreur lors de la récupération du track aléatoire', status=500)

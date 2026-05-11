@@ -31,9 +31,6 @@
       <div class="player-info">
         <p class="player-title">
           {{ player.currentTrack()?.title }}
-          @if (player.currentTrack()?.id !== 0) {
-            <span class="preview-tag">(preview 1:30)</span>
-          }
         </p>
         <p class="player-artist">{{ player.currentTrack()?.composer_user?.username }}</p>
       </div>
@@ -43,9 +40,6 @@
     <div class="player-center">
       <div class="waveform-container">
         <div #waveformContainer class="waveform-inner"></div>
-        @if (player.currentTrack()?.id !== 0) {
-          <span class="preview-notice">Preview avec watermark (1:30)</span>
-        }
       </div>
 
       <!-- Actions — always visible, adapt layout per context -->

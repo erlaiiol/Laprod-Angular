@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import redis_client, csrf
+from serializers import ok, err
 
 job_status_api = Blueprint('job_status_api', __name__, url_prefix='/api/job_status')
 
@@ -17,19 +18,17 @@ def get_job_status(job_id):
 
     job_key = f"job:{job_id}"
     if not redis_client.exists(job_key):
-        return jsonify({'error': 'Job not found'}), 404
-    
+        return err('Job not found', status=404)
+
     job_data = redis_client.hgetall(job_key)
     # Convertir les bytes en str
-    
-    if job_data.get('user_id') != str(get_jwt_identity()):
-        return jsonify({'error' : 'Forbidden'}), 403
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'status':        job_data.get('status', 'unknown'),
-            'track_id':      job_data.get('track_id') or None,
-            'error_message': job_data.get('error_message') or None,
-        }
+    if job_data.get('user_id') != str(get_jwt_identity()):
+        return err('Forbidden', status=403)
+
+    return ok({
+        'status':        job_data.get('status', 'unknown'),
+        'track_id':      job_data.get('track_id') or None,
+        'topline_id':    job_data.get('topline_id') or None,
+        'error_message': job_data.get('error_message') or None,
     })

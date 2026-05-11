@@ -1,0 +1,20 @@
+@if (categories().length > 0) {
+  <div class="tag-cat-filter">
+    <span class="label">Afficher :</span>
+    <button
+      class="cat-chip"
+      [class.active]="active() === null"
+      (click)="select(null)">
+      Tous
+    </button>
+    @for (cat of categories(); track cat.name) {
+      <button
+        class="cat-chip"
+        [class.active]="active() === cat.name"
+        [style.--cat-color]="cat.color"
+        (click)="select(cat.name)">
+        {{ cat.name }}
+      </button>
+    }
+  </div>
+}

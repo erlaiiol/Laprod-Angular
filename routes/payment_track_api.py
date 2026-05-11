@@ -7,7 +7,7 @@ POST /api/track-payment/track/<track_id>/<format_type>/checkout
 POST /api/track-payment/verify
   → Appelé par Angular après redirection Stripe. Crée Purchase, wallet, contrat PDF, notifications.
 """
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import stripe
 import stripe._error as stripe_error
@@ -16,30 +16,13 @@ from datetime import datetime
 
 from extensions import db, csrf
 from models import Track, User, Purchase
+from serializers import ok, err
 from utils.payment_validator import TrackPriceCalculator
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
 from utils.email_service import send_purchase_confirmation_email, send_sale_notification_email
 
 payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api/track-payment')
-
-
-# ── Helpers réponse unifiée ────────────────────────────────────────────────────
-
-def _ok(data=None, message='', code=None, status=200):
-    body = {'success': True, 'feedback': {'level': 'success', 'message': message}}
-    if data is not None:
-        body['data'] = data
-    if code:
-        body['code'] = code
-    return jsonify(body), status
-
-
-def _err(message, level='error', code=None, status=400):
-    body = {'success': False, 'feedback': {'level': level, 'message': message}}
-    if code:
-        body['code'] = code
-    return jsonify(body), status
 
 
 # ── POST /api/track-payment/track/<id>/<format>/checkout ──────────────────────
@@ -70,18 +53,18 @@ def create_checkout(track_id, format_type):
     current_user_id = int(get_jwt_identity())
     current_user = db.session.get(User, current_user_id)
     if not current_user:
-        return _err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
+        return err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
 
     if format_type not in ('mp3', 'wav', 'stems'):
-        return _err('Format invalide.', code='INVALID_FORMAT', status=400)
+        return err('Format invalide.', code='INVALID_FORMAT', status=400)
 
     track = db.session.get(Track, track_id)
     if not track:
-        return _err('Track introuvable.', code='NOT_FOUND', status=404)
+        return err('Track introuvable.', code='NOT_FOUND', status=404)
     if not track.is_approved:
-        return _err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
+        return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
     if current_user_id == track.composer_id:
-        return _err(
+        return err(
             'Vous ne pouvez pas acheter votre propre composition.',
             code='OWN_TRACK', status=403,
         )
@@ -105,7 +88,7 @@ def create_checkout(track_id, format_type):
             resource=track, options=options, format_type=format_type
         )
     except ValueError as e:
-        return _err(str(e), code='PRICE_CALC_ERROR', status=400)
+        return err(str(e), code='PRICE_CALC_ERROR', status=400)
 
     client_total = data.get('total_price')
     if client_total is not None and abs(server_total - float(client_total)) > 0.01:
@@ -113,7 +96,7 @@ def create_checkout(track_id, format_type):
             f"Prix manipulé ! Client: {client_total}€, Serveur: {server_total}€, "
             f"User: {current_user_id}, Track: {track_id}"
         )
-        return _err('Prix invalide. Veuillez rafraîchir la page.', code='PRICE_TAMPERED', status=403)
+        return err('Prix invalide. Veuillez rafraîchir la page.', code='PRICE_TAMPERED', status=403)
 
     # ── Créer la session Stripe Checkout ─────────────────────────────────────
     try:
@@ -170,17 +153,17 @@ def create_checkout(track_id, format_type):
             f"total {server_total}€ | user #{current_user_id}"
         )
 
-        return _ok(
+        return ok(
             data={'checkout_url': checkout_session.url, 'total': server_total},
             message='Session Stripe créée.',
         )
 
     except stripe.StripeError as e:
         current_app.logger.error(f"Erreur Stripe checkout track #{track_id}: {e}", exc_info=True)
-        return _err(f"Erreur Stripe : {str(e)}", code='STRIPE_ERROR', status=500)
+        return err(f"Erreur Stripe : {str(e)}", code='STRIPE_ERROR', status=500)
     except Exception as e:
         current_app.logger.error(f"Erreur checkout track #{track_id}: {e}", exc_info=True)
-        return _err(str(e), code='SERVER_ERROR', status=500)
+        return err(str(e), code='SERVER_ERROR', status=500)
 
 
 # ── POST /api/track-payment/verify ───────────────────────────────────────────
@@ -198,19 +181,19 @@ def verify_payment():
     session_id = data.get('session_id', '').strip()
 
     if not session_id:
-        return _err('session_id requis.', code='MISSING_SESSION', status=400)
+        return err('session_id requis.', code='MISSING_SESSION', status=400)
 
     try:
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         payment_intent_id = checkout_session.payment_intent
 
         if not payment_intent_id:
-            return _err('Aucun Payment Intent trouvé.', code='NO_PAYMENT_INTENT', status=400)
+            return err('Aucun Payment Intent trouvé.', code='NO_PAYMENT_INTENT', status=400)
 
         payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
 
         if payment_intent.status != 'succeeded':
-            return _err(
+            return err(
                 f'Paiement non confirmé (statut : {payment_intent.status}).',
                 level='warning', code='PAYMENT_NOT_SUCCEEDED', status=400,
             )
@@ -220,23 +203,19 @@ def verify_payment():
 
         # Vérification de sécurité : l'acheteur JWT correspond à la metadata
         if int(meta.get('buyer_id', -1)) != user_id:
-            return _err('Cette session ne vous appartient pas.', code='UNAUTHORIZED', status=403)
+            return err('Cette session ne vous appartient pas.', code='UNAUTHORIZED', status=403)
 
         # Idempotence : Purchase déjà créé ?
         existing = db.session.query(Purchase).filter_by(
             stripe_payment_intent_id=payment_intent_id
         ).first()
         if existing:
-            return jsonify({
-                'success': True,
-                'feedback': {'level': 'info', 'message': 'Achat déjà enregistré.'},
-                'data': {'purchase_id': existing.id},
-            }), 200
+            return ok({'purchase_id': existing.id}, message='Achat déjà enregistré.', level='info')
 
         track_id = int(meta.get('track_id'))
         track = db.session.get(Track, track_id)
         if not track:
-            return _err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
+            return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
 
         buyer = db.session.get(User, user_id)
 
@@ -339,14 +318,14 @@ def verify_payment():
         except Exception as e:
             current_app.logger.error(f"Erreur email compositeur purchase #{purchase.id}: {e}")
 
-        return _ok(
+        return ok(
             data={'purchase_id': purchase.id},
             message='Paiement confirmé ! Votre achat est disponible dans vos téléchargements.',
         )
 
     except stripe_error.StripeError as e:
         current_app.logger.error(f"Erreur Stripe verify purchase: {e}", exc_info=True)
-        return _err(f"Erreur Stripe : {str(e)}", code='STRIPE_ERROR', status=502)
+        return err(f"Erreur Stripe : {str(e)}", code='STRIPE_ERROR', status=502)
     except Exception as e:
         current_app.logger.error(f"Erreur verify_payment: {e}", exc_info=True)
-        return _err('Erreur serveur.', code='SERVER_ERROR', status=500)
+        return err('Erreur serveur.', code='SERVER_ERROR', status=500)

@@ -10,6 +10,7 @@ import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
+import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -20,7 +21,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, TrackCardComponent],
+  imports: [CommonModule, TrackCardComponent, TagCategoryFilterComponent],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss']
 })

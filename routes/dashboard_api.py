@@ -1,11 +1,12 @@
 """
 Dashboard API — GET endpoints pour les espaces Beatmaker, Artiste et Mix Engineer
 """
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import select, func
-from extensions import db, csrf, limiter
+from sqlalchemy import select
+from extensions import db, csrf
 from models import User, Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory
+from serializers import ok, err, mix_order_full as ser_order_full
 
 dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/api/dashboard')
 
@@ -21,7 +22,7 @@ def get_beatmaker_dashboard():
     user = db.get_or_404(User, user_id)
 
     if not user.is_beatmaker:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès refusé.'}}), 403
+        return err('Accès refusé.', status=403)
 
     # ── Tracks du compositeur ─────────────────────────────────────────────────
     tracks = db.session.scalars(
@@ -85,21 +86,18 @@ def get_beatmaker_dashboard():
         for s in sales
     ]
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'stats': {
-                'total_revenue':        round(total_revenue, 2),
-                'sales_count':          sales_count,
-                'tracks_count':         len(tracks),
-                'tracks_approved':      sum(1 for t in tracks if t.is_approved),
-                'tracks_pending':       sum(1 for t in tracks if not t.is_approved),
-                'upload_tokens':        user.upload_track_tokens,
-            },
-            'tracks': tracks_data,
-            'sales':  sales_data,
+    return ok({
+        'stats': {
+            'total_revenue':   round(total_revenue, 2),
+            'sales_count':     sales_count,
+            'tracks_count':    len(tracks),
+            'tracks_approved': sum(1 for t in tracks if t.is_approved),
+            'tracks_pending':  sum(1 for t in tracks if not t.is_approved),
+            'upload_tokens':   user.upload_track_tokens,
         },
-    }), 200
+        'tracks': tracks_data,
+        'sales':  sales_data,
+    })
 
 
 # ─── Artiste ──────────────────────────────────────────────────────────────────
@@ -113,7 +111,7 @@ def get_artist_dashboard():
     user = db.get_or_404(User, user_id)
 
     if not user.is_artist:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès refusé.'}}), 403
+        return err('Accès refusé.', status=403)
 
     # ── Toplines ──────────────────────────────────────────────────────────────
     toplines = db.session.scalars(
@@ -184,59 +182,20 @@ def get_artist_dashboard():
         .order_by(MixMasterRequest.created_at.desc())
     ).all()
 
-    def mm_dict(o: MixMasterRequest) -> dict:
-        can_rev, _ = o.can_request_revision()
-        return {
-            'id':                    o.id,
-            'title':                 o.title,
-            'status':                o.status,
-            'stripe_payment_status': o.stripe_payment_status,
-            'total_price':           o.total_price,
-            'deposit_amount':        o.deposit_amount,
-            'remaining_amount':      o.remaining_amount,
-            'revision_count':        o.revision_count,
-            'revision1_message':     o.revision1_message,
-            'revision2_message':     o.revision2_message,
-            'can_request_revision':  can_rev,
-            'is_expired':            o.is_expired(),
-            'final_transfer_amount': o.get_final_transfer_amount(),
-            'refund_amount':         o.get_refund_amount(),
-            'engineer_username':     o.engineer.username if o.engineer else None,
-            'engineer_image':        o.engineer.profile_image if o.engineer else None,
-            'engineer_id':           o.engineer_id,
-            'services': {
-                'cleaning':  o.service_cleaning,
-                'effects':   o.service_effects,
-                'artistic':  o.service_artistic,
-                'mastering': o.service_mastering,
-            },
-            'reference_file_url':              f'/static/{o.reference_file}' if o.reference_file else None,
-            'processed_file_preview_url':      f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
-            'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
-            'created_at':    o.created_at.isoformat(),
-            'accepted_at':   o.accepted_at.isoformat() if o.accepted_at else None,
-            'deadline':      o.deadline.isoformat() if o.deadline else None,
-            'delivered_at':  o.delivered_at.isoformat() if o.delivered_at else None,
-            'completed_at':  o.completed_at.isoformat() if o.completed_at else None,
-        }
-
-    return jsonify({
-        'success': True,
-        'data': {
-            'stats': {
-                'toplines_count':     len(toplines),
-                'toplines_published': sum(1 for tl in toplines if tl.is_published),
-                'favorites_count':    len(favorites_data),
-                'topline_tokens':     user.topline_tokens,
-                'mm_requests_count':  len(mm_requests),
-                'mm_active_count':    sum(1 for o in mm_requests if o.status in ('awaiting_acceptance', 'accepted', 'processing', 'delivered', 'revision1', 'revision2')),
-            },
-            'toplines':     toplines_data,
-            'favorites':    favorites_data,
-            'history':      history_data,
-            'mm_requests':  [mm_dict(o) for o in mm_requests],
+    return ok({
+        'stats': {
+            'toplines_count':     len(toplines),
+            'toplines_published': sum(1 for tl in toplines if tl.is_published),
+            'favorites_count':    len(favorites_data),
+            'topline_tokens':     user.topline_tokens,
+            'mm_requests_count':  len(mm_requests),
+            'mm_active_count':    sum(1 for o in mm_requests if o.status in ('awaiting_acceptance', 'accepted', 'processing', 'delivered', 'revision1', 'revision2')),
         },
-    }), 200
+        'toplines':    toplines_data,
+        'favorites':   favorites_data,
+        'history':     history_data,
+        'mm_requests': [ser_order_full(o, 'artist') for o in mm_requests],
+    })
 
 
 # ─── Mix Engineer ─────────────────────────────────────────────────────────────
@@ -250,7 +209,7 @@ def get_mix_engineer_dashboard():
     user = db.get_or_404(User, user_id)
 
     if not user.is_mix_engineer:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès refusé.'}}), 403
+        return err('Accès refusé.', status=403)
 
     orders = db.session.scalars(
         select(MixMasterRequest)
@@ -263,86 +222,27 @@ def get_mix_engineer_dashboard():
     COMPLETED_STATUSES = {'completed'}
     REFUSED_STATUSES   = {'rejected', 'refunded'}
 
-    def order_dict(o: MixMasterRequest) -> dict:
-        can_rev, _ = o.can_request_revision()
-        return {
-            'id':              o.id,
-            'title':           o.title,
-            'artist_username': o.artist.username if o.artist else None,
-            'artist_image':    o.artist.profile_image if o.artist else None,
-            'status':          o.status,
-            'stripe_payment_status': o.stripe_payment_status,
-            'total_price':     o.total_price,
-            'deposit_amount':  o.deposit_amount,
-            'remaining_amount': o.remaining_amount,
-            'engineer_revenue': o.engineer_revenue,
-            'revision_count':  o.revision_count,
-            'revision1_message': o.revision1_message,
-            'revision2_message': o.revision2_message,
-            'can_request_revision': can_rev,
-            'is_expired':      o.is_expired(),
-            'final_transfer_amount': o.get_final_transfer_amount(),
-            'services': {
-                'cleaning':  o.service_cleaning,
-                'effects':   o.service_effects,
-                'artistic':  o.service_artistic,
-                'mastering': o.service_mastering,
-            },
-            'has_separated_stems': o.has_separated_stems,
-            # Briefing (pour l'ingénieur)
-            'artist_message':    o.artist_message,
-            'brief_vocals':      o.brief_vocals,
-            'brief_backing_vocals': o.brief_backing_vocals,
-            'brief_ambiance':    o.brief_ambiance,
-            'brief_bass':        o.brief_bass,
-            'brief_energy_style': o.brief_energy_style,
-            'brief_references':  o.brief_references,
-            'brief_instruments': o.brief_instruments,
-            'brief_percussion':  o.brief_percussion,
-            'brief_effects':     o.brief_effects,
-            'brief_structure':   o.brief_structure,
-            # Fichiers (accès via /static/)
-            'reference_file_url':              f'/static/{o.reference_file}' if o.reference_file else None,
-            'original_file_url':               f'/static/{o.original_file}' if o.original_file else None,
-            'processed_file_preview_url':      f'/static/{o.processed_file_preview}' if o.processed_file_preview else None,
-            'processed_file_preview_full_url': f'/static/{o.processed_file_preview_full}' if o.processed_file_preview_full else None,
-            'archive_file_tree': [
-                # Rétrocompatibilité : anciens enregistrements stockaient des dicts {path, name, ...}
-                (f['path'] if isinstance(f, dict) else f)
-                for f in (o.archive_file_tree or [])
-                if not (isinstance(f, dict) and f.get('is_dir'))
-            ],
-            'created_at':      o.created_at.isoformat(),
-            'accepted_at':     o.accepted_at.isoformat() if o.accepted_at else None,
-            'deadline':        o.deadline.isoformat() if o.deadline else None,
-            'delivered_at':    o.delivered_at.isoformat() if o.delivered_at else None,
-            'completed_at':    o.completed_at.isoformat() if o.completed_at else None,
-        }
+    completed_orders = [o for o in orders if o.status in COMPLETED_STATUSES]
+    total_revenue    = sum(o.engineer_revenue or 0 for o in completed_orders)
 
-    completed_orders  = [o for o in orders if o.status in COMPLETED_STATUSES]
-    total_revenue     = sum(o.engineer_revenue or 0 for o in completed_orders)
-
-    return jsonify({
-        'success': True,
-        'data': {
-            'stats': {
-                'total_revenue':    round(total_revenue, 2),
-                'completed_count':  len(completed_orders),
-                'active_count':     sum(1 for o in orders if o.status in ACTIVE_STATUSES),
-                'pending_count':    sum(1 for o in orders if o.status == 'awaiting_acceptance'),
-                'reference_price':  user.mixmaster_reference_price,
-                'price_min':        user.mixmaster_price_min,
-                'sample_submitted': user.mixmaster_sample_submitted,
-                'producer_arranger_request_submitted': user.producer_arranger_request_submitted,
-                'is_mixmaster_engineer': user.is_mixmaster_engineer,
-                'is_certified_producer_arranger': user.is_certified_producer_arranger,
-            },
-            'orders': {
-                'awaiting':  [order_dict(o) for o in orders if o.status == 'awaiting_acceptance'],
-                'active':    [order_dict(o) for o in orders if o.status in ACTIVE_STATUSES],
-                'revisions': [order_dict(o) for o in orders if o.status in REVISION_STATUSES],
-                'completed': [order_dict(o) for o in orders if o.status in COMPLETED_STATUSES],
-                'refused':   [order_dict(o) for o in orders if o.status in REFUSED_STATUSES],
-            },
+    return ok({
+        'stats': {
+            'total_revenue':    round(total_revenue, 2),
+            'completed_count':  len(completed_orders),
+            'active_count':     sum(1 for o in orders if o.status in ACTIVE_STATUSES),
+            'pending_count':    sum(1 for o in orders if o.status == 'awaiting_acceptance'),
+            'reference_price':  user.mixmaster_reference_price,
+            'price_min':        user.mixmaster_price_min,
+            'sample_submitted': user.mixmaster_sample_submitted,
+            'producer_arranger_request_submitted': user.producer_arranger_request_submitted,
+            'is_mixmaster_engineer': user.is_mixmaster_engineer,
+            'is_certified_producer_arranger': user.is_certified_producer_arranger,
         },
-    }), 200
+        'orders': {
+            'awaiting':  [ser_order_full(o, 'engineer') for o in orders if o.status == 'awaiting_acceptance'],
+            'active':    [ser_order_full(o, 'engineer') for o in orders if o.status in ACTIVE_STATUSES],
+            'revisions': [ser_order_full(o, 'engineer') for o in orders if o.status in REVISION_STATUSES],
+            'completed': [ser_order_full(o, 'engineer') for o in orders if o.status in COMPLETED_STATUSES],
+            'refused':   [ser_order_full(o, 'engineer') for o in orders if o.status in REFUSED_STATUSES],
+        },
+    })

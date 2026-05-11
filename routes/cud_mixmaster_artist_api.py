@@ -3,12 +3,13 @@ CUD Mixmaster — Actions artiste (commander, annuler, révision, valider/télé
 La commande crée une session Stripe Checkout et renvoie checkout_url.
 L'URL de succès Stripe pointe vers la page Angular /mix/payment-success.
 """
-from flask import Blueprint, jsonify, request, current_app, send_file
+from flask import Blueprint, request, current_app, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from sqlalchemy import select
 from extensions import db, csrf, limiter
 from models import User, MixMasterRequest
+from serializers import ok, err as ser_err
 from helpers import sanitize_html
 from utils.notification_service import notify_mixmaster_status_changed, notify_mixmaster_request_received_and_sent
 from utils import email_service
@@ -80,41 +81,41 @@ def create_order(engineer_id):
     engineer = db.get_or_404(User, engineer_id)
 
     if user_id == engineer_id:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Vous ne pouvez pas commander un mix/master à vous-même.'}}), 403
+        return ser_err('Vous ne pouvez pas commander un mix/master à vous-même.', status=403)
 
     if not engineer.is_mixmaster_engineer:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Cet ingénieur n\'est pas certifié.'}}), 400
+        return ser_err("Cet ingénieur n'est pas certifié.")
 
     active_count = MixMasterRequest.get_active_requests_count(engineer_id)
     if active_count >= 5:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'{engineer.username} a déjà 5 mix en cours.'}}), 400
+        return ser_err(f'{engineer.username} a déjà 5 mix en cours.', level='warning')
 
     if not VALIDATION_AVAILABLE:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Validation sécurité indisponible.'}}), 500
+        return ser_err('Validation sécurité indisponible.', status=500)
 
     # ── Fichiers ─────────────────────────────────────────────────────────────
     stems_file     = request.files.get('stems_file')
     reference_file = request.files.get('reference_file')
 
     if not stems_file or not reference_file or stems_file.filename == '' or reference_file.filename == '':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Les 2 fichiers sont requis (pistes et maquette).'}}), 400
+        return ser_err('Les 2 fichiers sont requis (pistes et maquette).', level='warning')
 
     if not _allowed(stems_file.filename, {'zip', 'rar'}):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Les pistes séparées doivent être en .zip ou .rar.'}}), 422
+        return ser_err('Les pistes séparées doivent être en .zip ou .rar.', level='warning', status=422)
 
-    is_valid, err = validate_stems_archive(stems_file)
+    is_valid, validation_err = validate_stems_archive(stems_file)
     if not is_valid:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Archive invalide : {err}'}}), 422
+        return ser_err(f'Archive invalide : {validation_err}', level='warning', status=422)
 
     if not _allowed(reference_file.filename, {'wav', 'mp3'}):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'La maquette doit être en .wav ou .mp3.'}}), 422
+        return ser_err('La maquette doit être en .wav ou .mp3.', level='warning', status=422)
 
-    is_valid, err = validate_audio_file(reference_file)
+    is_valid, validation_err = validate_audio_file(reference_file)
     if not is_valid:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Maquette invalide : {err}'}}), 422
+        return ser_err(f'Maquette invalide : {validation_err}', level='warning', status=422)
 
     if not _check_size(stems_file) or not _check_size(reference_file):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Fichier trop volumineux (max 500 MB).'}}), 422
+        return ser_err('Fichier trop volumineux (max 500 MB).', level='warning', status=422)
 
     # ── Champs de formulaire ─────────────────────────────────────────────────
     def bval(key): return request.form.get(key, '0') == '1'
@@ -156,7 +157,7 @@ def create_order(engineer_id):
             service_artistic = True              # palier 160% = tout + artistique
 
     if not any([service_cleaning, service_effects, service_artistic, service_mastering]):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Sélectionnez au moins un service.'}}), 400
+        return ser_err('Sélectionnez au moins un service.', level='warning')
 
     # ── Calcul du prix ───────────────────────────────────────────────────────
     calculator = MixMasterRequestPriceCalculator()
@@ -253,17 +254,14 @@ def create_order(engineer_id):
             artist_id=user_id,
         )
 
-        return jsonify({
-            'success': True,
-            'data': {'checkout_url': checkout_session.url},
-        }), 200
+        return ok({'checkout_url': checkout_session.url})
 
     except stripe_error.StripeError as e:
         log_stripe_error(operation='create_mixmaster_checkout', error_message=str(e),
                          resource_type='mixmaster', engineer_id=engineer_id, artist_id=user_id)
         for p in [stems_disk, ref_disk]:
             if p.exists(): p.unlink()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+        return ser_err(f'Erreur Stripe : {str(e)}', status=502)
 
 
 # ─── Annuler une demande ──────────────────────────────────────────────────────
@@ -276,15 +274,15 @@ def cancel_order(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status != 'awaiting_acceptance':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette demande ne peut plus être annulée.'}}), 400
+        return ser_err('Cette demande ne peut plus être annulée.', level='warning')
 
     # capture_method=automatic : le paiement est already succeeded → remboursement par Refund
     if order.stripe_payment_intent_id and order.stripe_payment_status == 'captured':
         try:
-            refund = stripe.Refund.create(
+            stripe.Refund.create(
                 payment_intent=order.stripe_payment_intent_id,
                 reason='requested_by_customer',
             )
@@ -297,7 +295,7 @@ def cancel_order(order_id):
         except stripe_error.StripeError as e:
             log_stripe_error(operation='cancel_mixmaster', error_message=str(e),
                              resource_type='mixmaster', resource_id=order_id)
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+            return ser_err(f'Erreur Stripe : {str(e)}', status=502)
 
     for f_path in [order.original_file, order.reference_file]:
         if f_path:
@@ -314,10 +312,7 @@ def cancel_order(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email cancel #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'success', 'message': 'Demande annulée. Vos fonds ont été libérés.'},
-    }), 200
+    return ok(message='Demande annulée. Vos fonds ont été libérés.')
 
 
 # ─── Demander une révision ────────────────────────────────────────────────────
@@ -330,19 +325,19 @@ def request_revision(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.stripe_payment_status != 'deposit_captured':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Statut de paiement incorrect pour une révision.'}}), 400
+        return ser_err('Statut de paiement incorrect pour une révision.', level='warning')
 
     can_rev, reason = order.can_request_revision()
     if not can_rev:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': reason}}), 400
+        return ser_err(reason, level='warning')
 
     data = request.get_json() or {}
     revision_message = (data.get('revision_message') or '').strip()
     if not revision_message:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Précisez les modifications souhaitées.'}}), 400
+        return ser_err('Précisez les modifications souhaitées.', level='warning')
 
     old_status = order.status
     order.revision_count += 1
@@ -369,11 +364,10 @@ def request_revision(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email revision #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'success', 'message': f'Révision {order.revision_count}/2 demandée. {revision_amount}€ ajoutés aux gains de l\'ingénieur.'},
-        'data': {'status': order.status, 'revision_count': order.revision_count},
-    }), 200
+    return ok(
+        {'status': order.status, 'revision_count': order.revision_count},
+        message=f"Révision {order.revision_count}/2 demandée. {revision_amount}€ ajoutés aux gains de l'ingénieur.",
+    )
 
 
 # ─── Refuser la livraison (remboursement partiel) ────────────────────────────
@@ -394,13 +388,13 @@ def reject_delivery(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status != 'delivered':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande ne peut pas être refusée dans son état actuel.'}}), 400
+        return ser_err('Cette commande ne peut pas être refusée dans son état actuel.', level='warning')
 
     if order.stripe_payment_status != 'deposit_captured':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Statut de paiement incorrect.'}}), 400
+        return ser_err('Statut de paiement incorrect.', level='warning')
 
     refund_amount = order.get_refund_amount()  # toujours > 0 : 70/60/50% selon révisions
 
@@ -420,7 +414,7 @@ def reject_delivery(order_id):
     except stripe_error.StripeError as e:
         log_stripe_error(operation='reject_delivery_refund', error_message=str(e),
                          resource_type='mixmaster', resource_id=order_id)
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+        return ser_err(f'Erreur Stripe : {str(e)}', status=502)
 
     order.status                = 'refunded'
     order.stripe_payment_status = 'partially_refunded'
@@ -434,11 +428,11 @@ def reject_delivery(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email reject_delivery #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': f'Livraison refusée. Vous serez remboursé de {refund_amount:.2f}€ (solde restant après {order.revision_count} révision(s)).'},
-        'data': {'refund_amount': refund_amount},
-    }), 200
+    return ok(
+        {'refund_amount': refund_amount},
+        message=f'Livraison refusée. Vous serez remboursé de {refund_amount:.2f}€ (solde restant après {order.revision_count} révision(s)).',
+        level='info',
+    )
 
 
 # ─── Valider et télécharger ───────────────────────────────────────────────────
@@ -455,20 +449,20 @@ def approve_and_download(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status not in ('delivered', 'completed'):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Le fichier n\'a pas encore été livré.'}}), 400
+        return ser_err("Le fichier n'a pas encore été livré.", level='warning')
 
     if order.stripe_payment_status != 'deposit_captured':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Statut de paiement incorrect.'}}), 400
+        return ser_err('Statut de paiement incorrect.', level='warning')
 
     if not order.processed_file:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Fichier traité introuvable.'}}), 404
+        return ser_err('Fichier traité introuvable.', status=404)
 
     processed_path = Path(current_app.root_path) / order.processed_file
     if not processed_path.exists():
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Fichier introuvable sur le serveur.'}}), 404
+        return ser_err('Fichier introuvable sur le serveur.', status=404)
 
     try:
         final_amount = order.get_final_transfer_amount()
@@ -488,18 +482,14 @@ def approve_and_download(order_id):
         except Exception as e:
             current_app.logger.warning(f'Email completed #{order_id}: {e}')
 
-        return jsonify({
-            'success': True,
-            'feedback': {'level': 'success', 'message': f'Validation réussie ! Solde de {final_amount}€ crédité à l\'ingénieur.'},
-            'data': {
-                'status':       order.status,
-                'download_url': f'/mixmaster-artist/download/{order_id}',
-            },
-        }), 200
+        return ok(
+            {'status': order.status, 'download_url': f'/mixmaster-artist/download/{order_id}'},
+            message=f"Validation réussie ! Solde de {final_amount}€ crédité à l'ingénieur.",
+        )
 
     except Exception as e:
         current_app.logger.error(f'approve_and_download #{order_id}: {e}', exc_info=True)
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur serveur.'}}), 500
+        return ser_err('Erreur serveur.', status=500)
 
 
 @cud_mixmaster_artist_api_bp.route('/download/<int:order_id>', methods=['GET'])
@@ -510,16 +500,16 @@ def download_file(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_artist(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status != 'completed':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'La commande n\'est pas encore terminée.'}}), 400
+        return ser_err("La commande n'est pas encore terminée.", level='warning')
 
     if not order.processed_file:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Fichier introuvable.'}}), 404
+        return ser_err('Fichier introuvable.', status=404)
 
     processed_path = Path(current_app.root_path) / order.processed_file
     if not processed_path.exists():
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Fichier introuvable sur le serveur.'}}), 404
+        return ser_err('Fichier introuvable sur le serveur.', status=404)
 
     return send_file(processed_path, as_attachment=True)

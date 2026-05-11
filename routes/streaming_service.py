@@ -6,13 +6,14 @@ GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
 """
-from flask import Blueprint, current_app, send_file, jsonify, abort
+from flask import Blueprint, current_app, send_file, abort
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
 from pathlib import Path
 from sqlalchemy import select
 
 from extensions import db, limiter
 from models import Track, Topline, Purchase
+from serializers import err
 
 
 streaming_bp = Blueprint('streaming', __name__, url_prefix='/api/stream')
@@ -80,7 +81,26 @@ def stream_track_preview(track_id):
         abort(404)
 
 
-# ── 2. Download fichier acheté (MP3 / WAV / Stems) ────────────────────────────
+# ── 2. Stream MP3 complet (public, rate-limité, pas d'attachment) ─────────────
+
+@streaming_bp.route('/tracks/<int:track_id>/full', methods=['GET'])
+@limiter.limit('120 per minute')
+def stream_track_full(track_id):
+    """
+    Sert le MP3 complet d'un track approuvé en streaming pur (sans attachment).
+    Public et rate-limité — l'absence de Content-Disposition empêche le download direct.
+    Le téléchargement payant reste réservé à /download/<format> (JWT + achat vérifié).
+    """
+    track = db.session.get(Track, track_id)
+    if not track or not track.is_approved:
+        abort(404)
+    if not track.file_mp3:
+        abort(404)
+
+    return _send(f'db_assets/audio/{track.file_mp3}', 'audio/mpeg')
+
+
+# ── 3. Download fichier acheté (MP3 / WAV / Stems) ────────────────────────────
 
 @streaming_bp.route('/tracks/<int:track_id>/download/<format>', methods=['GET'])
 @jwt_required()
@@ -90,10 +110,7 @@ def download_track_file(track_id, format):
     format : 'mp3' | 'wav' | 'stems'
     """
     if format not in _FORMAT_FIELD:
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'error', 'message': f"Format invalide : {format}"}
-        }), 400
+        return err(f"Format invalide : {format}")
 
     user_id = int(get_jwt_identity())
 
@@ -114,20 +131,11 @@ def download_track_file(track_id, format):
         ).scalar_one_or_none()
 
         if not purchase:
-            return jsonify({
-                'success': False,
-                'feedback': {
-                    'level': 'error',
-                    'message': "Accès non autorisé. Achetez ce fichier d'abord."
-                }
-            }), 403
+            return err("Accès non autorisé. Achetez ce fichier d'abord.", status=403)
 
     file_path = getattr(track, _FORMAT_FIELD[format])
     if not file_path:
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'warning', 'message': 'Fichier non disponible.'}
-        }), 404
+        return err('Fichier non disponible.', level='warning', status=404)
 
     ext = 'zip' if format == 'stems' else format
     download_name = f"{_safe_filename(track.title)}.{ext}"
@@ -187,10 +195,7 @@ def download_contract(purchase_id):
         abort(403)
 
     if not purchase.contract_file:
-        return jsonify({
-            'success': False,
-            'feedback': {'level': 'warning', 'message': 'Contrat non encore généré.'}
-        }), 404
+        return err('Contrat non encore généré.', level='warning', status=404)
 
     download_name = f"contrat_{_safe_filename(track.title)}_{purchase.format_purchased}.pdf"
 

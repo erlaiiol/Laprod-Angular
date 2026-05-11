@@ -2,12 +2,13 @@
 CUD Mixmaster — Actions ingénieur (accept, reject, upload processed, deliver revision)
 Toutes les routes requièrent JWT + rôle mix_engineer + ownership de la commande.
 """
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from sqlalchemy import select
 from extensions import db, csrf
 from models import User, MixMasterRequest
+from serializers import ok, err as ser_err
 from utils.notification_service import notify_mixmaster_status_changed
 from utils import email_service
 import stripe
@@ -67,13 +68,13 @@ def accept_order(order_id):
     user_id = int(get_jwt_identity())
     order = _get_order_for_engineer(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status != 'awaiting_acceptance':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande a déjà été traitée.'}}), 400
+        return ser_err('Cette commande a déjà été traitée.', level='warning')
 
     if not MixMasterRequest.can_accept_more_requests(user_id):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Vous avez déjà 5 mix/master en cours.'}}), 400
+        return ser_err('Vous avez déjà 5 mix/master en cours.', level='warning')
 
     order.status      = 'accepted'
     order.accepted_at = datetime.now()
@@ -87,11 +88,10 @@ def accept_order(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email accept #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'success', 'message': 'Demande acceptée ! Vous avez 7 jours pour livrer.'},
-        'data': {'status': order.status, 'deadline': order.deadline.isoformat()},
-    }), 200
+    return ok(
+        {'status': order.status, 'deadline': order.deadline.isoformat()},
+        message='Demande acceptée ! Vous avez 7 jours pour livrer.',
+    )
 
 
 # ─── Reject ───────────────────────────────────────────────────────────────────
@@ -103,10 +103,10 @@ def reject_order(order_id):
     user_id = int(get_jwt_identity())
     order = _get_order_for_engineer(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status != 'awaiting_acceptance':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande a déjà été traitée.'}}), 400
+        return ser_err('Cette commande a déjà été traitée.', level='warning')
 
     # Rembourser l'artiste — capture_method=automatic, le paiement est déjà prélevé
     if order.stripe_payment_intent_id and order.stripe_payment_status == 'captured':
@@ -124,7 +124,7 @@ def reject_order(order_id):
         except stripe_error.StripeError as e:
             log_stripe_error(operation='reject_mixmaster_refund', error_message=str(e),
                              resource_type='mixmaster', resource_id=order_id)
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur remboursement Stripe : {str(e)}'}}), 502
+            return ser_err(f'Erreur remboursement Stripe : {str(e)}', status=502)
 
     # Supprimer les fichiers uploadés par l'artiste
     for f_path in [order.original_file, order.reference_file]:
@@ -144,10 +144,7 @@ def reject_order(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email reject #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'info', 'message': 'Demande refusée. L\'artiste a été remboursé intégralement.'},
-    }), 200
+    return ok(message="Demande refusée. L'artiste a été remboursé intégralement.", level='info')
 
 
 # ─── Upload processed (livraison initiale) ────────────────────────────────────
@@ -160,27 +157,27 @@ def upload_processed(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_engineer(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status not in ('accepted', 'processing'):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Cette commande ne peut plus être modifiée.'}}), 400
+        return ser_err('Cette commande ne peut plus être modifiée.', level='warning')
 
     if not VALIDATION_AVAILABLE:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Validation sécurité indisponible.'}}), 500
+        return ser_err('Validation sécurité indisponible.', status=500)
 
     file = request.files.get('processed_file')
     if not file or file.filename == '':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Aucun fichier sélectionné.'}}), 400
+        return ser_err('Aucun fichier sélectionné.', level='warning')
 
     if not _allowed_audio(file.filename):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Format non autorisé (.wav ou .mp3).'}}), 422
+        return ser_err('Format non autorisé (.wav ou .mp3).', level='warning', status=422)
 
-    is_valid, err = validate_audio_file(file)
+    is_valid, validation_err = validate_audio_file(file)
     if not is_valid:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Fichier invalide : {err}'}}), 422
+        return ser_err(f'Fichier invalide : {validation_err}', level='warning', status=422)
 
     if not _check_size(file):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Fichier trop volumineux (max 500 MB).'}}), 422
+        return ser_err('Fichier trop volumineux (max 500 MB).', level='warning', status=422)
 
     # ── Sauvegarde ──────────────────────────────────────────────────────────
     filename = secure_filename(file.filename)
@@ -216,12 +213,12 @@ def upload_processed(order_id):
         current_app.logger.error(f'Erreur pydub upload #{order_id}: {e}', exc_info=True)
         if disk_path.exists():
             disk_path.unlink()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur traitement audio : {str(e)}'}}), 500
+        return ser_err(f'Erreur traitement audio : {str(e)}', status=500)
 
     # ── Fonds déjà prélevés (capture_method=automatic) → crédit wallet direct ──
     if not order.stripe_payment_intent_id or order.stripe_payment_status != 'captured':
         current_app.logger.error(f'Stripe status incorrect pour #{order_id}: {order.stripe_payment_status}')
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Statut de paiement incorrect.'}}), 400
+        return ser_err('Statut de paiement incorrect.')
 
     try:
         log_stripe_payment_intent_captured(
@@ -253,18 +250,17 @@ def upload_processed(order_id):
             current_app.logger.warning(f'Email delivered #{order_id}: {e}')
 
         deposit_net = round(float(order.deposit_amount) * 0.90, 2)
-        return jsonify({
-            'success': True,
-            'feedback': {'level': 'success', 'message': f'Livraison effectuée ! Acompte de {deposit_net}€ crédité dans vos gains (disponible dans 7 jours).'},
-            'data': {'status': order.status},
-        }), 200
+        return ok(
+            {'status': order.status},
+            message=f'Livraison effectuée ! Acompte de {deposit_net}€ crédité dans vos gains (disponible dans 7 jours).',
+        )
 
     except Exception as e:
         current_app.logger.error(f'credit_wallet delivery #{order_id}: {e}', exc_info=True)
         for p in [disk_path, preview_disk, preview_full_disk]:
             if p.exists():
                 p.unlink()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur lors de la livraison.'}}), 500
+        return ser_err('Erreur lors de la livraison.', status=500)
 
 
 # ─── Deliver revision ─────────────────────────────────────────────────────────
@@ -277,27 +273,27 @@ def deliver_revision(order_id):
     user_id = int(get_jwt_identity())
     order   = _get_order_for_engineer(order_id, user_id)
     if not order:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Commande introuvable ou accès refusé.'}}), 404
+        return ser_err('Commande introuvable ou accès refusé.', status=404)
 
     if order.status not in ('revision1', 'revision2'):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Aucune révision en attente.'}}), 400
+        return ser_err('Aucune révision en attente.', level='warning')
 
     if not VALIDATION_AVAILABLE:
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Validation sécurité indisponible.'}}), 500
+        return ser_err('Validation sécurité indisponible.', status=500)
 
     file = request.files.get('processed_file')
     if not file or file.filename == '':
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Aucun fichier sélectionné.'}}), 400
+        return ser_err('Aucun fichier sélectionné.', level='warning')
 
     if not _allowed_audio(file.filename):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Format non autorisé (.wav ou .mp3).'}}), 422
+        return ser_err('Format non autorisé (.wav ou .mp3).', level='warning', status=422)
 
-    is_valid, err = validate_audio_file(file)
+    is_valid, validation_err = validate_audio_file(file)
     if not is_valid:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Fichier invalide : {err}'}}), 422
+        return ser_err(f'Fichier invalide : {validation_err}', level='warning', status=422)
 
     if not _check_size(file):
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'Fichier trop volumineux (max 500 MB).'}}), 422
+        return ser_err('Fichier trop volumineux (max 500 MB).', level='warning', status=422)
 
     filename = secure_filename(file.filename)
     ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -331,7 +327,7 @@ def deliver_revision(order_id):
         current_app.logger.error(f'Erreur pydub revision #{order_id}: {e}', exc_info=True)
         if disk_path.exists():
             disk_path.unlink()
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur traitement audio : {str(e)}'}}), 500
+        return ser_err(f'Erreur traitement audio : {str(e)}', status=500)
 
     old_status = order.status
 
@@ -358,8 +354,4 @@ def deliver_revision(order_id):
     except Exception as e:
         current_app.logger.warning(f'Email revision delivered #{order_id}: {e}')
 
-    return jsonify({
-        'success': True,
-        'feedback': {'level': 'success', 'message': f'Révision {order.revision_count} livrée !'},
-        'data': {'status': order.status},
-    }), 200
+    return ok({'status': order.status}, message=f'Révision {order.revision_count} livrée !')

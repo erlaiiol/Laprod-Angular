@@ -1,11 +1,12 @@
 """
 Admin API — GET endpoints pour l'administration
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import select
 from extensions import db, csrf
 from models import Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest
+from serializers import ok, err as ser_err, track_admin, user_admin, user_ref
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
 
@@ -15,7 +16,7 @@ def _require_admin():
     user_id = int(get_jwt_identity())
     user = db.get_or_404(User, user_id)
     if not user.is_admin:
-        return None, (jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Accès réservé aux administrateurs.'}}), 403)
+        return None, ser_err('Accès réservé aux administrateurs.', status=403)
     return user, None
 
 
@@ -61,51 +62,48 @@ def get_stats():
         select(User).where(User.account_status == 'active').order_by(User.created_at.desc()).limit(5)
     ).all()
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'tracks': {
-                'pending':  pending_tracks_count,
-                'approved': approved_tracks_count,
-                'total':    total_tracks,
-            },
-            'users': {
-                'total':     total_users,
-                'premium':   premium_users,
-                'beatmakers': beatmakers_count,
-                'artists':   artists_count,
-                'engineers': engineers_count,
-            },
-            'contracts': {
-                'total':     total_contracts,
-                'exclusive': exclusive_contracts,
-                'revenue':   float(total_revenue),
-            },
-            'mixmaster': {
-                'in_progress': mm_in_progress,
-                'completed':   mm_completed,
-                'revenue':     float(mm_revenue),
-            },
-            'recent_tracks': [
-                {
-                    'id':          t.id,
-                    'title':       t.title,
-                    'image_file':  t.image_file,
-                    'approved_at': t.approved_at.isoformat() if t.approved_at else None,
-                    'composer':    {'username': t.composer_user.username} if t.composer_user else None,
-                }
-                for t in recent_tracks
-            ],
-            'recent_users': [
-                {
-                    'id':            u.id,
-                    'username':      u.username,
-                    'profile_image': u.profile_picture_url or u.profile_image,
-                    'created_at':    u.created_at.isoformat() if u.created_at else None,
-                }
-                for u in recent_users
-            ],
-        }
+    return ok({
+        'tracks': {
+            'pending':  pending_tracks_count,
+            'approved': approved_tracks_count,
+            'total':    total_tracks,
+        },
+        'users': {
+            'total':     total_users,
+            'premium':   premium_users,
+            'beatmakers': beatmakers_count,
+            'artists':   artists_count,
+            'engineers': engineers_count,
+        },
+        'contracts': {
+            'total':     total_contracts,
+            'exclusive': exclusive_contracts,
+            'revenue':   float(total_revenue),
+        },
+        'mixmaster': {
+            'in_progress': mm_in_progress,
+            'completed':   mm_completed,
+            'revenue':     float(mm_revenue),
+        },
+        'recent_tracks': [
+            {
+                'id':          t.id,
+                'title':       t.title,
+                'image_file':  t.image_file,
+                'approved_at': t.approved_at.isoformat() if t.approved_at else None,
+                'composer':    {'username': t.composer_user.username} if t.composer_user else None,
+            }
+            for t in recent_tracks
+        ],
+        'recent_users': [
+            {
+                'id':            u.id,
+                'username':      u.username,
+                'profile_image': u.profile_picture_url or u.profile_image,
+                'created_at':    u.created_at.isoformat() if u.created_at else None,
+            }
+            for u in recent_users
+        ],
     })
 
 
@@ -132,40 +130,10 @@ def get_tracks():
     pending_count  = db.session.query(Track).filter_by(is_approved=False).count()
     approved_count = db.session.query(Track).filter_by(is_approved=True).count()
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'tracks': [
-                {
-                    'id':             t.id,
-                    'title':          t.title,
-                    'bpm':            t.bpm,
-                    'key':            t.key,
-                    'style':          t.style,
-                    'image_file':     t.image_file,
-                    'stream_url':     f'/api/stream/tracks/{t.id}/preview',
-                    'price_mp3':      t.price_mp3,
-                    'price_wav':      t.price_wav,
-                    'price_stems':    t.price_stems,
-                    'is_approved':    t.is_approved,
-                    'purchase_count': t.purchase_count,
-                    'created_at':     t.created_at.isoformat() if t.created_at else None,
-                    'approved_at':    t.approved_at.isoformat() if t.approved_at else None,
-                    'composer': {
-                        'id':            t.composer_user.id,
-                        'username':      t.composer_user.username,
-                        'profile_image': t.composer_user.profile_picture_url or t.composer_user.profile_image,
-                    } if t.composer_user else None,
-                    'tags': [
-                        {'id': tag.id, 'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else None}
-                        for tag in t.tags
-                    ],
-                }
-                for t in tracks
-            ],
-            'pending_count':  pending_count,
-            'approved_count': approved_count,
-        }
+    return ok({
+        'tracks':        [track_admin(t) for t in tracks],
+        'pending_count':  pending_count,
+        'approved_count': approved_count,
     })
 
 
@@ -196,44 +164,26 @@ def get_users():
         tracks_count    = db.session.query(Track).filter_by(composer_id=u.id).count()
         contracts_count = db.session.query(Contract).filter_by(client_id=u.id).count()
         mm_count        = db.session.query(MixMasterRequest).filter_by(engineer_id=u.id).count()
-        users_data.append({
-            'id':              u.id,
-            'username':        u.username,
-            'email':           u.email,
-            'profile_image':   u.profile_picture_url or u.profile_image,
-            'account_status':  u.account_status,
-            'is_admin':        u.is_admin,
-            'is_beatmaker':    u.is_beatmaker,
-            'is_artist':       u.is_artist,
-            'is_mix_engineer': u.is_mix_engineer,
-            'is_mixmaster_engineer': u.is_mixmaster_engineer,
-            'is_certified_producer_arranger': u.is_certified_producer_arranger,
-            'producer_arranger_request_submitted': u.producer_arranger_request_submitted,
-            'is_premium':      u.is_premium,
-            'upload_track_tokens': u.upload_track_tokens,
-            'topline_tokens':  u.topline_tokens,
-            'created_at':      u.created_at.isoformat() if u.created_at else None,
-            'tracks_count':    tracks_count,
-            'contracts_count': contracts_count,
-            'mm_count':        mm_count,
-        })
+        users_data.append(user_admin(
+            u,
+            tracks_count=tracks_count,
+            contracts_count=contracts_count,
+            mm_count=mm_count,
+        ))
 
     all_count        = db.session.query(User).count()
     beatmakers_count = db.session.query(User).filter_by(is_beatmaker=True).count()
     artists_count    = db.session.query(User).filter_by(is_artist=True).count()
     engineers_count  = db.session.query(User).filter_by(is_mixmaster_engineer=True).count()
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'users': users_data,
-            'counts': {
-                'all':        all_count,
-                'beatmakers': beatmakers_count,
-                'artists':    artists_count,
-                'engineers':  engineers_count,
-            },
-        }
+    return ok({
+        'users': users_data,
+        'counts': {
+            'all':        all_count,
+            'beatmakers': beatmakers_count,
+            'artists':    artists_count,
+            'engineers':  engineers_count,
+        },
     })
 
 
@@ -247,12 +197,11 @@ def get_engineers():
     if err:
         return err
 
-    def _user_dict(u):
+    def _engineer_admin_dict(u):
+        """Fiche ingénieur pour la table admin (champs spécifiques mixmaster)."""
         return {
-            'id':              u.id,
-            'username':        u.username,
+            **user_ref(u),
             'email':           u.email,
-            'profile_image':   u.profile_picture_url or u.profile_image,
             'mixmaster_reference_price': u.mixmaster_reference_price,
             'mixmaster_price_min':       u.mixmaster_price_min,
             'mixmaster_bio':             u.mixmaster_bio,
@@ -289,26 +238,23 @@ def get_engineers():
         .order_by(PriceChangeRequest.created_at.desc())
     ).all()
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'certified':   [_user_dict(u) for u in certified],
-            'pending':     [_user_dict(u) for u in pending],
-            'pa_requests': [_user_dict(u) for u in pa_requests],
-            'price_requests': [
-                {
-                    'id':                    pr.id,
-                    'engineer_id':           pr.engineer_id,
-                    'engineer_username':     pr.engineer.username if pr.engineer else None,
-                    'current_reference_price': pr.engineer.mixmaster_reference_price if pr.engineer else None,
-                    'current_price_min':       pr.engineer.mixmaster_price_min if pr.engineer else None,
-                    'new_reference_price':   pr.new_reference_price,
-                    'new_price_min':         pr.new_price_min,
-                    'created_at':            pr.created_at.isoformat() if pr.created_at else None,
-                }
-                for pr in price_requests
-            ],
-        }
+    return ok({
+        'certified':   [_engineer_admin_dict(u) for u in certified],
+        'pending':     [_engineer_admin_dict(u) for u in pending],
+        'pa_requests': [_engineer_admin_dict(u) for u in pa_requests],
+        'price_requests': [
+            {
+                'id':                    pr.id,
+                'engineer_id':           pr.engineer_id,
+                'engineer_username':     pr.engineer.username if pr.engineer else None,
+                'current_reference_price': pr.engineer.mixmaster_reference_price if pr.engineer else None,
+                'current_price_min':       pr.engineer.mixmaster_price_min if pr.engineer else None,
+                'new_reference_price':   pr.new_reference_price,
+                'new_price_min':         pr.new_price_min,
+                'created_at':            pr.created_at.isoformat() if pr.created_at else None,
+            }
+            for pr in price_requests
+        ],
     })
 
 
@@ -330,35 +276,32 @@ def get_contracts():
     non_exclusive_count = db.session.query(Contract).filter_by(is_exclusive=False).count()
     total_revenue       = sum(c.price for c in contracts)
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'contracts': [
-                {
-                    'id':           c.id,
-                    'price':        c.price,
-                    'is_exclusive': c.is_exclusive,
-                    'format':       c.format if hasattr(c, 'format') else None,
-                    'created_at':   c.created_at.isoformat() if c.created_at else None,
-                    'track': {
-                        'id':    c.track.id,
-                        'title': c.track.title,
-                    } if c.track else None,
-                    'client': {
-                        'id':       c.client.id,
-                        'username': c.client.username,
-                    } if c.client else None,
-                    'composer': {
-                        'id':       c.composer.id,
-                        'username': c.composer.username,
-                    } if hasattr(c, 'composer') and c.composer else None,
-                }
-                for c in contracts
-            ],
-            'exclusive_count':     exclusive_count,
-            'non_exclusive_count': non_exclusive_count,
-            'total_revenue':       float(total_revenue),
-        }
+    return ok({
+        'contracts': [
+            {
+                'id':           c.id,
+                'price':        c.price,
+                'is_exclusive': c.is_exclusive,
+                'format':       c.format if hasattr(c, 'format') else None,
+                'created_at':   c.created_at.isoformat() if c.created_at else None,
+                'track': {
+                    'id':    c.track.id,
+                    'title': c.track.title,
+                } if c.track else None,
+                'client': {
+                    'id':       c.client.id,
+                    'username': c.client.username,
+                } if c.client else None,
+                'composer': {
+                    'id':       c.composer.id,
+                    'username': c.composer.username,
+                } if hasattr(c, 'composer') and c.composer else None,
+            }
+            for c in contracts
+        ],
+        'exclusive_count':     exclusive_count,
+        'non_exclusive_count': non_exclusive_count,
+        'total_revenue':       float(total_revenue),
     })
 
 
@@ -394,35 +337,32 @@ def get_transactions():
         select(db.func.sum(MixMasterRequest.total_price)).where(MixMasterRequest.status == 'completed')
     ) or 0
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'transactions': [
-                {
-                    'id':          t.id,
-                    'status':      t.status,
-                    'total_price': t.total_price,
-                    'created_at':  t.created_at.isoformat() if t.created_at else None,
-                    'completed_at': t.completed_at.isoformat() if t.completed_at else None,
-                    'artist': {
-                        'id':       t.artist_user.id,
-                        'username': t.artist_user.username,
-                    } if t.artist_user else None,
-                    'engineer': {
-                        'id':       t.engineer_user.id,
-                        'username': t.engineer_user.username,
-                    } if t.engineer_user else None,
-                }
-                for t in transactions
-            ],
-            'counts': {
-                'all':         all_count,
-                'awaiting':    awaiting_count,
-                'in_progress': in_progress_count,
-                'completed':   completed_count,
-            },
-            'total_revenue': float(total_revenue),
-        }
+    return ok({
+        'transactions': [
+            {
+                'id':          t.id,
+                'status':      t.status,
+                'total_price': t.total_price,
+                'created_at':  t.created_at.isoformat() if t.created_at else None,
+                'completed_at': t.completed_at.isoformat() if t.completed_at else None,
+                'artist': {
+                    'id':       t.artist_user.id,
+                    'username': t.artist_user.username,
+                } if t.artist_user else None,
+                'engineer': {
+                    'id':       t.engineer_user.id,
+                    'username': t.engineer_user.username,
+                } if t.engineer_user else None,
+            }
+            for t in transactions
+        ],
+        'counts': {
+            'all':         all_count,
+            'awaiting':    awaiting_count,
+            'in_progress': in_progress_count,
+            'completed':   completed_count,
+        },
+        'total_revenue': float(total_revenue),
     })
 
 
@@ -457,7 +397,7 @@ def get_all_mix_engineers():
             'created_at': u.created_at.isoformat() if u.created_at else None,
         }
 
-    return jsonify({'success': True, 'data': {'engineers': [_u(u) for u in users]}})
+    return ok({'engineers': [_u(u) for u in users]})
 
 
 # ── Search (for contract creation) ────────────────────────────────────────────
@@ -472,7 +412,7 @@ def search_users():
 
     q = request.args.get('q', '').strip()
     if len(q) < 2:
-        return jsonify({'success': True, 'data': {'users': []}})
+        return ok({'users': []})
 
     users = db.session.scalars(
         select(User)
@@ -480,10 +420,10 @@ def search_users():
         .limit(10)
     ).all()
 
-    return jsonify({'success': True, 'data': {'users': [
+    return ok({'users': [
         {'id': u.id, 'username': u.username, 'email': u.email}
         for u in users
-    ]}})
+    ]})
 
 
 @admin_api_bp.route('/tracks/search', methods=['GET'])
@@ -496,7 +436,7 @@ def search_tracks():
 
     q = request.args.get('q', '').strip()
     if len(q) < 2:
-        return jsonify({'success': True, 'data': {'tracks': []}})
+        return ok({'tracks': []})
 
     tracks = db.session.scalars(
         select(Track)
@@ -504,7 +444,7 @@ def search_tracks():
         .limit(10)
     ).all()
 
-    return jsonify({'success': True, 'data': {'tracks': [
+    return ok({'tracks': [
         {
             'id':    t.id,
             'title': t.title,
@@ -515,7 +455,7 @@ def search_tracks():
             'price_stems': t.price_stems,
         }
         for t in tracks
-    ]}})
+    ]})
 
 
 # ── Categories & Tags ─────────────────────────────────────────────────────────
@@ -543,10 +483,7 @@ def get_categories():
             ],
         })
 
-    return jsonify({
-        'success': True,
-        'data': {'categories': categories_data}
-    })
+    return ok({'categories': categories_data})
 
 
 # ── Styles ────────────────────────────────────────────────────────────────────
@@ -568,4 +505,4 @@ def get_styles():
         .order_by(Track.style)
     ).scalars().all()
 
-    return jsonify({'success': True, 'data': {'styles': list(styles)}})
+    return ok({'styles': list(styles)})

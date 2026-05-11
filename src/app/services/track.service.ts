@@ -38,8 +38,9 @@ export interface Track {
   key:           string;
   style:         string;
   price_mp3:     number;
-  tags:          { id: number, name: string; category: string; color: string }[];  // tableau d'objets
-  is_approved:   boolean;
+  tags:            { id: number, name: string; category: string; color: string }[];  // tableau d'objets
+  is_approved:     boolean;
+  full_stream_url: string | null;
 }
 
 // Correspond au JSON global retourné par jsonify({...}) dans get_tracks()

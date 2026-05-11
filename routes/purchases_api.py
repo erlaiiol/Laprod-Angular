@@ -1,11 +1,12 @@
 """
 Purchases API — GET /purchases : historique d'achats de l'utilisateur connecté
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import select
 from extensions import db, csrf
 from models import Purchase, Track, MixMasterRequest
+from serializers import ok, err
 
 purchases_api_bp = Blueprint('purchases_api', __name__, url_prefix='/api/purchases')
 
@@ -74,12 +75,9 @@ def get_my_purchases():
         for o in mm_orders
     ]
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'purchases':      data,
-            'total_spent':    round(sum(p.price_paid for p in purchases), 2),
-            'mm_orders':      mm_data,
-            'mm_total_spent': round(sum(o.total_price or 0 for o in mm_orders), 2),
-        },
-    }), 200
+    return ok({
+        'purchases':      data,
+        'total_spent':    round(sum(p.price_paid for p in purchases), 2),
+        'mm_orders':      mm_data,
+        'mm_total_spent': round(sum(o.total_price or 0 for o in mm_orders), 2),
+    })

@@ -89,6 +89,9 @@ class User(UserMixin, db.Model):
     topline_tokens = db.Column(db.Integer, default=5)  # Free: 5 crédits/semaine
     last_topline_reset = db.Column(db.Date, default=date.today)  # Date dernier reset hebdo
 
+    #  PRÉFÉRENCES D'AFFICHAGE
+    preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
+
     # Relations
     tracks = db.relationship('Track', backref='composer_user', lazy=True, cascade='all, delete-orphan')
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')

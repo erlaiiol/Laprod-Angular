@@ -3,7 +3,7 @@ Payment Mixmaster API — Vérification du paiement Stripe après checkout.
 L'artiste est redirigé depuis Stripe vers /mix/payment-success?session_id=...
 Angular appelle ensuite POST /mixmaster-payment/verify avec {session_id}.
 """
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, csrf
 from models import User, MixMasterRequest
@@ -13,6 +13,7 @@ from utils.stripe_logger import (
     log_stripe_payment_intent_created, log_stripe_error,
 )
 from utils.archive_utils import get_archive_file_tree
+from serializers import ok, err
 import stripe
 import stripe._error as stripe_error
 from datetime import datetime
@@ -36,41 +37,37 @@ def verify_payment():
     session_id = data.get('session_id', '').strip()
 
     if not session_id:
-        return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': 'session_id requis.'}}), 400
+        return err('session_id requis.', level='warning')
 
     try:
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         payment_intent_id = checkout_session.payment_intent
 
         if not payment_intent_id:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Aucun Payment Intent trouvé.'}}), 400
+            return err('Aucun Payment Intent trouvé.')
 
         payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
 
         if payment_intent.status != 'succeeded':
-            return jsonify({'success': False, 'feedback': {'level': 'warning', 'message': f'Paiement non confirmé (statut : {payment_intent.status}).'}}), 400
+            return err(f'Paiement non confirmé (statut : {payment_intent.status}).', level='warning')
 
         meta = payment_intent.metadata
 
         # Vérification de sécurité : l'artiste JWT correspond à la metadata
         if int(meta.get('artist_id', -1)) != user_id:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Cette commande ne vous appartient pas.'}}), 403
+            return err('Cette commande ne vous appartient pas.', status=403)
 
         # Idempotence : MixMasterRequest déjà créé ?
         existing = db.session.query(MixMasterRequest).filter_by(
             stripe_payment_intent_id=payment_intent_id
         ).first()
         if existing:
-            return jsonify({
-                'success': True,
-                'feedback': {'level': 'info', 'message': 'Demande déjà enregistrée.'},
-                'data': {'order_id': existing.id},
-            }), 200
+            return ok({'order_id': existing.id}, message='Demande déjà enregistrée.', level='info')
 
         engineer_id = int(meta.get('engineer_id'))
         engineer    = db.session.get(User, engineer_id)
         if not engineer:
-            return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Ingénieur introuvable.'}}), 404
+            return err('Ingénieur introuvable.', status=404)
 
         mm = MixMasterRequest(
             title                = meta.get('title', 'Mix/Master')[:50],
@@ -141,16 +138,12 @@ def verify_payment():
         except Exception as e:
             current_app.logger.error(f'Erreur envoi email mixmaster #{mm.id}: {e}', exc_info=True)
 
-        return jsonify({
-            'success': True,
-            'feedback': {'level': 'success', 'message': 'Paiement confirmé ! Votre demande a été envoyée à l\'ingénieur.'},
-            'data': {'order_id': mm.id},
-        }), 200
+        return ok({'order_id': mm.id}, message="Paiement confirmé ! Votre demande a été envoyée à l'ingénieur.")
 
     except stripe_error.StripeError as e:
         log_stripe_error(operation='verify_mixmaster_payment', error_message=str(e),
                          resource_type='mixmaster', session_id=session_id)
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': f'Erreur Stripe : {str(e)}'}}), 502
+        return err(f'Erreur Stripe : {str(e)}', status=502)
     except Exception as e:
         current_app.logger.error(f'verify_payment #{session_id}: {e}', exc_info=True)
-        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Erreur serveur.'}}), 500
+        return err('Erreur serveur.', status=500)

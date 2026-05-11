@@ -6,7 +6,7 @@ POST  /api/stripe/setup-url     → Crée ou récupère l'URL d'onboarding
 POST  /api/stripe/dashboard-url → Lien vers l'Express Dashboard Stripe
 POST  /api/stripe/refresh       → Rafraîchit le statut depuis Stripe
 """
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import db, csrf
@@ -17,24 +17,9 @@ from stripe_connect_helpers import (
     check_account_status,
     create_dashboard_link,
 )
+from serializers import ok, err
 
 stripe_connect_api_bp = Blueprint('stripe_connect_api', __name__, url_prefix='/api/stripe-connect')
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _ok(data=None, message='', status=200):
-    body = {'success': True, 'feedback': {'level': 'success', 'message': message}}
-    if data is not None:
-        body['data'] = data
-    return jsonify(body), status
-
-
-def _err(message, level='error', code=None, status=400):
-    body = {'success': False, 'feedback': {'level': level, 'message': message}}
-    if code:
-        body['code'] = code
-    return jsonify(body), status
 
 
 # ── GET /api/stripe/status ─────────────────────────────────────────────────────
@@ -46,9 +31,9 @@ def get_status():
     current_user_id = int(get_jwt_identity())
     user = db.session.get(User, current_user_id)
     if not user:
-        return _err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
+        return err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
 
-    return _ok(data={
+    return ok(data={
         'stripe_account_id':          user.stripe_account_id,
         'stripe_onboarding_complete': user.stripe_onboarding_complete,
         'stripe_account_status':      user.stripe_account_status,
@@ -70,10 +55,10 @@ def get_setup_url():
     current_user_id = int(get_jwt_identity())
     user = db.session.get(User, current_user_id)
     if not user:
-        return _err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
+        return err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
 
     if not (user.is_beatmaker or user.is_mix_engineer):
-        return _err(
+        return err(
             'Réservé aux beatmakers et mix engineers.', code='FORBIDDEN', status=403,
         )
 
@@ -86,7 +71,7 @@ def get_setup_url():
         if not user.stripe_account_id:
             result = create_connect_account(user)
             if not result.get('success'):
-                return _err(
+                return err(
                     result.get('message', 'Erreur création compte.'),
                     code='STRIPE_ERROR', status=500,
                 )
@@ -95,11 +80,11 @@ def get_setup_url():
         account_link = create_account_link(user, return_url=return_url, refresh_url=refresh_url)
         url = account_link.get('url') if isinstance(account_link, dict) else account_link.url
 
-        return _ok(data={'url': url})
+        return ok(data={'url': url})
 
     except Exception as e:
         current_app.logger.error(f"Erreur setup Stripe Connect: {e}", exc_info=True)
-        return _err(str(e), code='STRIPE_ERROR', status=500)
+        return err(str(e), code='STRIPE_ERROR', status=500)
 
 
 # ── POST /api/stripe/dashboard-url ────────────────────────────────────────────
@@ -112,15 +97,15 @@ def get_dashboard_url():
     current_user_id = int(get_jwt_identity())
     user = db.session.get(User, current_user_id)
     if not user or not user.stripe_account_id:
-        return _err('Compte Stripe Connect non configuré.', code='NOT_FOUND', status=404)
+        return err('Compte Stripe Connect non configuré.', code='NOT_FOUND', status=404)
 
     try:
         link = create_dashboard_link(user.stripe_account_id)
         url  = link.get('url') if isinstance(link, dict) else link.url
-        return _ok(data={'url': url})
+        return ok(data={'url': url})
     except Exception as e:
         current_app.logger.error(f"Erreur dashboard Stripe: {e}", exc_info=True)
-        return _err(str(e), code='STRIPE_ERROR', status=500)
+        return err(str(e), code='STRIPE_ERROR', status=500)
 
 
 # ── POST /api/stripe/refresh ───────────────────────────────────────────────────
@@ -133,7 +118,7 @@ def refresh_status():
     current_user_id = int(get_jwt_identity())
     user = db.session.get(User, current_user_id)
     if not user or not user.stripe_account_id:
-        return _err('Compte Stripe non configuré.', code='NOT_FOUND', status=404)
+        return err('Compte Stripe non configuré.', code='NOT_FOUND', status=404)
 
     try:
         status_data = check_account_status(user.stripe_account_id)
@@ -142,10 +127,10 @@ def refresh_status():
             user.stripe_account_status      = status_data.get('status', 'pending')
         db.session.commit()
 
-        return _ok(data={
+        return ok(data={
             'stripe_onboarding_complete': user.stripe_onboarding_complete,
             'stripe_account_status':      user.stripe_account_status,
         })
     except Exception as e:
         current_app.logger.error(f"Erreur refresh Stripe Connect: {e}", exc_info=True)
-        return _err(str(e), code='STRIPE_ERROR', status=500)
+        return err(str(e), code='STRIPE_ERROR', status=500)

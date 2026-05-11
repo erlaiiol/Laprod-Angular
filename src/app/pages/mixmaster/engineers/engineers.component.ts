@@ -55,15 +55,16 @@ export class MixmasterEngineersComponent implements OnInit {
     const track: Track = {
       id:            0,
       title:         label === 'Brut' ? 'Version brute' : 'Version traitée',
-      stream_url:    relativeUrl,
-      image_file:    '',          // placeholder affiché dans le player
-      composer_user: { username: eng.username },
-      bpm:           0,
-      key:           '',
-      style:         '',
-      price_mp3:     0,
-      tags:          [],
-      is_approved:   true,
+      stream_url:      relativeUrl,
+      full_stream_url: null,
+      image_file:      '',          // placeholder affiché dans le player
+      composer_user:   { username: eng.username },
+      bpm:             0,
+      key:             '',
+      style:           '',
+      price_mp3:       0,
+      tags:            [],
+      is_approved:     true,
     };
     this.player.play(track);
   }

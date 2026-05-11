@@ -4,30 +4,15 @@ Blueprint CONTRACTS API — GET endpoints pour les données d'achats/ventes (fro
 GET  /api/contracts/my      → Achats de l'utilisateur connecté (jwt_required)
 GET  /api/contracts/sales   → Ventes de l'utilisateur connecté  (jwt_required)
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.orm import selectinload
 
 from extensions import db
 from models import Purchase, Track
+from serializers import ok
 
 contracts_api_bp = Blueprint('contracts_api', __name__, url_prefix='/api/contracts')
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _ok(data=None, message='', status=200):
-    body = {'success': True, 'feedback': {'level': 'success', 'message': message}}
-    if data is not None:
-        body['data'] = data
-    return jsonify(body), status
-
-
-def _err(message, level='error', code=None, status=400):
-    body = {'success': False, 'feedback': {'level': level, 'message': message}}
-    if code:
-        body['code'] = code
-    return jsonify(body), status
 
 
 def _purchase_dict(p):
@@ -70,7 +55,7 @@ def get_my_purchases():
         .all()
     )
 
-    return _ok(data={'purchases': [_purchase_dict(p) for p in purchases]})
+    return ok(data={'purchases': [_purchase_dict(p) for p in purchases]})
 
 
 # ── GET /api/contracts/sales ───────────────────────────────────────────────────
@@ -94,7 +79,7 @@ def get_my_sales():
 
     total_revenue = sum(s.composer_revenue for s in sales)
 
-    return _ok(data={
+    return ok(data={
         'sales':         [_purchase_dict(s) for s in sales],
         'total_revenue': round(total_revenue, 2),
     })
