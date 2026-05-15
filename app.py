@@ -220,14 +220,11 @@ def create_app():
     from routes import (
         premium_bp,
         tracks_api_bp,
-        cud_tracks_api_bp,
         tags_filters_api_bp,
         auth_api_bp,
         toplines_api_bp,
-        cud_toplines_api_bp,
         payment_track_api_bp,
         wallet_api_bp,
-        cud_wallet_api_bp,
         contracts_api_bp,
         stripe_connect_api_bp,
         main_api_bp,
@@ -240,22 +237,17 @@ def create_app():
         payment_mixmaster_api_bp,
         mixmaster_media_api_bp,
         admin_api_bp,
-        cud_admin_api_bp,
-        job_status_api
+        job_status_api,
     )
     from routes.streaming_service import streaming_bp
 
-
     app.register_blueprint(premium_bp)
     app.register_blueprint(tracks_api_bp)
-    app.register_blueprint(cud_tracks_api_bp)
     app.register_blueprint(tags_filters_api_bp)
     app.register_blueprint(auth_api_bp)
     app.register_blueprint(toplines_api_bp)
-    app.register_blueprint(cud_toplines_api_bp)
     app.register_blueprint(payment_track_api_bp)
     app.register_blueprint(wallet_api_bp)
-    app.register_blueprint(cud_wallet_api_bp)
     app.register_blueprint(contracts_api_bp)
     app.register_blueprint(stripe_connect_api_bp)
     app.register_blueprint(main_api_bp)
@@ -269,7 +261,6 @@ def create_app():
     app.register_blueprint(payment_mixmaster_api_bp)
     app.register_blueprint(mixmaster_media_api_bp)
     app.register_blueprint(admin_api_bp)
-    app.register_blueprint(cud_admin_api_bp)
     app.register_blueprint(job_status_api)
 
     if is_main_process:

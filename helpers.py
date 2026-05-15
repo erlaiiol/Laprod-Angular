@@ -14,7 +14,6 @@ def admin_required(f):
     
     Usage:
         @app.route('/admin/...')
-        @login_required
         @admin_required
         def ma_fonction_admin():
             ...

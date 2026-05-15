@@ -2,21 +2,21 @@
 Blueprint API - Routes REST pour tags et catégories
 API JSON pour la gestion des tags et catégories (CRUD)
 """
-from flask import Blueprint, render_template, request, flash, abort, current_app
-from flask_login import login_required, current_user
-from flask_wtf.csrf import generate_csrf, validate_csrf
-from werkzeug.exceptions import BadRequest
-from extensions import db
+from flask import Blueprint, request, current_app
+from flask_jwt_extended import jwt_required
+from extensions import db, csrf
 from models import Tag, Category
-from helpers import admin_required
 from serializers import ok, err
+from utils.auth_helpers import require_admin
+from utils.crud_helpers import commit_or_rollback
 
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, distinct
 from sqlalchemy.orm import selectinload
 
 tags_filters_api_bp = Blueprint('tags_filters_api', __name__, url_prefix='/api/filters')
 
 
+# ── GET public ────────────────────────────────────────────────────────────────
 
 @tags_filters_api_bp.route('/tags/all', methods=['GET'])
 def get_all_tags():
@@ -27,7 +27,6 @@ def get_all_tags():
     → GET /filters/tags/all
     """
     from models import Track
-    from sqlalchemy import distinct
 
     try:
         # ── Tags ──────────────────────────────────────────────────────────────
@@ -66,10 +65,10 @@ def get_all_tags():
         current_app.logger.warning(f'Erreur API get_all_tags(): {e}')
         return err('Erreur lors du chargement des filtres', status=500)
 
+
 @tags_filters_api_bp.route('/tag/<int:tag_id>', methods=['GET'])
 def get_tag(tag_id):
     """Récuperer 1 tag et sa catégorie"""
-
     try:
         tag = db.get_or_404(Tag, tag_id)
         return ok({'tag': {
@@ -85,18 +84,15 @@ def get_tag(tag_id):
         return err('Tag introuvable', status=404)
 
 
-# ============================================
-# ROUTES CUD TAGS — admin uniquement
-# ============================================
+# ── CUD Tags — admin uniquement ───────────────────────────────────────────────
 
 @tags_filters_api_bp.route('/tags', methods=['POST'])
-@login_required
-def create_tag():
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def create_tag(current_user):
     """Créer un tag (admin seulement) — POST /filters/tags"""
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     data = request.get_json()
     if not data:
         return err('Corps JSON manquant', level='warning')
@@ -126,31 +122,24 @@ def create_tag():
 
     tag = Tag(name=tag_name, category_id=category_id)
     db.session.add(tag)
-
-    try:
-        db.session.commit()
-        return ok({'tag': {
-            'id':   tag.id,
-            'name': tag.name,
-            'category': {
-                'name':  tag.category_obj.name  if tag.category_obj else 'other',
-                'color': tag.category_obj.color if tag.category_obj else '#6b7280'
-            }
-        }}, message=f'Tag "{tag.name}" créé', level='info', status=201)
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur création tag: {e}')
-        return err('Erreur lors de la création du tag', status=500)
+    db.session.commit()
+    return ok({'tag': {
+        'id':   tag.id,
+        'name': tag.name,
+        'category': {
+            'name':  tag.category_obj.name  if tag.category_obj else 'other',
+            'color': tag.category_obj.color if tag.category_obj else '#6b7280'
+        }
+    }}, message=f'Tag "{tag.name}" créé', level='info', status=201)
 
 
 @tags_filters_api_bp.route('/tag/<int:tag_id>', methods=['PUT'])
-@login_required
-def update_tag(tag_id):
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def update_tag(tag_id, current_user):
     """Modifier un tag (admin seulement) — PUT /filters/tag/<id>"""
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     tag = db.get_or_404(Tag, tag_id)
     data = request.get_json()
     if not data:
@@ -172,55 +161,40 @@ def update_tag(tag_id):
             return err('Catégorie introuvable', level='warning', status=404)
         tag.category_id = category_id
 
-    try:
-        db.session.commit()
-        return ok({'tag': {
-            'id':   tag.id,
-            'name': tag.name,
-            'category': {
-                'name':  tag.category_obj.name  if tag.category_obj else 'other',
-                'color': tag.category_obj.color if tag.category_obj else '#6b7280'
-            }
-        }}, message='Tag mis à jour', level='info')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur mise à jour tag #{tag_id}: {e}')
-        return err('Erreur lors de la mise à jour', status=500)
+    db.session.commit()
+    return ok({'tag': {
+        'id':   tag.id,
+        'name': tag.name,
+        'category': {
+            'name':  tag.category_obj.name  if tag.category_obj else 'other',
+            'color': tag.category_obj.color if tag.category_obj else '#6b7280'
+        }
+    }}, message='Tag mis à jour', level='info')
 
 
 @tags_filters_api_bp.route('/tag/<int:tag_id>', methods=['DELETE'])
-@login_required
-def delete_tag(tag_id):
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def delete_tag(tag_id, current_user):
     """Supprimer un tag (admin seulement) — DELETE /filters/tag/<id>"""
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     tag = db.get_or_404(Tag, tag_id)
     tag_name = tag.name
-
-    try:
-        db.session.delete(tag)
-        db.session.commit()
-        return ok(message=f'Tag "{tag_name}" supprimé', level='info')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur suppression tag #{tag_id}: {e}')
-        return err('Erreur lors de la suppression', status=500)
+    db.session.delete(tag)
+    db.session.commit()
+    return ok(message=f'Tag "{tag_name}" supprimé', level='info')
 
 
-# ============================================
-# ROUTES CUD CATÉGORIES — admin uniquement
-# ============================================
+# ── CUD Catégories — admin uniquement ────────────────────────────────────────
 
 @tags_filters_api_bp.route('/categories', methods=['POST'])
-@login_required
-def create_category():
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def create_category(current_user):
     """Créer une catégorie (admin seulement) — POST /filters/categories"""
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     data = request.get_json()
     if not data:
         return err('Corps JSON manquant', level='warning')
@@ -236,27 +210,20 @@ def create_category():
 
     category = Category(name=category_name, color=category_color)
     db.session.add(category)
-
-    try:
-        db.session.commit()
-        return ok(
-            {'category': {'id': category.id, 'name': category.name, 'color': category.color}},
-            message=f'Catégorie "{category.name}" créée', level='info', status=201,
-        )
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur création catégorie: {e}')
-        return err('Erreur lors de la création', status=500)
+    db.session.commit()
+    return ok(
+        {'category': {'id': category.id, 'name': category.name, 'color': category.color}},
+        message=f'Catégorie "{category.name}" créée', level='info', status=201,
+    )
 
 
 @tags_filters_api_bp.route('/category/<int:category_id>', methods=['PUT'])
-@login_required
-def update_category(category_id):
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def update_category(category_id, current_user):
     """Modifier une catégorie (admin seulement) — PUT /filters/category/<id>"""
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     category = db.get_or_404(Category, category_id)
     data = request.get_json()
     if not data:
@@ -273,29 +240,23 @@ def update_category(category_id):
     if 'color' in data:
         category.color = data['color']
 
-    try:
-        db.session.commit()
-        return ok(
-            {'category': {'id': category.id, 'name': category.name, 'color': category.color}},
-            message='Catégorie mise à jour', level='info',
-        )
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur mise à jour catégorie #{category_id}: {e}')
-        return err('Erreur lors de la mise à jour', status=500)
+    db.session.commit()
+    return ok(
+        {'category': {'id': category.id, 'name': category.name, 'color': category.color}},
+        message='Catégorie mise à jour', level='info',
+    )
 
 
 @tags_filters_api_bp.route('/category/<int:category_id>', methods=['DELETE'])
-@login_required
-def delete_category(category_id):
+@jwt_required()
+@csrf.exempt
+@require_admin
+@commit_or_rollback
+def delete_category(category_id, current_user):
     """
     Supprimer une catégorie (admin seulement) — DELETE /filters/category/<id>
     Les tags associés sont réassignés à la catégorie "other"
     """
-
-    if not current_user.is_admin:
-        return err('Accès refusé', status=403)
-
     category = db.get_or_404(Category, category_id)
 
     if category.name == 'other':
@@ -311,11 +272,5 @@ def delete_category(category_id):
     reassigned = db.session.query(Tag).filter_by(category_id=category_id).count()
     db.session.query(Tag).filter_by(category_id=category_id).update({'category_id': other.id})
     db.session.delete(category)
-
-    try:
-        db.session.commit()
-        return ok(message=f'Catégorie supprimée. {reassigned} tag(s) réassigné(s) à "other".', level='info')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Erreur suppression catégorie #{category_id}: {e}')
-        return err('Erreur lors de la suppression', status=500)
+    db.session.commit()
+    return ok(message=f'Catégorie supprimée. {reassigned} tag(s) réassigné(s) à "other".', level='info')

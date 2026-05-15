@@ -1,12 +1,10 @@
 """
 Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
-import code
 import re
 import time
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, jsonify
-# NOTE: jsonify kept for /ping healthcheck (non-standard shape) and OAuth redirects
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, request, redirect, url_for, current_app, jsonify
+# NOTE: jsonify kept for /ping healthcheck (non-standard shape)
 from werkzeug.utils import secure_filename
 from email_validator import validate_email, EmailNotValidError
 import os
@@ -22,6 +20,8 @@ from models import User, PriceChangeRequest
 from helpers import sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens
 from utils import email_service, notification_service
 from serializers import ok, err, user_auth
+from utils.auth_helpers import require_user
+from utils.crud_helpers import commit_or_rollback
 
 from flask_jwt_extended import (
     create_access_token,
@@ -190,17 +190,9 @@ def login():
 @auth_api_bp.route('/me', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_identity():
-
-    try:
-        user_id = int(get_jwt_identity())
-        user = db.get_or_404(User, user_id)
-
-        return ok({'user': user_auth(user, notif_count=notification_service.get_unread_count(user.id))})
-
-    except Exception as e:
-        current_app.logger.warning(f'get_identity() n`est pas parvenu à identifier l`utilisateur {e}')
-        return err('Session expirée. Déconnecté.', status=500)
+@require_user
+def get_identity(current_user):
+    return ok({'user': user_auth(current_user, notif_count=notification_service.get_unread_count(current_user.id))})
 
 
 @auth_api_bp.route('/logout', methods=['POST'])
@@ -407,14 +399,13 @@ def resend_verification():
 @auth_api_bp.route('/select-role', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def select_role():
+@require_user
+@commit_or_rollback
+def select_role(current_user):
     """
     Sélection du/des rôle(s) utilisateur (obligatoire après inscription).
     Body JSON : { is_artist, is_beatmaker, is_mix_engineer }
     """
-    user_id = int(get_jwt_identity())
-    user    = db.get_or_404(User, user_id)
-
     data            = request.get_json() or {}
     is_artist       = bool(data.get('is_artist',       False))
     is_beatmaker    = bool(data.get('is_beatmaker',    False))
@@ -423,28 +414,23 @@ def select_role():
     if not (is_artist or is_beatmaker or is_mix_engineer):
         return err('Vous devez sélectionner au moins un rôle.', level='warning')
 
-    first_selection = not user.user_type_selected
+    first_selection = not current_user.user_type_selected
 
-    try:
-        user.is_artist          = is_artist
-        user.is_beatmaker       = is_beatmaker
-        user.is_mix_engineer    = is_mix_engineer
-        user.user_type_selected = True
+    current_user.is_artist          = is_artist
+    current_user.is_beatmaker       = is_beatmaker
+    current_user.is_mix_engineer    = is_mix_engineer
+    current_user.user_type_selected = True
 
-        # Notification Stripe Connect à la première sélection de rôle
-        if first_selection and (is_beatmaker or is_mix_engineer):
-            notification_service.notify_stripe_connect_setup(user.id)
+    # Notification Stripe Connect à la première sélection de rôle
+    if first_selection and (is_beatmaker or is_mix_engineer):
+        notification_service.notify_stripe_connect_setup(current_user.id)
 
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'select_role error: {e}', exc_info=True)
-        return err('Erreur serveur.', status=500)
+    db.session.commit()
 
     # Mix/master → page de soumission d'échantillon ; sinon → accueil
     next_page = 'submit-sample' if is_mix_engineer else '/'
 
-    return ok({'user': _user_payload(user), 'next': next_page},
+    return ok({'user': _user_payload(current_user), 'next': next_page},
               message='Profil mis à jour avec succès !', level='info')
 
 
@@ -479,12 +465,10 @@ def _user_payload(user):
 @auth_api_bp.route('/submit-mixmaster-sample', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def submit_mixmaster_sample():
+@require_user
+def submit_mixmaster_sample(current_user):
     """Soumet un échantillon audio pour la certification Mix/Master Engineer."""
-    user_id = int(get_jwt_identity())
-    user    = db.session.get(User, user_id)
-
-    if not user or not user.is_mix_engineer:
+    if not current_user.is_mix_engineer:
         return err('Rôle Mix/Master Engineer requis.', status=403)
 
     # ── Tarifs ──────────────────────────────────────────────────────────────
@@ -541,8 +525,8 @@ def submit_mixmaster_sample():
         config.MIXMASTER_SAMPLES_FOLDER.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-        raw_name  = f"{user_id}_{ts}_raw_{secure_filename(raw_file.filename)}"
-        proc_name = f"{user_id}_{ts}_processed_{secure_filename(processed_file.filename)}"
+        raw_name  = f"{current_user.id}_{ts}_raw_{secure_filename(raw_file.filename)}"
+        proc_name = f"{current_user.id}_{ts}_processed_{secure_filename(processed_file.filename)}"
 
         raw_file.save(config.MIXMASTER_SAMPLES_FOLDER / raw_name)
         processed_file.save(config.MIXMASTER_SAMPLES_FOLDER / proc_name)
@@ -550,19 +534,19 @@ def submit_mixmaster_sample():
         raw_path  = Path('db_assets', 'mixmaster', 'samples', raw_name).as_posix()
         proc_path = Path('db_assets', 'mixmaster', 'samples', proc_name).as_posix()
 
-        user.mixmaster_reference_price   = reference_price
-        user.mixmaster_price_min         = price_min
-        user.mixmaster_bio               = bio
-        user.mixmaster_sample_raw        = raw_path
-        user.mixmaster_sample_processed  = proc_path
-        user.mixmaster_sample_submitted  = True
+        current_user.mixmaster_reference_price   = reference_price
+        current_user.mixmaster_price_min         = price_min
+        current_user.mixmaster_bio               = bio
+        current_user.mixmaster_sample_raw        = raw_path
+        current_user.mixmaster_sample_processed  = proc_path
+        current_user.mixmaster_sample_submitted  = True
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'submit_mixmaster_sample error: {e}', exc_info=True)
         return err('Erreur serveur.', status=500)
 
-    current_app.logger.info(f'Mixmaster sample submitted by user #{user_id}')
+    current_app.logger.info(f'Mixmaster sample submitted by user #{current_user.id}')
     return ok(message='Candidature soumise ! Notre équipe évaluera votre travail.', level='info')
 
 
@@ -771,19 +755,17 @@ def jwt_token_refresh():
 @auth_api_bp.route('/complete-oauth-profile', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def complete_oauth_profile():
+@require_user
+@commit_or_rollback
+def complete_oauth_profile(current_user):
     """
     Finalise le profil d'un utilisateur créé via Google OAuth.
     Appelé une seule fois par les nouveaux comptes Google (account_status = pending_completion).
     Body JSON : { username, signature, accept_terms }
     """
+    current_app.logger.debug(f'complete_oauth_profile() called {current_user}')
 
-    user_id = int(get_jwt_identity())
-    user    = db.get_or_404(User, user_id)
-
-    current_app.logger.debug(f'complete_oauth_profile() called {user}')
-
-    if user.account_status != 'pending_completion':
+    if current_user.account_status != 'pending_completion':
         return err('Profil déjà complété.', level='warning')
 
     data = request.get_json() or {}
@@ -803,28 +785,23 @@ def complete_oauth_profile():
     if not accept_terms:
         return err("Veuillez accepter les conditions d'utilisation.", level='warning')
 
-    if db.session.query(User).filter(User.username == username, User.id != user_id).first():
+    if db.session.query(User).filter(User.username == username, User.id != current_user.id).first():
         return err("Nom d'utilisateur déjà pris.", level='warning')
 
-    try:
-        user.username          = username
-        user.signature         = sanitize_html(signature)
-        user.terms_accepted_at = datetime.now()
-        user.account_status    = 'active'
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'complete_oauth_profile error: {e}', exc_info=True)
-        return err('Erreur serveur.', status=500)
+    current_user.username          = username
+    current_user.signature         = sanitize_html(signature)
+    current_user.terms_accepted_at = datetime.now()
+    current_user.account_status    = 'active'
+    db.session.commit()
 
     # Émettre de nouveaux tokens sans le claim `oauth_incomplete`
-    access_token  = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
+    access_token  = create_access_token(identity=str(current_user.id))
+    refresh_token = create_refresh_token(identity=str(current_user.id))
     decoded = decode_token(refresh_token)
-    store_refresh_token(user.id, decoded['jti'], int(decoded['exp'] - time.time()))
+    store_refresh_token(current_user.id, decoded['jti'], int(decoded['exp'] - time.time()))
 
     return ok({
         'tokens': {'access_token': access_token, 'refresh_token': refresh_token},
-        'user':   _user_payload(user),
-        'next':   'select-role' if not user.user_type_selected else '/',
-    }, message=f'Bienvenue {user.username} !', level='info')
+        'user':   _user_payload(current_user),
+        'next':   'select-role' if not current_user.user_type_selected else '/',
+    }, message=f'Bienvenue {current_user.username} !', level='info')

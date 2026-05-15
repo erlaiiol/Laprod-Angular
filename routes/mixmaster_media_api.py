@@ -6,11 +6,12 @@ Les fichiers ne sont pas servis via /static/ (accès public) mais via cet endpoi
 qui vérifie le JWT et l'appartenance avant de renvoyer le fichier.
 """
 from flask import Blueprint, current_app, abort, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from extensions import db, csrf
 from models import MixMasterRequest
 from pathlib import Path
 from serializers import err
+from utils.auth_helpers import require_user
 
 mixmaster_media_api_bp = Blueprint(
     'mixmaster_media_api', __name__, url_prefix='/api/mixmaster-media'
@@ -27,7 +28,8 @@ ALLOWED_TYPES = {
 @mixmaster_media_api_bp.route('/<int:order_id>/<string:media_type>', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_media(order_id: int, media_type: str):
+@require_user
+def get_media(order_id: int, media_type: str, current_user):
     """
     Sert le fichier audio/archive d'une commande de mixage.
     Accessible uniquement à l'artiste ou à l'engineer de la commande.
@@ -37,14 +39,12 @@ def get_media(order_id: int, media_type: str):
     if media_type not in ALLOWED_TYPES:
         return err('Type de média invalide.')
 
-    user_id = int(get_jwt_identity())
-
     order = db.session.get(MixMasterRequest, order_id)
     if not order:
         abort(404)
 
     # Vérification appartenance : artiste OU engineer de la commande
-    if order.artist_id != user_id and order.engineer_id != user_id:
+    if order.artist_id != current_user.id and order.engineer_id != current_user.id:
         return err('Accès refusé.', status=403)
 
     field_name = ALLOWED_TYPES[media_type]

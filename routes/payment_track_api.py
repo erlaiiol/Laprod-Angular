@@ -8,7 +8,7 @@ POST /api/track-payment/verify
   → Appelé par Angular après redirection Stripe. Crée Purchase, wallet, contrat PDF, notifications.
 """
 from flask import Blueprint, request, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 import stripe
 import stripe._error as stripe_error
 import os
@@ -17,6 +17,7 @@ from datetime import datetime
 from extensions import db, csrf
 from models import Track, User, Purchase
 from serializers import ok, err
+from utils.auth_helpers import require_user
 from utils.payment_validator import TrackPriceCalculator
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
@@ -30,7 +31,8 @@ payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api
 @payment_track_api_bp.route('/track/<int:track_id>/<format_type>/checkout', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def create_checkout(track_id, format_type):
+@require_user
+def create_checkout(track_id, format_type, current_user):
     """
     Crée une session Stripe Checkout pour l'achat d'un track.
 
@@ -50,11 +52,6 @@ def create_checkout(track_id, format_type):
     Retourne :
       { success: true, data: { checkout_url: "...", total: float } }
     """
-    current_user_id = int(get_jwt_identity())
-    current_user = db.session.get(User, current_user_id)
-    if not current_user:
-        return err('Utilisateur introuvable.', code='USER_NOT_FOUND', status=404)
-
     if format_type not in ('mp3', 'wav', 'stems'):
         return err('Format invalide.', code='INVALID_FORMAT', status=400)
 
@@ -63,7 +60,7 @@ def create_checkout(track_id, format_type):
         return err('Track introuvable.', code='NOT_FOUND', status=404)
     if not track.is_approved:
         return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
-    if current_user_id == track.composer_id:
+    if current_user.id == track.composer_id:
         return err(
             'Vous ne pouvez pas acheter votre propre composition.',
             code='OWN_TRACK', status=403,
@@ -94,7 +91,7 @@ def create_checkout(track_id, format_type):
     if client_total is not None and abs(server_total - float(client_total)) > 0.01:
         current_app.logger.error(
             f"Prix manipulé ! Client: {client_total}€, Serveur: {server_total}€, "
-            f"User: {current_user_id}, Track: {track_id}"
+            f"User: {current_user.id}, Track: {track_id}"
         )
         return err('Prix invalide. Veuillez rafraîchir la page.', code='PRICE_TAMPERED', status=403)
 
@@ -109,7 +106,7 @@ def create_checkout(track_id, format_type):
             'track_title':            track.title,
             'composer_id':            str(track.composer_id),
             'composer_username':      track.composer_user.username,
-            'buyer_id':               str(current_user_id),
+            'buyer_id':               str(current_user.id),
             'buyer_username':         current_user.username,
             'format_type':            format_type,
             'is_exclusive':           str(options['is_exclusive']),
@@ -150,7 +147,7 @@ def create_checkout(track_id, format_type):
 
         current_app.logger.info(
             f"Checkout Stripe créé | track #{track_id} {format_type} | "
-            f"total {server_total}€ | user #{current_user_id}"
+            f"total {server_total}€ | user #{current_user.id}"
         )
 
         return ok(
@@ -171,12 +168,12 @@ def create_checkout(track_id, format_type):
 @payment_track_api_bp.route('/verify', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def verify_payment():
+@require_user
+def verify_payment(current_user):
     """
     Vérifie la session Stripe Checkout et crée le Purchase.
     Body JSON : { session_id: string }
     """
-    user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     session_id = data.get('session_id', '').strip()
 
@@ -202,7 +199,7 @@ def verify_payment():
         meta = checkout_session.metadata
 
         # Vérification de sécurité : l'acheteur JWT correspond à la metadata
-        if int(meta.get('buyer_id', -1)) != user_id:
+        if int(meta.get('buyer_id', -1)) != current_user.id:
             return err('Cette session ne vous appartient pas.', code='UNAUTHORIZED', status=403)
 
         # Idempotence : Purchase déjà créé ?
@@ -217,18 +214,16 @@ def verify_payment():
         if not track:
             return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
 
-        buyer = db.session.get(User, user_id)
-
         total_price = float(meta.get('track_price', payment_intent.amount / 100))
         platform_fee = round(total_price * 0.10, 2)
         composer_revenue = round(total_price - platform_fee, 2)
 
         purchase = Purchase(
             track_id=track_id,
-            buyer_id=user_id,
+            buyer_id=current_user.id,
             format_purchased=meta.get('format_type', 'mp3'),
             price_paid=total_price,
-            buyer_name=buyer.username,
+            buyer_name=current_user.username,
             contract_price=0,
             track_price=total_price,
             platform_fee=platform_fee,
@@ -269,9 +264,9 @@ def verify_payment():
                 'composer_address':       getattr(track.composer_user, 'address', ''),
                 'composer_email':         track.composer_user.email,
                 'composer_credit':        f"Prod. par {track.composer_user.username}",
-                'client_name':            buyer.username,
+                'client_name':            current_user.username,
                 'client_address':         meta.get('buyer_address', ''),
-                'client_email':           meta.get('buyer_email', buyer.email),
+                'client_email':           meta.get('buyer_email', current_user.email),
                 'is_exclusive':           meta.get('is_exclusive') == 'True',
                 'start_date':             start_date,
                 'end_date':               end_date,
@@ -304,7 +299,7 @@ def verify_payment():
 
         current_app.logger.info(
             f"Purchase #{purchase.id} créé | track #{track_id} {meta.get('format_type')} | "
-            f"total {total_price}€ | buyer #{user_id}"
+            f"total {total_price}€ | buyer #{current_user.id}"
         )
 
         # ── Emails (hors transaction) ────────────────────────────────────────

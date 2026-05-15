@@ -1,0 +1,16 @@
+# =============================================================================
+# Overrides locaux — chargé AUTOMATIQUEMENT par `docker compose up` en local
+# NE PAS copier ce fichier sur le serveur de production.
+# Ajouter à .gitignore si tu ne veux pas le versionner.
+#
+# Docker Compose fusionne automatiquement docker-compose.yml + docker-compose.override.yml
+# Sur le serveur : utiliser `docker compose -f docker-compose.yml up -d` (ignore cet override)
+# =============================================================================
+services:
+  web:
+    environment:
+      # En local : désactive force_https de Talisman (pas de certificats SSL en local)
+      FLASK_ENV: development
+      # En local : autorise OAuth2 sur HTTP (Authlib bloque HTTP par défaut, HTTPS uniquement)
+      # NE JAMAIS mettre cette variable en production
+      AUTHLIB_INSECURE_TRANSPORT: "1"

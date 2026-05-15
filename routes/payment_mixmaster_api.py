@@ -4,7 +4,7 @@ L'artiste est redirigé depuis Stripe vers /mix/payment-success?session_id=...
 Angular appelle ensuite POST /mixmaster-payment/verify avec {session_id}.
 """
 from flask import Blueprint, request, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from extensions import db, csrf
 from models import User, MixMasterRequest
 from utils.notification_service import notify_mixmaster_request_received_and_sent
@@ -14,6 +14,7 @@ from utils.stripe_logger import (
 )
 from utils.archive_utils import get_archive_file_tree
 from serializers import ok, err
+from utils.auth_helpers import require_user
 import stripe
 import stripe._error as stripe_error
 from datetime import datetime
@@ -27,12 +28,12 @@ payment_mixmaster_api_bp = Blueprint(
 @payment_mixmaster_api_bp.route('/verify', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def verify_payment():
+@require_user
+def verify_payment(current_user):
     """
     Vérifie la session Stripe Checkout et crée le MixMasterRequest.
     Body JSON : { session_id: string }
     """
-    user_id = int(get_jwt_identity())
     data    = request.get_json() or {}
     session_id = data.get('session_id', '').strip()
 
@@ -54,7 +55,7 @@ def verify_payment():
         meta = payment_intent.metadata
 
         # Vérification de sécurité : l'artiste JWT correspond à la metadata
-        if int(meta.get('artist_id', -1)) != user_id:
+        if int(meta.get('artist_id', -1)) != current_user.id:
             return err('Cette commande ne vous appartient pas.', status=403)
 
         # Idempotence : MixMasterRequest déjà créé ?
@@ -71,7 +72,7 @@ def verify_payment():
 
         mm = MixMasterRequest(
             title                = meta.get('title', 'Mix/Master')[:50],
-            artist_id            = user_id,
+            artist_id            = current_user.id,
             engineer_id          = engineer_id,
             original_file        = meta.get('stems_file'),
             reference_file       = meta.get('reference_file'),
@@ -125,7 +126,7 @@ def verify_payment():
             resource_type='mixmaster',
             resource_id=mm.id,
             engineer_id=engineer_id,
-            artist_id=user_id,
+            artist_id=current_user.id,
             status='authorized',
         )
 

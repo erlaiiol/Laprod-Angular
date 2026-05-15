@@ -5,12 +5,13 @@ GET  /api/contracts/my      → Achats de l'utilisateur connecté (jwt_required)
 GET  /api/contracts/sales   → Ventes de l'utilisateur connecté  (jwt_required)
 """
 from flask import Blueprint
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from sqlalchemy.orm import selectinload
 
-from extensions import db
+from extensions import db, csrf
 from models import Purchase, Track
 from serializers import ok
+from utils.auth_helpers import require_user
 
 contracts_api_bp = Blueprint('contracts_api', __name__, url_prefix='/api/contracts')
 
@@ -41,16 +42,16 @@ def _purchase_dict(p):
 
 @contracts_api_bp.route('/my', methods=['GET'])
 @jwt_required()
-def get_my_purchases():
+@csrf.exempt
+@require_user
+def get_my_purchases(current_user):
     """Achats de l'utilisateur connecté (en tant qu'acheteur)."""
-    current_user_id = int(get_jwt_identity())
-
     purchases = (
         db.session.query(Purchase)
         .options(
             selectinload(Purchase.track).selectinload(Track.composer_user)
         )
-        .filter_by(buyer_id=current_user_id)
+        .filter_by(buyer_id=current_user.id)
         .order_by(Purchase.created_at.desc())
         .all()
     )
@@ -62,17 +63,17 @@ def get_my_purchases():
 
 @contracts_api_bp.route('/sales', methods=['GET'])
 @jwt_required()
-def get_my_sales():
+@csrf.exempt
+@require_user
+def get_my_sales(current_user):
     """Ventes de l'utilisateur connecté (en tant que compositeur)."""
-    current_user_id = int(get_jwt_identity())
-
     sales = (
         db.session.query(Purchase)
         .join(Track, Purchase.track_id == Track.id)
         .options(
             selectinload(Purchase.track).selectinload(Track.composer_user)
         )
-        .filter(Track.composer_id == current_user_id)
+        .filter(Track.composer_id == current_user.id)
         .order_by(Purchase.created_at.desc())
         .all()
     )

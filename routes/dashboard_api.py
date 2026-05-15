@@ -2,11 +2,12 @@
 Dashboard API — GET endpoints pour les espaces Beatmaker, Artiste et Mix Engineer
 """
 from flask import Blueprint
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from sqlalchemy import select
 from extensions import db, csrf
-from models import User, Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory
+from models import Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory
 from serializers import ok, err, mix_order_full as ser_order_full
+from utils.auth_helpers import require_user
 
 dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/api/dashboard')
 
@@ -16,24 +17,22 @@ dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/api/dashboa
 @dashboard_api_bp.route('/beatmaker', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_beatmaker_dashboard():
+@require_user
+def get_beatmaker_dashboard(current_user):
     """Espace beatmaker : stats, liste des beats, historique des ventes."""
-    user_id = int(get_jwt_identity())
-    user = db.get_or_404(User, user_id)
-
-    if not user.is_beatmaker:
+    if not current_user.is_beatmaker:
         return err('Accès refusé.', status=403)
 
     # ── Tracks du compositeur ─────────────────────────────────────────────────
     tracks = db.session.scalars(
-        select(Track).where(Track.composer_id == user_id).order_by(Track.created_at.desc())
+        select(Track).where(Track.composer_id == current_user.id).order_by(Track.created_at.desc())
     ).all()
 
     # ── Ventes (50 dernières) ─────────────────────────────────────────────────
     sales = db.session.scalars(
         select(Purchase)
         .join(Track, Purchase.track_id == Track.id)
-        .where(Track.composer_id == user_id)
+        .where(Track.composer_id == current_user.id)
         .order_by(Purchase.created_at.desc())
         .limit(50)
     ).all()
@@ -93,7 +92,7 @@ def get_beatmaker_dashboard():
             'tracks_count':    len(tracks),
             'tracks_approved': sum(1 for t in tracks if t.is_approved),
             'tracks_pending':  sum(1 for t in tracks if not t.is_approved),
-            'upload_tokens':   user.upload_track_tokens,
+            'upload_tokens':   current_user.upload_track_tokens,
         },
         'tracks': tracks_data,
         'sales':  sales_data,
@@ -105,18 +104,16 @@ def get_beatmaker_dashboard():
 @dashboard_api_bp.route('/artist', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_artist_dashboard():
+@require_user
+def get_artist_dashboard(current_user):
     """Espace artiste : toplines soumises, favoris, historique d'écoute, tokens."""
-    user_id = int(get_jwt_identity())
-    user = db.get_or_404(User, user_id)
-
-    if not user.is_artist:
+    if not current_user.is_artist:
         return err('Accès refusé.', status=403)
 
     # ── Toplines ──────────────────────────────────────────────────────────────
     toplines = db.session.scalars(
         select(Topline)
-        .where(Topline.artist_id == user_id)
+        .where(Topline.artist_id == current_user.id)
         .order_by(Topline.created_at.desc())
     ).all()
 
@@ -137,7 +134,7 @@ def get_artist_dashboard():
     # ── Favoris ───────────────────────────────────────────────────────────────
     favorites = db.session.scalars(
         select(Favorite)
-        .where(Favorite.user_id == user_id)
+        .where(Favorite.user_id == current_user.id)
         .order_by(Favorite.created_at.desc())
     ).all()
 
@@ -157,7 +154,7 @@ def get_artist_dashboard():
     # ── Historique d'écoute (10 derniers uniques) ─────────────────────────────
     history = db.session.scalars(
         select(ListeningHistory)
-        .where(ListeningHistory.user_id == user_id)
+        .where(ListeningHistory.user_id == current_user.id)
         .order_by(ListeningHistory.listened_at.desc())
         .limit(10)
     ).all()
@@ -178,7 +175,7 @@ def get_artist_dashboard():
     # ── Demandes mix/master en tant qu'artiste ────────────────────────────────
     mm_requests = db.session.scalars(
         select(MixMasterRequest)
-        .where(MixMasterRequest.artist_id == user_id)
+        .where(MixMasterRequest.artist_id == current_user.id)
         .order_by(MixMasterRequest.created_at.desc())
     ).all()
 
@@ -187,7 +184,7 @@ def get_artist_dashboard():
             'toplines_count':     len(toplines),
             'toplines_published': sum(1 for tl in toplines if tl.is_published),
             'favorites_count':    len(favorites_data),
-            'topline_tokens':     user.topline_tokens,
+            'topline_tokens':     current_user.topline_tokens,
             'mm_requests_count':  len(mm_requests),
             'mm_active_count':    sum(1 for o in mm_requests if o.status in ('awaiting_acceptance', 'accepted', 'processing', 'delivered', 'revision1', 'revision2')),
         },
@@ -203,17 +200,15 @@ def get_artist_dashboard():
 @dashboard_api_bp.route('/mix-engineer', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_mix_engineer_dashboard():
+@require_user
+def get_mix_engineer_dashboard(current_user):
     """Espace mix engineer : commandes par statut, stats revenus."""
-    user_id = int(get_jwt_identity())
-    user = db.get_or_404(User, user_id)
-
-    if not user.is_mix_engineer:
+    if not current_user.is_mix_engineer:
         return err('Accès refusé.', status=403)
 
     orders = db.session.scalars(
         select(MixMasterRequest)
-        .where(MixMasterRequest.engineer_id == user_id)
+        .where(MixMasterRequest.engineer_id == current_user.id)
         .order_by(MixMasterRequest.created_at.desc())
     ).all()
 
@@ -231,12 +226,12 @@ def get_mix_engineer_dashboard():
             'completed_count':  len(completed_orders),
             'active_count':     sum(1 for o in orders if o.status in ACTIVE_STATUSES),
             'pending_count':    sum(1 for o in orders if o.status == 'awaiting_acceptance'),
-            'reference_price':  user.mixmaster_reference_price,
-            'price_min':        user.mixmaster_price_min,
-            'sample_submitted': user.mixmaster_sample_submitted,
-            'producer_arranger_request_submitted': user.producer_arranger_request_submitted,
-            'is_mixmaster_engineer': user.is_mixmaster_engineer,
-            'is_certified_producer_arranger': user.is_certified_producer_arranger,
+            'reference_price':  current_user.mixmaster_reference_price,
+            'price_min':        current_user.mixmaster_price_min,
+            'sample_submitted': current_user.mixmaster_sample_submitted,
+            'producer_arranger_request_submitted': current_user.producer_arranger_request_submitted,
+            'is_mixmaster_engineer': current_user.is_mixmaster_engineer,
+            'is_certified_producer_arranger': current_user.is_certified_producer_arranger,
         },
         'orders': {
             'awaiting':  [ser_order_full(o, 'engineer') for o in orders if o.status == 'awaiting_acceptance'],

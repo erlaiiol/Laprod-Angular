@@ -1,13 +1,14 @@
 """
 Favorites API — toggle, check, listening history (JWT)
 """
-from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from flask import Blueprint, jsonify, request as flask_request
+from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from sqlalchemy import select
 from extensions import db, csrf
 from models import Favorite, ListeningHistory, Track
 from serializers import ok, err
 from datetime import datetime
+from utils.auth_helpers import require_user
 
 favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorites')
 
@@ -15,13 +16,13 @@ favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorit
 @favorites_api_bp.route('/toggle/<int:track_id>', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def toggle_favorite(track_id):
+@require_user
+def toggle_favorite(track_id, current_user):
     """Ajoute ou retire un track des favoris."""
-    user_id = int(get_jwt_identity())
     db.get_or_404(Track, track_id)
 
     existing = db.session.query(Favorite).filter_by(
-        user_id=user_id, track_id=track_id
+        user_id=current_user.id, track_id=track_id
     ).first()
 
     if existing:
@@ -29,7 +30,7 @@ def toggle_favorite(track_id):
         db.session.commit()
         return ok({'action': 'removed', 'is_favorite': False})
     else:
-        db.session.add(Favorite(user_id=user_id, track_id=track_id))
+        db.session.add(Favorite(user_id=current_user.id, track_id=track_id))
         db.session.commit()
         return ok({'action': 'added', 'is_favorite': True})
 
@@ -38,7 +39,6 @@ def toggle_favorite(track_id):
 @csrf.exempt
 def check_favorites_batch():
     """Vérifie si plusieurs tracks sont en favoris en une seule requête."""
-    from flask import request as flask_request
     ids_param = flask_request.args.get('ids', '')
     try:
         track_ids = [int(i) for i in ids_param.split(',') if i.strip()]
@@ -90,13 +90,13 @@ def check_favorite(track_id):
 @favorites_api_bp.route('/listening/<int:track_id>', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def add_listening_history(track_id):
+@require_user
+def add_listening_history(track_id, current_user):
     """Enregistre une écoute. Garde les 10 dernières entrées uniques."""
-    user_id = int(get_jwt_identity())
     db.get_or_404(Track, track_id)
 
     existing = db.session.query(ListeningHistory).filter_by(
-        user_id=user_id, track_id=track_id
+        user_id=current_user.id, track_id=track_id
     ).first()
 
     if existing:
@@ -104,16 +104,16 @@ def add_listening_history(track_id):
         existing.listened_at = datetime.now()
     else:
         db.session.add(ListeningHistory(
-            user_id=user_id,
+            user_id=current_user.id,
             track_id=track_id,
             listened_at=datetime.now(),
         ))
         # Trimmer à 10 entrées uniques seulement lors d'un ajout
-        total = db.session.query(ListeningHistory).filter_by(user_id=user_id).count()
+        total = db.session.query(ListeningHistory).filter_by(user_id=current_user.id).count()
         if total > 10:
             oldest = (
                 db.session.query(ListeningHistory)
-                .filter_by(user_id=user_id)
+                .filter_by(user_id=current_user.id)
                 .order_by(ListeningHistory.listened_at.asc())
                 .limit(total - 10)
                 .all()

@@ -14,6 +14,7 @@ from sqlalchemy import select
 from extensions import db, limiter
 from models import Track, Topline, Purchase
 from serializers import err
+from utils.auth_helpers import require_user
 
 
 streaming_bp = Blueprint('streaming', __name__, url_prefix='/api/stream')
@@ -104,7 +105,8 @@ def stream_track_full(track_id):
 
 @streaming_bp.route('/tracks/<int:track_id>/download/<format>', methods=['GET'])
 @jwt_required()
-def download_track_file(track_id, format):
+@require_user
+def download_track_file(track_id, format, current_user):
     """
     Télécharge le fichier complet après vérification de l'achat.
     format : 'mp3' | 'wav' | 'stems'
@@ -112,20 +114,18 @@ def download_track_file(track_id, format):
     if format not in _FORMAT_FIELD:
         return err(f"Format invalide : {format}")
 
-    user_id = int(get_jwt_identity())
-
     track = db.session.get(Track, track_id)
     if not track:
         abort(404)
 
     # Le compositeur peut télécharger ses propres fichiers sans achat
-    is_composer = (track.composer_id == user_id)
+    is_composer = (track.composer_id == current_user.id)
 
     if not is_composer:
         purchase = db.session.execute(
             select(Purchase).where(
                 Purchase.track_id         == track_id,
-                Purchase.buyer_id         == user_id,
+                Purchase.buyer_id         == current_user.id,
                 Purchase.format_purchased == format,
             )
         ).scalar_one_or_none()
@@ -176,13 +176,12 @@ def stream_topline(topline_id):
 
 @streaming_bp.route('/contracts/<int:purchase_id>', methods=['GET'])
 @jwt_required()
-def download_contract(purchase_id):
+@require_user
+def download_contract(purchase_id, current_user):
     """
     Télécharge le PDF du contrat lié à un achat.
     Accessible uniquement par l'acheteur ou le compositeur.
     """
-    user_id = int(get_jwt_identity())
-
     purchase = db.session.get(Purchase, purchase_id)
     if not purchase:
         abort(404)
@@ -191,7 +190,7 @@ def download_contract(purchase_id):
     if not track:
         abort(404)
 
-    if purchase.buyer_id != user_id and track.composer_id != user_id:
+    if purchase.buyer_id != current_user.id and track.composer_id != current_user.id:
         abort(403)
 
     if not purchase.contract_file:
