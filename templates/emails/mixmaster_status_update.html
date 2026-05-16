@@ -1,0 +1,50 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="color: #e94560; margin-top: 0;">Mix/Master - Mise a jour</h2>
+
+<p>Bonjour {{ recipient_name }},</p>
+
+<p>{{ message }}</p>
+
+<table width="100%" style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Demande</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">#{{ mixmaster_request.id }}{% if mixmaster_request.title %} - {{ mixmaster_request.title }}{% endif %}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Artiste</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">{{ artist.username }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Engineer</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">{{ engineer.username }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Statut</td>
+        <td style="padding: 10px; color: #ffc107; font-weight: bold; border-bottom: 1px solid #0f3460;">{{ status_label }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa;">Montant total</td>
+        <td style="padding: 10px; color: #4ecca3; font-weight: bold;">{{ "%.2f"|format(mixmaster_request.total_price) }}€</td>
+    </tr>
+</table>
+
+{% if new_status in ['revision1', 'revision2'] and is_engineer %}
+<div style="background-color: #2a2a4a; border-left: 4px solid #fd7e14; padding: 15px; margin: 20px 0; border-radius: 4px;">
+    <p style="color: #fd7e14; font-weight: bold; margin: 0 0 10px;">Instructions de revision :</p>
+    <p style="color: #cccccc; margin: 0; white-space: pre-line;">{{ revision_message }}</p>
+</div>
+<p style="color: #8899aa; font-size: 13px;">
+    Vous avez 7 jours pour livrer la revision. Passé ce delai, la commande sera automatiquement annulee.
+</p>
+{% endif %}
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ url_for('mixmaster.dashboard', _external=True) }}"
+       style="background-color: #e94560; color: white; padding: 12px 30px;
+              text-decoration: none; border-radius: 5px; font-weight: bold;">
+        Voir mon dashboard
+    </a>
+</p>
+{% endblock %}

@@ -6,10 +6,11 @@ import { FooterComponent } from './layout/footer/footer.component';
 import { PlayerComponent } from './layout/player/player.component';
 import { AuthService } from './services/auth.service';
 import { NotificationService } from './services/notification.service';
+import { UploadProgressToastComponent } from './components/ui/upload-progress-toast/upload-progress-toast.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent],
+  imports: [RouterOutlet, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -20,9 +21,10 @@ export class App implements OnInit {
   private notifSvc = inject(NotificationService);
 
   ngOnInit(): void {
-    // Charge les notifications dès le démarrage si l'utilisateur est connecté,
-    // ce qui alimente NotificationService.unreadCount (utilisé par la navbar).
     if (this.auth.isLoggedIn()) {
+      // Vérifie que le user localStorage est toujours valide en DB.
+      // Si le token est expiré ou l'user supprimé, l'interceptor appelle silentLogout().
+      this.auth.me().subscribe();
       this.notifSvc.load().subscribe();
     }
   }

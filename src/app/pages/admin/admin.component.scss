@@ -332,10 +332,11 @@
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7);
-  display: flex; align-items: center; justify-content: center; z-index: 1000;
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
 }
 
 .modal {
+  display: block;
   background: v.$bg-surface; border: 1px solid v.$bg-border;
   border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 480px;
   h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem; }

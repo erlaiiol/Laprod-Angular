@@ -43,9 +43,6 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-#old templates
-/templates/*
-/static/js/*
 
 # ====================================
 # SECRETS - NE JAMAIS COMMIT !
@@ -101,9 +98,9 @@ logs/*
 !logs/.gitkeep
 
 # ====================================
-# DOCKER - overrides locaux uniquement
+# DOCKER - overrides locaux uniquement (à réactiver si besoin)
 # ====================================
-docker-compose.override.yml
+# docker-compose.override.yml
 
 # ====================================
 # SYSTÈME
@@ -134,5 +131,11 @@ static/contracts/*.pdf
 static/audio/audio/toplines/*
 static/mixmaster/*
 static/images/profile/*
+db_assets/images/profile/*
+db_assets/images/track/*
+db_assets/images/tracks/*
+db_assets/contracts/*
+db_assets/audio/*
+
 
 apppassword.txt

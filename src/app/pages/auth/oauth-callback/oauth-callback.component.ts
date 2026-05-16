@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { take } from 'rxjs/internal/operators/take';
 
 /**
  * Page intermédiaire transparente : reçoit ?code=XXX depuis le callback Flask,
@@ -49,6 +50,7 @@ export class OauthCallbackComponent implements OnInit {
     private auth:   AuthService,
   ) {}
 
+
   ngOnInit(): void {
     // Vérifier les erreurs retournées par Flask
     const urlError = this.route.snapshot.queryParamMap.get('error');
@@ -68,6 +70,12 @@ export class OauthCallbackComponent implements OnInit {
       return;
     }
 
+      // 🔒 protection réelle anti double call
+    if (sessionStorage.getItem('oauth_done') === code) {
+      return;
+    }
+    sessionStorage.setItem('oauth_done', code);
+
     this.auth.tokenExchange(code).subscribe({
       next: (res) => {
         if (!res.success || !res.data) {
@@ -77,8 +85,14 @@ export class OauthCallbackComponent implements OnInit {
         this.auth.storeOauthAuth(res.data);
         this.navigate(res.data.next, res.data.suggested_name);
       },
-      error: () => {
-        this.error.set('Erreur serveur lors de l\'échange OAuth.');
+      error: (err) => {
+        sessionStorage.removeItem('oauth_done');
+        if (err.status === 404) {
+          // Compte introuvable en DB (session stale) → relancer le flux Google
+          window.location.href = `${this.auth.getAuthUrl()}/google/login`;
+        } else {
+          this.error.set('Erreur serveur lors de l\'échange OAuth.');
+        }
       },
     });
   }

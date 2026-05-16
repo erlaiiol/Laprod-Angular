@@ -21,11 +21,18 @@ export interface TrackData {
 }
 
 export interface UploadResponse {
+  success:   boolean;
+  feedback?: { level: string; message: string };
+  data?:     { job_id: string, title: string, image_url: string | null };
+}
+
+export interface EditResponse {
   success: boolean;
   message?: string;
   error?: string;
-  track?: any; // Même structure que Track
+  data?: {job_id : string};
 }
+
 
 
 @Injectable({
@@ -76,7 +83,7 @@ export class CudTrackService {
     return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData);
   }
 
-  putTrack(trackId: number, trackData: TrackData): Observable<UploadResponse> {
+  putTrack(trackId: number, trackData: TrackData): Observable<EditResponse> {
     const formData = new FormData();
 
     // Ajouter les champs texte
@@ -104,11 +111,11 @@ export class CudTrackService {
       formData.append('file_stems', trackData.file_stems);
     }
 
-    return this.http.put<UploadResponse>(`${this.apiUrl}/api/tracks/put/${trackId}`, formData);
+    return this.http.put<EditResponse>(`${this.apiUrl}/api/tracks/put/${trackId}`, formData);
   }
 
-  deleteTrack(trackId: number): Observable<UploadResponse> {
-    return this.http.delete<UploadResponse>(`${this.apiUrl}/api/tracks/delete/${trackId}`);
+  deleteTrack(trackId: number): Observable<EditResponse> {
+    return this.http.delete<EditResponse>(`${this.apiUrl}/api/tracks/delete/${trackId}`);
   }
 
 

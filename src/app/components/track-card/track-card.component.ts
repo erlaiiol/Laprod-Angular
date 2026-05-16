@@ -5,12 +5,13 @@
 // Communique vers la page parente via @Output().
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
 import { Track, TrackService } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
+import { AuthService } from '../../services/auth.service';
 import { FavoriteButtonComponent } from '../favorite-button/favorite-button.component';
 
 
@@ -27,6 +28,13 @@ export class TrackCardComponent {
 
   private trackService  = inject(TrackService);
   private playerService = inject(PlayerService);
+  private authService   = inject(AuthService);
+
+  visibleTags = computed(() => {
+    const pref = this.authService.preferredTagCategory();
+    if (!pref) return this.track.tags;
+    return this.track.tags.filter(t => t.category === pref);
+  });
 
   getImageUrl(): string {
     return this.trackService.getStaticFileUrl(this.track.image_file);

@@ -90,6 +90,9 @@ class User(UserMixin, db.Model):
     topline_tokens = db.Column(db.Integer, default=5)  # Free: 5 crédits/semaine
     last_topline_reset = db.Column(db.Date, default=date.today)  # Date dernier reset hebdo
 
+    #  PRÉFÉRENCES D'AFFICHAGE
+    preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
+
     # Relations
     tracks = db.relationship('Track', backref='composer_user', lazy=True, cascade='all, delete-orphan')
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')
@@ -213,7 +216,7 @@ class User(UserMixin, db.Model):
         if additional_tokens <= 0:
             raise ValueError("Le nombre de tokens doit être positif")
 
-        self.upload_track_tokens += additional_tokens
+        self.upload_track_tokens = (self.upload_track_tokens or 0) + additional_tokens
 
     def apply_premium_tokens(self):
         """Monte immédiatement les tokens au plafond premium lors d'une activation ou d'un renouvellement.
@@ -369,7 +372,7 @@ class User(UserMixin, db.Model):
         if additional_tokens <= 0:
             raise ValueError("Le nombre de tokens doit être positif")
 
-        self.topline_tokens += additional_tokens
+        self.topline_tokens = (self.topline_tokens or 0) + additional_tokens
 
 
 

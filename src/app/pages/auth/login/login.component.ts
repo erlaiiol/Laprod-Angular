@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -14,7 +15,8 @@ import { finalize } from 'rxjs';
 })
 export class LoginComponent {
 
-  
+  readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
+
   identifier : string = '';
   password : string = '';
   remember : boolean = false;
@@ -26,6 +28,8 @@ export class LoginComponent {
   resendSuccess        = signal(false);
   showPasswordSetLink  = signal(false);                // compte OAuth sans mot de passe
   passwordEmail        = signal<string | null>(null);
+
+  private hasCalled = false;
 
   constructor(private authService : AuthService, private router : Router ) {}
 

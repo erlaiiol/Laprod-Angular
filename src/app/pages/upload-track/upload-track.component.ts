@@ -6,6 +6,7 @@ import { TagsService, Tag } from '../../services/tags.service';
 import { CudTrackService } from '../../services/cud-track.service';
 import { AuthService } from '../../services/auth.service';
 import { MUSICAL_KEYS } from '../../services/track.service';
+import { UploadStatusService } from '../../services/upload-status.service';
 
 
 
@@ -64,7 +65,6 @@ export class UploadTrackComponent implements OnInit {
   /* ── State ──────────────────────────────────────────────────────────────── */
   loading = signal(false);
   error   = signal<string | null>(null);
-  success = signal(false);
 
   canSubmit = computed(() =>
     !!this.title().trim() &&
@@ -80,6 +80,7 @@ export class UploadTrackComponent implements OnInit {
     private cudTrackService: CudTrackService,
     private router:        Router,
     readonly auth:         AuthService,
+    private uploadStatusSvc : UploadStatusService
 
   ) {}
 
@@ -139,11 +140,12 @@ export class UploadTrackComponent implements OnInit {
     }).subscribe({
       next: res => {
         this.loading.set(false);
-        if (res.success) {
-          this.success.set(true);
+        
+
+        if (res.success && res.data?.job_id) {
           this.auth.me().subscribe();  // rafraîchit le compteur de tokens
-        } else {
-          this.error.set(res.error ?? 'Erreur lors de l\'upload.');
+          this.uploadStatusSvc.startPolling(res.data.job_id, res.data.title, res.data.image_url);
+          this.router.navigate(['/']);
         }
       },
       error: err => {
@@ -167,7 +169,6 @@ export class UploadTrackComponent implements OnInit {
     this.fileWav.set(null);
     this.fileStems.set(null);
     this.fileImage.set(null);
-    this.success.set(false);
     this.error.set(null);
   }
 }

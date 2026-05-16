@@ -49,14 +49,14 @@
 
     <div class="track-tags">
       <span
-        *ngFor="let tag of track.tags"
+        *ngFor="let tag of visibleTags()"
         class="tag"
         [attr.data-category]="tag.category"
         [style.background-color]="tagBgColor(tag.color)"
         [style.border-color]="tagBorderColor(tag.color)">
         #{{ tag.name }}
       </span>
-      <span class="no-tags" *ngIf="track.tags.length === 0">Pas de tags</span>
+      <span class="no-tags" *ngIf="visibleTags().length === 0">Pas de tags</span>
     </div>
 
   </div>

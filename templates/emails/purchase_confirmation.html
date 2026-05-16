@@ -1,0 +1,36 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 style="color: #e94560; margin-top: 0;">Achat confirme</h2>
+
+<p>Bonjour {{ buyer.username }},</p>
+
+<p>Votre achat a ete confirme !</p>
+
+<table width="100%" style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Track</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">{{ track.title }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Artiste</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">{{ composer.username }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa; border-bottom: 1px solid #0f3460;">Format</td>
+        <td style="padding: 10px; color: #ffffff; border-bottom: 1px solid #0f3460;">{{ purchase.format_purchased | upper }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; color: #8899aa;">Prix paye</td>
+        <td style="padding: 10px; color: #e94560; font-weight: bold;">{{ purchase.price_paid }}€</td>
+    </tr>
+</table>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ url_for('payment.my_purchases', _external=True) }}"
+       style="background-color: #e94560; color: white; padding: 12px 30px;
+              text-decoration: none; border-radius: 5px; font-weight: bold;">
+        Voir mes achats
+    </a>
+</p>
+{% endblock %}

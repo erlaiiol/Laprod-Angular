@@ -79,11 +79,18 @@ export class PlayerService {
    */
   play(track: Track): void {
     this.playOnReady = true;
+
+    // Do NOT call audioEl.play() here with no src set — it corrupts the
+    // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
+    // WaveSurfer from loading audio on the same element.
+    // Document is already user-activated by the click event; the async
+    // play() in WaveSurfer's 'ready' callback will be allowed by the browser.
+
     this.currentTrack.set(track);
     // Jouer un beat normal efface le contexte mix order (et inversement)
     this.viewingMixOrder.set(null);
     // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
-    if (track.id && track.stream_url?.includes('/preview') && localStorage.getItem('access_token')) {
+    if (track.id > 0 && localStorage.getItem('access_token')) {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
         .subscribe({ error: () => {} });
     }
@@ -119,17 +126,18 @@ export class PlayerService {
    */
   playMixAudio(blobUrl: string, ctx: MixOrderContext): void {
     const track: Track = {
-      id:            0,
-      title:         `Référence de : ${ctx.orderTitle}`,
-      stream_url:    blobUrl,
-      image_file:    '',
-      composer_user: { username: ctx.personName ?? '' },
-      bpm:           0,
-      key:           '',
-      style:         '',
-      price_mp3:     0,
-      tags:          [],
-      is_approved:   true,
+      id:              0,
+      title:           `Référence de : ${ctx.orderTitle}`,
+      stream_url:      blobUrl,
+      full_stream_url: null,
+      image_file:      '',
+      composer_user:   { username: ctx.personName ?? '' },
+      bpm:             0,
+      key:             '',
+      style:           '',
+      price_mp3:       0,
+      tags:            [],
+      is_approved:     true,
     };
     this.playOnReady = true;
     this.currentTrack.set(track);
@@ -168,12 +176,13 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    if (!track.stream_url) return '';
+    const url = track.full_stream_url ?? track.stream_url;
+    if (!url) return '';
     // Blob URLs (createObjectURL) et URLs absolues passent tels quels
-    if (track.stream_url.startsWith('blob:') || track.stream_url.startsWith('http')) {
-      return track.stream_url;
+    if (url.startsWith('blob:') || url.startsWith('http')) {
+      return url;
     }
-    return `${environment.apiUrl}${track.stream_url}`;
+    return `${environment.apiUrl}${url}`;
   }
 
 }

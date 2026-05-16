@@ -64,6 +64,7 @@ dependencies = [
     "flask-cors>=6.0.2",
     "flask-jwt-extended>=4.7.1",
     "redis>=7.4.0",
+    "rq>=2.8.0",
     "mistralai>=1.0.0",
     "pdfplumber>=0.11.0",
 ]

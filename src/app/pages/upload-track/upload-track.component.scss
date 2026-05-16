@@ -99,6 +99,18 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: #ced4da;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .tooltip-icon {
+    color: #6c757d;
+    cursor: help;
+    font-size: 0.8rem;
+    line-height: 1;
+
+    &:hover { color: #adb5bd; }
   }
 
   input, select {

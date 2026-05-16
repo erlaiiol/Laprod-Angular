@@ -1,18 +1,7 @@
 <div class="upload-wrapper">
   <div class="upload-page">
 
-    @if (success()) {
-      <div class="success-state">
-        <i class="bi bi-cloud-check-fill success-icon"></i>
-        <h2>Beat mis en ligne !</h2>
-        <p>Votre beat a été soumis avec succès. Il sera visible une fois validé par notre équipe.</p>
-        <button type="button" class="btn-submit" (click)="reset()">
-          Uploader un autre beat
-        </button>
-      </div>
-    } @else {
-
-      <div class="page-header">
+    <div class="page-header">
         <h1><i class="bi bi-cloud-arrow-up-fill"></i> Uploader un beat</h1>
         @if (auth.currentUser(); as u) {
           <div class="token-info">
@@ -36,7 +25,12 @@
         <h3 class="section-title">Informations</h3>
 
         <div class="field">
-          <label for="title">Titre *</label>
+          <label for="title">
+            Titre *
+            <span class="tooltip-icon" title="Inutile d'ajouter des tags dans le titre comme 'purchase your track today' — LaProd les insère automatiquement sur la preview pour protéger votre beat contre le vol.">
+              <i class="bi bi-info-circle"></i>
+            </span>
+          </label>
           <input
             type="text" id="title"
             placeholder="Nom de votre beat"
@@ -196,6 +190,9 @@
             <i class="bi bi-image"></i>
             <span>
               <strong>Image de couverture</strong> <em class="opt">optionnel</em>
+              <span class="tooltip-icon" title="Si vous n'ajoutez pas de cover, une image par défaut sera générée automatiquement.">
+                <i class="bi bi-info-circle"></i>
+              </span>
               @if (fileImage()) {
                 <em class="file-name">{{ fileImage()!.name }}</em>
               } @else {
@@ -220,6 +217,5 @@
         }
       </button>
 
-    }
   </div>
 </div>

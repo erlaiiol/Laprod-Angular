@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
+import { TrackService } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
@@ -16,19 +17,20 @@ import { environment } from '../../../environments/environment';
 })
 export class ProfileComponent implements OnInit {
 
-  staticBase = `${environment.apiUrl.replace('/api', '')}/static/`;
+  staticBase = `/db_assets/`;
 
   loading = signal(true);
   error   = signal<string | null>(null);
   profile = signal<UserProfile | null>(null);
 
   constructor(
-    private route:   ActivatedRoute,
-    private router:  Router,
-    private userSvc: UserService,
-    readonly auth:   AuthService,
-    private player:  PlayerService,
-    private toast:   ToastService,
+    private route:      ActivatedRoute,
+    private router:     Router,
+    private userSvc:    UserService,
+    readonly auth:      AuthService,
+    private player:     PlayerService,
+    private trackSvc:   TrackService,
+    private toast:      ToastService,
   ) {}
 
   ngOnInit(): void {
@@ -76,6 +78,14 @@ export class ProfileComponent implements OnInit {
       price_mp3:  track.price_mp3,
       composer_user: { username: this.profile()?.username ?? '' },
     } as any);
+  }
+
+  tagBgColor(color: string | null): string {
+    return this.trackSvc.darkenColor(color ?? '#6b7280', 0.15);
+  }
+
+  tagBorderColor(color: string | null): string {
+    return this.trackSvc.darkenColor(color ?? '#6b7280', 0.35);
   }
 
   imgUrl(path: string): string {

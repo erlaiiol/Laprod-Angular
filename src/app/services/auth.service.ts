@@ -40,9 +40,10 @@ export interface User {
     user_type_selected:  boolean,
     email_verified:      boolean,
     notif_count:         number,
-    upload_track_tokens: number,
-    topline_tokens:      number,
-    is_premium:          boolean,
+    upload_track_tokens:     number,
+    topline_tokens:          number,
+    is_premium:              boolean,
+    preferred_tag_category:  string | null,
 }
 
 
@@ -109,14 +110,19 @@ export class AuthService {
   private _currentUser = signal<User | null>(this.getUser());
   readonly currentUser = this._currentUser.asReadonly();
 
- 
   readonly isLoggedIn = computed(() => this._currentUser() !== null);
- 
-  
+
   readonly isAdmin = computed(() => this._currentUser()?.roles?.is_admin || false);
   readonly isBeatmaker = computed(() => this._currentUser()?.roles?.is_beatmaker || false);
   readonly isMixEngineer = computed(() => this._currentUser()?.roles?.is_mix_engineer || false);
   readonly isArtist = computed(() => this._currentUser()?.roles?.is_artist || false);
+
+  // Préférence locale pour les utilisateurs non connectés (pas persistée)
+  private _localTagCategoryPref = signal<string | null>(null);
+
+  readonly preferredTagCategory = computed(
+    () => this._currentUser()?.preferred_tag_category ?? this._localTagCategoryPref()
+  );
 
 
 
@@ -135,9 +141,6 @@ export class AuthService {
       tap((res) => {
         if (res.success === true) {
           this.storeAuth(res);
-          if (res.code === 'SHOW_SELECT_ROLE') {
-            this.router.navigate(['/select-role']);
-          }
         }
 
       }),
@@ -186,6 +189,26 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
+  updateTagCategoryPreference(category: string | null): void {
+    const user = this._currentUser();
+    if (!user) {
+      // Non connecté : préférence locale uniquement, pas d'appel API
+      this._localTagCategoryPref.set(category);
+      return;
+    }
+    this.http.patch<{ success: boolean; data: { preferred_tag_category: string | null } }>(
+      '/api/main/users/preferences',
+      { preferred_tag_category: category }
+    ).subscribe({
+      next: (res) => {
+        const updated = { ...user, preferred_tag_category: res.data.preferred_tag_category };
+        this._currentUser.set(updated);
+        localStorage.setItem('user', JSON.stringify(updated));
+      },
+      error: () => {}  // silencieux : la préférence locale reste inchangée si API échoue
+    });
+  }
+
   /** Met à jour le signal et localStorage avec un objet User partiel ou complet. */
   updateCurrentUser(partial: Partial<User>): void {
     const merged = { ...this._currentUser()!, ...partial } as User;
@@ -209,6 +232,13 @@ export class AuthService {
           this._currentUser.set(res.data.user);
           localStorage.setItem('user', JSON.stringify(res.data.user));
         }
+      }),
+      catchError((err) => {
+        // 404 = user introuvable en DB (session stale) → logout silencieux
+        if (err.status === 404) {
+          this._clearAuth();
+        }
+        return throwError(() => err);
       })
     );
   }

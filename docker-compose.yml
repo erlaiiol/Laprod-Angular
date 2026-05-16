@@ -74,7 +74,7 @@ services:
       REDIS_PORT:   "6379"
       REDIS_DB:     "0"
     volumes:
-      - ./static:/usr/src/app/static    # uploads persistants
+      - ./db_assets:/usr/src/app/db_assets    # uploads persistants
       - ./logs:/usr/src/app/logs
     expose:
       - "5000"
@@ -84,11 +84,41 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fs", "--max-time", "3", "http://localhost:5000/auth/ping"]
+      test: ["CMD", "curl", "-fs", "--max-time", "3", "http://localhost:5000/api/auth/ping"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # RQ Worker — traitement asynchrone des beats (watermark, image, DB)
+  # Utilise le même Dockerfile que web, commande différente.
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    mem_limit: 1g
+    entrypoint: []   # bypass entrypoint.sh (migrations/admin inutiles pour le worker)
+    command: ["gosu", "appuser", "uv", "run", "rq", "worker", "--url", "redis://redis:6379/0"]
+    env_file: .env
+    environment:
+      FLASK_ENV:    production
+      FLASK_APP:    app.py
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_URL:    redis://redis:6379/0
+      REDIS_HOST:   redis
+      REDIS_PORT:   "6379"
+      REDIS_DB:     "0"
+    volumes:
+      - ./db_assets:/usr/src/app/db_assets
+      - ./logs:/usr/src/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Frontend : Angular (build) + Nginx (reverse proxy + SPA)
@@ -102,7 +132,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./static:/usr/src/app/static:ro       # fichiers statiques Flask (images, audio)
+      - ./db_assets:/usr/src/app/db_assets:ro  # fichiers statiques Flask (images, audio)
       - certbot_www:/var/www/certbot:ro        # challenge Let's Encrypt
       - certbot_conf:/etc/letsencrypt:ro       # certificats SSL
     depends_on:

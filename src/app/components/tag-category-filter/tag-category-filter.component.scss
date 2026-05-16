@@ -1,0 +1,41 @@
+@use 'variables' as v;
+
+.tag-cat-filter {
+  display:     flex;
+  align-items: center;
+  flex-wrap:   wrap;
+  gap:         0.5rem;
+  padding:     0.75rem 1rem;
+}
+
+.label {
+  font-size:   0.75rem;
+  color:       v.$tag-neutral-light;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cat-chip {
+  display:       inline-flex;
+  align-items:   center;
+  padding:       0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size:     0.75rem;
+  font-weight:   500;
+  border:        1px solid v.$bg-border;
+  background:    v.$bg-surface;
+  color:         v.$tag-neutral-light;
+  cursor:        pointer;
+  transition:    background 0.15s, border-color 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: var(--cat-color, v.$tag-neutral);
+    color:        var(--cat-color, v.$tag-neutral-light);
+  }
+
+  &.active {
+    background:   color-mix(in srgb, var(--cat-color, v.$tag-neutral) 15%, transparent);
+    border-color: var(--cat-color, v.$tag-neutral);
+    color:        var(--cat-color, white);
+  }
+}

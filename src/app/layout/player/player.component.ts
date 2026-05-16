@@ -17,6 +17,7 @@ import WaveSurfer from 'wavesurfer.js';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
 import { MixOrderContext } from '../../services/player.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-player',
@@ -84,6 +85,15 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
     this.wavesurfer.on('interaction', (newTime) => {
       this.player.seek(newTime);
     });
+
+    // Fix race condition: effect() in constructor may have fired before
+    // ngAfterViewInit (this.wavesurfer was null → early return → no load).
+    // If a track is already queued, load it now that WaveSurfer is ready.
+    const pending = this.player.currentTrack();
+    if (pending && this.player.playOnReady) {
+      const url = this.player.buildAudioUrl(pending);
+      if (url) this.wavesurfer.load(url);
+    }
   }
 
   @HostListener('window:keydown.space', ['$event'])
@@ -136,8 +146,12 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   private doDownload(): void {
     const track = this.player.currentTrack();
     if (!track) return;
+    // Toujours télécharger la preview (stream_url), jamais le MP3 complet
+    const previewUrl = track.stream_url.startsWith('http')
+      ? track.stream_url
+      : `${environment.apiUrl}${track.stream_url}`;
     const a = document.createElement('a');
-    a.href = this.player.buildAudioUrl(track);
+    a.href = previewUrl;
     a.download = `${track.title}.mp3`;
     a.click();
   }

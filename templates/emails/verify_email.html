@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin: 0; padding: 0; background-color: #1a1a2e; font-family: Arial, sans-serif;">
+    <table width="100%" style="background-color: #1a1a2e; padding: 40px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" style="background-color: #16213e; border-radius: 8px;">
+                    <tr>
+                        <td style="background-color: #0f3460; padding: 30px; text-align: center;">
+                            <h1 style="color: #e94560; margin: 0;">LaProd</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #ffffff;">
+                                Bienvenue {{ user.username or 'sur LaProd' }} !
+                            </h2>
+                            <p style="color: #b0b0b0;">
+                                Pour activer votre compte, cliquez :
+                            </p>
+
+                            <!-- Le lien utilise verification_url, PAS token -->
+                            <table width="100%">
+                                <tr>
+                                    <td align="center" style="padding: 20px 0;">
+                                        <a href="{{ verification_url }}"
+                                           style="background-color: #e94560; color: #fff;
+                                                  padding: 14px 40px; text-decoration: none;
+                                                  border-radius: 6px; font-weight: bold;">
+                                            Verifier mon email
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="color: #8899aa; font-size: 13px;">
+                                Expire dans 1h. Lien :
+                                <a href="{{ verification_url }}" style="color: #e94560;">
+                                    {{ verification_url }}
+                                </a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

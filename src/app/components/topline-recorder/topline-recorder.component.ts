@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
 import { ToplineService } from '../../services/topline.service';
+import { ToplineStatusService } from '../../services/topline-status.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
@@ -41,11 +42,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   useMonitor   = false;
   description  = '';
 
-  private toplineSvc = inject(ToplineService);
-  private player     = inject(PlayerService);
-  private cdr        = inject(ChangeDetectorRef);
-  readonly auth      = inject(AuthService);
-  private http       = inject(HttpClient);
+  private toplineSvc       = inject(ToplineService);
+  private toplineStatusSvc = inject(ToplineStatusService);
+  private player           = inject(PlayerService);
+  private cdr              = inject(ChangeDetectorRef);
+  readonly auth            = inject(AuthService);
+  private http             = inject(HttpClient);
 
   private resultBlobUrl: string | null = null;
 
@@ -165,13 +167,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
     this.toplineSvc.uploadTopline(fd).subscribe({
       next: (res) => {
-        if (res.success && res.data?.topline) {
-          this.resultTopline.set(res.data.topline);
-          this.isPublished.set(false);
-          this.state.set('result');
-          this.auth.me().subscribe();
+        if (res.success && res.data?.job_id) {
+          this.toplineStatusSvc.startPolling(res.data.job_id);
+          this.state.set('idle');
+          this.closed.emit();  // ferme le recorder — l'utilisateur peut naviguer
         } else {
-          this.errorMsg.set(res.feedback?.message ?? 'Erreur lors du traitement.');
+          this.errorMsg.set(res.feedback?.message ?? 'Erreur lors de l\'envoi.');
           this.state.set('idle');
         }
         this.cdr.markForCheck();
@@ -208,7 +209,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
           id:            tl.id,
           title:         `Topline — aperçu`,
           composer_user: tl.artist_user as any,
-          stream_url:    this.resultBlobUrl,
+          stream_url:      this.resultBlobUrl,
+          full_stream_url: null,
           image_file:    this.track.image_file,
           bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
         });

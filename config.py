@@ -43,15 +43,28 @@ else:
 # Désactiver le tracking des modifications (économise de la mémoire)
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# Configuration PostgreSQL optimisée
-SQLALCHEMY_ENGINE_OPTIONS = {
-    'pool_size': 10,              # Nombre de connexions dans le pool
-    'pool_recycle': 3600,         # Recycler les connexions après 1h
-    'pool_pre_ping': True,        # Vérifier les connexions avant utilisation
-    'max_overflow': 20,           # Connexions supplémentaires si pool saturé
-    'pool_timeout': 30,           # Timeout si pas de connexion disponible
-    'echo': False,                # Mettre True pour debug SQL
-}
+# Configuration PostgreSQL
+# En production avec gunicorn --preload, les workers héritent du même Engine par fork.
+# NullPool évite tout partage de connexion entre workers : chaque requête crée et
+# ferme sa propre connexion PostgreSQL. Légèrement plus lent mais entièrement sûr.
+# En développement on garde le pool standard pour les performances.
+import os as _os
+if _os.environ.get('FLASK_ENV') == 'production':
+    from sqlalchemy.pool import NullPool
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'poolclass': NullPool,
+        'pool_pre_ping': True,
+        'echo': False,
+    }
+else:
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 5, # Nombre de connexions à maintenir dans le pool
+        'pool_recycle': 3600, # Recycle les connexions après 1h pour éviter les timeouts PostgreSQL
+        'pool_pre_ping': True, # Vérifie la connexion avant de l'utiliser pour éviter les erreurs de connexion morte
+        'max_overflow': 10, # Nombre de connexions supplémentaires autorisées au-delà de pool_size
+        'pool_timeout': 30,# Temps d'attente maximum pour obtenir une connexion du pool avant de lever une erreur
+        'echo': False, # Affiche les requêtes SQL dans les logs (mettre à True pour le développement, False en production)
+    }
 
 # ============================================
 # CONFIGURATION OAUTH
