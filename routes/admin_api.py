@@ -49,11 +49,14 @@ import uuid
 import config
 
 from extensions import db, csrf
-from models import Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest
 from serializers import ok, err as ser_err, track_admin, user_admin, user_ref
 from helpers import generate_track_image
 from utils import email_service, notification_service
 from utils.auth_helpers import require_admin
+from models import (
+    Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
+    ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
+)
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
 
@@ -1113,3 +1116,290 @@ def delete_tag(tag_id, current_user):
     db.session.delete(tag)
     db.session.commit()
     return ok(message=f'Tag "{name}" supprimé.', level='info')
+
+
+# =============================================================================
+# CONTRACT BUILDER — Admin CRUD (groupes et clauses)
+# =============================================================================
+
+def _cb_group_dto(g, include_clauses=False) -> dict:
+    d = {
+        'id':          g.id,
+        'name':        g.name,
+        'description': g.description,
+        'tooltip':     g.tooltip,
+        'sort_order':  g.sort_order,
+        'is_active':   g.is_active,
+    }
+    if include_clauses:
+        d['clauses'] = [_cb_clause_dto(c) for c in g.clauses]
+    return d
+
+
+def _cb_clause_dto(c) -> dict:
+    return {
+        'id':                    c.id,
+        'group_id':              c.group_id,
+        'name':                  c.name,
+        'description':           c.description,
+        'tooltip_short':         c.tooltip_short,
+        'tooltip_long':          c.tooltip_long,
+        'clause_type':           c.clause_type.value,
+        'options':               c.options,
+        'default_value':         c.default_value,
+        'is_required':           c.is_required,
+        'is_enabled_by_default': c.is_enabled_by_default,
+        'sort_order':            c.sort_order,
+        'is_active':             c.is_active,
+        'legal_reference':       c.legal_reference,
+        'example_text':          c.example_text,
+        'tooltip_plain':         c.tooltip_plain,
+    }
+
+
+# ── Groupes ───────────────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/contract-builder/groups', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def cb_list_groups():
+    _, err = _require_admin()
+    if err:
+        return err
+    groups = (
+        db.session.query(ContractClauseGroup)
+        .order_by(ContractClauseGroup.sort_order)
+        .all()
+    )
+    return jsonify({'success': True, 'data': {'groups': [_cb_group_dto(g, include_clauses=True) for g in groups]}})
+
+
+@admin_api_bp.route('/contract-builder/groups', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def cb_create_group():
+    _, err = _require_admin()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nom est requis.'}}), 400
+
+    max_order = db.session.query(db.func.max(ContractClauseGroup.sort_order)).scalar() or -1
+    g = ContractClauseGroup(
+        name        = name,
+        description = data.get('description'),
+        tooltip     = data.get('tooltip'),
+        sort_order  = max_order + 1,
+        is_active   = data.get('is_active', True),
+    )
+    db.session.add(g)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'group': _cb_group_dto(g)}}), 201
+
+
+@admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['PUT'])
+@jwt_required()
+@csrf.exempt
+def cb_update_group(group_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    g = db.get_or_404(ContractClauseGroup, group_id)
+    data = request.get_json(silent=True) or {}
+    if 'name' in data:
+        g.name = (data['name'] or '').strip() or g.name
+    if 'description' in data:
+        g.description = data['description']
+    if 'tooltip' in data:
+        g.tooltip = data['tooltip']
+    if 'sort_order' in data:
+        g.sort_order = int(data['sort_order'])
+    if 'is_active' in data:
+        g.is_active = bool(data['is_active'])
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'group': _cb_group_dto(g)}})
+
+
+@admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+def cb_delete_group(group_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    g = db.get_or_404(ContractClauseGroup, group_id)
+    # Soft delete si des valeurs utilisateur référencent les clauses du groupe
+    has_refs = (
+        db.session.query(UserContractValue)
+        .join(ContractClause, UserContractValue.clause_id == ContractClause.id)
+        .filter(ContractClause.group_id == group_id)
+        .first()
+    )
+    if has_refs:
+        g.is_active = False
+        db.session.commit()
+        return jsonify({'success': True, 'feedback': {'level': 'info', 'message': 'Groupe désactivé (des contrats y font référence).'}})
+    db.session.delete(g)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@admin_api_bp.route('/contract-builder/groups/reorder', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def cb_reorder_groups():
+    _, err = _require_admin()
+    if err:
+        return err
+    items = request.get_json(silent=True) or []
+    for item in items:
+        g = db.session.get(ContractClauseGroup, item.get('id'))
+        if g:
+            g.sort_order = int(item.get('sort_order', g.sort_order))
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ── Clauses ───────────────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def cb_list_clauses(group_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    db.get_or_404(ContractClauseGroup, group_id)
+    clauses = (
+        db.session.query(ContractClause)
+        .filter_by(group_id=group_id)
+        .order_by(ContractClause.sort_order)
+        .all()
+    )
+    return jsonify({'success': True, 'data': {'clauses': [_cb_clause_dto(c) for c in clauses]}})
+
+
+@admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def cb_create_clause(group_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    db.get_or_404(ContractClauseGroup, group_id)
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nom est requis.'}}), 400
+
+    try:
+        ctype = ClauseTypeEnum(data.get('clause_type', 'text'))
+    except ValueError:
+        return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Type de clause invalide.'}}), 400
+
+    max_order = (
+        db.session.query(db.func.max(ContractClause.sort_order))
+        .filter_by(group_id=group_id).scalar()
+    ) or -1
+
+    c = ContractClause(
+        group_id              = group_id,
+        name                  = name,
+        description           = data.get('description'),
+        tooltip_short         = data.get('tooltip_short'),
+        tooltip_long          = data.get('tooltip_long'),
+        clause_type           = ctype,
+        options               = data.get('options'),
+        default_value         = data.get('default_value'),
+        is_required           = bool(data.get('is_required', False)),
+        is_enabled_by_default = bool(data.get('is_enabled_by_default', True)),
+        sort_order            = max_order + 1,
+        is_active             = bool(data.get('is_active', True)),
+        legal_reference       = data.get('legal_reference'),
+        tooltip_plain         = data.get('tooltip_plain'),
+    )
+    db.session.add(c)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'clause': _cb_clause_dto(c)}}), 201
+
+
+@admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['PUT'])
+@jwt_required()
+@csrf.exempt
+def cb_update_clause(clause_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    c = db.get_or_404(ContractClause, clause_id)
+    data = request.get_json(silent=True) or {}
+
+    if 'name' in data:
+        c.name = (data['name'] or '').strip() or c.name
+    if 'description' in data:
+        c.description = data['description']
+    if 'tooltip_short' in data:
+        c.tooltip_short = data['tooltip_short']
+    if 'tooltip_long' in data:
+        c.tooltip_long = data['tooltip_long']
+    if 'clause_type' in data:
+        try:
+            c.clause_type = ClauseTypeEnum(data['clause_type'])
+        except ValueError:
+            pass
+    if 'options' in data:
+        c.options = data['options']
+    if 'default_value' in data:
+        c.default_value = data['default_value']
+    if 'is_required' in data:
+        c.is_required = bool(data['is_required'])
+    if 'is_enabled_by_default' in data:
+        c.is_enabled_by_default = bool(data['is_enabled_by_default'])
+    if 'sort_order' in data:
+        c.sort_order = int(data['sort_order'])
+    if 'is_active' in data:
+        c.is_active = bool(data['is_active'])
+    if 'legal_reference' in data:
+        c.legal_reference = data['legal_reference']
+    if 'example_text' in data:
+        c.example_text = data['example_text'] or None
+    if 'tooltip_plain' in data:
+        c.tooltip_plain = data['tooltip_plain'] or None
+
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'clause': _cb_clause_dto(c)}})
+
+
+@admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+def cb_delete_clause(clause_id):
+    _, err = _require_admin()
+    if err:
+        return err
+    c = db.get_or_404(ContractClause, clause_id)
+    has_refs = db.session.query(UserContractValue).filter_by(clause_id=clause_id).first()
+    if has_refs:
+        c.is_active = False
+        db.session.commit()
+        return jsonify({'success': True, 'feedback': {'level': 'info', 'message': 'Clause désactivée (des contrats y font référence).'}})
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@admin_api_bp.route('/contract-builder/clauses/reorder', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def cb_reorder_clauses():
+    _, err = _require_admin()
+    if err:
+        return err
+    items = request.get_json(silent=True) or []
+    for item in items:
+        c = db.session.get(ContractClause, item.get('id'))
+        if c:
+            c.sort_order = int(item.get('sort_order', c.sort_order))
+    db.session.commit()
+    return jsonify({'success': True})

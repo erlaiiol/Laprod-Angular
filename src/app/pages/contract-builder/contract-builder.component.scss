@@ -1,0 +1,91 @@
+@use 'variables' as v;
+
+.cb-list-page {
+  max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+}
+
+.cb-list-header {
+  margin-bottom: 1.75rem;
+  h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 0.4rem; }
+}
+
+.cb-list-subtitle {
+  color: v.$text-secondary; font-size: 0.9rem; margin: 0;
+}
+
+// ── New contract card ──────────────────────────────────────────────────────────
+
+.cb-new-card {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+
+  h2 { font-size: 1rem; font-weight: 700; margin: 0 0 0.85rem; }
+}
+
+.cb-new-form {
+  display: flex; gap: 0.6rem;
+  @media (max-width: 540px) { flex-direction: column; }
+}
+
+.cb-input {
+  flex: 1; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-primary; border-radius: 8px; padding: 0.55rem 0.9rem; font-size: 0.9rem;
+  &::placeholder { color: v.$text-muted; }
+  &:focus { outline: none; border-color: v.$tag-violet; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-primary {
+  background: v.$tag-violet; border: none; color: #fff;
+  border-radius: 8px; padding: 0.55rem 1.2rem; font-size: 0.9rem;
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+  &:hover:not(:disabled) { opacity: 0.88; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+// ── Contracts list ────────────────────────────────────────────────────────────
+
+.cb-contracts-list {
+  h2 { font-size: 1rem; font-weight: 700; margin: 0 0 0.85rem; }
+}
+
+.cb-loading, .cb-empty {
+  color: v.$text-secondary; font-size: 0.875rem; padding: 1.5rem 0;
+}
+
+.cb-contract-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 0.85rem 1rem; cursor: pointer;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; margin-bottom: 0.5rem;
+  transition: border-color 0.15s;
+  &:hover { border-color: v.$tag-violet; }
+}
+
+.cb-contract-info {
+  display: flex; flex-direction: column; gap: 0.2rem;
+}
+
+.cb-contract-title {
+  font-size: 0.95rem; font-weight: 600;
+}
+
+.cb-contract-date {
+  font-size: 0.75rem; color: v.$text-secondary;
+}
+
+.cb-status-badge {
+  font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+  border-radius: 12px; white-space: nowrap;
+
+  &.status-draft {
+    background: rgba(v.$tag-orange, 0.15);
+    color: v.$tag-orange;
+    border: 1px solid rgba(v.$tag-orange, 0.4);
+  }
+  &.status-final {
+    background: rgba(v.$tag-green, 0.15);
+    color: v.$tag-green;
+    border: 1px solid rgba(v.$tag-green, 0.4);
+  }
+}

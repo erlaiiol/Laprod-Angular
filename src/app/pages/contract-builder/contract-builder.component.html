@@ -1,0 +1,48 @@
+<div class="cb-list-page">
+  <div class="cb-list-header">
+    <h1>Générateur de contrats</h1>
+    <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale professionnel, adapté au droit français.</p>
+  </div>
+
+  <!-- Nouveau contrat -->
+  <div class="cb-new-card">
+    <h2>Nouveau contrat</h2>
+    <div class="cb-new-form">
+      <input
+        class="cb-input"
+        type="text"
+        placeholder="Titre de l'œuvre ou du projet..."
+        [ngModel]="newTitle()"
+        (ngModelChange)="newTitle.set($event)"
+        (keydown.enter)="create()"
+        [disabled]="creating()"
+      />
+      <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
+        @if (creating()) { Création... } @else { Créer le contrat }
+      </button>
+    </div>
+  </div>
+
+  <!-- Liste -->
+  <div class="cb-contracts-list">
+    <h2>Mes contrats</h2>
+
+    @if (loading()) {
+      <p class="cb-loading">Chargement...</p>
+    } @else if (contracts().length === 0) {
+      <p class="cb-empty">Aucun contrat pour le moment. Créez votre premier contrat ci-dessus.</p>
+    } @else {
+      @for (contract of contracts(); track contract.id) {
+        <div class="cb-contract-row" (click)="open(contract.id)">
+          <div class="cb-contract-info">
+            <span class="cb-contract-title">{{ contract.title }}</span>
+            <span class="cb-contract-date">{{ fmtDate(contract.created_at) }}</span>
+          </div>
+          <span class="cb-status-badge" [class]="'status-' + contract.status">
+            {{ contract.status === 'final' ? 'Finalisé' : 'Brouillon' }}
+          </span>
+        </div>
+      }
+    }
+  </div>
+</div>

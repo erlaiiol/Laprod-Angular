@@ -30,7 +30,10 @@ import { MixPaymentSuccessComponent }         from './pages/mixmaster/payment-su
 import { TrackPaymentSuccessComponent }       from './pages/payment-success/payment-success.component';
 import { AdminComponent }                    from './pages/admin/admin.component';
 import { NotFoundComponent }                 from './pages/not-found/not-found.component';
-import { EditTrackComponent } from './pages/edit-track/edit-track.component';
+import { EditTrackComponent }         from './pages/edit-track/edit-track.component';
+import { ContractBuilderComponent }   from './pages/contract-builder/contract-builder.component';
+import { BuilderFormComponent }       from './pages/contract-builder/builder-form/builder-form.component';
+import { ContractAnalyzerComponent }  from './pages/contract-analyzer/contract-analyzer.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -59,6 +62,9 @@ export const routes: Routes = [
   { path: 'mix/order/:engineerId',         component: MixmasterOrderComponent,          canActivate: [authGuard] },
   { path: 'mix/payment-success',           component: MixPaymentSuccessComponent,       canActivate: [authGuard] },
   { path: 'payment/track/success',         component: TrackPaymentSuccessComponent,     canActivate: [authGuard] },
+  { path: 'contract-builder',               component: ContractBuilderComponent,         canActivate: [authGuard] },
+  { path: 'contract-builder/:id',           component: BuilderFormComponent,             canActivate: [authGuard] },
+  { path: 'contract-analyzer',              component: ContractAnalyzerComponent,        canActivate: [authGuard] },
   { path: 'admin',                         component: AdminComponent,                   canActivate: [adminGuard] },
   { path: 'erreur',                        component: NotFoundComponent },
   { path: '**',                            component: NotFoundComponent },

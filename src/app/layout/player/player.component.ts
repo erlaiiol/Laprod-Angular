@@ -4,6 +4,7 @@ import {
   AfterViewInit,
   ViewChild,
   ElementRef,
+  HostListener,
   inject,
   effect,
   signal,
@@ -93,6 +94,16 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       const url = this.player.buildAudioUrl(pending);
       if (url) this.wavesurfer.load(url);
     }
+  }
+
+  @HostListener('window:keydown.space', ['$event'])
+  onSpacebar(event: Event): void {
+    if (!this.player.currentTrack()) return;
+    const tag = (event.target as HTMLElement).tagName;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+    if ((event.target as HTMLElement).isContentEditable) return;
+    event.preventDefault();
+    this.player.togglePlay();
   }
 
   // ── Contextual actions ───────────────────────────────────────────────────

@@ -1,0 +1,226 @@
+<!-- Create group form -->
+<div class="cat-create">
+  <h3>Nouveau groupe de clauses</h3>
+  <div class="inline-form">
+    <input placeholder="Nom du groupe *"
+      [ngModel]="newGroupName()" (ngModelChange)="newGroupName.set($event)" />
+    <input placeholder="Description (optionnel)"
+      [ngModel]="newGroupDesc()" (ngModelChange)="newGroupDesc.set($event)" />
+    <input placeholder="Tooltip (optionnel)"
+      [ngModel]="newGroupTip()" (ngModelChange)="newGroupTip.set($event)" />
+    <button class="btn-primary" (click)="createGroup()" [disabled]="!newGroupName().trim()">
+      <i class="bi bi-plus"></i> Créer
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+} @else if (groups().length === 0) {
+  <p class="empty">Aucun groupe. Créez le premier groupe ci-dessus.</p>
+} @else {
+  <div class="cat-list">
+    @for (group of groups(); track group.id) {
+      <div class="cat-item">
+        <!-- Group header -->
+        <div class="cat-header">
+          <span class="cat-dot" [style.background]="group.is_active ? '#8b5cf6' : '#6b7280'"></span>
+          <strong>{{ group.name }}</strong>
+          <span class="small">({{ group.clauses.length }} clause{{ group.clauses.length > 1 ? 's' : '' }}
+            — ordre {{ group.sort_order }}{{ group.is_active ? '' : ' — inactif' }})</span>
+          <button class="btn-icon-sm" (click)="toggleGroup(group.id)" title="Voir les clauses">
+            <i class="bi" [class.bi-chevron-down]="expandedGroupId() !== group.id"
+                          [class.bi-chevron-up]="expandedGroupId() === group.id"></i>
+          </button>
+          <button class="btn-icon-sm" (click)="openEditGroup(group)" title="Modifier le groupe">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn-danger-sm" (click)="deleteGroup(group)" title="Supprimer le groupe">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+
+        <!-- Clause list (expandable) -->
+        @if (expandedGroupId() === group.id) {
+          <div style="margin-top: 0.75rem;">
+            @if (group.clauses.length === 0) {
+              <p class="empty" style="margin: 0 0 0.5rem;">Aucune clause dans ce groupe.</p>
+            } @else {
+              <table class="data-table" style="margin-bottom: 0.75rem;">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nom</th>
+                    <th>Type</th>
+                    <th>Requis</th>
+                    <th>Actif</th>
+                    <th>Référence</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (clause of group.clauses; track clause.id) {
+                    <tr [class.disabled]="!clause.is_active">
+                      <td class="small">{{ clause.sort_order }}</td>
+                      <td>
+                        {{ clause.name }}
+                        @if (clause.tooltip_short) {
+                          <span class="small" style="display:block;">{{ clause.tooltip_short }}</span>
+                        }
+                      </td>
+                      <td class="small"><code>{{ clause.clause_type }}</code></td>
+                      <td class="small">{{ clause.is_required ? '✓' : '—' }}</td>
+                      <td class="small">{{ clause.is_active ? '✓' : '✗' }}</td>
+                      <td class="small">{{ clause.legal_reference ?? '—' }}</td>
+                      <td>
+                        <div class="actions">
+                          <button class="btn-edit" (click)="openEditClause(clause)">
+                            <i class="bi bi-pencil"></i> Modifier
+                          </button>
+                          <button class="btn-danger" (click)="deleteClause(clause)">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+
+            <!-- Add clause inline -->
+            <div class="inline-form">
+              <input placeholder="Nom de la clause *"
+                [ngModel]="getNewClauseForm(group.id).name"
+                (ngModelChange)="setNewClauseField(group.id, 'name', $event)" />
+              <select
+                [ngModel]="getNewClauseForm(group.id).clause_type"
+                (ngModelChange)="setNewClauseField(group.id, 'clause_type', $event)">
+                @for (t of clauseTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+              <button class="btn-primary" (click)="createClause(group.id)"
+                [disabled]="!getNewClauseForm(group.id).name?.trim()">
+                <i class="bi bi-plus"></i> Ajouter
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- ── Edit Group Modal ──────────────────────────────────────────────────────── -->
+@if (editGroup()) {
+  <div class="modal-backdrop" (click)="editGroup.set(null)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Modifier le groupe</h3>
+      <label>
+        Nom *
+        <input [ngModel]="editGName()" (ngModelChange)="editGName.set($event)" placeholder="Nom du groupe" />
+      </label>
+      <label>
+        Description
+        <input [ngModel]="editGDesc()" (ngModelChange)="editGDesc.set($event)" placeholder="Description" />
+      </label>
+      <label>
+        Tooltip
+        <input [ngModel]="editGTip()" (ngModelChange)="editGTip.set($event)" placeholder="Bulle d'aide" />
+      </label>
+      <label class="field-group">
+        <div class="chk-row">
+          <input type="checkbox" [ngModel]="editGActive()" (ngModelChange)="editGActive.set($event)" />
+          Actif
+        </div>
+      </label>
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="editGroup.set(null)">Annuler</button>
+        <button class="btn-primary" (click)="saveEditGroup()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Edit Clause Modal ─────────────────────────────────────────────────────── -->
+@if (editClause()) {
+  <div class="modal-backdrop" (click)="editClause.set(null)">
+    <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;"
+         (click)="$event.stopPropagation()">
+      <h3>Modifier la clause</h3>
+
+      <div class="form-grid">
+        <label class="full-col">
+          Nom *
+          <input [ngModel]="editCName()" (ngModelChange)="editCName.set($event)" />
+        </label>
+        <label>
+          Type
+          <select [ngModel]="editCType()" (ngModelChange)="editCType.set($event)">
+            @for (t of clauseTypes; track t) {
+              <option [value]="t">{{ t }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Référence légale
+          <input [ngModel]="editCLegalRef()" (ngModelChange)="editCLegalRef.set($event)"
+            placeholder="ex: Art. L131-4 CPI" />
+        </label>
+        <label class="full-col">
+          Description
+          <input [ngModel]="editCDesc()" (ngModelChange)="editCDesc.set($event)" />
+        </label>
+        <label class="full-col">
+          Tooltip court (survol)
+          <input [ngModel]="editCTipShort()" (ngModelChange)="editCTipShort.set($event)" />
+        </label>
+        <label class="full-col">
+          Tooltip long (panel)
+          <textarea rows="4" [ngModel]="editCTipLong()" (ngModelChange)="editCTipLong.set($event)"
+            style="width:100%;background:var(--bg-elevated,#363f50);border:1px solid #404956;color:inherit;border-radius:6px;padding:.4rem .7rem;font-size:.85rem;resize:vertical;font-family:inherit;"></textarea>
+        </label>
+        <label class="full-col">
+          Options (une par ligne — pour select et multi_toggle)
+          <textarea rows="4" [ngModel]="editCOptions()" (ngModelChange)="editCOptions.set($event)"
+            placeholder="Option A&#10;Option B&#10;Option C"
+            style="width:100%;background:var(--bg-elevated,#363f50);border:1px solid #404956;color:inherit;border-radius:6px;padding:.4rem .7rem;font-size:.85rem;resize:vertical;font-family:inherit;"></textarea>
+        </label>
+        <label class="full-col">
+          Exemple de rédaction
+          <textarea rows="5" [ngModel]="editCExample()" (ngModelChange)="editCExample.set($event)"
+            placeholder="Texte quasi-juridique d'exemple que l'utilisateur pourra utiliser comme base..."
+            style="width:100%;background:var(--bg-elevated,#363f50);border:1px solid #404956;color:inherit;border-radius:6px;padding:.4rem .7rem;font-size:.85rem;resize:vertical;font-family:inherit;"></textarea>
+        </label>
+        <label class="full-col">
+          Explication simplifiée <span style="font-size:.7rem;font-weight:700;padding:.1rem .4rem;border-radius:6px;background:rgba(255,167,85,.12);color:#ffa755;border:1px solid rgba(255,167,85,.3);margin-left:.4rem;">En clair</span>
+          <textarea rows="3" [ngModel]="editCTipPlain()" (ngModelChange)="editCTipPlain.set($event)"
+            placeholder="1-2 phrases sans jargon. Ex : Tu autorises l'autre partie à diffuser ta musique sur Spotify et Apple Music."
+            style="width:100%;background:var(--bg-elevated,#363f50);border:1px solid #404956;color:inherit;border-radius:6px;padding:.4rem .7rem;font-size:.85rem;resize:vertical;font-family:inherit;"></textarea>
+          <span style="font-size:.72rem;color:var(--text-muted,#7c8898);">Visible en permanence sous le nom de la clause, sans clic nécessaire.</span>
+        </label>
+      </div>
+
+      <div class="inline-form" style="margin-top: 0.5rem; gap: 1.5rem;">
+        <label class="chk-row" style="margin:0; cursor:pointer; font-size:.875rem;">
+          <input type="checkbox" [ngModel]="editCRequired()" (ngModelChange)="editCRequired.set($event)" />
+          Requis
+        </label>
+        <label class="chk-row" style="margin:0; cursor:pointer; font-size:.875rem;">
+          <input type="checkbox" [ngModel]="editCEnabled()" (ngModelChange)="editCEnabled.set($event)" />
+          Activé par défaut
+        </label>
+        <label class="chk-row" style="margin:0; cursor:pointer; font-size:.875rem;">
+          <input type="checkbox" [ngModel]="editCActive()" (ngModelChange)="editCActive.set($event)" />
+          Actif
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="editClause.set(null)">Annuler</button>
+        <button class="btn-primary" (click)="saveEditClause()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+}
