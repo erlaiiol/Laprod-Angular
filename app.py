@@ -129,6 +129,7 @@ def create_app():
     config.MIXMASTER_PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_PREVIEWS_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_SAMPLES_FOLDER.mkdir(parents=True, exist_ok=True)
+    (config.CONTRACTS_FOLDER / 'builder').mkdir(parents=True, exist_ok=True)
 
     # ============================================
     # INITIALISER LES EXTENSIONS
@@ -198,6 +199,54 @@ def create_app():
             db.session.commit()
             app.logger.info("Compte admin cree")
     
+    @app.cli.command('seed-contract-builder')
+    def seed_contract_builder():
+        """Initialise les groupes et clauses du contract builder."""
+        from utils.contract_builder_seed import run_seed, update_examples
+
+        with app.app_context():
+            run_seed()
+            n = update_examples()
+            if n:
+                app.logger.info(f"Contract builder : {n} clause(s) mises à jour avec des exemples.")
+            app.logger.info("Contract builder seedé avec succès.")
+
+    @app.cli.command('update-contract-examples')
+    def update_contract_examples():
+        """Patch example_text sur les clauses existantes qui n'en ont pas encore."""
+        from utils.contract_builder_seed import update_examples
+
+        with app.app_context():
+            n = update_examples()
+            app.logger.info(f"{n} clause(s) mises à jour avec des exemples de rédaction.")
+
+    @app.cli.command('update-contract-tooltips')
+    def update_contract_tooltips():
+        """Patch tooltip_long sur les clauses existantes qui n'en ont pas encore."""
+        from utils.contract_builder_seed import update_tooltips
+
+        with app.app_context():
+            n = update_tooltips()
+            app.logger.info(f"{n} clause(s) mises à jour avec des tooltip longs.")
+
+    @app.cli.command('update-contract-plain')
+    def update_contract_plain():
+        """Patch tooltip_plain sur les clauses existantes qui n'en ont pas encore."""
+        from utils.contract_builder_seed import update_plain_texts
+
+        with app.app_context():
+            n = update_plain_texts()
+            app.logger.info(f"{n} clause(s) mises à jour avec une explication simplifiée.")
+
+    @app.cli.command('force-update-contract-plain')
+    def force_update_contract_plain():
+        """Réécrit tooltip_plain sur toutes les clauses (écrase les valeurs existantes)."""
+        from utils.contract_builder_seed import update_plain_texts
+
+        with app.app_context():
+            n = update_plain_texts(force=True)
+            app.logger.info(f"{n} clause(s) réécrites avec une explication simplifiée.")
+
     # ============================================
     # ROUTE STATIQUE DB_ASSETS (images, profils…)
     # ============================================
@@ -234,6 +283,8 @@ def create_app():
         mixmaster_media_api_bp,
         admin_api_bp,
         cud_admin_api_bp,
+        contract_builder_api_bp,
+        contract_analyzer_api_bp,
     )
     from routes.streaming_service import streaming_bp
 
@@ -262,6 +313,8 @@ def create_app():
     app.register_blueprint(mixmaster_media_api_bp)
     app.register_blueprint(admin_api_bp)
     app.register_blueprint(cud_admin_api_bp)
+    app.register_blueprint(contract_builder_api_bp)
+    app.register_blueprint(contract_analyzer_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

@@ -231,7 +231,7 @@ ALLOWED_ATTRIBUTES = {'a': ['href', 'title']}
 # CONFIGURATION DES COOKIES
 # ==============================================
 
-SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = ENV != 'development'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 PERMANENT_SESSION_LIFETIME = timedelta(hours=24)

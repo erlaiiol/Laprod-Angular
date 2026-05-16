@@ -46,7 +46,7 @@ dependencies = [
     "pydub==0.25.1",
     "python-dotenv==1.2.1",
     "python-magic",
-    "python-magic-bin; sys_platform == 'win32' or sys_platform == 'darwin'",
+    "python-magic-bin; sys_platform == 'win32'",
     "rarfile>=4.2",
     "reportlab==4.4.4",
     "requests==2.32.5",
@@ -60,9 +60,10 @@ dependencies = [
     "wtforms==3.2.1",
     "apscheduler>=3.11.2",
     "scipy>=1.17.1",
-
     "libcst>=1.8.6",
     "flask-cors>=6.0.2",
     "flask-jwt-extended>=4.7.1",
     "redis>=7.4.0",
+    "mistralai>=1.0.0",
+    "pdfplumber>=0.11.0",
 ]

@@ -1,0 +1,573 @@
+@if (loading()) {
+  <div class="bf-loading">
+    <span>Chargement du contrat...</span>
+  </div>
+} @else {
+
+<div class="bf-page">
+
+  <!-- Header -->
+  <div class="bf-header">
+    <button class="bf-back" (click)="back()">
+      <i class="bi bi-arrow-left"></i> Mes contrats
+    </button>
+    <div class="bf-header-center">
+      <input class="bf-title-input"
+        [value]="title()"
+        (input)="title.set($any($event.target).value)"
+        [disabled]="isFinal()"
+        placeholder="Titre du contrat" />
+      <span class="bf-status" [class.final]="isFinal()">
+        {{ isFinal() ? 'Finalisé' : 'Brouillon' }}
+      </span>
+    </div>
+    <div class="bf-header-actions">
+      @if (!isFinal()) {
+        <button class="btn-preview" (click)="togglePreview()" [class.active]="showPreview()">
+          <i class="bi bi-eye"></i> Prévisualiser
+        </button>
+      }
+      @if (isFinal()) {
+        <button class="btn-preview" (click)="togglePreview()" [class.active]="showPreview()">
+          <i class="bi bi-eye"></i> Aperçu
+        </button>
+        @if (hasPdf()) {
+          <button class="btn-download" (click)="download()" [disabled]="downloading()">
+            <i class="bi bi-download"></i>
+            {{ downloading() ? 'Téléchargement...' : 'Télécharger le PDF' }}
+          </button>
+        }
+      } @else {
+        <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
+          @if (saving() && !generating()) { Enregistrement... } @else { Enregistrer }
+        </button>
+        <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
+          @if (generating()) { Génération... } @else { Générer le PDF }
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="bf-body">
+
+    <!-- Sidebar navigation -->
+    <nav class="bf-sidebar">
+      <button class="bf-nav-item" [class.active]="activeGroup() === 0" (click)="setGroup(0)">
+        <i class="bi bi-people"></i> Parties au contrat
+      </button>
+      @for (group of groups(); track group.id) {
+        <button class="bf-nav-item" [class.active]="activeGroup() === group.id" (click)="setGroup(group.id)">
+          @if (articleNumbers()[group.id]) {
+            <span class="bf-art-num">{{ articleNumbers()[group.id] }}</span>
+          }
+          {{ group.name }}
+        </button>
+      }
+    </nav>
+
+    <!-- Main content -->
+    <div class="bf-content">
+
+      <!-- ── Parties section ─────────────────────────────────────────────── -->
+      @if (activeGroup() === 0) {
+        <div class="bf-section">
+          <div class="bf-section-header">
+            <h2>Parties au contrat</h2>
+            <p class="bf-section-desc">Identifiez chaque partie (auteur, éditeur, distributeur, etc.).</p>
+          </div>
+
+          @if (!isFinal()) {
+            <div class="bf-party-add">
+              <button class="btn-add-party" (click)="addParty('physical')">
+                <i class="bi bi-person-plus"></i> Personne physique
+              </button>
+              <button class="btn-add-party" (click)="addParty('company')">
+                <i class="bi bi-building-plus"></i> Société / Personne morale
+              </button>
+            </div>
+          }
+
+          @if (parties().length === 0) {
+            <p class="bf-empty">Aucune partie ajoutée. Cliquez sur un bouton ci-dessus pour ajouter une partie.</p>
+          }
+
+          @for (party of parties(); track $index) {
+            <div class="bf-party-card">
+              <div class="bf-party-header">
+                <span class="bf-party-type">
+                  @if (party.party_type === 'physical') {
+                    <i class="bi bi-person"></i> Personne physique
+                  } @else {
+                    <i class="bi bi-building"></i> Société
+                  }
+                </span>
+                @if (!isFinal()) {
+                  <button class="btn-remove-party" (click)="removeParty($index)" title="Supprimer cette partie">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                }
+              </div>
+
+              <div class="bf-party-fields">
+                <!-- Role (common) -->
+                <label class="bf-field full">
+                  <span>Rôle dans le contrat <span class="req">*</span></span>
+                  <input type="text" placeholder="ex: Compositeur, Éditeur, Distributeur..."
+                    [value]="party.role"
+                    (input)="updatePartyField($index, 'role', $any($event.target).value)"
+                    [disabled]="isFinal()" />
+                </label>
+
+                @if (party.party_type === 'physical') {
+                  <!-- Physical person fields -->
+                  <label class="bf-field">
+                    <span>Prénom</span>
+                    <input type="text" [value]="party.first_name ?? ''"
+                      (input)="updatePartyField($index, 'first_name', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Nom</span>
+                    <input type="text" [value]="party.last_name ?? ''"
+                      (input)="updatePartyField($index, 'last_name', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Date de naissance</span>
+                    <input type="text" placeholder="JJ/MM/AAAA"
+                      [value]="party.date_of_birth ?? ''"
+                      (input)="updatePartyField($index, 'date_of_birth', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Nationalité</span>
+                    <input type="text" [value]="party.nationality ?? ''"
+                      (input)="updatePartyField($index, 'nationality', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Nom de scène / Pseudonyme</span>
+                    <input type="text" [value]="party.pseudonym ?? ''"
+                      (input)="updatePartyField($index, 'pseudonym', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Numéro fiscal</span>
+                    <input type="text" [value]="party.tax_id ?? ''"
+                      (input)="updatePartyField($index, 'tax_id', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                } @else {
+                  <!-- Company fields -->
+                  <label class="bf-field">
+                    <span>Dénomination sociale</span>
+                    <input type="text" [value]="party.company_name ?? ''"
+                      (input)="updatePartyField($index, 'company_name', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Forme juridique</span>
+                    <input type="text" placeholder="SARL, SAS, SASU..."
+                      [value]="party.legal_form ?? ''"
+                      (input)="updatePartyField($index, 'legal_form', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Capital social</span>
+                    <input type="text" placeholder="ex: 50 000 €"
+                      [value]="party.capital ?? ''"
+                      (input)="updatePartyField($index, 'capital', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>SIREN</span>
+                    <input type="text" [value]="party.siren ?? ''"
+                      (input)="updatePartyField($index, 'siren', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>SIRET</span>
+                    <input type="text" [value]="party.siret ?? ''"
+                      (input)="updatePartyField($index, 'siret', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>RCS</span>
+                    <input type="text" placeholder="ex: RCS Paris B 123 456 789"
+                      [value]="party.rcs ?? ''"
+                      (input)="updatePartyField($index, 'rcs', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Représentant légal</span>
+                    <input type="text" [value]="party.legal_rep ?? ''"
+                      (input)="updatePartyField($index, 'legal_rep', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  <label class="bf-field">
+                    <span>Qualité du signataire</span>
+                    <input type="text" placeholder="Gérant, Directeur général..."
+                      [value]="party.signatory_title ?? ''"
+                      (input)="updatePartyField($index, 'signatory_title', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                }
+
+                <!-- Common fields -->
+                <label class="bf-field full">
+                  <span>Adresse</span>
+                  <input type="text" [value]="party.address ?? ''"
+                    (input)="updatePartyField($index, 'address', $any($event.target).value)"
+                    [disabled]="isFinal()" />
+                </label>
+                <label class="bf-field">
+                  <span>E-mail</span>
+                  <input type="email" [value]="party.email ?? ''"
+                    (input)="updatePartyField($index, 'email', $any($event.target).value)"
+                    [disabled]="isFinal()" />
+                </label>
+              </div>
+            </div>
+          }
+        </div>
+
+      <!-- ── Clause group section ─────────────────────────────────────────── -->
+      } @else if (activeGroupData()) {
+        <div class="bf-section">
+          <div class="bf-section-header">
+            <h2>
+              @if (articleNumbers()[activeGroupData()!.id]) {
+                <span class="bf-art-badge">Art. {{ articleNumbers()[activeGroupData()!.id] }}</span>
+              }
+              {{ activeGroupData()!.name }}
+            </h2>
+            @if (activeGroupData()!.description) {
+              <p class="bf-section-desc">{{ activeGroupData()!.description }}</p>
+            }
+          </div>
+
+          @for (clause of activeGroupData()!.clauses; track clause.id) {
+            @let lv = getValue(clause.id, clause);
+
+            <div class="bf-clause" [class.disabled]="!lv.is_enabled && !clause.is_required">
+
+              <!-- Clause header: toggle enable / name / tooltip icon -->
+              <div class="bf-clause-header">
+                @if (!clause.is_required) {
+                  <input type="checkbox"
+                    [checked]="lv.is_enabled"
+                    (change)="setEnabled(clause.id, clause, $any($event.target).checked)"
+                    [disabled]="isFinal()"
+                    class="bf-clause-check" />
+                }
+                @if (clauseNumbers()[clause.id]) {
+                  <span class="bf-clause-num">{{ clauseNumbers()[clause.id] }}</span>
+                }
+                <span class="bf-clause-name" [class.required]="clause.is_required">
+                  {{ clause.name }}
+                  @if (clause.is_required) { <span class="req">*</span> }
+                </span>
+                @if (clause.tooltip_plain || clause.tooltip_long) {
+                  <span class="bf-tooltip-icon"
+                        [class.has-plain-only]="clause.tooltip_plain && !clause.tooltip_long"
+                        [class.has-long-only]="!clause.tooltip_plain && clause.tooltip_long"
+                        [class.has-both]="clause.tooltip_plain && clause.tooltip_long"
+                        [title]="clause.tooltip_short || ''"
+                        (click)="toggleTooltip(clause.id)">?</span>
+                }
+                @if (clause.example_text && !isFinal()) {
+                  <span class="bf-example-icon" title="Voir un exemple de rédaction" (click)="toggleExample(clause.id)">
+                    <i class="bi bi-pencil-square"></i>
+                  </span>
+                }
+                @if (clause.legal_reference) {
+                  <span class="bf-legal-ref">{{ clause.legal_reference }}</span>
+                }
+              </div>
+
+              <!-- Expanded tooltip panel (plain + legal) -->
+              @if (expandedTooltip() === clause.id && (clause.tooltip_plain || clause.tooltip_long)) {
+                <div class="bf-tooltip-panel">
+                  @if (clause.tooltip_plain) {
+                    <div class="bf-tip-section bf-tip-plain">
+                      <span class="bf-tip-label"><i class="bi bi-lightbulb-fill"></i> En clair</span>
+                      <p>{{ clause.tooltip_plain }}</p>
+                    </div>
+                  }
+                  @if (clause.tooltip_plain && clause.tooltip_long) {
+                    <div class="bf-tip-divider"></div>
+                  }
+                  @if (clause.tooltip_long) {
+                    <div class="bf-tip-section bf-tip-legal">
+                      <span class="bf-tip-label"><i class="bi bi-book-half"></i> Détail juridique</span>
+                      <p>{{ clause.tooltip_long }}</p>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Example panel -->
+              @if (expandedExample() === clause.id && clause.example_text) {
+                <div class="bf-example-panel">
+                  <div class="bf-example-header">
+                    <span>Exemple de rédaction</span>
+                    @if (['text','textarea','toggle_with_details'].includes(clause.clause_type)) {
+                      <button class="bf-use-example" (click)="useExample(clause.id, clause)">
+                        <i class="bi bi-clipboard-check"></i> Utiliser cet exemple
+                      </button>
+                    }
+                  </div>
+                  <p class="bf-example-text">{{ clause.example_text }}</p>
+                </div>
+              }
+
+              <!-- Clause input — only when enabled or required -->
+              @if (lv.is_enabled || clause.is_required) {
+                <div class="bf-clause-body">
+
+                  <!-- toggle: no extra input -->
+                  @if (clause.clause_type === 'toggle') { }
+
+                  <!-- toggle_with_details -->
+                  @else if (clause.clause_type === 'toggle_with_details') {
+                    <textarea class="bf-textarea"
+                      placeholder="Précisions..."
+                      [value]="lv.value?.details ?? ''"
+                      (input)="patchField(clause.id, clause, 'details', $any($event.target).value)"
+                      [disabled]="isFinal()"
+                      rows="3"></textarea>
+                  }
+
+                  <!-- text -->
+                  @else if (clause.clause_type === 'text') {
+                    <input class="bf-input" type="text"
+                      [value]="lv.value?.text ?? ''"
+                      (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  }
+
+                  <!-- textarea -->
+                  @else if (clause.clause_type === 'textarea') {
+                    <textarea class="bf-textarea"
+                      [value]="lv.value?.text ?? ''"
+                      (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
+                      [disabled]="isFinal()"
+                      rows="5"></textarea>
+                  }
+
+                  <!-- number -->
+                  @else if (clause.clause_type === 'number') {
+                    <input class="bf-input bf-input-sm" type="number"
+                      [value]="lv.value?.number ?? ''"
+                      (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  }
+
+                  <!-- percentage -->
+                  @else if (clause.clause_type === 'percentage') {
+                    <div class="bf-input-group">
+                      <input class="bf-input bf-input-sm" type="number" min="0" max="100"
+                        [value]="lv.value?.number ?? ''"
+                        (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
+                        [disabled]="isFinal()" />
+                      <span class="bf-unit">%</span>
+                    </div>
+                  }
+
+                  <!-- select -->
+                  @else if (clause.clause_type === 'select') {
+                    <select class="bf-select"
+                      [value]="lv.value?.selected ?? ''"
+                      (change)="patchField(clause.id, clause, 'selected', $any($event.target).value)"
+                      [disabled]="isFinal()">
+                      <option value="">— Choisir —</option>
+                      @for (opt of (clause.options ?? []); track opt) {
+                        <option [value]="opt">{{ opt }}</option>
+                      }
+                    </select>
+                  }
+
+                  <!-- date -->
+                  @else if (clause.clause_type === 'date') {
+                    <input class="bf-input bf-input-sm" type="date"
+                      [value]="lv.value?.date ?? ''"
+                      (input)="patchField(clause.id, clause, 'date', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  }
+
+                  <!-- date_range -->
+                  @else if (clause.clause_type === 'date_range') {
+                    <div class="bf-date-range">
+                      <input class="bf-input bf-input-sm" type="date"
+                        [value]="lv.value?.start ?? ''"
+                        (input)="patchField(clause.id, clause, 'start', $any($event.target).value)"
+                        [disabled]="isFinal()" />
+                      <span class="bf-range-sep">au</span>
+                      <input class="bf-input bf-input-sm" type="date"
+                        [value]="lv.value?.end ?? ''"
+                        (input)="patchField(clause.id, clause, 'end', $any($event.target).value)"
+                        [disabled]="isFinal()" />
+                    </div>
+                  }
+
+                  <!-- territory -->
+                  @else if (clause.clause_type === 'territory') {
+                    <select class="bf-select bf-select-sm"
+                      [value]="lv.value?.territory ?? 'France'"
+                      (change)="patchField(clause.id, clause, 'territory', $any($event.target).value)"
+                      [disabled]="isFinal()">
+                      <option>France</option>
+                      <option>Union européenne</option>
+                      <option>Monde entier</option>
+                      <option>Autre</option>
+                    </select>
+                  }
+
+                  <!-- duration -->
+                  @else if (clause.clause_type === 'duration') {
+                    <div class="bf-input-group">
+                      <input class="bf-input bf-input-sm" type="number" min="1"
+                        [value]="lv.value?.amount ?? ''"
+                        (input)="patchField(clause.id, clause, 'amount', +$any($event.target).value)"
+                        [disabled]="isFinal()" />
+                      <select class="bf-select-inline"
+                        [value]="lv.value?.unit ?? 'ans'"
+                        (change)="patchField(clause.id, clause, 'unit', $any($event.target).value)"
+                        [disabled]="isFinal()">
+                        <option>ans</option>
+                        <option>mois</option>
+                        <option>jours</option>
+                      </select>
+                    </div>
+                  }
+
+                  <!-- multi_toggle -->
+                  @else if (clause.clause_type === 'multi_toggle') {
+                    <div class="bf-multi-toggle">
+                      @for (opt of (clause.options ?? []); track opt) {
+                        <label class="bf-check-label" [class.disabled]="isFinal()">
+                          <input type="checkbox"
+                            [checked]="isMultiSelected(clause.id, clause, opt)"
+                            (change)="toggleMulti(clause.id, clause, opt)"
+                            [disabled]="isFinal()" />
+                          {{ opt }}
+                        </label>
+                      }
+                    </div>
+                  }
+
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+
+    <!-- ── Panneau droit — guide rapide ou prévisualisation ─────────────────── -->
+    <div class="bf-right-panel" [class.preview-active]="showPreview()">
+
+      @if (!showPreview()) {
+        <!-- Mode guide rapide (toujours visible sur desktop) -->
+        <div class="bf-guide-header">
+          <i class="bi bi-lightning-charge-fill"></i> Démarrage rapide
+        </div>
+        <div class="bf-guide-body">
+          <p class="bf-guide-intro">
+            Pré-remplissez les clauses essentielles en un clic, puis affinez manuellement.
+          </p>
+          @for (preset of presets; track preset.id) {
+            <button class="bf-preset-card" (click)="applyPreset(preset.id)" [disabled]="isFinal()">
+              <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
+              <div class="bf-preset-info">
+                <span class="bf-preset-label">{{ preset.label }}</span>
+                <span class="bf-preset-desc">{{ preset.description }}</span>
+                <span class="bf-preset-meta">{{ preset.meta }}</span>
+              </div>
+              <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
+            </button>
+          }
+          <p class="bf-guide-note">
+            <i class="bi bi-info-circle"></i>
+            Ces modèles respectent le CPI (Code de la Propriété Intellectuelle). Consultez un avocat spécialisé pour toute clause sensible.
+          </p>
+        </div>
+
+      } @else {
+        <!-- Mode prévisualisation -->
+        <div class="bf-preview-header">
+          <span>Prévisualisation</span>
+          <button class="bf-preview-close" (click)="togglePreview()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="bf-preview-body">
+          <h1 class="bf-prev-title">{{ title() || '(Sans titre)' }}</h1>
+
+          <!-- Parties -->
+          @if (parties().length > 0) {
+            <div class="bf-prev-section">
+              <h2 class="bf-prev-art">Parties au contrat</h2>
+              @for (p of parties(); track $index) {
+                <div class="bf-prev-party">
+                  <strong>{{ p.role || 'Partie ' + ($index + 1) }}</strong>
+                  @if (p.party_type === 'physical') {
+                    <span> — {{ p.first_name }} {{ p.last_name }}</span>
+                    @if (p.pseudonym) { <span> (alias {{ p.pseudonym }})</span> }
+                  } @else {
+                    <span> — {{ p.company_name }}</span>
+                    @if (p.legal_form) { <span>, {{ p.legal_form }}</span> }
+                    @if (p.siren) { <span> · SIREN {{ p.siren }}</span> }
+                  }
+                  @if (p.address) { <div class="bf-prev-addr">{{ p.address }}</div> }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Clause groups -->
+          @for (group of groups(); track group.id) {
+            @let artNum = articleNumbers()[group.id];
+            @if (artNum) {
+              <div class="bf-prev-section">
+                <h2 class="bf-prev-art">Art. {{ artNum }} — {{ group.name }}</h2>
+                @for (clause of group.clauses; track clause.id) {
+                  @let lv = getValue(clause.id, clause);
+                  @let fv = formatValue(clause, lv);
+                  @if (lv.is_enabled || clause.is_required) {
+                    <div class="bf-prev-clause">
+                      <span class="bf-prev-clause-name">
+                        @if (clauseNumbers()[clause.id]) { {{ clauseNumbers()[clause.id] }} — }{{ clause.name }}
+                      </span>
+                      @if (fv) {
+                        <p class="bf-prev-clause-val">{{ fv }}</p>
+                      }
+                    </div>
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
+    </div>
+
+  </div>
+
+  <!-- Bottom actions (mobile-friendly duplicate) -->
+  @if (!isFinal()) {
+    <div class="bf-footer">
+      <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
+        @if (saving() && !generating()) { Enregistrement... } @else { Enregistrer le brouillon }
+      </button>
+      <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
+        @if (generating()) { Génération du PDF... } @else { Générer le PDF }
+      </button>
+    </div>
+  }
+
+</div>
+
+}

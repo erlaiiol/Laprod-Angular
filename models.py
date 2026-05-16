@@ -1,4 +1,5 @@
 import hashlib
+import enum
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1114,3 +1115,178 @@ class TokenBlocklist(db.Model):
 
     def __repr__(self):
         return f"<TokenBlocklist jti={self.jti}>"
+
+
+# =============================================================================
+# CONTRACT BUILDER — Générateur de contrats d'exploitation musicale
+# =============================================================================
+
+class ClauseTypeEnum(enum.Enum):
+    text                = 'text'
+    textarea            = 'textarea'
+    number              = 'number'
+    percentage          = 'percentage'
+    toggle              = 'toggle'
+    toggle_with_details = 'toggle_with_details'
+    select              = 'select'
+    date                = 'date'
+    date_range          = 'date_range'
+    territory           = 'territory'
+    duration            = 'duration'
+    multi_toggle        = 'multi_toggle'
+
+
+class UserContractStatus(enum.Enum):
+    draft = 'draft'
+    final = 'final'
+
+
+class PartyTypeEnum(enum.Enum):
+    physical = 'physical'
+    company  = 'company'
+
+
+class ContractClauseGroup(db.Model):
+    """Groupes de clauses (sections) du contract builder, gérés par l'admin."""
+    __tablename__ = 'contract_clause_group'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    tooltip     = db.Column(db.Text, nullable=True)
+    sort_order  = db.Column(db.Integer, nullable=False, default=0)
+    is_active   = db.Column(db.Boolean, nullable=False, default=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at  = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    clauses = db.relationship(
+        'ContractClause', back_populates='group',
+        order_by='ContractClause.sort_order',
+        cascade='all, delete-orphan'
+    )
+
+    __table_args__ = (
+        db.Index('idx_ccg_sort_order', 'sort_order'),
+    )
+
+    def __repr__(self):
+        return f"<ContractClauseGroup #{self.id} '{self.name}'>"
+
+
+class ContractClause(db.Model):
+    """Clause individuelle configurable par l'admin."""
+    __tablename__ = 'contract_clause'
+
+    id                    = db.Column(db.Integer, primary_key=True)
+    group_id              = db.Column(db.Integer, db.ForeignKey('contract_clause_group.id'), nullable=False)
+    name                  = db.Column(db.String(200), nullable=False)
+    description           = db.Column(db.Text, nullable=True)
+    tooltip_short         = db.Column(db.String(300), nullable=True)
+    tooltip_long          = db.Column(db.Text, nullable=True)
+    clause_type           = db.Column(db.Enum(ClauseTypeEnum), nullable=False)
+    options               = db.Column(db.JSON, nullable=True)
+    default_value         = db.Column(db.JSON, nullable=True)
+    is_required           = db.Column(db.Boolean, nullable=False, default=False)
+    is_enabled_by_default = db.Column(db.Boolean, nullable=False, default=True)
+    sort_order            = db.Column(db.Integer, nullable=False, default=0)
+    is_active             = db.Column(db.Boolean, nullable=False, default=True)
+    legal_reference       = db.Column(db.String(300), nullable=True)
+    example_text          = db.Column(db.Text, nullable=True)
+    tooltip_plain         = db.Column(db.Text, nullable=True)
+    created_at            = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at            = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    group  = db.relationship('ContractClauseGroup', back_populates='clauses')
+    values = db.relationship('UserContractValue', back_populates='clause', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_cc_group_sort', 'group_id', 'sort_order'),
+    )
+
+    def __repr__(self):
+        return f"<ContractClause #{self.id} '{self.name}' ({self.clause_type.value})>"
+
+
+class UserContract(db.Model):
+    """Contrat d'exploitation créé par un utilisateur premium."""
+    __tablename__ = 'user_contract'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title      = db.Column(db.String(200), nullable=False)
+    status     = db.Column(db.Enum(UserContractStatus), nullable=False, default=UserContractStatus.draft)
+    pdf_file   = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    user    = db.relationship('User', backref='custom_contracts')
+    parties = db.relationship(
+        'UserContractParty', back_populates='contract',
+        order_by='UserContractParty.sort_order',
+        cascade='all, delete-orphan'
+    )
+    values  = db.relationship('UserContractValue', back_populates='contract', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_uc_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<UserContract #{self.id} '{self.title}' ({self.status.value})>"
+
+
+class UserContractParty(db.Model):
+    """Partie contractante (personne physique ou morale) liée à un UserContract."""
+    __tablename__ = 'user_contract_party'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey('user_contract.id'), nullable=False)
+    party_type = db.Column(db.Enum(PartyTypeEnum), nullable=False, default=PartyTypeEnum.physical)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Personne physique
+    first_name     = db.Column(db.String(100), nullable=True)
+    last_name      = db.Column(db.String(100), nullable=True)
+    date_of_birth  = db.Column(db.String(20),  nullable=True)
+    nationality    = db.Column(db.String(80),  nullable=True)
+    pseudonym      = db.Column(db.String(100), nullable=True)
+    tax_id         = db.Column(db.String(50),  nullable=True)
+
+    # Personne morale
+    company_name     = db.Column(db.String(200), nullable=True)
+    legal_form       = db.Column(db.String(100), nullable=True)
+    capital          = db.Column(db.String(80),  nullable=True)
+    siren            = db.Column(db.String(20),  nullable=True)
+    siret            = db.Column(db.String(25),  nullable=True)
+    rcs              = db.Column(db.String(100), nullable=True)
+    legal_rep        = db.Column(db.String(200), nullable=True)
+    signatory_title  = db.Column(db.String(150), nullable=True)
+
+    # Commun
+    role    = db.Column(db.String(150), nullable=False)
+    address = db.Column(db.Text, nullable=True)
+    email   = db.Column(db.String(120), nullable=True)
+
+    contract = db.relationship('UserContract', back_populates='parties')
+
+    def __repr__(self):
+        return f"<UserContractParty #{self.id} role='{self.role}' contract={self.contract_id}>"
+
+
+class UserContractValue(db.Model):
+    """Valeur saisie par l'utilisateur pour une clause de son contrat."""
+    __tablename__ = 'user_contract_value'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey('user_contract.id'), nullable=False)
+    clause_id   = db.Column(db.Integer, db.ForeignKey('contract_clause.id'), nullable=False)
+    is_enabled  = db.Column(db.Boolean, nullable=False, default=True)
+    value       = db.Column(db.JSON, nullable=True)
+
+    contract = db.relationship('UserContract', back_populates='values')
+    clause   = db.relationship('ContractClause', back_populates='values')
+
+    __table_args__ = (
+        db.UniqueConstraint('contract_id', 'clause_id', name='unique_contract_clause'),
+        db.Index('idx_ucv_contract_id', 'contract_id'),
+    )
