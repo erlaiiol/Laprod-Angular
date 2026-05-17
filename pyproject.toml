@@ -68,3 +68,15 @@ dependencies = [
     "mistralai>=1.0.0",
     "pdfplumber>=0.11.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "factory-boy>=3.3.3",
+    "pytest>=9.0.3",
+    "pytest-flask>=1.3.0",
+    "pytest-mock>=3.15.1",
+]

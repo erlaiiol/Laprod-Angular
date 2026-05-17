@@ -11,7 +11,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 load_dotenv()
 
 
-def create_app():
+def create_app(test_config=None):
     """Factory pour créer l'application Flask"""
     
     app = Flask(__name__)
@@ -137,6 +137,10 @@ def create_app():
     config.MIXMASTER_PREVIEWS_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_SAMPLES_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.CONTRACTS_FOLDER / 'builder').mkdir(parents=True, exist_ok=True)
+
+    # Surcharges de configuration pour les tests (test_config prend le dessus)
+    if test_config:
+        app.config.update(test_config)
 
     # ============================================
     # INITIALISER LES EXTENSIONS

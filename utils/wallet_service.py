@@ -10,6 +10,7 @@ Pattern : Separate Charges and Transfers (Stripe)
 from decimal import Decimal
 from datetime import datetime, timedelta
 
+import stripe._error as stripe_error
 from extensions import db
 
 
@@ -282,5 +283,5 @@ def perform_withdrawal(user, amount_requested):
 
         return {'success': True, 'transfer_id': transfer.id, 'amount': float(amount)}
 
-    except stripe.error.StripeError as e:
+    except stripe_error.StripeError as e:
         return {'success': False, 'error': str(e)}
