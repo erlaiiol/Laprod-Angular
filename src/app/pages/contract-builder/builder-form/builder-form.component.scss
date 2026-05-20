@@ -559,3 +559,217 @@
   font-size: 0.82rem; color: v.$text-primary; margin: 0;
   white-space: pre-wrap; line-height: 1.5;
 }
+
+// ── Intro tab ──────────────────────────────────────────────────────────────────
+
+.bf-nav-item--intro {
+  font-weight: 600;
+  color: v.$tag-violet;
+  border-bottom: 1px solid v.$bg-border;
+  margin-bottom: 0.25rem;
+  &:hover { color: v.$tag-violet; }
+}
+
+.bf-art-intro {
+  background: rgba(v.$tag-violet, 0.18);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+.bf-art-badge--intro {
+  background: rgba(v.$tag-violet, 0.15);
+  border-color: rgba(v.$tag-violet, 0.4);
+  color: v.$tag-violet;
+}
+
+.bf-intro {
+  max-width: 680px;
+}
+
+.bf-intro-section {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1.1rem 1.25rem;
+  margin-bottom: 0.85rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+
+.bf-intro-title {
+  font-size: 0.82rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: v.$text-secondary; margin: 0;
+  display: flex; align-items: center; gap: 0.4rem;
+  i { font-size: 0.85rem; }
+}
+
+.bf-intro-hint {
+  font-size: 0.8rem; color: v.$text-muted; margin: 0;
+}
+
+.bf-inline-link {
+  background: none; border: none; padding: 0; color: v.$tag-violet;
+  font-size: 0.8rem; cursor: pointer; text-decoration: underline;
+  &:hover { opacity: 0.8; }
+}
+
+.bf-intro-parties {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+}
+
+.bf-intro-party-card {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 8px; padding: 0.55rem 0.85rem;
+  display: flex; flex-direction: column; gap: 0.1rem;
+  min-width: 140px;
+}
+
+.bf-intro-party-role {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: v.$tag-violet;
+}
+
+.bf-intro-party-name {
+  font-size: 0.88rem; color: v.$text-primary; font-weight: 500;
+}
+
+.bf-intro-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;
+  @media (max-width: 560px) { grid-template-columns: 1fr; }
+}
+
+.bf-intro-field {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  font-size: 0.78rem; font-weight: 600; color: v.$text-secondary;
+  &--wide { grid-column: 1 / -1; }
+
+  input, select {
+    background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    color: v.$text-primary; border-radius: 6px; padding: 0.42rem 0.65rem; font-size: 0.875rem;
+    width: 100%; font-family: inherit;
+    &:focus { outline: none; border-color: v.$tag-violet; }
+  }
+}
+
+.bf-intro-summary {
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+
+.bf-intro-summary-item {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  padding: 0.5rem 0.65rem; background: v.$bg-elevated;
+  border-radius: 6px; border: 1px solid v.$bg-border;
+}
+
+.bf-intro-summary-num {
+  font-size: 0.68rem; font-weight: 700; color: v.$tag-violet;
+  background: rgba(v.$tag-violet, 0.12); border-radius: 4px;
+  padding: 0.1rem 0.45rem; white-space: nowrap; flex-shrink: 0;
+}
+
+.bf-intro-summary-info {
+  display: flex; flex-direction: column; gap: 0.1rem; min-width: 0;
+}
+
+.bf-intro-summary-name {
+  font-size: 0.85rem; font-weight: 600; color: v.$text-primary;
+}
+
+.bf-intro-summary-desc {
+  font-size: 0.75rem; color: v.$text-secondary; line-height: 1.4;
+}
+
+.bf-intro-vars {
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+
+.bf-intro-var-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.6rem; border-radius: 6px;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  opacity: 0.55;
+  &.defined { opacity: 1; border-color: rgba(v.$tag-violet, 0.3); }
+}
+
+.bf-var-key {
+  font-size: 0.75rem; font-family: monospace;
+  color: v.$tag-violet; background: rgba(v.$tag-violet, 0.1);
+  border-radius: 4px; padding: 0.1rem 0.4rem; white-space: nowrap; flex-shrink: 0;
+}
+
+.bf-var-sep {
+  font-size: 0.75rem; color: v.$text-muted; flex-shrink: 0;
+}
+
+.bf-var-val {
+  font-size: 0.82rem; color: v.$text-primary; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.bf-var-empty {
+  font-size: 0.78rem; color: v.$text-muted; font-style: italic;
+}
+
+// ── Bracket resolver ───────────────────────────────────────────────────────────
+
+.bf-resolver {
+  margin-top: 0.5rem; padding: 0.6rem 0.8rem;
+  background: rgba(v.$tag-orange, 0.06); border: 1px solid rgba(v.$tag-orange, 0.25);
+  border-radius: 6px; display: flex; flex-direction: column; gap: 0.35rem;
+}
+
+.bf-resolver-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.bf-resolver-bracket {
+  font-size: 0.73rem; font-family: monospace;
+  color: v.$tag-orange; background: rgba(v.$tag-orange, 0.12);
+  border-radius: 4px; padding: 0.08rem 0.38rem; white-space: nowrap;
+}
+
+.bf-resolver-arrow {
+  font-size: 0.72rem; color: v.$text-muted; flex-shrink: 0;
+}
+
+.bf-resolver-val {
+  font-size: 0.8rem; color: v.$text-primary; font-weight: 500; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.bf-resolver-empty {
+  font-size: 0.78rem; color: v.$text-muted; font-style: italic; flex: 1;
+}
+
+.bf-resolver-btn {
+  background: rgba(v.$tag-orange, 0.12); border: 1px solid rgba(v.$tag-orange, 0.35);
+  color: v.$tag-orange; border-radius: 5px; padding: 0.15rem 0.55rem;
+  font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  &:hover { background: rgba(v.$tag-orange, 0.22); }
+}
+
+.bf-resolver-all {
+  align-self: flex-start; margin-top: 0.2rem;
+  background: rgba(v.$tag-violet, 0.12); border: 1px solid rgba(v.$tag-violet, 0.35);
+  color: v.$tag-violet; border-radius: 5px; padding: 0.2rem 0.65rem;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  &:hover { background: rgba(v.$tag-violet, 0.22); }
+}
+
+// ── Insert chips ───────────────────────────────────────────────────────────────
+
+.bf-insert-chips {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.bf-insert-chip {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 14px;
+  padding: 0.15rem 0.6rem; font-size: 0.73rem; cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap; max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis;
+  &:hover {
+    border-color: v.$tag-violet; color: v.$text-primary;
+    background: rgba(v.$tag-violet, 0.08);
+  }
+}

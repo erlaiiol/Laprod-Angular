@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -51,6 +51,89 @@ export class UploadTrackComponent implements OnInit {
   cpArrangement  = signal(this.DEFAULT_CONTRACT_PRICES.arrangement);
   cpTerritoryEu  = signal(this.DEFAULT_CONTRACT_PRICES.territoryEu);
   cpTerritoryWorld = signal(this.DEFAULT_CONTRACT_PRICES.territoryWorld);
+
+  /* ── Section states ─────────────────────────────────────────────────────── */
+  showCustomPrices = signal(false);
+  showPreview      = signal(false);
+
+  hasCustomPrices = computed(() => {
+    const d = this.DEFAULT_CONTRACT_PRICES;
+    return this.cpExclusive()    !== d.exclusive    ||
+           this.cpDuration3y()   !== d.duration3y   ||
+           this.cpDuration5y()   !== d.duration5y   ||
+           this.cpDuration10y()  !== d.duration10y  ||
+           this.cpLifetime()     !== d.lifetime      ||
+           this.cpMechanical()   !== d.mechanical    ||
+           this.cpPublicShow()   !== d.publicShow    ||
+           this.cpArrangement()  !== d.arrangement   ||
+           this.cpTerritoryEu()  !== d.territoryEu   ||
+           this.cpTerritoryWorld() !== d.territoryWorld;
+  });
+
+  /* ── Preview state ──────────────────────────────────────────────────────── */
+  previewFormat      = signal<'mp3' | 'wav' | 'stems'>('mp3');
+  previewDuration    = signal<'stream' | '3' | '5' | '10' | 'lifetime'>('3');
+  previewTerritory   = signal<'France' | 'Europe' | 'Monde entier'>('France');
+  previewExclusive   = signal(false);
+  previewMechanical  = signal(false);
+  previewPublicShow  = signal(false);
+  previewArrangement = signal(false);
+
+  previewBasePrice = computed(() => {
+    const f = this.previewFormat();
+    if (f === 'wav')   return this.priceWav();
+    if (f === 'stems') return this.priceStems();
+    return this.priceMp3();
+  });
+
+  previewExclusiveFee = computed(() =>
+    this.previewExclusive() ? this.cpExclusive() : 0
+  );
+
+  previewDurationFee = computed(() => {
+    const d = this.previewDuration();
+    if (d === '3')        return this.cpDuration3y();
+    if (d === '5')        return this.cpDuration5y();
+    if (d === '10')       return this.cpDuration10y();
+    if (d === 'lifetime') return this.cpLifetime();
+    return 0;
+  });
+
+  previewTerritoryFee = computed(() => {
+    const t = this.previewTerritory();
+    if (t === 'Europe')       return this.cpTerritoryEu();
+    if (t === 'Monde entier') return this.cpTerritoryWorld();
+    return 0;
+  });
+
+  previewSubtotal = computed(() =>
+    this.previewBasePrice() + this.previewExclusiveFee() +
+    this.previewDurationFee() + this.previewTerritoryFee()
+  );
+
+  previewMechanicalAutoIncluded = computed(() => this.previewSubtotal() >= 199.99);
+  previewPublicShowAutoIncluded  = computed(() => this.previewSubtotal() >= 74.99);
+
+  previewMechanicalFee = computed(() =>
+    this.previewMechanical() && !this.previewMechanicalAutoIncluded()
+      ? this.cpMechanical() : 0
+  );
+
+  previewPublicShowFee = computed(() =>
+    this.previewPublicShow() && !this.previewPublicShowAutoIncluded()
+      ? this.cpPublicShow() : 0
+  );
+
+  previewArrangementFee = computed(() =>
+    this.previewArrangement() ? this.cpArrangement() : 0
+  );
+
+  previewTotal = computed(() =>
+    this.previewSubtotal() +
+    this.previewMechanicalFee() +
+    this.previewPublicShowFee() +
+    this.previewArrangementFee()
+  );
 
   applyStandardPrices(): void {
     const d = this.DEFAULT_CONTRACT_PRICES;
@@ -112,8 +195,10 @@ export class UploadTrackComponent implements OnInit {
     private router:        Router,
     readonly auth:         AuthService,
     private uploadStatusSvc : UploadStatusService
-
-  ) {}
+  ) {
+    effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
+    effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
+  }
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }

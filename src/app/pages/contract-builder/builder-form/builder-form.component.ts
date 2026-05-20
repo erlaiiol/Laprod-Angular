@@ -70,6 +70,50 @@ export class BuilderFormComponent implements OnInit {
   showPreview  = signal(false);
   downloading  = signal(false);
 
+  // ── Intro tab ──────────────────────────────────────────────────────────────
+  showIntroTab   = signal(true);
+  oeuvreTitle    = signal('');
+  oeuvreIsrc     = signal('');
+  oeuvreType     = signal<'chanson' | 'album' | 'instrumental' | 'autre'>('chanson');
+  pctArtiste     = signal<number | null>(null);
+  pctEditeur     = signal<number | null>(null);
+  pctProducteur  = signal<number | null>(null);
+
+  introVarMap = computed<Record<string, string>>(() => {
+    const p  = this.parties();
+    const p1 = p[0];
+    const p2 = p[1];
+    const nom = (party: ContractParty | undefined): string => {
+      if (!party) return '';
+      return party.party_type === 'physical'
+        ? `${party.first_name ?? ''} ${party.last_name ?? ''}`.trim()
+        : (party.company_name ?? '');
+    };
+    return {
+      '[Contractant 1]':  nom(p1),
+      '[Rôle 1]':         p1?.role ?? '',
+      '[Contractant 2]':  nom(p2),
+      '[Rôle 2]':         p2?.role ?? '',
+      "[l'Œuvre]":        this.oeuvreTitle(),
+      '[ISRC]':           this.oeuvreIsrc(),
+      '[% Artiste]':      this.pctArtiste()    !== null ? `${this.pctArtiste()}%`    : '',
+      '[% Éditeur]':      this.pctEditeur()    !== null ? `${this.pctEditeur()}%`    : '',
+      '[% Producteur]':   this.pctProducteur() !== null ? `${this.pctProducteur()}%` : '',
+    };
+  });
+
+  introVarEntries  = computed(() =>
+    Object.entries(this.introVarMap()).map(([key, value]) => ({ key, value }))
+  );
+  definedIntroVars = computed(() => this.introVarEntries().filter(e => !!e.value));
+  hasAnyIntroVar   = computed(() => this.definedIntroVars().length > 0);
+
+  activeGroupSummaries = computed(() =>
+    this.groups()
+      .filter(g => this.articleNumbers()[g.id] !== undefined)
+      .map(g => ({ group: g, artNum: this.articleNumbers()[g.id] }))
+  );
+
   // Article number per group — only groups with ≥1 enabled clause count
   articleNumbers = computed<Record<number, number>>(() => {
     const map: Record<number, number> = {};
@@ -345,7 +389,8 @@ export class BuilderFormComponent implements OnInit {
     const tryFinish = () => {
       if (!templateDone || !contractDone) return;
       this.loading.set(false);
-      if (this.groups().length) this.activeGroup.set(this.groups()[0].id);
+      this.activeGroup.set(0);
+      this.showIntroTab.set(true);
     };
 
     this.svc.getTemplate().subscribe({
@@ -461,8 +506,78 @@ export class BuilderFormComponent implements OnInit {
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   setGroup(id: number): void {
+    this.showIntroTab.set(false);
     this.activeGroup.set(id);
     this.expandedTooltip.set(null);
+  }
+
+  goToIntro(): void {
+    this.showIntroTab.set(true);
+  }
+
+  goToParties(): void {
+    this.showIntroTab.set(false);
+    this.activeGroup.set(0);
+    this.expandedTooltip.set(null);
+  }
+
+  partyDisplayName(p: ContractParty): string {
+    return p.party_type === 'physical'
+      ? `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()
+      : (p.company_name ?? '');
+  }
+
+  getValueText(clauseId: number, clause: ClauseDTO): string {
+    return this.getValue(clauseId, clause).value?.text ?? '';
+  }
+
+  detectBrackets(text: string): string[] {
+    const matches = text.match(/\[[^\]]+\]/g) ?? [];
+    return [...new Set(matches)];
+  }
+
+  hasBrackets(clauseId: number, clause: ClauseDTO): boolean {
+    return this.detectBrackets(this.getValueText(clauseId, clause)).length > 0;
+  }
+
+  resolveVariable(bracket: string): string {
+    return this.introVarMap()[bracket] ?? '';
+  }
+
+  resolveOneBracket(clauseId: number, clause: ClauseDTO, bracket: string): void {
+    const value = this.resolveVariable(bracket);
+    if (!value) return;
+    const text = this.getValueText(clauseId, clause);
+    const resolved = text.replaceAll(bracket, value);
+    this.patchField(clauseId, clause, 'text', resolved);
+  }
+
+  resolveAllBrackets(clauseId: number, clause: ClauseDTO): void {
+    let text = this.getValueText(clauseId, clause);
+    for (const [bracket, value] of Object.entries(this.introVarMap())) {
+      if (value) text = text.replaceAll(bracket, value);
+    }
+    this.patchField(clauseId, clause, 'text', text);
+  }
+
+  insertValue(clauseId: number, clause: ClauseDTO, textToInsert: string): void {
+    const el = document.getElementById('bf-ta-' + clauseId) as HTMLTextAreaElement | HTMLInputElement | null;
+    const start = el?.selectionStart ?? null;
+    const end   = el?.selectionEnd   ?? null;
+    const current = this.getValueText(clauseId, clause);
+    const pos = start !== null ? start : current.length;
+    const endPos = end !== null ? end : pos;
+    const resolved = this.introVarMap()[textToInsert] ?? textToInsert;
+    const newText = current.slice(0, pos) + resolved + current.slice(endPos);
+    this.patchField(clauseId, clause, 'text', newText);
+    if (el) {
+      setTimeout(() => {
+        const newPos = pos + resolved.length;
+        el.selectionStart = newPos;
+        el.selectionEnd   = newPos;
+        el.focus();
+      }, 0);
+    }
   }
 
   toggleTooltip(clauseId: number): void {

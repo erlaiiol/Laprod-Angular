@@ -52,11 +52,15 @@
 
     <!-- Sidebar navigation -->
     <nav class="bf-sidebar">
-      <button class="bf-nav-item" [class.active]="activeGroup() === 0" (click)="setGroup(0)">
+      <button class="bf-nav-item bf-nav-item--intro" [class.active]="showIntroTab()" (click)="goToIntro()">
+        <span class="bf-art-num bf-art-intro">✦</span>
+        Introduction
+      </button>
+      <button class="bf-nav-item" [class.active]="!showIntroTab() && activeGroup() === 0" (click)="goToParties()">
         <i class="bi bi-people"></i> Parties au contrat
       </button>
       @for (group of groups(); track group.id) {
-        <button class="bf-nav-item" [class.active]="activeGroup() === group.id" (click)="setGroup(group.id)">
+        <button class="bf-nav-item" [class.active]="!showIntroTab() && activeGroup() === group.id" (click)="setGroup(group.id)">
           @if (articleNumbers()[group.id]) {
             <span class="bf-art-num">{{ articleNumbers()[group.id] }}</span>
           }
@@ -68,8 +72,140 @@
     <!-- Main content -->
     <div class="bf-content">
 
+      <!-- ── Intro tab ──────────────────────────────────────────────────── -->
+      @if (showIntroTab()) {
+        <div class="bf-section bf-intro">
+
+          <div class="bf-section-header">
+            <h2><span class="bf-art-badge bf-art-badge--intro">✦</span> Introduction</h2>
+            <p class="bf-section-desc">Renseignez une fois les informations clés qui seront réutilisables dans vos clauses.</p>
+          </div>
+
+          <!-- Section 1 : Parties -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-people-fill"></i> Les parties au contrat</h3>
+            @if (parties().length === 0) {
+              <p class="bf-intro-hint">Aucune partie définie. <button type="button" class="bf-inline-link" (click)="goToParties()">Ajouter des parties →</button></p>
+            } @else {
+              <div class="bf-intro-parties">
+                @for (p of parties(); track $index) {
+                  <div class="bf-intro-party-card">
+                    <span class="bf-intro-party-role">{{ p.role || 'Partie ' + ($index + 1) }}</span>
+                    <span class="bf-intro-party-name">{{ partyDisplayName(p) || '—' }}</span>
+                  </div>
+                }
+              </div>
+              <button type="button" class="bf-inline-link" (click)="goToParties()">Modifier les parties →</button>
+            }
+          </div>
+
+          <!-- Section 2 : L'œuvre -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-music-note-beamed"></i> L'œuvre concernée</h3>
+            <div class="bf-intro-grid">
+              <label class="bf-intro-field bf-intro-field--wide">
+                <span>Titre de l'œuvre</span>
+                <input type="text" class="bf-input" placeholder="ex : Midnight Drive"
+                  [value]="oeuvreTitle()"
+                  (input)="oeuvreTitle.set($any($event.target).value)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Type</span>
+                <select class="bf-select"
+                  [value]="oeuvreType()"
+                  (change)="oeuvreType.set($any($any($event.target).value))">
+                  <option value="chanson">Chanson</option>
+                  <option value="album">Album</option>
+                  <option value="instrumental">Instrumental</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </label>
+              <label class="bf-intro-field">
+                <span>Code ISRC</span>
+                <input type="text" class="bf-input" placeholder="ex : FR-ABC-23-01234"
+                  [value]="oeuvreIsrc()"
+                  (input)="oeuvreIsrc.set($any($event.target).value)" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 3 : Clés financières -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-percent"></i> Clés financières</h3>
+            <div class="bf-intro-grid">
+              <label class="bf-intro-field">
+                <span>% Artiste</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 70"
+                    [value]="pctArtiste() ?? ''"
+                    (input)="pctArtiste.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+              <label class="bf-intro-field">
+                <span>% Éditeur</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 20"
+                    [value]="pctEditeur() ?? ''"
+                    (input)="pctEditeur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+              <label class="bf-intro-field">
+                <span>% Producteur</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 10"
+                    [value]="pctProducteur() ?? ''"
+                    (input)="pctProducteur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 4 : Résumé du contrat -->
+          @if (activeGroupSummaries().length > 0) {
+            <div class="bf-intro-section">
+              <h3 class="bf-intro-title"><i class="bi bi-list-ul"></i> Ce que couvre ce contrat</h3>
+              <div class="bf-intro-summary">
+                @for (item of activeGroupSummaries(); track item.group.id) {
+                  <div class="bf-intro-summary-item">
+                    <span class="bf-intro-summary-num">Art. {{ item.artNum }}</span>
+                    <div class="bf-intro-summary-info">
+                      <span class="bf-intro-summary-name">{{ item.group.name }}</span>
+                      @if (item.group.description) {
+                        <span class="bf-intro-summary-desc">{{ item.group.description }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Section 5 : Variables disponibles -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-braces"></i> Variables disponibles</h3>
+            <p class="bf-intro-hint">Utilisez ces raccourcis dans vos clauses. Ils seront remplacés automatiquement.</p>
+            <div class="bf-intro-vars">
+              @for (entry of introVarEntries(); track entry.key) {
+                <div class="bf-intro-var-row" [class.defined]="!!entry.value">
+                  <code class="bf-var-key">{{ entry.key }}</code>
+                  <span class="bf-var-sep">→</span>
+                  @if (entry.value) {
+                    <span class="bf-var-val">{{ entry.value }}</span>
+                  } @else {
+                    <span class="bf-var-empty">non défini</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+        </div>
+
       <!-- ── Parties section ─────────────────────────────────────────────── -->
-      @if (activeGroup() === 0) {
+      } @else if (activeGroup() === 0) {
         <div class="bf-section">
           <div class="bf-section-header">
             <h2>Parties au contrat</h2>
@@ -341,18 +477,74 @@
                   <!-- text -->
                   @else if (clause.clause_type === 'text') {
                     <input class="bf-input" type="text"
+                      [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
                       [disabled]="isFinal()" />
+                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                      <div class="bf-resolver">
+                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
+                          <div class="bf-resolver-row">
+                            <code class="bf-resolver-bracket">{{ bracket }}</code>
+                            <span class="bf-resolver-arrow">→</span>
+                            @if (resolveVariable(bracket)) {
+                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                            } @else {
+                              <span class="bf-resolver-empty">non défini</span>
+                            }
+                          </div>
+                        }
+                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
+                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                        </button>
+                      </div>
+                    }
+                    @if (!isFinal() && hasAnyIntroVar()) {
+                      <div class="bf-insert-chips">
+                        @for (entry of definedIntroVars(); track entry.key) {
+                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
+                                  [title]="entry.key">{{ entry.value }}</button>
+                        }
+                      </div>
+                    }
                   }
 
                   <!-- textarea -->
                   @else if (clause.clause_type === 'textarea') {
                     <textarea class="bf-textarea"
+                      [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
                       [disabled]="isFinal()"
                       rows="5"></textarea>
+                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                      <div class="bf-resolver">
+                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
+                          <div class="bf-resolver-row">
+                            <code class="bf-resolver-bracket">{{ bracket }}</code>
+                            <span class="bf-resolver-arrow">→</span>
+                            @if (resolveVariable(bracket)) {
+                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                            } @else {
+                              <span class="bf-resolver-empty">non défini</span>
+                            }
+                          </div>
+                        }
+                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
+                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                        </button>
+                      </div>
+                    }
+                    @if (!isFinal() && hasAnyIntroVar()) {
+                      <div class="bf-insert-chips">
+                        @for (entry of definedIntroVars(); track entry.key) {
+                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
+                                  [title]="entry.key">{{ entry.value }}</button>
+                        }
+                      </div>
+                    }
                   }
 
                   <!-- number -->

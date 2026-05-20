@@ -115,65 +115,224 @@
 
       <!-- ── Prix des droits de licence ──────────────────────────────────── -->
       <div class="section-card">
-        <div class="section-header-row">
-          <h3 class="section-title">Prix des droits de licence</h3>
-          <button type="button" class="btn-standard-prices" (click)="applyStandardPrices()">
-            <i class="bi bi-arrow-repeat"></i> Appliquer les prix standards
+        <div class="license-price-header">
+          <div class="license-price-left">
+            <h3 class="section-title">Prix des droits de licence</h3>
+            @if (hasCustomPrices()) {
+              <span class="price-badge price-badge--custom">Personnalisé</span>
+            } @else {
+              <span class="price-badge price-badge--standard">Prix standards</span>
+            }
+          </div>
+          <button type="button" class="btn-toggle-prices"
+                  (click)="showCustomPrices.set(!showCustomPrices())">
+            Personnaliser
+            <i class="bi" [class.bi-chevron-up]="showCustomPrices()"
+                          [class.bi-chevron-down]="!showCustomPrices()"></i>
           </button>
         </div>
-        <p class="section-hint">Ces prix s'appliquent aux contrats générés pour ce track.</p>
-        <div class="contract-prices-grid">
-          <div class="field">
-            <label>Exclusivité (€)</label>
-            <input type="number" name="cpExclusive" min="0" max="9999" step="1"
-                   [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
+
+        @if (showCustomPrices()) {
+          <div class="license-price-subheader">
+            <p class="section-hint">Ces prix s'appliquent aux contrats générés pour ce track.</p>
+            <button type="button" class="btn-standard-prices" (click)="applyStandardPrices()">
+              <i class="bi bi-arrow-repeat"></i> Prix standards
+            </button>
           </div>
-          <div class="field">
-            <label>Durée 3 ans (€)</label>
-            <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
-                   [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
+          <div class="contract-prices-grid">
+            <div class="field">
+              <label>Exclusivité (€)</label>
+              <input type="number" name="cpExclusive" min="0" max="9999" step="1"
+                     [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 3 ans (€)</label>
+              <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 5 ans (€)</label>
+              <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 10 ans (€)</label>
+              <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>À vie (€)</label>
+              <input type="number" name="cpLifetime" min="0" max="9999" step="1"
+                     [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Reproduction mécanique (€)</label>
+              <input type="number" name="cpMechanical" min="0" max="9999" step="1"
+                     [ngModel]="cpMechanical()" (ngModelChange)="cpMechanical.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Représentation publique (€)</label>
+              <input type="number" name="cpPublicShow" min="0" max="9999" step="1"
+                     [ngModel]="cpPublicShow()" (ngModelChange)="cpPublicShow.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Droit d'arrangement (€)</label>
+              <input type="number" name="cpArrangement" min="0" max="9999" step="1"
+                     [ngModel]="cpArrangement()" (ngModelChange)="cpArrangement.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Territoire Europe (€)</label>
+              <input type="number" name="cpTerritoryEu" min="0" max="9999" step="1"
+                     [ngModel]="cpTerritoryEu()" (ngModelChange)="cpTerritoryEu.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Territoire monde entier (€)</label>
+              <input type="number" name="cpTerritoryWorld" min="0" max="9999" step="1"
+                     [ngModel]="cpTerritoryWorld()" (ngModelChange)="cpTerritoryWorld.set(+$event)" />
+            </div>
           </div>
-          <div class="field">
-            <label>Durée 5 ans (€)</label>
-            <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
-                   [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
+        }
+      </div>
+
+      <!-- ── Aperçu acheteur ──────────────────────────────────────────────── -->
+      <div class="section-card">
+        <div class="license-price-header">
+          <div class="license-price-left">
+            <h3 class="section-title"><i class="bi bi-eye"></i> Aperçu acheteur</h3>
+            <span class="price-badge price-badge--standard">Ce que verra l'acheteur</span>
           </div>
-          <div class="field">
-            <label>Durée 10 ans (€)</label>
-            <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
-                   [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>À vie (€)</label>
-            <input type="number" name="cpLifetime" min="0" max="9999" step="1"
-                   [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>Reproduction mécanique (€)</label>
-            <input type="number" name="cpMechanical" min="0" max="9999" step="1"
-                   [ngModel]="cpMechanical()" (ngModelChange)="cpMechanical.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>Représentation publique (€)</label>
-            <input type="number" name="cpPublicShow" min="0" max="9999" step="1"
-                   [ngModel]="cpPublicShow()" (ngModelChange)="cpPublicShow.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>Droit d'arrangement (€)</label>
-            <input type="number" name="cpArrangement" min="0" max="9999" step="1"
-                   [ngModel]="cpArrangement()" (ngModelChange)="cpArrangement.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>Territoire Europe (€)</label>
-            <input type="number" name="cpTerritoryEu" min="0" max="9999" step="1"
-                   [ngModel]="cpTerritoryEu()" (ngModelChange)="cpTerritoryEu.set(+$event)" />
-          </div>
-          <div class="field">
-            <label>Territoire monde entier (€)</label>
-            <input type="number" name="cpTerritoryWorld" min="0" max="9999" step="1"
-                   [ngModel]="cpTerritoryWorld()" (ngModelChange)="cpTerritoryWorld.set(+$event)" />
-          </div>
+          <button type="button" class="btn-toggle-prices"
+                  (click)="showPreview.set(!showPreview())">
+            {{ showPreview() ? 'Réduire' : 'Voir la simulation' }}
+            <i class="bi" [class.bi-chevron-up]="showPreview()"
+                          [class.bi-chevron-down]="!showPreview()"></i>
+          </button>
         </div>
+
+        @if (showPreview()) {
+          <div class="preview-body">
+
+            <!-- Format -->
+            <div class="preview-group">
+              <span class="preview-group-label">Format</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'mp3'"
+                        (click)="previewFormat.set('mp3')">
+                  MP3 <span>{{ priceMp3().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'wav'"
+                        (click)="previewFormat.set('wav')">
+                  WAV <span>{{ priceWav().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'stems'"
+                        (click)="previewFormat.set('stems')">
+                  Stems <span>{{ priceStems().toFixed(2) }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Durée -->
+            <div class="preview-group">
+              <span class="preview-group-label">Durée du contrat</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'stream'"
+                        (click)="previewDuration.set('stream')">
+                  Streaming <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '3'"
+                        (click)="previewDuration.set('3')">
+                  3 ans <span>+{{ cpDuration3y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '5'"
+                        (click)="previewDuration.set('5')">
+                  5 ans <span>+{{ cpDuration5y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '10'"
+                        (click)="previewDuration.set('10')">
+                  10 ans <span>+{{ cpDuration10y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'lifetime'"
+                        (click)="previewDuration.set('lifetime')">
+                  À vie <span>+{{ cpLifetime() }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Territoire -->
+            <div class="preview-group">
+              <span class="preview-group-label">Territoire</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'France'"
+                        (click)="previewTerritory.set('France')">
+                  France <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Europe'"
+                        (click)="previewTerritory.set('Europe')">
+                  Europe <span>+{{ cpTerritoryEu() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Monde entier'"
+                        (click)="previewTerritory.set('Monde entier')">
+                  Monde entier <span>+{{ cpTerritoryWorld() }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Droits -->
+            <div class="preview-group">
+              <span class="preview-group-label">Droits supplémentaires</span>
+              <div class="preview-rights">
+                <label class="preview-right">
+                  <input type="checkbox"
+                         [ngModel]="previewExclusive()"
+                         (ngModelChange)="previewExclusive.set($event)" />
+                  <span>Exclusivité</span>
+                  <strong class="preview-right-price">+{{ cpExclusive() }}€</strong>
+                </label>
+
+                <label class="preview-right" [class.auto-included]="previewMechanicalAutoIncluded()">
+                  <input type="checkbox"
+                         [disabled]="previewMechanicalAutoIncluded()"
+                         [ngModel]="previewMechanical() || previewMechanicalAutoIncluded()"
+                         (ngModelChange)="!previewMechanicalAutoIncluded() && previewMechanical.set($event)" />
+                  <span>Reproduction mécanique</span>
+                  @if (previewMechanicalAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpMechanical() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right" [class.auto-included]="previewPublicShowAutoIncluded()">
+                  <input type="checkbox"
+                         [disabled]="previewPublicShowAutoIncluded()"
+                         [ngModel]="previewPublicShow() || previewPublicShowAutoIncluded()"
+                         (ngModelChange)="!previewPublicShowAutoIncluded() && previewPublicShow.set($event)" />
+                  <span>Représentation publique</span>
+                  @if (previewPublicShowAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpPublicShow() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right">
+                  <input type="checkbox"
+                         [ngModel]="previewArrangement()"
+                         (ngModelChange)="previewArrangement.set($event)" />
+                  <span>Droit d'arrangement</span>
+                  <strong class="preview-right-price">+{{ cpArrangement() }}€</strong>
+                </label>
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div class="preview-total-row">
+              <span>Total estimé</span>
+              <strong>{{ previewTotal().toFixed(2) }}€</strong>
+            </div>
+
+          </div>
+        }
       </div>
 
       <!-- ── Tags ─────────────────────────────────────────────────────────── -->

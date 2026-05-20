@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CudTrackService } from '../../services/cud-track.service';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -60,6 +60,22 @@ export class EditTrackComponent implements OnInit {
   cpArrangement  = signal(this.DEFAULT_CONTRACT_PRICES.arrangement);
   cpTerritoryEu  = signal(this.DEFAULT_CONTRACT_PRICES.territoryEu);
   cpTerritoryWorld = signal(this.DEFAULT_CONTRACT_PRICES.territoryWorld);
+
+  showCustomPrices = signal(false);
+
+  hasCustomPrices = computed(() => {
+    const d = this.DEFAULT_CONTRACT_PRICES;
+    return this.cpExclusive()    !== d.exclusive    ||
+           this.cpDuration3y()   !== d.duration3y   ||
+           this.cpDuration5y()   !== d.duration5y   ||
+           this.cpDuration10y()  !== d.duration10y  ||
+           this.cpLifetime()     !== d.lifetime      ||
+           this.cpMechanical()   !== d.mechanical    ||
+           this.cpPublicShow()   !== d.publicShow    ||
+           this.cpArrangement()  !== d.arrangement   ||
+           this.cpTerritoryEu()  !== d.territoryEu   ||
+           this.cpTerritoryWorld() !== d.territoryWorld;
+  });
 
   applyStandardPrices(): void {
     const d = this.DEFAULT_CONTRACT_PRICES;

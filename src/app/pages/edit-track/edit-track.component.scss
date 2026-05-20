@@ -350,6 +350,103 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Licence price section (collapsible) ─────────────────────────────────── */
+
+.license-price-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             0.75rem;
+  flex-wrap:       wrap;
+}
+
+.license-price-left {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  flex-wrap:   wrap;
+
+  .section-title { margin: 0; }
+}
+
+.price-badge {
+  display:       inline-flex;
+  align-items:   center;
+  border-radius: 20px;
+  font-size:     0.68rem;
+  font-weight:   600;
+  padding:       0.12rem 0.55rem;
+
+  &--standard {
+    background: rgba(108, 117, 125, 0.1);
+    border:     1px solid rgba(108, 117, 125, 0.25);
+    color:      #6c757d;
+  }
+
+  &--custom {
+    background: color-mix(in srgb, v.$tag-violet 10%, transparent);
+    border:     1px solid color-mix(in srgb, v.$tag-violet 35%, transparent);
+    color:      #c4b5fd;
+  }
+}
+
+.btn-toggle-prices {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.28rem 0.7rem;
+  background:    transparent;
+  border:        1px solid v.$bg-border-subtle;
+  border-radius: 6px;
+  color:         #6c757d;
+  font-size:     0.75rem;
+  font-weight:   500;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: v.$tag-violet; color: #ced4da; }
+}
+
+.license-price-subheader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             0.75rem;
+  flex-wrap:       wrap;
+}
+
+.section-hint {
+  font-size: 0.73rem;
+  color:     #6c757d;
+  margin:    0;
+}
+
+.btn-standard-prices {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.22rem 0.6rem;
+  background:    transparent;
+  border:        1px solid v.$bg-border;
+  border-radius: 5px;
+  color:         #6c757d;
+  font-size:     0.72rem;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: v.$tag-violet; color: #adb5bd; }
+}
+
+.contract-prices-grid {
+  display:               grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:                   0.65rem;
+
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 520px) {
