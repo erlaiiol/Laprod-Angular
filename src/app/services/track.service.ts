@@ -67,15 +67,30 @@ export interface PublishedTopline {
   artist_user:  { username: string; profile_image: string | null };
 }
 
+export interface ContractPrices {
+  exclusive:       number;
+  duration_3y:     number;
+  duration_5y:     number;
+  duration_10y:    number;
+  lifetime:        number;
+  mechanical:      number;
+  public_show:     number;
+  arrangement:     number;
+  territory_eu:    number;
+  territory_world: number;
+}
+
 export interface TrackDetail extends Track {
-  created_at:    string | null;
-  price_wav:     number | null;
-  price_stems:   number | null;
-  file_wav:      string | null;
-  file_stems:    string | null;
-  composer_user: { id: number; username: string; profile_image: string | null };
-  toplines:      PublishedTopline[];
-  my_toplines:   PublishedTopline[];
+  created_at:        string | null;
+  price_wav:         number | null;
+  price_stems:       number | null;
+  file_wav:          string | null;
+  file_stems:        string | null;
+  composer_user:     { id: number; username: string; profile_image: string | null };
+  toplines:          PublishedTopline[];
+  my_toplines:       PublishedTopline[];
+  contract_prices?:  ContractPrices;
+  is_exclusive_sold?: boolean;
 }
 
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)

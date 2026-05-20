@@ -98,7 +98,7 @@
           @if (mechanicalAutoIncluded()) {
             <span class="right-badge included">Inclus auto</span>
           } @else {
-            <span class="right-badge optional">+{{ MECHANICAL_PRICE }}€</span>
+            <span class="right-badge optional">+{{ prices().mechanical }}€</span>
           }
         </label>
 
@@ -115,7 +115,7 @@
           @if (publicShowAutoIncluded()) {
             <span class="right-badge included">Inclus auto</span>
           } @else {
-            <span class="right-badge optional">+{{ PUBLIC_SHOW_PRICE }}€</span>
+            <span class="right-badge optional">+{{ prices().publicShow }}€</span>
           }
         </label>
 
@@ -128,7 +128,7 @@
             <span class="right-name">Arrangement / Adaptation</span>
             <span class="right-desc">Modification de la structure, remix</span>
           </div>
-          <span class="right-badge optional">+{{ ARRANGEMENT_PRICE }}€</span>
+          <span class="right-badge optional">+{{ prices().arrangement }}€</span>
         </label>
       </section>
 
@@ -224,19 +224,19 @@
         @if (arrangementFee() > 0) {
           <div class="breakdown-row">
             <span>Arrangement / Adaptation</span>
-            <strong>+{{ ARRANGEMENT_PRICE }}€</strong>
+            <strong>+{{ prices().arrangement }}€</strong>
           </div>
         }
         @if (mechanicalFee() > 0) {
           <div class="breakdown-row">
             <span>Reproduction mécanique</span>
-            <strong>+{{ MECHANICAL_PRICE }}€</strong>
+            <strong>+{{ prices().mechanical }}€</strong>
           </div>
         }
         @if (publicShowFee() > 0) {
           <div class="breakdown-row">
             <span>Diffusion publique</span>
-            <strong>+{{ PUBLIC_SHOW_PRICE }}€</strong>
+            <strong>+{{ prices().publicShow }}€</strong>
           </div>
         }
         <hr>

@@ -116,7 +116,17 @@ def process_track_data(job_payload : dict):
                 image_file=f'images/tracks/{image_filename}',
                 file_hash=job_payload['file_hash'],
                 is_approved=True,
-                tags=selected_tags
+                tags=selected_tags,
+                contract_price_exclusive=job_payload.get('contract_price_exclusive'),
+                contract_price_duration_3y=job_payload.get('contract_price_duration_3y'),
+                contract_price_duration_5y=job_payload.get('contract_price_duration_5y'),
+                contract_price_duration_10y=job_payload.get('contract_price_duration_10y'),
+                contract_price_lifetime=job_payload.get('contract_price_lifetime'),
+                contract_price_mechanical=job_payload.get('contract_price_mechanical'),
+                contract_price_public_show=job_payload.get('contract_price_public_show'),
+                contract_price_arrangement=job_payload.get('contract_price_arrangement'),
+                contract_price_territory_eu=job_payload.get('contract_price_territory_eu'),
+                contract_price_territory_world=job_payload.get('contract_price_territory_world'),
             )
 
             redis_client.hset(f"job:{job_payload['job_id']}", mapping={'status': 'finalizing'})

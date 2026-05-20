@@ -13,11 +13,21 @@ export interface TrackData {
   price_wav: number;
   price_stems: number;
   sacem_percentage_composer?: number;
-  tag_ids?: string; // IDs des tags séparés par des virgules
+  tag_ids?: string;
   file_mp3?: File;
   file_wav?: File;
   file_image?: File;
   file_stems?: File;
+  contract_price_exclusive?:       number | null;
+  contract_price_duration_3y?:     number | null;
+  contract_price_duration_5y?:     number | null;
+  contract_price_duration_10y?:    number | null;
+  contract_price_lifetime?:        number | null;
+  contract_price_mechanical?:      number | null;
+  contract_price_public_show?:     number | null;
+  contract_price_arrangement?:     number | null;
+  contract_price_territory_eu?:    number | null;
+  contract_price_territory_world?: number | null;
 }
 
 export interface UploadResponse {
@@ -63,6 +73,19 @@ export class CudTrackService {
       formData.append('tag_ids', trackData.tag_ids);
     }
 
+    const contractFields: (keyof TrackData)[] = [
+      'contract_price_exclusive', 'contract_price_duration_3y', 'contract_price_duration_5y',
+      'contract_price_duration_10y', 'contract_price_lifetime', 'contract_price_mechanical',
+      'contract_price_public_show', 'contract_price_arrangement',
+      'contract_price_territory_eu', 'contract_price_territory_world',
+    ];
+    for (const field of contractFields) {
+      const val = trackData[field];
+      if (val !== null && val !== undefined) {
+        formData.append(field, val.toString());
+      }
+    }
+
     // Ajouter les fichiers
     if (trackData.file_mp3) {
     formData.append('file_mp3', trackData.file_mp3);
@@ -97,6 +120,19 @@ export class CudTrackService {
 
     if (trackData.tag_ids) {
       formData.append('tag_ids', trackData.tag_ids);
+    }
+
+    const contractFields: (keyof TrackData)[] = [
+      'contract_price_exclusive', 'contract_price_duration_3y', 'contract_price_duration_5y',
+      'contract_price_duration_10y', 'contract_price_lifetime', 'contract_price_mechanical',
+      'contract_price_public_show', 'contract_price_arrangement',
+      'contract_price_territory_eu', 'contract_price_territory_world',
+    ];
+    for (const field of contractFields) {
+      const val = trackData[field];
+      if (val !== null && val !== undefined) {
+        formData.append(field, val.toString());
+      }
     }
 
     if (trackData.file_wav) {

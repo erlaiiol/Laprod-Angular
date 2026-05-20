@@ -31,6 +31,9 @@
     <button [class.active]="activeTab() === 'contract-builder'" (click)="setTab('contract-builder')">
       <i class="bi bi-file-earmark-richtext"></i> Générateur
     </button>
+    <button [class.active]="activeTab() === 'recommendations'" (click)="setTab('recommendations')">
+      <i class="bi bi-stars"></i> Recommandations
+    </button>
   </div>
 
   <div class="tab-content">
@@ -57,6 +60,9 @@
     }
     @if (activeTab() === 'contract-builder') {
       <app-admin-contract-builder />
+    }
+    @if (activeTab() === 'recommendations') {
+      <app-admin-recommendations />
     }
   </div>
 

@@ -176,6 +176,7 @@ def track_detail(t) -> dict:
     """
     Page détail du beat — étend track_card avec les fichiers, SACEM,
     et purchase_count. Les toplines sont ajoutées par le routeur (requête séparée).
+    contract_prices est ajouté par le routeur (nécessite current_app.config).
     """
     return {
         **track_card(t),
@@ -186,7 +187,8 @@ def track_detail(t) -> dict:
         'approved_at': t.approved_at.isoformat() if t.approved_at else None,
         'sacem_percentage_composer': t.sacem_percentage_composer,
         'sacem_percentage_buyer':    t.get_sacem_percentage_buyer(),
-        'purchase_count': t.purchase_count,
+        'purchase_count':    t.purchase_count,
+        'is_exclusive_sold': t.is_exclusive_sold,
     }
 
 

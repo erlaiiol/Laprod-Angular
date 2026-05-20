@@ -41,6 +41,12 @@ export class PlayerService {
   private tracksApiUrl  = `${environment.apiUrl}/api/tracks`;
   private favoritesUrl  = `${environment.apiUrl}/api/favorites`;
 
+  // ── Listen-event tracking ─────────────────────────────────────────────────
+  private _listenStartTime = 0;       // ms timestamp when current track started
+  private _secondsListened = 0;       // seconds actually played (pauses excluded)
+  private _listenInterval: ReturnType<typeof setInterval> | null = null;
+  private _currentSource = 'home';
+
   constructor() {
     this.audioEl.volume = this.volume();
 
@@ -54,6 +60,12 @@ export class PlayerService {
 
     this.audioEl.onended = () => {
       this.isPlaying.set(false);
+      // Envoyer l'event d'écoute pour les tracks normaux (pas MixMaster)
+      const track = this.currentTrack();
+      if (track && track.id > 0 && this._listenStartTime > 0) {
+        this._sendListenEvent(track);
+        this._resetListenTimer();
+      }
       // Ne pas auto-avancer sur un audio mix order : l'utilisateur décide lui-même
       if (!this.viewingMixOrder()) {
         this.playNext();
@@ -77,8 +89,19 @@ export class PlayerService {
    * and calls wavesurfer.load(url), then plays on 'ready'.
    * Do NOT set audioEl.src here (race condition with WaveSurfer.load()).
    */
-  play(track: Track): void {
+  play(track: Track, source: string = 'home'): void {
+    // Envoyer l'event du track en cours avant de changer (switch de track)
+    const current = this.currentTrack();
+    if (current && current.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(current);
+      this._resetListenTimer();
+    }
+
     this.playOnReady = true;
+    this._currentSource = source;
+    this._listenStartTime = Date.now();
+    this._secondsListened = 0;
+    this._startListenTimer();
 
     // Do NOT call audioEl.play() here with no src set — it corrupts the
     // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
@@ -123,8 +146,16 @@ export class PlayerService {
   /**
    * Joue un audio de commande de mixage (Blob URL JWT) et affiche le statut dans le player.
    * blobUrl doit être un `URL.createObjectURL(blob)` créé par le composant appelant.
+   * NE démarre PAS le timer d'écoute (id=0, pas de recommandation).
    */
   playMixAudio(blobUrl: string, ctx: MixOrderContext): void {
+    // Sauvegarder l'écoute du track normal en cours avant de passer au mix
+    const current = this.currentTrack();
+    if (current && current.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(current);
+      this._resetListenTimer();
+    }
+
     const track: Track = {
       id:              0,
       title:           `Référence de : ${ctx.orderTitle}`,
@@ -143,9 +174,17 @@ export class PlayerService {
     this.currentTrack.set(track);
     this.viewingTrack.set(null);
     this.viewingMixOrder.set(ctx);
+    // _listenStartTime reste à 0 : pas de timer pour les mix orders
   }
 
   close(): void {
+    // Envoyer l'event avant de fermer le player
+    const track = this.currentTrack();
+    if (track && track.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(track);
+    }
+    this._resetListenTimer();
+
     this.audioEl.pause();
     this.audioEl.src = '';
     this.currentTrack.set(null);
@@ -183,6 +222,43 @@ export class PlayerService {
       return url;
     }
     return `${environment.apiUrl}${url}`;
+  }
+
+  // ── Listen-event internals ────────────────────────────────────────────────
+
+  private _startListenTimer(): void {
+    if (this._listenInterval) {
+      clearInterval(this._listenInterval);
+    }
+    this._listenInterval = setInterval(() => {
+      if (this.isPlaying()) {
+        this._secondsListened++;
+      }
+    }, 1000);
+  }
+
+  private _resetListenTimer(): void {
+    if (this._listenInterval) {
+      clearInterval(this._listenInterval);
+      this._listenInterval = null;
+    }
+    this._listenStartTime = 0;
+    this._secondsListened = 0;
+  }
+
+  private _sendListenEvent(track: Track): void {
+    if (!localStorage.getItem('access_token')) return;
+    if (this._secondsListened <= 0) return;
+
+    const trackDuration = this.duration() || 0;
+    const body = {
+      duration_listened: this._secondsListened,
+      track_duration:    trackDuration > 0 ? trackDuration : this._secondsListened,
+      source:            this._currentSource,
+    };
+
+    this.http.post(`${this.favoritesUrl}/listening/${track.id}`, body)
+      .subscribe({ error: () => {} });
   }
 
 }

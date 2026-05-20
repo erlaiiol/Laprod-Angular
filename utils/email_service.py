@@ -417,6 +417,34 @@ L'équipe LaProd
     )
 
 
+def send_exclusive_sold_email(track, purchase):
+    """Notifie le compositeur par email qu'un contrat exclusif a été signé."""
+    composer = track.composer_user
+
+    text_body = f"""
+Bonjour {composer.username},
+
+Votre track a été vendu en exclusivité.
+
+Track       : {track.title}
+Acheteur    : {purchase.buyer_user.username}
+Montant reçu: {purchase.composer_revenue}€
+
+Ce track est maintenant retiré de la vente sur LaProd.
+Vous pouvez consulter vos revenus dans votre espace "Mes gains".
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Contrat exclusif signé — {track.title} — LaProd',
+        recipients=[composer.email],
+        text_body=text_body,
+        html_body=text_body,
+    )
+
+
 # ============================================
 # EMAILS SPÉCIFIQUES - MIXMASTER
 # ============================================

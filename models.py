@@ -1,10 +1,13 @@
 import hashlib
 import enum
+from decimal import Decimal, ROUND_HALF_UP
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, time, timedelta
 from sqlalchemy import CheckConstraint
+
+_TWO_PLACES = Decimal('0.01')
 
 class User(UserMixin, db.Model):
     """Modèle utilisateur avec système de rôles et Stripe Connect"""
@@ -68,8 +71,8 @@ class User(UserMixin, db.Model):
     #  SYSTÈME MIX/MASTER
     is_mixmaster_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Certifié par admin
     is_certified_producer_arranger = db.Column(db.Boolean, default=False, nullable=False)  # Certifié producteur/arrangeur (intervention artistique)
-    mixmaster_reference_price = db.Column(db.Float, nullable=True)  # Prix de référence (base 100% pour calcul des services)
-    mixmaster_price_min = db.Column(db.Float, nullable=True)  # Prix minimum (entre 35% et 80% du prix référence : paliers 35/55/80)
+    mixmaster_reference_price = db.Column(db.Numeric(10, 2), nullable=True)  # Prix de référence (base 100% pour calcul des services)
+    mixmaster_price_min       = db.Column(db.Numeric(10, 2), nullable=True)  # Prix minimum (entre 35% et 80% du prix référence : paliers 35/55/80)
     mixmaster_bio = db.Column(db.Text, nullable=True)  # Description de ses compétences
     mixmaster_sample_raw = db.Column(db.String(200), nullable=True)  # Audio brut exemple
     mixmaster_sample_processed = db.Column(db.String(200), nullable=True)  # Audio traité exemple
@@ -94,7 +97,7 @@ class User(UserMixin, db.Model):
     preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
 
     # Relations
-    tracks = db.relationship('Track', backref='composer_user', lazy=True, cascade='all, delete-orphan')
+    tracks = db.relationship('Track', foreign_keys='Track.composer_id', backref='composer_user', lazy=True, cascade='all, delete-orphan')
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='buyer_user', lazy=True)
     notifications = db.relationship('Notification', back_populates='recipient_user', lazy=True, cascade='all, delete-orphan')
@@ -483,9 +486,9 @@ class Track(db.Model):
     image_file = db.Column(db.String(200), nullable=True)
     
     # Prix par format
-    price_mp3 = db.Column(db.Float, default=9.99, nullable=False)
-    price_wav = db.Column(db.Float, default=19.99, nullable=False)
-    price_stems = db.Column(db.Float, default=49.99, nullable=False)
+    price_mp3   = db.Column(db.Numeric(10, 2), default=Decimal('9.99'),  nullable=False)
+    price_wav   = db.Column(db.Numeric(10, 2), default=Decimal('19.99'), nullable=False)
+    price_stems = db.Column(db.Numeric(10, 2), default=Decimal('49.99'), nullable=False)
     
     #  POURCENTAGE SACEM - ce que le compositeur garde (l'acheteur reçoit 100 - sacem_percentage)
     sacem_percentage_composer = db.Column(db.Integer, default=50, nullable=False)  # Entre 0 et 100
@@ -500,13 +503,28 @@ class Track(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     approved_at = db.Column(db.DateTime, nullable=True)
     
-    # V2 SOON
-    # available_for_exclusivity = db.Column(db.Boolean, default=True, nullable=False)
-    
+    # Prix des droits de contrat (Integer, nullable → null = utiliser le défaut plateforme)
+    contract_price_exclusive      = db.Column(db.Integer, nullable=True)  # défaut: 150
+    contract_price_duration_3y    = db.Column(db.Integer, nullable=True)  # défaut: 5
+    contract_price_duration_5y    = db.Column(db.Integer, nullable=True)  # défaut: 10
+    contract_price_duration_10y   = db.Column(db.Integer, nullable=True)  # défaut: 15
+    contract_price_lifetime       = db.Column(db.Integer, nullable=True)  # défaut: 50
+    contract_price_mechanical     = db.Column(db.Integer, nullable=True)  # défaut: 30
+    contract_price_public_show    = db.Column(db.Integer, nullable=True)  # défaut: 40
+    contract_price_arrangement    = db.Column(db.Integer, nullable=True)  # défaut: 10
+    contract_price_territory_eu   = db.Column(db.Integer, nullable=True)  # défaut: 5
+    contract_price_territory_world = db.Column(db.Integer, nullable=True) # défaut: 10
+
+    # Exclusivité vendue
+    is_exclusive_sold  = db.Column(db.Boolean, default=False, nullable=False)
+    exclusive_sold_at  = db.Column(db.DateTime, nullable=True)
+    exclusive_buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
     # Relations
     tags = db.relationship('Tag', secondary='track_tag', backref='tracks')
     toplines = db.relationship('Topline', backref='track', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='track', lazy=True)
+    exclusive_buyer = db.relationship('User', foreign_keys=[exclusive_buyer_id])
 
     __table_args__ = (
         CheckConstraint('price_mp3 >= 0', name='ck_track_price_mp3_positive'),
@@ -584,14 +602,14 @@ class Purchase(db.Model):
     
     # Informations achat
     format_purchased = db.Column(db.String(20), nullable=False)  # 'mp3', 'wav', 'stems'
-    price_paid = db.Column(db.Float, nullable=False)  # Prix total payé (track + contrat)
-    buyer_name = db.Column(db.String(200), nullable=False)  # Pour le contrat
-    
+    price_paid       = db.Column(db.Numeric(10, 2), nullable=False)   # Prix total payé (track + contrat)
+    buyer_name       = db.Column(db.String(200), nullable=False)       # Pour le contrat
+
     #  RÉPARTITION FINANCIÈRE
-    contract_price = db.Column(db.Float, default=0, nullable=False)  # Prix du contrat uniquement
-    track_price = db.Column(db.Float, nullable=False)  # Prix du track uniquement
-    platform_fee = db.Column(db.Float, nullable=False)  # Commission plateforme (10%)
-    composer_revenue = db.Column(db.Float, nullable=False)  # Ce que reçoit le compositeur (90%)
+    contract_price   = db.Column(db.Numeric(10, 2), default=Decimal('0'), nullable=False)  # Prix du contrat uniquement
+    track_price      = db.Column(db.Numeric(10, 2), nullable=False)   # Prix du track uniquement
+    platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
+    composer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit le compositeur (90%)
     
     # Stripe
     stripe_payment_intent_id = db.Column(db.String(200), unique=True, nullable=False)
@@ -608,10 +626,12 @@ class Purchase(db.Model):
     CheckConstraint('composer_revenue >= 0', name='ck_purchase_revenue_positive'),
     )
 
-    def calculate_fees(self, total_amount, platform_commission=0.10):
+    def calculate_fees(self, total_amount, platform_commission=Decimal('0.10')):
         """Calcule la répartition des revenus"""
-        self.platform_fee = round(total_amount * platform_commission, 2)
-        self.composer_revenue = round(total_amount - self.platform_fee, 2)
+        total = Decimal(str(total_amount))
+        commission = Decimal(str(platform_commission))
+        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.composer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
     
     def __repr__(self):
         return f"<Purchase Track#{self.track_id} - {self.format_purchased}>"
@@ -724,11 +744,11 @@ class MixMasterRequest(db.Model):
 
 
     # Finances
-    total_price = db.Column(db.Float, nullable=False)  # Prix total
-    deposit_amount = db.Column(db.Float, nullable=False)  # Acompte (30%)
-    remaining_amount = db.Column(db.Float, nullable=False)  # Reste à payer (70%)
-    platform_fee = db.Column(db.Float, nullable=False)  # Commission plateforme (10%)
-    engineer_revenue = db.Column(db.Float, nullable=False)  # Ce que reçoit l'engineer
+    total_price      = db.Column(db.Numeric(10, 2), nullable=False)   # Prix total
+    deposit_amount   = db.Column(db.Numeric(10, 2), nullable=False)   # Acompte (30%)
+    remaining_amount = db.Column(db.Numeric(10, 2), nullable=False)   # Reste à payer (70%)
+    platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
+    engineer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit l'engineer
 
     # Stripe - Nouveau système avec Payment Intent
     stripe_payment_intent_id = db.Column(db.String(200), nullable=True)  # ID Payment Intent (autorisation totale)
@@ -794,24 +814,21 @@ class MixMasterRequest(db.Model):
         - Tous les services           : 160%
         - Tous + pistes séparées      : 180%
         """
-        base_price = 0.0
+        base = Decimal('0')
+        ref  = Decimal(str(base_price_max))
 
         if self.service_cleaning:
-            base_price += round(base_price_max * 0.35, 2)
+            base += (ref * Decimal('0.35')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_effects:
-            base_price += round(base_price_max * 0.45, 2)
+            base += (ref * Decimal('0.45')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_mastering:
-            base_price += round(base_price_max * 0.20, 2)
-
-        # Artistique = +60% du reference_price (pas du base_price)
+            base += (ref * Decimal('0.20')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_artistic:
-            base_price += round(base_price_max * 0.60, 2)
-
-        # Stems = +20% du reference_price (pas du total)
+            base += (ref * Decimal('0.60')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.has_separated_stems:
-            base_price += round(base_price_max * 0.20, 2)
+            base += (ref * Decimal('0.20')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
-        return round(base_price, 2)
+        return base.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def calculate_payments(self, platform_commission=0.10):
         """
@@ -820,10 +837,12 @@ class MixMasterRequest(db.Model):
         IMPORTANT: Tous les montants sont arrondis à 2 décimales.
         Stripe supporte les centimes (montants en cents : 7500 = 75.00€).
         """
-        self.deposit_amount = round(self.total_price * 0.30, 2)
-        self.remaining_amount = round(self.total_price - self.deposit_amount, 2)
-        self.platform_fee = round(self.total_price * platform_commission, 2)
-        self.engineer_revenue = round(self.total_price - self.platform_fee, 2)
+        total      = Decimal(str(self.total_price))
+        commission = Decimal(str(platform_commission))
+        self.deposit_amount   = (total * Decimal('0.30')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.remaining_amount = (total - self.deposit_amount).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.engineer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_total_transferred_to_engineer(self):
         """
@@ -832,9 +851,9 @@ class MixMasterRequest(db.Model):
         - Acompte initial : 30% × 90% = 27% du total
         - Chaque révision : 10% × 90% = 9% du total
         """
-        deposit_net = round(float(self.deposit_amount or 0) * 0.90, 2)
-        revision_net = round(float(self.total_price or 0) * 0.10 * 0.90 * (self.revision_count or 0), 2)
-        return round(deposit_net + revision_net, 2)
+        deposit_net  = (Decimal(str(self.deposit_amount or 0)) * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        revision_net = (Decimal(str(self.total_price or 0)) * Decimal('0.10') * Decimal('0.90') * (self.revision_count or 0)).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        return (deposit_net + revision_net).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_remaining_for_final_transfer(self):
         """Montant restant à transférer (délégation vers get_final_transfer_amount)"""
@@ -856,7 +875,7 @@ class MixMasterRequest(db.Model):
         Montant NET à transférer à l'engineer pour une révision.
         10% brut × 90% net = 9% du total.
         """
-        return round(float(self.total_price or 0) * 0.10 * 0.90, 2)
+        return (Decimal(str(self.total_price or 0)) * Decimal('0.10') * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_final_transfer_amount(self):
         """
@@ -865,8 +884,8 @@ class MixMasterRequest(db.Model):
         - 1 révision : 60% × 90% = 54%
         - 2 révisions : 50% × 90% = 45%
         """
-        gross_remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
-        return round(float(self.total_price or 0) * gross_remaining_pct * 0.90, 2)
+        gross_remaining_pct = Decimal('0.70') - (Decimal('0.10') * (self.revision_count or 0))
+        return (Decimal(str(self.total_price or 0)) * gross_remaining_pct * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_refund_amount(self):
         """
@@ -879,8 +898,8 @@ class MixMasterRequest(db.Model):
         - 1 révision  : remboursement 60% du total
         - 2 révisions : remboursement 50% du total
         """
-        remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
-        return round(float(self.total_price or 0) * remaining_pct, 2)
+        remaining_pct = Decimal('0.70') - (Decimal('0.10') * (self.revision_count or 0))
+        return (Decimal(str(self.total_price or 0)) * remaining_pct).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def is_expired(self):
         """
@@ -918,12 +937,12 @@ class PriceChangeRequest(db.Model):
     engineer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     # Prix actuels (avant modification)
-    old_reference_price = db.Column(db.Float, nullable=False)
-    old_price_min = db.Column(db.Float, nullable=False)
+    old_reference_price = db.Column(db.Numeric(10, 2), nullable=False)
+    old_price_min       = db.Column(db.Numeric(10, 2), nullable=False)
 
     # Nouveaux prix demandés
-    new_reference_price = db.Column(db.Float, nullable=False)
-    new_price_min = db.Column(db.Float, nullable=False)
+    new_reference_price = db.Column(db.Numeric(10, 2), nullable=False)
+    new_price_min       = db.Column(db.Numeric(10, 2), nullable=False)
 
     # Statut de la demande
     status = db.Column(db.String(50), default='pending', nullable=False)
@@ -980,6 +999,32 @@ class ListeningHistory(db.Model):
     def __repr__(self):
         return f"<ListeningHistory User#{self.user_id} - Track#{self.track_id} at {self.listened_at}>"
     
+class ListenEvent(db.Model):
+    """Événement d'écoute enrichi pour l'algorithme de recommandation."""
+    __tablename__ = 'listen_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
+    duration_listened = db.Column(db.Float, nullable=False)   # secondes
+    track_duration = db.Column(db.Float, nullable=False)      # secondes
+    completion_ratio = db.Column(db.Float, nullable=False)    # 0.0–1.0
+    source = db.Column(db.String(32), default='home')         # 'home', 'search', 'profile'
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='listen_events')
+    track = db.relationship('Track', backref='listen_events')
+
+    __table_args__ = (
+        db.Index('ix_listen_event_user', 'user_id'),
+        db.Index('ix_listen_event_track', 'track_id'),
+        db.Index('ix_listen_event_user_created', 'user_id', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<ListenEvent User#{self.user_id} Track#{self.track_id} {self.completion_ratio:.0%}>"
+
+
 class Notification(db.Model):
     """Rappel des 'nouvelles entrées' pour l'utilisateur
     en particulier pour ce qui concerne les ventes & achats"""

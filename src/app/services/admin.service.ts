@@ -142,6 +142,14 @@ export interface TrackSearchResult {
   price_stems:        number | null;
 }
 
+export interface RecommendationStats {
+  total_listen_events: number;
+  active_users_last_7d: number;
+  top_keys:  [string, number][];
+  top_tags:  [string, number][];
+  top_correlations: { from: string; to: string; probability: number }[];
+}
+
 export type ApiFeedback = { level: 'info' | 'warning' | 'error'; message: string };
 
 type ApiResponse<T = void> = {
@@ -328,5 +336,9 @@ export class AdminService {
 
   deleteTag(tagId: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/tags/${tagId}`, { headers: this.headers });
+  }
+
+  getRecommendationStats(): Observable<ApiResponse<RecommendationStats>> {
+    return this.http.get<any>(`${this.base}/recommendation-stats`, { headers: this.headers });
   }
 }

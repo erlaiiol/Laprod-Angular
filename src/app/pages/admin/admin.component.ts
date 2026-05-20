@@ -12,9 +12,10 @@ import { AdminEngineersComponent }    from './tabs/admin-engineers.component';
 import { AdminCategoriesComponent }   from './tabs/admin-categories.component';
 import { AdminContractsComponent }    from './tabs/admin-contracts.component';
 import { AdminTransactionsComponent }      from './tabs/admin-transactions.component';
-import { AdminContractBuilderComponent }  from './tabs/admin-contract-builder.component';
+import { AdminContractBuilderComponent }    from './tabs/admin-contract-builder.component';
+import { AdminRecommendationsComponent }   from './tabs/admin-recommendations.component';
 
-export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categories' | 'contracts' | 'transactions' | 'contract-builder';
+export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categories' | 'contracts' | 'transactions' | 'contract-builder' | 'recommendations';
 
 @Component({
   selector: 'app-admin',
@@ -29,6 +30,7 @@ export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categor
     AdminContractsComponent,
     AdminTransactionsComponent,
     AdminContractBuilderComponent,
+    AdminRecommendationsComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',

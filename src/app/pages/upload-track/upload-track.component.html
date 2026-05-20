@@ -113,6 +113,69 @@
         </div>
       </div>
 
+      <!-- ── Prix des droits de licence ──────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-header-row">
+          <h3 class="section-title">Prix des droits de licence</h3>
+          <button type="button" class="btn-standard-prices" (click)="applyStandardPrices()">
+            <i class="bi bi-arrow-repeat"></i> Appliquer les prix standards
+          </button>
+        </div>
+        <p class="section-hint">Ces prix s'appliquent aux contrats générés pour ce track.</p>
+        <div class="contract-prices-grid">
+          <div class="field">
+            <label>Exclusivité (€)</label>
+            <input type="number" name="cpExclusive" min="0" max="9999" step="1"
+                   [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Durée 3 ans (€)</label>
+            <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
+                   [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Durée 5 ans (€)</label>
+            <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
+                   [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Durée 10 ans (€)</label>
+            <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
+                   [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>À vie (€)</label>
+            <input type="number" name="cpLifetime" min="0" max="9999" step="1"
+                   [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Reproduction mécanique (€)</label>
+            <input type="number" name="cpMechanical" min="0" max="9999" step="1"
+                   [ngModel]="cpMechanical()" (ngModelChange)="cpMechanical.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Représentation publique (€)</label>
+            <input type="number" name="cpPublicShow" min="0" max="9999" step="1"
+                   [ngModel]="cpPublicShow()" (ngModelChange)="cpPublicShow.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Droit d'arrangement (€)</label>
+            <input type="number" name="cpArrangement" min="0" max="9999" step="1"
+                   [ngModel]="cpArrangement()" (ngModelChange)="cpArrangement.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Territoire Europe (€)</label>
+            <input type="number" name="cpTerritoryEu" min="0" max="9999" step="1"
+                   [ngModel]="cpTerritoryEu()" (ngModelChange)="cpTerritoryEu.set(+$event)" />
+          </div>
+          <div class="field">
+            <label>Territoire monde entier (€)</label>
+            <input type="number" name="cpTerritoryWorld" min="0" max="9999" step="1"
+                   [ngModel]="cpTerritoryWorld()" (ngModelChange)="cpTerritoryWorld.set(+$event)" />
+          </div>
+        </div>
+      </div>
+
       <!-- ── Tags ─────────────────────────────────────────────────────────── -->
       @if (tagGroups().length > 0) {
         <div class="section-card">

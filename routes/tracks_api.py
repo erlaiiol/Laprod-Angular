@@ -48,6 +48,42 @@ except ImportError as e:
 
 tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/api/tracks')
 
+_CONTRACT_PRICE_FIELDS = [
+    'contract_price_exclusive',
+    'contract_price_duration_3y',
+    'contract_price_duration_5y',
+    'contract_price_duration_10y',
+    'contract_price_lifetime',
+    'contract_price_mechanical',
+    'contract_price_public_show',
+    'contract_price_arrangement',
+    'contract_price_territory_eu',
+    'contract_price_territory_world',
+]
+
+
+def _resolve_contract_prices(track) -> dict:
+    """Résout les prix de contrat : valeur track si définie, sinon défaut config."""
+    cfg = current_app.config
+    dur = cfg.get('CONTRACT_DURATIONS', {})
+
+    def _r(attr, default):
+        val = getattr(track, attr, None)
+        return val if val is not None else default
+
+    return {
+        'exclusive':       _r('contract_price_exclusive',       cfg.get('CONTRACT_EXCLUSIVE_PRICE', 150)),
+        'duration_3y':     _r('contract_price_duration_3y',     dur.get('3', 5)),
+        'duration_5y':     _r('contract_price_duration_5y',     dur.get('5', 10)),
+        'duration_10y':    _r('contract_price_duration_10y',    dur.get('10', 15)),
+        'lifetime':        _r('contract_price_lifetime',        dur.get('lifetime', 50)),
+        'mechanical':      _r('contract_price_mechanical',      cfg.get('CONTRACT_MECHANICAL_REPRODUCTION_PRICE', 30)),
+        'public_show':     _r('contract_price_public_show',     cfg.get('CONTRACT_PUBLIC_SHOW_PRICE', 40)),
+        'arrangement':     _r('contract_price_arrangement',     cfg.get('CONTRACT_ARRANGEMENT_PRICE', 10)),
+        'territory_eu':    _r('contract_price_territory_eu',    cfg.get('CONTRACT_TERRITORY_EUROPE', 5)),
+        'territory_world': _r('contract_price_territory_world', cfg.get('CONTRACT_TERRITORY_WORLD', 10)),
+    }
+
 
 # ── GET /tracks/track/<track_id> ──────────────────────────────────────────────
 
@@ -87,8 +123,9 @@ def get_track(track_id):
         )
 
         track_data = track_detail(track)
-        track_data['toplines']    = [ser_topline(tl) for tl in published_toplines]
-        track_data['my_toplines'] = [ser_topline(tl) for tl in my_toplines]
+        track_data['toplines']        = [ser_topline(tl) for tl in published_toplines]
+        track_data['my_toplines']     = [ser_topline(tl) for tl in my_toplines]
+        track_data['contract_prices'] = _resolve_contract_prices(track)
 
         return ok({'track': track_data})
 
@@ -125,7 +162,10 @@ def get_tracks():
         current_app.logger.debug(f'pas de jwt valide pour get_tracks(): {e}')
 
     if not is_admin:
-        track_query = track_query.where(Track.is_approved.is_(True))
+        track_query = track_query.where(
+            Track.is_approved.is_(True),
+            Track.is_exclusive_sold.is_(False),
+        )
 
     try:
         search       = request.args.get('search', '').strip()[:50]
@@ -393,6 +433,7 @@ def post_track(current_user):
             'image_filename':            image_filename if (file_image and file_image.filename != '') else None,
             'image_disk_path':           str(image_disk_path) if (file_image and file_image.filename != '') else None,
             'tag_ids':                   tag_ids,
+            **{field: request.form.get(field, type=int) for field in _CONTRACT_PRICE_FIELDS},
         }
 
         redis_client.hset(f"job:{job_id}", mapping={
@@ -501,6 +542,17 @@ def put_track(track_id, current_user):
     if track.file_stems:
         track.price_stems = price_stems
 
+    for field in _CONTRACT_PRICE_FIELDS:
+        raw = request.form.get(field)
+        if raw is not None:
+            try:
+                val = int(raw)
+            except ValueError:
+                return err(f'{field} doit être un entier', level='warning')
+            if val < 0 or val > 9999:
+                return err(f'{field} doit être entre 0 et 9999', level='warning')
+            setattr(track, field, val)
+
     db.session.commit()
 
     return ok({
@@ -515,6 +567,7 @@ def put_track(track_id, current_user):
             'price_stems': track.price_stems,
             'is_approved': track.is_approved,
             'image_file':  track.image_file,
+            'contract_prices': _resolve_contract_prices(track),
             'tags': [
                 {'name': tag.name, 'category': tag.category_obj.name if tag.category_obj else 'other'}
                 for tag in track.tags

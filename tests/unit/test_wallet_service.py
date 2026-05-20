@@ -5,6 +5,7 @@ Stratégie : `db.session` est mocké entièrement → aucune DB requise.
 On teste la logique métier pure : montants, commissions, règles de validation.
 """
 
+import pytest
 from decimal import Decimal
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, call, patch
@@ -33,7 +34,12 @@ def _make_user(wallet=None, stripe_account_id=None, onboarding_complete=False, a
 
 class TestCreditWalletForBeatSale:
 
-    def test_amount_equals_composer_revenue(self, mocker):
+    @pytest.mark.parametrize('amount', [
+        Decimal('45.00'),
+        Decimal('21.30'),
+        Decimal('100.47'),
+    ])
+    def test_amount_equals_composer_revenue(self, mocker, amount):
         """Le montant crédité doit correspondre exactement au composer_revenue."""
         mock_db = mocker.patch('utils.wallet_service.db')
         mocker.patch('models.WalletTransaction', autospec=False)
@@ -43,7 +49,7 @@ class TestCreditWalletForBeatSale:
         composer.get_or_create_wallet.return_value = wallet
 
         purchase = MagicMock()
-        purchase.composer_revenue = Decimal('45.00')
+        purchase.composer_revenue = amount
         purchase.track.title = 'Test Beat'
         purchase.track.composer_user = composer
         purchase.format_purchased = 'wav'
@@ -52,7 +58,7 @@ class TestCreditWalletForBeatSale:
         from utils.wallet_service import credit_wallet_for_beat_sale
         credit_wallet_for_beat_sale(purchase)
 
-        assert wallet.balance_pending == Decimal('45.00')
+        assert wallet.balance_pending == amount
         mock_db.session.add.assert_called_once()
 
     def test_transaction_status_is_pending(self, mocker):
@@ -102,17 +108,22 @@ class TestCreditWalletForBeatSale:
         expected_max = after + timedelta(days=7)
         assert expected_min <= available_at <= expected_max
 
-    def test_cumulates_with_existing_balance(self, mocker):
+    @pytest.mark.parametrize('initial,credit,expected_total', [
+        (Decimal('0.00'),  Decimal('45.00'),  Decimal('45.00')),
+        (Decimal('10.00'), Decimal('21.30'),  Decimal('31.30')),
+        (Decimal('50.00'), Decimal('100.47'), Decimal('150.47')),
+    ])
+    def test_cumulates_with_existing_balance(self, mocker, initial, credit, expected_total):
         """Le solde existant ne doit pas être écrasé mais augmenté."""
         mocker.patch('utils.wallet_service.db')
         mocker.patch('models.WalletTransaction')
 
-        wallet = _make_wallet(balance_pending=Decimal('30.00'))
+        wallet = _make_wallet(balance_pending=initial)
         composer = MagicMock()
         composer.get_or_create_wallet.return_value = wallet
 
         purchase = MagicMock()
-        purchase.composer_revenue = Decimal('15.00')
+        purchase.composer_revenue = credit
         purchase.track.composer_user = composer
         purchase.format_purchased = 'wav'
         purchase.id = 5
@@ -120,14 +131,20 @@ class TestCreditWalletForBeatSale:
         from utils.wallet_service import credit_wallet_for_beat_sale
         credit_wallet_for_beat_sale(purchase)
 
-        assert wallet.balance_pending == Decimal('45.00')
+        assert wallet.balance_pending == expected_total
 
 
 # ── credit_wallet_for_mixmaster_deposit ───────────────────────────────────────
 
 class TestCreditWalletForMixmasterDeposit:
 
-    def test_commission_10_percent(self, mocker):
+    @pytest.mark.parametrize('deposit,expected_net', [
+        (Decimal('100.00'), Decimal('90.00')),   # montant rond
+        (Decimal('45.00'),  Decimal('40.50')),   # demi-entier : 45 × 0.9 = 40.50
+        (Decimal('21.30'),  Decimal('19.17')),   # décimales exactes : 21.30 × 0.9 = 19.17
+        (Decimal('100.47'), Decimal('90.42')),   # arrondi requis : 100.47 × 0.9 = 90.423 → 90.42
+    ])
+    def test_commission_10_percent(self, mocker, deposit, expected_net):
         """L'engineer reçoit 90% du dépôt (commission LaProd = 10%)."""
         mocker.patch('utils.wallet_service.db')
         txn_cls = mocker.patch('models.WalletTransaction')
@@ -137,7 +154,7 @@ class TestCreditWalletForMixmasterDeposit:
         engineer.get_or_create_wallet.return_value = wallet
 
         request = MagicMock()
-        request.deposit_amount = Decimal('100.00')
+        request.deposit_amount = deposit
         request.engineer = engineer
         request.id = 7
 
@@ -145,8 +162,8 @@ class TestCreditWalletForMixmasterDeposit:
         credit_wallet_for_mixmaster_deposit(request)
 
         kwargs = txn_cls.call_args[1]
-        assert kwargs['amount'] == Decimal('90.00')
-        assert wallet.balance_pending == Decimal('90.00')
+        assert kwargs['amount'] == expected_net
+        assert wallet.balance_pending == expected_net
 
     def test_commission_on_non_round_amount(self, mocker):
         """La commission doit être calculée avec arrondi à 2 décimales."""
@@ -300,3 +317,211 @@ class TestPerformWithdrawal:
 
         assert result['success'] is False
         assert 'Stripe down' in result['error']
+
+
+# ── process_pending_to_available ──────────────────────────────────────────────
+
+class TestProcessPendingToAvailable:
+    # WalletTransaction n'est PAS patché ici : la classe SQLAlchemy réelle doit être
+    # utilisée car `WalletTransaction.available_at <= now` construit une expression
+    # de colonne SQLAlchemy. Patcher la classe avec un MagicMock casserait cet opérateur.
+    # Le mock_db.session.query ignore ses arguments, donc la vraie classe fonctionne bien.
+
+    def test_only_processes_transactions_past_available_at(self, mocker):
+        """Les transactions retournées par la DB (available_at <= now) passent à 'available'."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_pending=Decimal('30.00'), balance_available=Decimal('0'))
+
+        ready_txn = MagicMock()
+        ready_txn.amount = Decimal('30.00')
+        ready_txn.status = 'pending'
+        mock_db.session.query.return_value.filter.return_value.all.return_value = [ready_txn]
+
+        from utils.wallet_service import process_pending_to_available
+        process_pending_to_available(wallet)
+
+        assert ready_txn.status == 'available'
+
+    @pytest.mark.parametrize('txn_amounts,init_pending,init_avail,exp_avail', [
+        # deux transactions, solde available existant
+        ([Decimal('20.00'), Decimal('30.00')], Decimal('50.00'), Decimal('10.00'), Decimal('60.00')),
+        # transaction unique décimale
+        ([Decimal('45.00')],                   Decimal('45.00'), Decimal('0.00'),  Decimal('45.00')),
+        # deux transactions irrégulières, cumul exact
+        ([Decimal('21.30'), Decimal('100.47')], Decimal('121.77'), Decimal('10.00'), Decimal('131.77')),
+    ])
+    def test_moves_amount_from_pending_to_available(
+        self, mocker, txn_amounts, init_pending, init_avail, exp_avail
+    ):
+        """Le montant total passe de balance_pending à balance_available."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_pending=init_pending, balance_available=init_avail)
+        txns = [MagicMock(amount=a) for a in txn_amounts]
+        mock_db.session.query.return_value.filter.return_value.all.return_value = txns
+
+        from utils.wallet_service import process_pending_to_available
+        process_pending_to_available(wallet)
+
+        assert wallet.balance_pending == Decimal('0.00')
+        assert wallet.balance_available == exp_avail
+
+    def test_returns_count_of_processed_transactions(self, mocker):
+        """La valeur de retour est le nombre de transactions transitionées."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_pending=Decimal('60.00'))
+        txns = [MagicMock(amount=Decimal('20.00')) for _ in range(3)]
+        mock_db.session.query.return_value.filter.return_value.all.return_value = txns
+
+        from utils.wallet_service import process_pending_to_available
+        count = process_pending_to_available(wallet)
+
+        assert count == 3
+
+
+# ── process_expirations ───────────────────────────────────────────────────────
+
+class TestProcessExpirations:
+
+    @pytest.mark.parametrize('amount', [
+        Decimal('40.00'),
+        Decimal('21.30'),
+        Decimal('100.47'),
+    ])
+    def test_expires_old_pending_transactions(self, mocker, amount):
+        """Les transactions 'pending' > 2 ans passent en 'expired' et déduisent balance_pending."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_pending=amount)
+
+        old_txn = MagicMock()
+        old_txn.amount = amount
+        old_txn.status = 'pending'
+        mock_db.session.query.return_value.filter.return_value.all.return_value = [old_txn]
+
+        from utils.wallet_service import process_expirations
+        process_expirations(wallet)
+
+        assert old_txn.status == 'expired'
+        assert wallet.balance_pending == Decimal('0.00')
+
+    @pytest.mark.parametrize('amount', [
+        Decimal('25.00'),
+        Decimal('21.30'),
+        Decimal('100.47'),
+    ])
+    def test_expires_old_available_transactions(self, mocker, amount):
+        """Les transactions 'available' > 2 ans passent en 'expired' et déduisent balance_available."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_available=amount)
+
+        old_txn = MagicMock()
+        old_txn.amount = amount
+        old_txn.status = 'available'
+        mock_db.session.query.return_value.filter.return_value.all.return_value = [old_txn]
+
+        from utils.wallet_service import process_expirations
+        process_expirations(wallet)
+
+        assert old_txn.status == 'expired'
+        assert wallet.balance_available == Decimal('0.00')
+
+    def test_recent_transactions_not_expired(self, mocker):
+        """Les transactions récentes (< 2 ans) ne sont pas touchées (DB retourne liste vide)."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+
+        wallet = _make_wallet(balance_pending=Decimal('15.00'))
+        mock_db.session.query.return_value.filter.return_value.all.return_value = []
+
+        from utils.wallet_service import process_expirations
+        count = process_expirations(wallet)
+
+        assert count == 0
+        assert wallet.balance_pending == Decimal('15.00')
+
+
+# ── credit_wallet_for_mixmaster_revision ──────────────────────────────────────
+
+class TestCreditWalletForMixmasterRevision:
+
+    def test_type_is_credit_mixmaster_revision(self, mocker):
+        mocker.patch('utils.wallet_service.db')
+        txn_cls = mocker.patch('models.WalletTransaction')
+
+        wallet = _make_wallet()
+        engineer = MagicMock()
+        engineer.get_or_create_wallet.return_value = wallet
+        request = MagicMock()
+        request.engineer = engineer
+        request.get_revision_transfer_amount.return_value = Decimal('9.00')
+        request.revision_count = 1
+        request.id = 1
+
+        from utils.wallet_service import credit_wallet_for_mixmaster_revision
+        credit_wallet_for_mixmaster_revision(request)
+
+        assert txn_cls.call_args[1]['type'] == 'credit_mixmaster_revision'
+
+    def test_amount_from_get_revision_transfer_amount(self, mocker):
+        """Le montant correspond à ce que retourne get_revision_transfer_amount()."""
+        mocker.patch('utils.wallet_service.db')
+        txn_cls = mocker.patch('models.WalletTransaction')
+
+        wallet = _make_wallet()
+        engineer = MagicMock()
+        engineer.get_or_create_wallet.return_value = wallet
+        request = MagicMock()
+        request.engineer = engineer
+        request.get_revision_transfer_amount.return_value = Decimal('13.50')
+        request.revision_count = 2
+        request.id = 2
+
+        from utils.wallet_service import credit_wallet_for_mixmaster_revision
+        credit_wallet_for_mixmaster_revision(request)
+
+        assert txn_cls.call_args[1]['amount'] == Decimal('13.50')
+        assert wallet.balance_pending == Decimal('13.50')
+
+
+# ── credit_wallet_for_mixmaster_final ─────────────────────────────────────────
+
+class TestCreditWalletForMixmasterFinal:
+
+    def test_type_is_credit_mixmaster_final(self, mocker):
+        mocker.patch('utils.wallet_service.db')
+        txn_cls = mocker.patch('models.WalletTransaction')
+
+        wallet = _make_wallet()
+        engineer = MagicMock()
+        engineer.get_or_create_wallet.return_value = wallet
+        request = MagicMock()
+        request.engineer = engineer
+        request.get_final_transfer_amount.return_value = Decimal('63.00')
+        request.id = 3
+
+        from utils.wallet_service import credit_wallet_for_mixmaster_final
+        credit_wallet_for_mixmaster_final(request)
+
+        assert txn_cls.call_args[1]['type'] == 'credit_mixmaster_final'
+
+    def test_amount_from_get_final_transfer_amount(self, mocker):
+        """Le montant correspond à ce que retourne get_final_transfer_amount()."""
+        mocker.patch('utils.wallet_service.db')
+        txn_cls = mocker.patch('models.WalletTransaction')
+
+        wallet = _make_wallet()
+        engineer = MagicMock()
+        engineer.get_or_create_wallet.return_value = wallet
+        request = MagicMock()
+        request.engineer = engineer
+        request.get_final_transfer_amount.return_value = Decimal('54.00')
+        request.id = 4
+
+        from utils.wallet_service import credit_wallet_for_mixmaster_final
+        credit_wallet_for_mixmaster_final(request)
+
+        assert txn_cls.call_args[1]['amount'] == Decimal('54.00')
+        assert wallet.balance_pending == Decimal('54.00')

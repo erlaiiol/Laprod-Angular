@@ -174,6 +174,21 @@ def notify_sale_completed(purchase):
     )
 
 
+def notify_exclusive_sold(track, purchase):
+    """Notifie le compositeur que son track vient d'être vendu en exclusivité."""
+    create_notification(
+        user_id=track.composer_id,
+        notif_type='track_exclusive_sold',
+        title='Contrat exclusif signé !',
+        message=(
+            f'Votre track « {track.title} » a été acheté en exclusivité '
+            f'par {purchase.buyer_user.username}. '
+            f'Il est maintenant retiré de la vente.'
+        ),
+        link='/dashboard'
+    )
+
+
 # ============================================
 # NOTIFICATIONS SPÉCIFIQUES - MODÉRATION
 # ============================================

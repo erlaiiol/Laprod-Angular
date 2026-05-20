@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request as flask_request
 from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from sqlalchemy import select
 from extensions import db, csrf
-from models import Favorite, ListeningHistory, Track
+from models import Favorite, ListenEvent, ListeningHistory, Track
 from serializers import ok, err
 from datetime import datetime
 from utils.auth_helpers import require_user
@@ -120,6 +120,23 @@ def add_listening_history(track_id, current_user):
             )
             for entry in oldest:
                 db.session.delete(entry)
+
+    # Enregistrer un ListenEvent si le client fournit les données de durée
+    body = flask_request.get_json(silent=True) or {}
+    duration_listened = body.get('duration_listened', 0)
+    track_duration = body.get('track_duration', 0)
+    source = body.get('source', 'home')
+
+    if duration_listened > 0 and track_duration > 0:
+        ratio = min(duration_listened / track_duration, 1.0)
+        db.session.add(ListenEvent(
+            user_id=current_user.id,
+            track_id=track_id,
+            duration_listened=float(duration_listened),
+            track_duration=float(track_duration),
+            completion_ratio=ratio,
+            source=source,
+        ))
 
     db.session.commit()
     return ok()

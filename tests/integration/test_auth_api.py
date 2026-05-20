@@ -121,3 +121,77 @@ class TestMe:
     def test_unauthenticated_returns_401(self, client):
         resp = client.get('/api/auth/me')
         assert resp.status_code == 401
+
+
+# ── POST /api/auth/register ────────────────────────────────────────────────────
+
+class TestRegister:
+
+    def _valid_payload(self, suffix=''):
+        return {
+            'username': f'newuser{suffix}',
+            'email': f'new{suffix}@register.laprod.fr',
+            'password': 'TestPass123!',
+            'password_confirm': 'TestPass123!',
+            'accept_terms': True,
+            'signature': 'Ma Signature',
+        }
+
+    def test_missing_fields_returns_400(self, client):
+        resp = client.post('/api/auth/register', json={})
+        assert resp.status_code == 400
+
+    def test_invalid_email_returns_400(self, client):
+        payload = self._valid_payload()
+        payload['email'] = 'not-an-email'
+        resp = client.post('/api/auth/register', json=payload)
+        assert resp.status_code == 400
+
+    def test_duplicate_username_returns_400(self, client, user):
+        payload = self._valid_payload()
+        payload['username'] = user.username
+        resp = client.post('/api/auth/register', json=payload)
+        assert resp.status_code == 400
+
+    def test_duplicate_email_returns_400(self, client, user):
+        payload = self._valid_payload()
+        payload['email'] = user.email
+        resp = client.post('/api/auth/register', json=payload)
+        assert resp.status_code == 400
+
+    def test_successful_registration_creates_user(self, client, db, mocker):
+        mocker.patch(
+            'routes.auth_api.email_service.send_verification_email',
+            return_value=True,
+        )
+        payload = self._valid_payload(suffix='_ok')
+        resp = client.post('/api/auth/register', json=payload)
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data['success'] is True
+        from models import User
+        created = db.session.query(User).filter_by(email=payload['email']).first()
+        assert created is not None
+        db.session.delete(created)
+        db.session.commit()
+
+
+# ── POST /api/auth/logout ──────────────────────────────────────────────────────
+
+class TestLogout:
+
+    def test_authenticated_user_can_logout(self, client, auth_headers, mocker):
+        mocker.patch('routes.auth_api.revoke_all_refresh_tokens', return_value=None)
+        resp = client.post('/api/auth/logout', headers=auth_headers)
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data['success'] is True
+
+    def test_logout_blocklists_token(self, client, db, auth_headers, mocker):
+        mocker.patch('routes.auth_api.revoke_all_refresh_tokens', return_value=None)
+        from models import TokenBlocklist
+        count_before = db.session.query(TokenBlocklist).count()
+        resp = client.post('/api/auth/logout', headers=auth_headers)
+        assert resp.status_code == 200
+        count_after = db.session.query(TokenBlocklist).count()
+        assert count_after == count_before + 1

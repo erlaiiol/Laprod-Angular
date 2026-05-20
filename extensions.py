@@ -266,5 +266,16 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque nuit à 3h : corrélations pour l'algorithme de recommandation
+        from utils.recommendation_jobs import run_correlation_job
+        scheduler.add_job(
+            func=run_correlation_job,
+            trigger='cron',
+            hour=3,
+            minute=0,
+            id='recommendation_correlations',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations)")

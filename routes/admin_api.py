@@ -56,6 +56,7 @@ from utils.auth_helpers import require_admin
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
+    ListenEvent,
 )
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
@@ -513,7 +514,7 @@ def approve_track(track_id, current_user):
     except Exception as e:
         current_app.logger.warning(f"Email approbation track: {e}")
     try:
-        notification_service.send_track_approved_notification(track)
+        notification_service.notify_track_approved(track)
     except Exception as e:
         current_app.logger.warning(f"Notif approbation track: {e}")
 
@@ -533,7 +534,7 @@ def reject_track(track_id, current_user):
     except Exception:
         pass
     try:
-        notification_service.send_track_rejected_notification(track)
+        notification_service.notify_track_rejected(track)
     except Exception:
         pass
 
@@ -1387,6 +1388,64 @@ def cb_delete_clause(clause_id):
     db.session.delete(c)
     db.session.commit()
     return jsonify({'success': True})
+
+
+@admin_api_bp.route('/recommendation-stats', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_recommendation_stats(current_user):
+    """Statistiques de l'algorithme de recommandation — lisibles depuis l'admin."""
+    from collections import defaultdict
+    from extensions import redis_client
+
+    seven_days_ago = datetime.now() - timedelta(days=7)
+
+    total_events = db.session.query(ListenEvent).count()
+    active_users = (
+        db.session.query(distinct(ListenEvent.user_id))
+        .filter(ListenEvent.created_at >= seven_days_ago)
+        .count()
+    )
+
+    # Top keys (par nombre d'écoutes positives)
+    key_counts: dict[str, int] = defaultdict(int)
+    tag_counts: dict[str, int] = defaultdict(int)
+    for ev in db.session.query(ListenEvent).filter(ListenEvent.completion_ratio >= 0.30).all():
+        if ev.track and ev.track.key:
+            key_counts[ev.track.key] += 1
+        if ev.track:
+            for tag in ev.track.tags:
+                tag_counts[tag.name] += 1
+
+    top_keys = sorted(key_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Top corrélations depuis Redis
+    top_correlations = []
+    if redis_client:
+        try:
+            for redis_key in redis_client.scan_iter('laprod:reco:key_corr:*'):
+                parts = redis_key.split(':', maxsplit=4)
+                if len(parts) == 5:
+                    prob = float(redis_client.get(redis_key) or 0)
+                    top_correlations.append({
+                        'from': parts[3],
+                        'to': parts[4],
+                        'probability': round(prob, 3),
+                    })
+        except Exception:
+            pass
+    top_correlations.sort(key=lambda x: x['probability'], reverse=True)
+    top_correlations = top_correlations[:20]
+
+    return ok({
+        'total_listen_events': total_events,
+        'active_users_last_7d': active_users,
+        'top_keys': top_keys,
+        'top_tags': top_tags,
+        'top_correlations': top_correlations,
+    })
 
 
 @admin_api_bp.route('/contract-builder/clauses/reorder', methods=['POST'])

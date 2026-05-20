@@ -7,7 +7,7 @@ Pattern : Separate Charges and Transfers (Stripe)
 - Après 7 jours, ils passent en 'available' (retirables).
 - Le retrait déclenche un stripe.Transfer vers le compte Connect du vendeur.
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
 import stripe._error as stripe_error
@@ -29,7 +29,7 @@ def credit_wallet_for_beat_sale(purchase):
     composer = purchase.track.composer_user
     wallet = composer.get_or_create_wallet()
 
-    amount = Decimal(str(purchase.composer_revenue))
+    amount = purchase.composer_revenue  # Decimal natively from Numeric(10,2)
     available_at = datetime.now() + timedelta(days=7)
 
     txn = WalletTransaction(
@@ -58,7 +58,7 @@ def credit_wallet_for_mixmaster_deposit(mixmaster_request):
     engineer = mixmaster_request.engineer
     wallet = engineer.get_or_create_wallet()
 
-    amount = Decimal(str(round(float(mixmaster_request.deposit_amount) * 0.90, 2)))
+    amount = (mixmaster_request.deposit_amount * Decimal('0.90')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     available_at = datetime.now() + timedelta(days=7)
 
     txn = WalletTransaction(
@@ -87,7 +87,7 @@ def credit_wallet_for_mixmaster_revision(mixmaster_request):
     engineer = mixmaster_request.engineer
     wallet = engineer.get_or_create_wallet()
 
-    amount = Decimal(str(mixmaster_request.get_revision_transfer_amount()))
+    amount = mixmaster_request.get_revision_transfer_amount()  # Decimal from Numeric arithmetic
     available_at = datetime.now() + timedelta(days=7)
     revision_num = mixmaster_request.revision_count  # déjà incrémenté au moment de l'appel
 
@@ -120,7 +120,7 @@ def credit_wallet_for_mixmaster_final(mixmaster_request):
     engineer = mixmaster_request.engineer
     wallet = engineer.get_or_create_wallet()
 
-    amount = Decimal(str(mixmaster_request.get_final_transfer_amount()))
+    amount = mixmaster_request.get_final_transfer_amount()  # Decimal from Numeric arithmetic
     available_at = datetime.now() + timedelta(days=7)
 
     txn = WalletTransaction(

@@ -7,6 +7,7 @@ POST /api/track-payment/track/<track_id>/<format_type>/checkout
 POST /api/track-payment/verify
   → Appelé par Angular après redirection Stripe. Crée Purchase, wallet, contrat PDF, notifications.
 """
+from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
 import stripe
@@ -18,6 +19,8 @@ from extensions import db, csrf
 from models import Track, User, Purchase
 from serializers import ok, err
 from utils.auth_helpers import require_user
+
+_TWO_PLACES = Decimal('0.01')
 from utils.payment_validator import TrackPriceCalculator
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
@@ -60,6 +63,11 @@ def create_checkout(track_id, format_type, current_user):
         return err('Track introuvable.', code='NOT_FOUND', status=404)
     if not track.is_approved:
         return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
+    if track.is_exclusive_sold:
+        return err(
+            'Ce track a été vendu en exclusivité et n\'est plus disponible.',
+            code='TRACK_EXCLUSIVE_SOLD', status=410,
+        )
     if current_user.id == track.composer_id:
         return err(
             'Vous ne pouvez pas acheter votre propre composition.',
@@ -88,7 +96,7 @@ def create_checkout(track_id, format_type, current_user):
         return err(str(e), code='PRICE_CALC_ERROR', status=400)
 
     client_total = data.get('total_price')
-    if client_total is not None and abs(server_total - float(client_total)) > 0.01:
+    if client_total is not None and abs(server_total - Decimal(str(client_total))) > Decimal('0.01'):
         current_app.logger.error(
             f"Prix manipulé ! Client: {client_total}€, Serveur: {server_total}€, "
             f"User: {current_user.id}, Track: {track_id}"
@@ -129,7 +137,7 @@ def create_checkout(track_id, format_type, current_user):
             line_items=[{
                 'price_data': {
                     'currency': 'eur',
-                    'unit_amount': round(server_total * 100),
+                    'unit_amount': int(server_total * 100),
                     'product_data': {
                         'name': f"{track.title} — {format_type.upper()}",
                         'description': f"Licence d'exploitation par {track.composer_user.username}",
@@ -214,9 +222,9 @@ def verify_payment(current_user):
         if not track:
             return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
 
-        total_price = float(meta.get('track_price', payment_intent.amount / 100))
-        platform_fee = round(total_price * 0.10, 2)
-        composer_revenue = round(total_price - platform_fee, 2)
+        total_price      = Decimal(str(meta.get('track_price', payment_intent.amount / 100)))
+        platform_fee     = (total_price * Decimal('0.10')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        composer_revenue = (total_price - platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
         purchase = Purchase(
             track_id=track_id,
@@ -232,6 +240,19 @@ def verify_payment(current_user):
         )
         db.session.add(purchase)
         db.session.flush()  # obtenir purchase.id
+
+        # ── Marquer le track comme vendu en exclusivité ──────────────────────
+        if meta.get('is_exclusive') == 'True':
+            track.is_exclusive_sold  = True
+            track.exclusive_sold_at  = datetime.now()
+            track.exclusive_buyer_id = purchase.buyer_id
+            try:
+                from utils.notification_service import notify_exclusive_sold
+                from utils.email_service import send_exclusive_sold_email
+                notify_exclusive_sold(track, purchase)
+                send_exclusive_sold_email(track, purchase)
+            except Exception as exc_err:
+                current_app.logger.error(f"Erreur notify/email exclusivité track #{track_id}: {exc_err}")
 
         # ── Crédit wallet compositeur ────────────────────────────────────────
         credit_wallet_for_beat_sale(purchase)

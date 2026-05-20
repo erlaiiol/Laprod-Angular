@@ -2,20 +2,21 @@
 // PAGE HOME
 // Rôle : orchestrer. Elle charge les tracks depuis l'API et les distribue
 // vers TrackCardComponent. Elle réagit aux filtres posés par Navbar.
+// Si l'utilisateur est connecté et n'a pas de filtres actifs → recommandations.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, OnInit, signal, effect, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
+import { RecommendationService } from '../../services/recommendation.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
-//                             └── service partagé : Navbar écrit, Home lit
 
 
 @Component({
@@ -27,48 +28,76 @@ import { AuthService } from '../../services/auth.service';
 })
 export class HomeComponent implements OnInit {
 
-  tracks  = signal<Track[]>([]);
-  loading = signal(true);
-  error   = signal<string | null>(null);
+  tracks          = signal<Track[]>([]);
+  loading         = signal(true);
+  error           = signal<string | null>(null);
+  isPersonalized  = signal(false);
 
   private trackService       = inject(TrackService);
+  private recoService        = inject(RecommendationService);
   private filterStateService = inject(FilterStateService);
   private toast              = inject(ToastService);
   private favSvc             = inject(FavoritesService);
   private auth               = inject(AuthService);
-  // inject() est l'équivalent de "private x: X" dans le constructeur.
-  // Il peut être utilisé en dehors du constructeur, pratique ici car
-  // effect() doit être créé dans le contexte d'injection (champ de classe).
+
+  private hasActiveFilters = computed(() => {
+    const f = this.filterStateService.filters();
+    return !!(
+      f.search ||
+      f.bpmMin !== null ||
+      f.bpmMax !== null ||
+      f.keys.length > 0 ||
+      f.styles.length > 0 ||
+      f.tags.length > 0
+    );
+  });
 
   constructor() {
-    // ── effect() ──────────────────────────────────────────────────────────
-    // effect() crée une réaction : Angular appelle cette fonction
-    // automatiquement chaque fois qu'un signal LU À L'INTÉRIEUR change.
-    //
-    // Ici : filterStateService.applied() est lu → Angular observe ce signal.
-    // Quand Navbar appelle filterStateService.apply() ou .reset(),
-    // applied() s'incrémente → effect() se déclenche → loadTracks() recharge.
-    //
-    // allowSignalWrites: true est nécessaire car loadTracks() écrit dans
-    // des signaux (loading, tracks, error) depuis l'intérieur d'un effect().
-
     effect(() => {
       this.filterStateService.applied(); // lecture → crée la dépendance
       this.loadTracks();
     }, { allowSignalWrites: true });
   }
 
-  ngOnInit(): void {
-    // loadTracks() est déjà appelé par effect() au démarrage
-    // (effect() s'exécute une première fois lors de l'initialisation).
-    // ngOnInit reste présent pour clarté architecturale.
-  }
+  ngOnInit(): void {}
 
   loadTracks(): void {
     this.loading.set(true);
     this.error.set(null);
 
-    // Convertit ActiveFilters (format Navbar) → TrackFilters (format API Flask)
+    const useRecommendations = this.auth.isLoggedIn() && !this.hasActiveFilters();
+
+    if (useRecommendations) {
+      this.recoService.getTracks().pipe(
+        switchMap(response => {
+          if (!response.success) return of(response);
+          const ids = response.data.tracks.map(t => t.id);
+          return this.favSvc.prefetch(ids).pipe(
+            switchMap(() => of(response)),
+          );
+        })
+      ).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.tracks.set(response.data.tracks);
+            this.isPersonalized.set(response.data.is_personalized);
+          } else {
+            this.error.set('Le serveur a répondu mais signale une erreur.');
+          }
+          this.loading.set(false);
+        },
+        error: () => {
+          // Fallback silencieux vers les tracks normaux en cas d'erreur reco
+          this._loadRegularTracks();
+        }
+      });
+    } else {
+      this.isPersonalized.set(false);
+      this._loadRegularTracks();
+    }
+  }
+
+  private _loadRegularTracks(): void {
     const apiFilters = this.toTrackFilters(this.filterStateService.filters());
 
     this.trackService.getTracks(apiFilters).pipe(
@@ -76,7 +105,6 @@ export class HomeComponent implements OnInit {
         if (!response.success || !this.auth.isLoggedIn()) return of(response);
         const ids = (response.data.tracks as Track[]).map(t => t.id);
         return this.favSvc.prefetch(ids).pipe(
-          // prefetch errors are silent — still render tracks
           switchMap(() => of(response)),
         );
       })
@@ -100,12 +128,6 @@ export class HomeComponent implements OnInit {
   }
 
   // ── Conversion de format ──────────────────────────────────────────────────
-  // ActiveFilters (Navbar) → TrackFilters (HTTP query string pour Flask)
-  //
-  // Flask attend :  ?search=trap&bpm_min=80&keys=Am,Gm&styles=Trap
-  // Les tableaux sont joints en chaîne séparée par des virgules,
-  // comme filters.js le faisait avec params.set('keys', keys.join(','))
-
   private toTrackFilters(f: ActiveFilters): TrackFilters {
     return {
       search:   f.search   || undefined,

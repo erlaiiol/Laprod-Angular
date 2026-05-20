@@ -25,6 +25,11 @@ interface TagGroup {
 })
 export class UploadTrackComponent implements OnInit {
 
+  readonly DEFAULT_CONTRACT_PRICES = {
+    exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
+    mechanical: 30, publicShow: 40, arrangement: 10, territoryEu: 5, territoryWorld: 10,
+  };
+
   /* ── Form fields ───────────────────────────────────────────────────────── */
   title         = signal('');
   bpm           = signal<number | null>(null);
@@ -34,6 +39,32 @@ export class UploadTrackComponent implements OnInit {
   priceWav      = signal(19.99);
   priceStems    = signal(49.99);
   sacemComposer = signal(50);
+
+  // Prix des droits de contrat (initialisés aux prix standards)
+  cpExclusive    = signal(this.DEFAULT_CONTRACT_PRICES.exclusive);
+  cpDuration3y   = signal(this.DEFAULT_CONTRACT_PRICES.duration3y);
+  cpDuration5y   = signal(this.DEFAULT_CONTRACT_PRICES.duration5y);
+  cpDuration10y  = signal(this.DEFAULT_CONTRACT_PRICES.duration10y);
+  cpLifetime     = signal(this.DEFAULT_CONTRACT_PRICES.lifetime);
+  cpMechanical   = signal(this.DEFAULT_CONTRACT_PRICES.mechanical);
+  cpPublicShow   = signal(this.DEFAULT_CONTRACT_PRICES.publicShow);
+  cpArrangement  = signal(this.DEFAULT_CONTRACT_PRICES.arrangement);
+  cpTerritoryEu  = signal(this.DEFAULT_CONTRACT_PRICES.territoryEu);
+  cpTerritoryWorld = signal(this.DEFAULT_CONTRACT_PRICES.territoryWorld);
+
+  applyStandardPrices(): void {
+    const d = this.DEFAULT_CONTRACT_PRICES;
+    this.cpExclusive.set(d.exclusive);
+    this.cpDuration3y.set(d.duration3y);
+    this.cpDuration5y.set(d.duration5y);
+    this.cpDuration10y.set(d.duration10y);
+    this.cpLifetime.set(d.lifetime);
+    this.cpMechanical.set(d.mechanical);
+    this.cpPublicShow.set(d.publicShow);
+    this.cpArrangement.set(d.arrangement);
+    this.cpTerritoryEu.set(d.territoryEu);
+    this.cpTerritoryWorld.set(d.territoryWorld);
+  }
 
   /* ── Files ─────────────────────────────────────────────────────────────── */
   fileMp3   = signal<File | null>(null);
@@ -137,6 +168,16 @@ export class UploadTrackComponent implements OnInit {
       file_wav:                 this.fileWav()   ?? undefined,
       file_image:               this.fileImage() ?? undefined,
       file_stems:               this.fileStems() ?? undefined,
+      contract_price_exclusive:       this.cpExclusive(),
+      contract_price_duration_3y:     this.cpDuration3y(),
+      contract_price_duration_5y:     this.cpDuration5y(),
+      contract_price_duration_10y:    this.cpDuration10y(),
+      contract_price_lifetime:        this.cpLifetime(),
+      contract_price_mechanical:      this.cpMechanical(),
+      contract_price_public_show:     this.cpPublicShow(),
+      contract_price_arrangement:     this.cpArrangement(),
+      contract_price_territory_eu:    this.cpTerritoryEu(),
+      contract_price_territory_world: this.cpTerritoryWorld(),
     }).subscribe({
       next: res => {
         this.loading.set(false);
@@ -164,6 +205,7 @@ export class UploadTrackComponent implements OnInit {
     this.priceWav.set(19.99);
     this.priceStems.set(49.99);
     this.sacemComposer.set(50);
+    this.applyStandardPrices();
     this.selectedTagIds.set([]);
     this.fileMp3.set(null);
     this.fileWav.set(null);

@@ -13,17 +13,7 @@ type Format    = 'mp3' | 'wav' | 'stems';
 type Territory = 'France' | 'Europe' | 'Monde entier';
 type DurationKey = 'stream' | '3' | '5' | '10' | 'lifetime';
 
-const DURATION_FEES: Record<DurationKey, number> = {
-  'stream': 0, '3': 5, '5': 10, '10': 15, 'lifetime': 50,
-};
-
-const TERRITORY_FEES: Record<Territory, number> = {
-  'France': 0, 'Europe': 5, 'Monde entier': 10,
-};
-
-const MECHANICAL_PRICE   = 30;
-const PUBLIC_SHOW_PRICE  = 40;
-const ARRANGEMENT_PRICE  = 10;
+// Seuils globaux d'auto-inclusion (non modifiables par le beatmaker)
 const MECHANICAL_THRESHOLD  = 199.99;
 const PUBLIC_SHOW_THRESHOLD = 74.99;
 
@@ -59,6 +49,18 @@ export class ContractConfigComponent implements OnInit {
   readonly auth      = inject(AuthService);
   private cdr        = inject(ChangeDetectorRef);
 
+  // Prix résolus : valeur du track si définie, sinon défaut plateforme
+  prices = computed(() => {
+    const cp = this.track()?.contract_prices;
+    return {
+      duration:    { stream: 0, '3': cp?.duration_3y ?? 5, '5': cp?.duration_5y ?? 10, '10': cp?.duration_10y ?? 15, lifetime: cp?.lifetime ?? 50 } as Record<DurationKey, number>,
+      territory:   { France: 0, Europe: cp?.territory_eu ?? 5, 'Monde entier': cp?.territory_world ?? 10 } as Record<Territory, number>,
+      mechanical:  cp?.mechanical  ?? 30,
+      publicShow:  cp?.public_show ?? 40,
+      arrangement: cp?.arrangement ?? 10,
+    };
+  });
+
   basePrice = computed<number>(() => {
     const t = this.track();
     if (!t) return 0;
@@ -68,9 +70,9 @@ export class ContractConfigComponent implements OnInit {
          : (t.price_stems ?? 0);
   });
 
-  durationFee  = computed(() => this.isLifetime() ? DURATION_FEES.lifetime : DURATION_FEES[this.duration()]);
-  territoryFee = computed(() => TERRITORY_FEES[this.territory()]);
-  arrangementFee = computed(() => this.rightArrangement() ? ARRANGEMENT_PRICE : 0);
+  durationFee  = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
+  territoryFee = computed(() => this.prices().territory[this.territory()]);
+  arrangementFee = computed(() => this.rightArrangement() ? this.prices().arrangement : 0);
 
   subtotal = computed(() =>
     this.basePrice() + this.durationFee() + this.territoryFee() + this.arrangementFee()
@@ -80,10 +82,10 @@ export class ContractConfigComponent implements OnInit {
   publicShowAutoIncluded = computed(() => this.subtotal() >= PUBLIC_SHOW_THRESHOLD);
 
   mechanicalFee = computed(() =>
-    this.mechanicalAutoIncluded() ? 0 : this.rightMechanical() ? MECHANICAL_PRICE : 0
+    this.mechanicalAutoIncluded() ? 0 : this.rightMechanical() ? this.prices().mechanical : 0
   );
   publicShowFee = computed(() =>
-    this.publicShowAutoIncluded() ? 0 : this.rightPublicShow() ? PUBLIC_SHOW_PRICE : 0
+    this.publicShowAutoIncluded() ? 0 : this.rightPublicShow() ? this.prices().publicShow : 0
   );
 
   totalPrice = computed(() =>
@@ -100,12 +102,6 @@ export class ContractConfigComponent implements OnInit {
     this.isLifetime() ? 'À vie + 70 ans'
     : ({ 'stream': 'Stream uniquement', '3': '3 ans', '5': '5 ans', '10': '10 ans', 'lifetime': 'À vie' } as Record<DurationKey, string>)[this.duration()]
   );
-
-  readonly DURATION_FEES     = DURATION_FEES;
-  readonly TERRITORY_FEES    = TERRITORY_FEES;
-  readonly MECHANICAL_PRICE  = MECHANICAL_PRICE;
-  readonly PUBLIC_SHOW_PRICE = PUBLIC_SHOW_PRICE;
-  readonly ARRANGEMENT_PRICE = ARRANGEMENT_PRICE;
 
   constructor() {
     // Quand un droit devient auto-inclus, on efface la sélection manuelle

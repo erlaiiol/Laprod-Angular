@@ -181,3 +181,60 @@ class TestUpdateContract:
 
         db.session.delete(contract)
         db.session.commit()
+
+
+# ── GET /api/contract-builder/contracts/<id> ──────────────────────────────────
+
+class TestGetContractDetail:
+
+    def test_requires_authentication(self, client):
+        resp = client.get('/api/contract-builder/contracts/1')
+        assert resp.status_code == 401
+
+    def test_owner_gets_contract_detail(self, client, auth_headers, user, db):
+        """Le propriétaire obtient les détails complets du contrat."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Détail contrat test',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/contract-builder/contracts/{contract.id}',
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        detail = data['data']['contract']
+        assert detail['id'] == contract.id
+        assert detail['title'] == 'Détail contrat test'
+        assert 'parties' in detail
+        assert 'values' in detail
+
+        db.session.delete(contract)
+        db.session.commit()
+
+    def test_other_user_cannot_access_detail(self, client, admin_headers, user, db):
+        """Un autre utilisateur (même admin) ne peut pas lire le contrat d'autrui."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Contrat privé détail',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/contract-builder/contracts/{contract.id}',
+            headers=admin_headers,
+        )
+        assert resp.status_code in (403, 404)
+
+        db.session.delete(contract)
+        db.session.commit()

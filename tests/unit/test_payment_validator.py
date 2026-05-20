@@ -123,7 +123,7 @@ class TestMixMasterRequestPriceCalculator:
     def test_stems_bonus_rounds_to_2_decimals(self):
         options = {'has_separated_stems': True, 'reference_price': 333.0}
         bonus = self.calc.calculate_options_price(options)
-        assert bonus == round(333.0 * 0.20, 2)
+        assert bonus == Decimal('66.60')
 
     # -- calculate_total --
 
@@ -169,9 +169,9 @@ class TestTrackPriceCalculator:
         track.price_stems = 39.99
 
         with app.app_context():
-            assert calc.calculate_base_price(track, format_type='mp3') == 9.99
-            assert calc.calculate_base_price(track, format_type='wav') == 19.99
-            assert calc.calculate_base_price(track, format_type='stems') == 39.99
+            assert calc.calculate_base_price(track, format_type='mp3')   == Decimal('9.99')
+            assert calc.calculate_base_price(track, format_type='wav')   == Decimal('19.99')
+            assert calc.calculate_base_price(track, format_type='stems') == Decimal('39.99')
 
     def test_invalid_format_raises(self, app):
         from utils.payment_validator import TrackPriceCalculator
@@ -204,3 +204,86 @@ class TestTrackPriceCalculator:
             price_france = calc.calculate_options_price(options_france)
             price_world = calc.calculate_options_price(options_world)
             assert price_world > price_france
+
+    # ── Tests _resolve : prix track > défaut config ───────────────────────────
+
+    def _track_with_prices(self, **prices):
+        t = MagicMock()
+        # Tous les champs contract_price_* à None par défaut
+        for attr in [
+            'contract_price_exclusive', 'contract_price_duration_3y',
+            'contract_price_duration_5y', 'contract_price_duration_10y',
+            'contract_price_lifetime', 'contract_price_mechanical',
+            'contract_price_public_show', 'contract_price_arrangement',
+            'contract_price_territory_eu', 'contract_price_territory_world',
+        ]:
+            setattr(t, attr, None)
+        for attr, val in prices.items():
+            setattr(t, attr, val)
+        return t
+
+    def test_custom_exclusive_price(self, app):
+        """track.contract_price_exclusive=500 → total inclut 500, pas 150."""
+        from utils.payment_validator import TrackPriceCalculator
+        calc = TrackPriceCalculator()
+        track = self._track_with_prices(contract_price_exclusive=500)
+        track.price_mp3 = 10
+
+        with app.app_context():
+            options = {
+                'is_exclusive': True, 'is_lifetime': False,
+                'duration_years': 3, 'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
+            assert opts_price >= Decimal('500')
+
+    def test_fallback_to_config_when_null(self, app):
+        """track.contract_price_exclusive=None → utilise la config (150)."""
+        from utils.payment_validator import TrackPriceCalculator
+        calc = TrackPriceCalculator()
+        track = self._track_with_prices()  # tout à None
+        track.price_mp3 = 10
+
+        with app.app_context():
+            options = {
+                'is_exclusive': True, 'is_lifetime': False,
+                'duration_years': 3, 'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
+            # CONTRACT_EXCLUSIVE_PRICE = 150 dans test_config
+            assert opts_price >= Decimal('150')
+
+    def test_custom_duration_price(self, app):
+        """track.contract_price_duration_3y=20 → durée 3 ans coûte 20€."""
+        from utils.payment_validator import TrackPriceCalculator
+        calc = TrackPriceCalculator()
+        track = self._track_with_prices(contract_price_duration_3y=20)
+        track.price_mp3 = 10
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 3, 'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
+            assert opts_price == Decimal('20')
+
+    def test_custom_territory_world_price(self, app):
+        """track.contract_price_territory_world=25 → territoire monde = 25€."""
+        from utils.payment_validator import TrackPriceCalculator
+        calc = TrackPriceCalculator()
+        track = self._track_with_prices(contract_price_territory_world=25)
+        track.price_mp3 = 10
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 3, 'territory': 'Monde entier',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
+            # durée 3 ans (config=10) + territoire monde (custom=25) = 35
+            assert opts_price == Decimal('35')

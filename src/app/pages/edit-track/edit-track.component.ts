@@ -29,6 +29,11 @@ export class EditTrackComponent implements OnInit {
   private trackService = inject(TrackService);
   private tagsService = inject(TagsService);
   
+  readonly DEFAULT_CONTRACT_PRICES = {
+    exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
+    mechanical: 30, publicShow: 40, arrangement: 10, territoryEu: 5, territoryWorld: 10,
+  };
+
   //Form
   track = signal<TrackDetail | null >(null);
   title = signal('');
@@ -43,6 +48,32 @@ export class EditTrackComponent implements OnInit {
   fileMp3 = signal<File | null>(null)
   fileWav = signal<File | null>(null);
   fileStems = signal<File | null>(null)
+
+  // Prix des droits de contrat
+  cpExclusive    = signal(this.DEFAULT_CONTRACT_PRICES.exclusive);
+  cpDuration3y   = signal(this.DEFAULT_CONTRACT_PRICES.duration3y);
+  cpDuration5y   = signal(this.DEFAULT_CONTRACT_PRICES.duration5y);
+  cpDuration10y  = signal(this.DEFAULT_CONTRACT_PRICES.duration10y);
+  cpLifetime     = signal(this.DEFAULT_CONTRACT_PRICES.lifetime);
+  cpMechanical   = signal(this.DEFAULT_CONTRACT_PRICES.mechanical);
+  cpPublicShow   = signal(this.DEFAULT_CONTRACT_PRICES.publicShow);
+  cpArrangement  = signal(this.DEFAULT_CONTRACT_PRICES.arrangement);
+  cpTerritoryEu  = signal(this.DEFAULT_CONTRACT_PRICES.territoryEu);
+  cpTerritoryWorld = signal(this.DEFAULT_CONTRACT_PRICES.territoryWorld);
+
+  applyStandardPrices(): void {
+    const d = this.DEFAULT_CONTRACT_PRICES;
+    this.cpExclusive.set(d.exclusive);
+    this.cpDuration3y.set(d.duration3y);
+    this.cpDuration5y.set(d.duration5y);
+    this.cpDuration10y.set(d.duration10y);
+    this.cpLifetime.set(d.lifetime);
+    this.cpMechanical.set(d.mechanical);
+    this.cpPublicShow.set(d.publicShow);
+    this.cpArrangement.set(d.arrangement);
+    this.cpTerritoryEu.set(d.territoryEu);
+    this.cpTerritoryWorld.set(d.territoryWorld);
+  }
 
   readonly availableKeys = MUSICAL_KEYS;
 
@@ -74,6 +105,19 @@ export class EditTrackComponent implements OnInit {
               this.priceStems.set(track.price_stems ?? 0);
               this.selectedTagIds.set(track.tags.map(tag => tag.id));
               this.track.set(track);
+              if (track.contract_prices) {
+                const cp = track.contract_prices;
+                this.cpExclusive.set(cp.exclusive);
+                this.cpDuration3y.set(cp.duration_3y);
+                this.cpDuration5y.set(cp.duration_5y);
+                this.cpDuration10y.set(cp.duration_10y);
+                this.cpLifetime.set(cp.lifetime);
+                this.cpMechanical.set(cp.mechanical);
+                this.cpPublicShow.set(cp.public_show);
+                this.cpArrangement.set(cp.arrangement);
+                this.cpTerritoryEu.set(cp.territory_eu);
+                this.cpTerritoryWorld.set(cp.territory_world);
+              }
             this.loading.set(false);
 
           }, error : () => {
@@ -120,10 +164,20 @@ export class EditTrackComponent implements OnInit {
         price_wav: this.priceWav() ?? 0,
         price_stems: this.priceStems() ?? 0,
         tag_ids: this.selectedTagIds().join(','),
-        file_mp3: this.fileMp3() ?? undefined, // non requis pour edit
+        file_mp3: this.fileMp3() ?? undefined,
         file_image: this.fileImage() ?? undefined,
         file_wav: this.fileWav() ?? undefined,
-        file_stems: this.fileStems() ?? undefined
+        file_stems: this.fileStems() ?? undefined,
+        contract_price_exclusive:       this.cpExclusive(),
+        contract_price_duration_3y:     this.cpDuration3y(),
+        contract_price_duration_5y:     this.cpDuration5y(),
+        contract_price_duration_10y:    this.cpDuration10y(),
+        contract_price_lifetime:        this.cpLifetime(),
+        contract_price_mechanical:      this.cpMechanical(),
+        contract_price_public_show:     this.cpPublicShow(),
+        contract_price_arrangement:     this.cpArrangement(),
+        contract_price_territory_eu:    this.cpTerritoryEu(),
+        contract_price_territory_world: this.cpTerritoryWorld(),
       }).subscribe({
         next: res => {
           if (res.success) {

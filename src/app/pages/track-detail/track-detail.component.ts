@@ -247,4 +247,6 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
     return user.id === t.composer_user.id || user.roles?.is_admin;
   });
 
+  isExclusiveSold = computed(() => this.track()?.is_exclusive_sold === true);
+
 }
