@@ -231,6 +231,9 @@ def create_order(engineer_id, current_user):
         if min_pct >= 160 and engineer.is_certified_producer_arranger:
             service_artistic = True
 
+    if service_mastering and not engineer.can_do_mastering:
+        return ser_err("Cet ingénieur n'est pas certifié pour le mastering.", status=403)
+
     if not any([service_cleaning, service_effects, service_artistic, service_mastering]):
         return ser_err('Sélectionnez au moins un service.', level='warning')
 

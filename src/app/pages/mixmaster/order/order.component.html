@@ -87,15 +87,22 @@
               @if (mandatoryServices().has('effects')) { <span class="chk-mandatory">inclus</span> }
               <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.45).toFixed(2) }}€</span>
             </label>
-            <label class="chk-row" [class.chk-locked]="mandatoryServices().has('mastering')">
-              <input type="checkbox"
-                     [checked]="serviceMastering()"
-                     [disabled]="mandatoryServices().has('mastering')"
-                     (change)="!mandatoryServices().has('mastering') && serviceMastering.set(!serviceMastering())">
-              Mastering final
-              @if (mandatoryServices().has('mastering')) { <span class="chk-mandatory">inclus</span> }
-              <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€</span>
-            </label>
+            @if (engineer()!.is_certified_master_engineer || engineer()!.subscription_plan === 'pro') {
+              <label class="chk-row" [class.chk-locked]="mandatoryServices().has('mastering')">
+                <input type="checkbox"
+                       [checked]="serviceMastering()"
+                       [disabled]="mandatoryServices().has('mastering')"
+                       (change)="!mandatoryServices().has('mastering') && serviceMastering.set(!serviceMastering())">
+                Mastering final
+                @if (engineer()!.is_certified_master_engineer) {
+                  <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
+                } @else {
+                  <span class="chk-badge-pro"><i class="bi bi-star-fill"></i> Pro</span>
+                }
+                @if (mandatoryServices().has('mastering')) { <span class="chk-mandatory">inclus</span> }
+                <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€</span>
+              </label>
+            }
             @if (engineer()!.is_certified_producer_arranger) {
               <label class="chk-row chk-artistic" [class.chk-locked]="mandatoryServices().has('artistic')">
                 <input type="checkbox"

@@ -1,0 +1,14 @@
+<div class="lock-overlay">
+  <i class="bi bi-lock-fill lock-icon"></i>
+  <p class="lock-title">Réservé au plan {{ planLabel }}</p>
+  <p class="lock-sub">
+    @if (requiredPlan === 'pro') {
+      Passez en Pro pour accéder au Contract Builder et débloquer toutes les fonctionnalités avancées.
+    } @else {
+      Abonnez-vous à LaProd+ pour accéder à cette fonctionnalité.
+    }
+  </p>
+  <a routerLink="/premium" class="btn-upgrade">
+    <i class="bi bi-star-fill"></i> Découvrir LaProd+
+  </a>
+</div>

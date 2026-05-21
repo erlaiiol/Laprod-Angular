@@ -271,6 +271,9 @@ def verify_payment(current_user):
             if is_lifetime:
                 end_date = 'À vie'
                 duration_text = 'À vie'
+            elif duration_years == 0:
+                end_date = 'Illimité (streaming uniquement)'
+                duration_text = 'Streaming seul — perpétuel'
             else:
                 end_year = datetime.now().year + duration_years
                 end_date = f"31/12/{end_year}"

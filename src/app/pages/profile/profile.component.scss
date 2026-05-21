@@ -86,11 +86,17 @@
   font-weight: 600;
   color: #fff;
 
-  &.artist            { background: v.$tag-blue-dark;    border-color: v.$tag-blue; }
-  &.beatmaker         { background: v.$tag-green-dark;   border-color: v.$tag-green; }
-  &.mix-certified     { background: v.$tag-orange-dark;  border-color: v.$tag-orange; }
-  &.mix               { background: v.$tag-neutral-dark; border-color: v.$tag-neutral; }
-  &.producer-arranger { background: v.$tag-violet-dark;  border-color: v.$tag-violet; }
+  &.artist              { background: v.$tag-blue-dark;    border-color: v.$tag-blue; }
+  &.beatmaker           { background: v.$tag-green-dark;   border-color: v.$tag-green; }
+  &.mix-certified       { background: v.$tag-orange-dark;  border-color: v.$tag-orange; }
+  &.mix                 { background: v.$tag-neutral-dark; border-color: v.$tag-neutral; }
+  &.producer-arranger   { background: v.$tag-violet-dark;  border-color: v.$tag-violet; }
+
+  // Nouveaux badges tri-source
+  &.badge-eng-mix        { background: rgba(59,130,246,0.12);  border-color: #3b82f6; color: #3b82f6; }
+  &.badge-eng-master     { background: rgba(16,185,129,0.12);  border-color: #10b981; color: #10b981; }
+  &.badge-eng-master-pro { background: rgba(234,179,8,0.12);   border-color: #eab308; color: #eab308; }
+  &.badge-eng-pa         { background: rgba(139,92,246,0.12);  border-color: #8b5cf6; color: #8b5cf6; }
 }
 
 /* ── Bio / meta ───────────────────────────────────────────────────────────── */

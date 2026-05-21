@@ -150,6 +150,8 @@ export interface MixEngineerStats {
   producer_arranger_request_submitted: boolean;
   is_mixmaster_engineer:               boolean;
   is_certified_producer_arranger:      boolean;
+  is_certified_master_engineer:        boolean;
+  master_sample_submitted:             boolean;
 }
 
 export interface MixOrder {

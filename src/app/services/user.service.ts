@@ -51,7 +51,9 @@ export interface UserProfile {
     bio:             string | null;
     sample_submitted: boolean;
   };
-  is_certified_producer_arranger?:    boolean;
+  is_certified_producer_arranger?:      boolean;
+  is_certified_master_engineer?:        boolean;
+  subscription_plan?:                   'free' | 'amateur' | 'pro';
   producer_arranger_request_submitted?: boolean;
 }
 

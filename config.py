@@ -212,10 +212,12 @@ MIXMASTER_ALLOWED_EXTENSIONS = {'wav', 'zip', 'rar', 'mp3'}
 
 
 # ============================================
-# PREMIUM
+# PREMIUM — deux plans LaProd+
 # ============================================
-PREMIUM_PRICE = 1.99  # Prix en euros pour 30 jours de premium
-PREMIUM_DURATION_DAYS = 30  # Durée du premium en jours
+PREMIUM_AMATEUR_PRICE = 1.99   # Plan Amateur — 30 jours
+PREMIUM_PRO_PRICE     = 19.99  # Plan Pro/Label — 30 jours
+PREMIUM_DURATION_DAYS = 30
+PREMIUM_PRICE = PREMIUM_AMATEUR_PRICE  # alias rétrocompat (ancienne valeur)
 
 # ============================================
 # ENVIRONNEMENT

@@ -34,6 +34,11 @@ import { EditTrackComponent }         from './pages/edit-track/edit-track.compon
 import { ContractBuilderComponent }   from './pages/contract-builder/contract-builder.component';
 import { BuilderFormComponent }       from './pages/contract-builder/builder-form/builder-form.component';
 import { ContractAnalyzerComponent }  from './pages/contract-analyzer/contract-analyzer.component';
+import { PremiumComponent }           from './pages/premium/premium.component';
+import { SubmitMasterSampleComponent } from './pages/auth/submit-master-sample/submit-master-sample.component';
+import { CguComponent }               from './pages/legal/cgu/cgu.component';
+import { PrivacyComponent }           from './pages/legal/privacy/privacy.component';
+import { MentionsLegalesComponent }   from './pages/legal/mentions-legales/mentions-legales.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -65,6 +70,11 @@ export const routes: Routes = [
   { path: 'contract-builder',               component: ContractBuilderComponent,         canActivate: [authGuard] },
   { path: 'contract-builder/:id',           component: BuilderFormComponent,             canActivate: [authGuard] },
   { path: 'contract-analyzer',              component: ContractAnalyzerComponent,        canActivate: [authGuard] },
+  { path: 'premium',                        component: PremiumComponent,                 canActivate: [authGuard] },
+  { path: 'submit-master-sample',           component: SubmitMasterSampleComponent,      canActivate: [authGuard] },
+  { path: 'cgu',                            component: CguComponent },
+  { path: 'privacy',                        component: PrivacyComponent },
+  { path: 'mentions-legales',               component: MentionsLegalesComponent },
   { path: 'admin',                         component: AdminComponent,                   canActivate: [adminGuard] },
   { path: 'erreur',                        component: NotFoundComponent },
   { path: '**',                            component: NotFoundComponent },

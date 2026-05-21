@@ -117,8 +117,12 @@ export interface AdminMixEngineer {
   username:        string;
   email:           string;
   profile_image:   string;
-  is_mixmaster_engineer: boolean;
+  is_mixmaster_engineer:          boolean;
   is_certified_producer_arranger: boolean;
+  is_certified_master_engineer:   boolean;
+  master_sample_raw:       string | null;
+  master_sample_processed: string | null;
+  master_sample_submitted: boolean;
   mixmaster_reference_price: number | null;
   mixmaster_price_min:       number | null;
   mixmaster_bio:             string | null;
@@ -185,7 +189,7 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/users`, { headers: this.headers, params: { user_type: userType } });
   }
 
-  getEngineers(): Observable<ApiResponse<{ certified: AdminMixEngineer[]; pending: AdminMixEngineer[]; pa_requests: AdminMixEngineer[]; price_requests: PriceRequest[] }>> {
+  getEngineers(): Observable<ApiResponse<{ certified: AdminMixEngineer[]; pending: AdminMixEngineer[]; pa_requests: AdminMixEngineer[]; master_pending: AdminMixEngineer[]; price_requests: PriceRequest[] }>> {
     return this.http.get<any>(`${this.base}/engineers`, { headers: this.headers });
   }
 
@@ -273,6 +277,22 @@ export class AdminService {
 
   rejectProducerArranger(userId: number): Observable<ApiResponse> {
     return this.http.post<any>(`${this.base}/producer-arranger/${userId}/reject`, {}, { headers: this.headers });
+  }
+
+  certifyMasterEngineer(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/certify-master`, {}, { headers: this.headers });
+  }
+
+  revokeMasterEngineer(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/revoke-master`, {}, { headers: this.headers });
+  }
+
+  approveMasterSample(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/approve-master-sample`, {}, { headers: this.headers });
+  }
+
+  rejectMasterSample(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/reject-master-sample`, {}, { headers: this.headers });
   }
 
   // ── Engineer direct certification ──────────────────────────────────────────

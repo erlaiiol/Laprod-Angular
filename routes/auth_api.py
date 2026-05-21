@@ -550,6 +550,68 @@ def submit_mixmaster_sample(current_user):
     return ok(message='Candidature soumise ! Notre équipe évaluera votre travail.', level='info')
 
 
+@auth_api_bp.route('/submit-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def submit_master_sample(current_user):
+    """Soumet un échantillon mastering pour la certification is_certified_master_engineer."""
+    if not current_user.is_mixmaster_engineer:
+        return err('Certification Mix Engineer requise pour soumettre un échantillon mastering.', status=403)
+
+    raw_file       = request.files.get('sample_raw')
+    processed_file = request.files.get('sample_processed')
+
+    if not raw_file or not processed_file or \
+       raw_file.filename == '' or processed_file.filename == '':
+        return err('Les deux fichiers audio sont requis (brut et masterisé).', status=422)
+
+    allowed_ext = {'wav', 'mp3'}
+
+    def _allowed(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_ext
+
+    if not _allowed(raw_file.filename) or not _allowed(processed_file.filename):
+        return err('Format non autorisé (.wav ou .mp3 uniquement).', status=422)
+
+    MAX_SIZE = 50 * 1024 * 1024
+
+    def _check_size(f):
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+        return size <= MAX_SIZE
+
+    if not _check_size(raw_file) or not _check_size(processed_file):
+        return err('Fichier trop volumineux (max 50 MB).', status=422)
+
+    try:
+        folder = Path(config.UPLOAD_FOLDER) / 'master_samples'
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        raw_name  = f"{current_user.id}_{ts}_raw_{secure_filename(raw_file.filename)}"
+        proc_name = f"{current_user.id}_{ts}_processed_{secure_filename(processed_file.filename)}"
+
+        raw_file.save(folder / raw_name)
+        processed_file.save(folder / proc_name)
+
+        raw_path  = Path('db_assets', 'master_samples', raw_name).as_posix()
+        proc_path = Path('db_assets', 'master_samples', proc_name).as_posix()
+
+        current_user.master_sample_raw        = raw_path
+        current_user.master_sample_processed  = proc_path
+        current_user.master_sample_submitted  = True
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'submit_master_sample error: {e}', exc_info=True)
+        return err('Erreur serveur.', status=500)
+
+    current_app.logger.info(f'Master sample submitted by user #{current_user.id}')
+    return ok(message='Candidature mastering soumise ! Notre équipe évaluera votre travail.', level='info')
+
+
 @auth_api_bp.route('/google/login')
 @csrf.exempt
 def google_login():

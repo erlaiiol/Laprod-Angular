@@ -1,13 +1,15 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   ContractBuilderService,
   ClauseGroupDTO, ClauseDTO, ContractParty, ContractValue,
   ContractDetail, ContractStatus,
 } from '../../../services/contract-builder.service';
 import { ToastService } from '../../../services/toast.service';
+import { AuthService } from '../../../services/auth.service';
+import { PremiumLockComponent } from '../../../components/premium-lock/premium-lock.component';
 
 interface LocalValue {
   is_enabled: boolean;
@@ -41,11 +43,14 @@ interface QuickStartSpec {
 @Component({
   selector: 'app-builder-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule, PremiumLockComponent],
   templateUrl: './builder-form.component.html',
   styleUrl: './builder-form.component.scss',
 })
 export class BuilderFormComponent implements OnInit {
+
+  private auth   = inject(AuthService);
+  readonly isPro = this.auth.isPro;
 
   // ── State ──────────────────────────────────────────────────────────────────
   loading    = signal(true);

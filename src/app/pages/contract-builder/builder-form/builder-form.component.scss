@@ -10,8 +10,22 @@
 // ── Page shell ─────────────────────────────────────────────────────────────────
 
 .bf-page {
+  position: relative;
   display: flex; flex-direction: column; height: calc(100vh - 64px); overflow: hidden;
   color: v.$text-primary;
+
+  &.page-locked {
+    pointer-events: none;
+    user-select: none;
+    filter: blur(3px);
+    opacity: 0.5;
+
+    app-premium-lock {
+      pointer-events: all;
+      filter: none;
+      opacity: 1;
+    }
+  }
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────

@@ -3,7 +3,21 @@
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 .ca-page {
+  position: relative;
   max-width: 1100px; margin: 2rem auto; padding: 0 1rem 5rem; color: v.$text-primary;
+
+  &.page-locked {
+    pointer-events: none;
+    user-select: none;
+    filter: blur(3px);
+    opacity: 0.5;
+
+    app-premium-lock {
+      pointer-events: all;
+      filter: none;
+      opacity: 1;
+    }
+  }
 }
 
 .ca-header {

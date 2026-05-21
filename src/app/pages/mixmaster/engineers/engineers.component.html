@@ -45,9 +45,14 @@
               <img class="eng-avatar" [src]="imgUrl(eng.profile_image)" [alt]="eng.username">
               <div class="eng-identity">
                 <span class="eng-name">{{ eng.username }}</span>
-                <span class="badge-certified"><i class="bi bi-patch-check-fill"></i> Certifié</span>
+                <span class="badge-eng-mix"><i class="bi bi-patch-check-fill"></i> Certifié Mix</span>
+                @if (eng.is_certified_master_engineer) {
+                  <span class="badge-eng-master"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
+                } @else if (eng.subscription_plan === 'pro') {
+                  <span class="badge-eng-master-pro"><i class="bi bi-star-fill"></i> Master Pro</span>
+                }
                 @if (eng.is_certified_producer_arranger) {
-                  <span class="badge-producer">Producteur/Arrangeur</span>
+                  <span class="badge-eng-pa"><i class="bi bi-music-note-beamed"></i> Producteur</span>
                 }
               </div>
             </div>

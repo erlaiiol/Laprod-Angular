@@ -74,7 +74,7 @@ def get_stats(current_user):
     total_tracks          = db.session.query(Track).count()
 
     total_users      = db.session.query(User).filter_by(account_status='active').count()
-    premium_users    = db.session.query(User).filter_by(is_premium=True, account_status='active').count()
+    premium_users    = db.session.query(User).filter(User.is_premium == True, User.account_status == 'active').count()
     beatmakers_count = db.session.query(User).filter_by(is_beatmaker=True, account_status='active').count()
     artists_count    = db.session.query(User).filter_by(is_artist=True, account_status='active').count()
     engineers_count  = db.session.query(User).filter_by(is_mixmaster_engineer=True, account_status='active').count()
@@ -235,6 +235,10 @@ def get_engineers(current_user):
             'is_certified_producer_arranger':    u.is_certified_producer_arranger,
             'producer_arranger_request_submitted': u.producer_arranger_request_submitted,
             'is_mixmaster_engineer':             u.is_mixmaster_engineer,
+            'is_certified_master_engineer':      u.is_certified_master_engineer,
+            'master_sample_raw':                 u.master_sample_raw,
+            'master_sample_processed':           u.master_sample_processed,
+            'master_sample_submitted':           u.master_sample_submitted,
             'created_at':                        u.created_at.isoformat() if u.created_at else None,
         }
 
@@ -258,15 +262,24 @@ def get_engineers(current_user):
         )
     ).all()
 
+    master_pending = db.session.scalars(
+        select(User).where(
+            User.is_mixmaster_engineer == True,
+            User.master_sample_submitted == True,
+            User.is_certified_master_engineer == False,
+        )
+    ).all()
+
     price_requests = db.session.scalars(
         select(PriceChangeRequest).where(PriceChangeRequest.status == 'pending')
         .order_by(PriceChangeRequest.created_at.desc())
     ).all()
 
     return ok({
-        'certified':   [_engineer_admin_dict(u) for u in certified],
-        'pending':     [_engineer_admin_dict(u) for u in pending],
-        'pa_requests': [_engineer_admin_dict(u) for u in pa_requests],
+        'certified':       [_engineer_admin_dict(u) for u in certified],
+        'pending':         [_engineer_admin_dict(u) for u in pending],
+        'pa_requests':     [_engineer_admin_dict(u) for u in pa_requests],
+        'master_pending':  [_engineer_admin_dict(u) for u in master_pending],
         'price_requests': [
             {
                 'id':                      pr.id,
@@ -698,20 +711,49 @@ def add_topline_tokens(user_id, current_user):
 @csrf.exempt
 @require_admin
 def toggle_premium(user_id, current_user):
+    """Toggle rapide free ↔ amateur (comportement admin existant conservé)."""
     user = db.get_or_404(User, user_id)
 
-    if not user.is_premium:
-        user.is_premium             = True
-        user.premium_since          = datetime.now()
-        user.premium_expires_at     = datetime.now() + timedelta(days=30)
-        msg = f'Premium activé pour {user.username} (30 jours).'
+    if not user.is_premium_active:
+        user.subscription_plan  = 'amateur'
+        user.premium_since      = datetime.now()
+        user.premium_expires_at = datetime.now() + timedelta(days=30)
+        msg = f'Plan Amateur activé pour {user.username} (30 jours).'
     else:
-        user.is_premium             = False
-        user.premium_expires_at     = datetime.now()
-        msg = f'Premium désactivé pour {user.username}.'
+        user.subscription_plan  = 'free'
+        user.premium_expires_at = datetime.now()
+        msg = f'Abonnement désactivé pour {user.username}.'
 
     db.session.commit()
-    return ok({'is_premium': user.is_premium}, message=msg, level='info')
+    return ok({'is_premium': user.is_premium, 'subscription_plan': user.subscription_plan}, message=msg, level='info')
+
+
+@admin_api_bp.route('/users/<int:user_id>/set-plan', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def set_plan(user_id, current_user):
+    """Définit le plan de l'utilisateur : free | amateur | pro."""
+    import config as _cfg
+    user = db.get_or_404(User, user_id)
+    data = request.get_json(silent=True) or {}
+    plan = data.get('plan', '').lower()
+    if plan not in ('free', 'amateur', 'pro'):
+        return err("Plan invalide. Valeurs : 'free', 'amateur', 'pro'.", 400)
+
+    if plan == 'free':
+        user.subscription_plan  = 'free'
+        user.premium_expires_at = datetime.now()
+        msg = f'Plan Free appliqué pour {user.username}.'
+    else:
+        user.subscription_plan  = plan
+        if not user.is_premium_active:
+            user.premium_since      = datetime.now()
+            user.premium_expires_at = datetime.now() + timedelta(days=_cfg.PREMIUM_DURATION_DAYS)
+        msg = f'Plan {plan.capitalize()} appliqué pour {user.username}.'
+
+    db.session.commit()
+    return ok({'is_premium': user.is_premium, 'subscription_plan': user.subscription_plan}, message=msg, level='info')
 
 
 # ── Engineers (CUD) ───────────────────────────────────────────────────────────
@@ -958,6 +1000,63 @@ def reject_producer_arranger(user_id, current_user):
     return ok(message=f'Demande Producteur/Arrangeur de {user.username} rejetée.', level='info')
 
 
+# ── Master Engineer ───────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/engineers/<int:user_id>/certify-master', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def certify_master_engineer(user_id, current_user):
+    """Certifie un ingénieur comme 'Master Engineer' (mastering validé par admin)."""
+    user = db.get_or_404(User, user_id)
+    if not user.is_mixmaster_engineer:
+        return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
+    user.is_certified_master_engineer = True
+    db.session.commit()
+    return ok(message=f'{user.username} certifié comme Master Engineer.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/revoke-master', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def revoke_master_engineer(user_id, current_user):
+    """Révoque la certification Master Engineer (admin-granted uniquement)."""
+    user = db.get_or_404(User, user_id)
+    user.is_certified_master_engineer = False
+    db.session.commit()
+    return ok(message=f'Certification Master Engineer de {user.username} révoquée.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/approve-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def approve_master_sample(user_id, current_user):
+    """Approuve l'échantillon mastering → certifie is_certified_master_engineer."""
+    user = db.get_or_404(User, user_id)
+    if not user.master_sample_submitted:
+        return ser_err(f"Aucune soumission mastering en attente pour {user.username}.")
+    user.is_certified_master_engineer = True
+    user.master_sample_submitted      = False
+    db.session.commit()
+    return ok(message=f'{user.username} certifié Master Engineer.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/reject-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def reject_master_sample(user_id, current_user):
+    """Rejette l'échantillon mastering et efface la soumission."""
+    user = db.get_or_404(User, user_id)
+    user.master_sample_submitted  = False
+    user.master_sample_raw        = None
+    user.master_sample_processed  = None
+    db.session.commit()
+    return ok(message=f'Soumission mastering de {user.username} rejetée.', level='info')
+
+
 # ── Contracts (CUD) ───────────────────────────────────────────────────────────
 
 @admin_api_bp.route('/contracts/create', methods=['POST'])
@@ -1163,10 +1262,8 @@ def _cb_clause_dto(c) -> dict:
 @admin_api_bp.route('/contract-builder/groups', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def cb_list_groups():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_list_groups(current_user):
     groups = (
         db.session.query(ContractClauseGroup)
         .order_by(ContractClauseGroup.sort_order)
@@ -1178,10 +1275,8 @@ def cb_list_groups():
 @admin_api_bp.route('/contract-builder/groups', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_create_group():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_create_group(current_user):
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -1203,10 +1298,8 @@ def cb_create_group():
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
-def cb_update_group(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_update_group(current_user, group_id):
     g = db.get_or_404(ContractClauseGroup, group_id)
     data = request.get_json(silent=True) or {}
     if 'name' in data:
@@ -1226,10 +1319,8 @@ def cb_update_group(group_id):
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['DELETE'])
 @jwt_required()
 @csrf.exempt
-def cb_delete_group(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_delete_group(current_user, group_id):
     g = db.get_or_404(ContractClauseGroup, group_id)
     # Soft delete si des valeurs utilisateur référencent les clauses du groupe
     has_refs = (
@@ -1250,10 +1341,8 @@ def cb_delete_group(group_id):
 @admin_api_bp.route('/contract-builder/groups/reorder', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_reorder_groups():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_reorder_groups(current_user):
     items = request.get_json(silent=True) or []
     for item in items:
         g = db.session.get(ContractClauseGroup, item.get('id'))
@@ -1268,10 +1357,8 @@ def cb_reorder_groups():
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def cb_list_clauses(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_list_clauses(current_user, group_id):
     db.get_or_404(ContractClauseGroup, group_id)
     clauses = (
         db.session.query(ContractClause)
@@ -1285,10 +1372,8 @@ def cb_list_clauses(group_id):
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_create_clause(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_create_clause(current_user, group_id):
     db.get_or_404(ContractClauseGroup, group_id)
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
@@ -1329,10 +1414,8 @@ def cb_create_clause(group_id):
 @admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
-def cb_update_clause(clause_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_update_clause(current_user, clause_id):
     c = db.get_or_404(ContractClause, clause_id)
     data = request.get_json(silent=True) or {}
 
@@ -1375,10 +1458,8 @@ def cb_update_clause(clause_id):
 @admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['DELETE'])
 @jwt_required()
 @csrf.exempt
-def cb_delete_clause(clause_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_delete_clause(current_user, clause_id):
     c = db.get_or_404(ContractClause, clause_id)
     has_refs = db.session.query(UserContractValue).filter_by(clause_id=clause_id).first()
     if has_refs:
@@ -1451,10 +1532,8 @@ def get_recommendation_stats(current_user):
 @admin_api_bp.route('/contract-builder/clauses/reorder', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_reorder_clauses():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_reorder_clauses(current_user):
     items = request.get_json(silent=True) or []
     for item in items:
         c = db.session.get(ContractClause, item.get('id'))

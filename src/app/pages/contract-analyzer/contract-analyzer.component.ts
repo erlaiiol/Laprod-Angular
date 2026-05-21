@@ -1,11 +1,14 @@
-import { Component, OnDestroy, HostListener, signal, computed } from '@angular/core';
+import { Component, OnDestroy, HostListener, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import {
   ContractAnalyzerService,
   ContractAnalysis,
   ContractSection,
 } from '../../services/contract-analyzer.service';
 import { ToastService } from '../../services/toast.service';
+import { AuthService } from '../../services/auth.service';
+import { PremiumLockComponent } from '../../components/premium-lock/premium-lock.component';
 
 const LOADING_MESSAGES = [
   'Lecture du PDF en cours...',
@@ -22,11 +25,14 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 Mo
 @Component({
   selector: 'app-contract-analyzer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule, PremiumLockComponent],
   templateUrl: './contract-analyzer.component.html',
   styleUrl: './contract-analyzer.component.scss',
 })
 export class ContractAnalyzerComponent implements OnDestroy {
+
+  private auth   = inject(AuthService);
+  readonly isPremium = this.auth.isPremium;
 
   phase           = signal<'upload' | 'loading' | 'result'>('upload');
   analysis        = signal<ContractAnalysis | null>(null);

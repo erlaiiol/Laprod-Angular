@@ -186,3 +186,48 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Contrats Pro block ─────────────────────────────────────────────────────────
+
+.pro-contracts-block {
+  margin-top: 2rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  background: rgba(255,255,255,0.02);
+
+  &.locked {
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+
+    a { pointer-events: all; }
+  }
+
+  h3 {
+    font-size: 1rem; font-weight: 700; margin: 0 0 0.75rem;
+    i { margin-right: 0.4rem; color: #8b949e; }
+  }
+}
+
+.pro-contracts-links {
+  display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem;
+
+  a {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.88rem; font-weight: 600; color: #3b82f6;
+    text-decoration: none;
+    padding: 0.35rem 0.85rem;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 6px;
+    transition: background 0.15s;
+
+    &:hover { background: rgba(59,130,246,0.2); }
+  }
+}
+
+.upgrade-hint {
+  font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0;
+  a { color: #eab308; text-decoration: none; &:hover { text-decoration: underline; } }
+}

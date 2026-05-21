@@ -3,7 +3,7 @@ Blueprints Registry
 Importe tous les blueprints pour faciliter leur enregistrement dans app.py
 """
 
-from .premium import premium_bp
+from .premium_api import premium_api_bp
 
 from .tracks_api import tracks_api_bp
 from .tags_filters_api import tags_filters_api_bp
@@ -30,7 +30,7 @@ from .contract_builder_api import contract_builder_api_bp
 from .contract_analyzer_api import contract_analyzer_api_bp
 
 __all__ = [
-    'premium_bp',
+    'premium_api_bp',
     'tracks_api_bp',
     'tags_filters_api_bp',
     'auth_api_bp',

@@ -1,4 +1,8 @@
-<div class="ca-page">
+<div class="ca-page" [class.page-locked]="!isPremium()">
+
+  @if (!isPremium()) {
+    <app-premium-lock requiredPlan="amateur" />
+  }
 
   <div class="ca-header">
     <h1><i class="bi bi-shield-check"></i> Analyse de contrat</h1>

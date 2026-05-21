@@ -1,4 +1,9 @@
-<div class="cb-list-page">
+<div class="cb-list-page" [class.page-locked]="!isPro()">
+
+  @if (!isPro()) {
+    <app-premium-lock requiredPlan="pro" />
+  }
+
   <div class="cb-list-header">
     <h1>Générateur de contrats</h1>
     <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale professionnel, adapté au droit français.</p>

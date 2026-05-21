@@ -169,44 +169,53 @@ def generate_contract_pdf(output_path, contract_data):
     
     # ============= 3. DURÉE =============
     story.append(Paragraph("<b>3. Durée</b>", section_style))
-    
-    duration_data = [
-        ['Début :', contract_data['start_date']],
-        ['Fin :', contract_data['end_date']],
-        ['Durée totale :', contract_data.get('duration_text', '______________________')]
-    ]
-    
-    duration_table = Table(duration_data, colWidths=[4*cm, 13*cm])
-    duration_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
-    story.append(duration_table)
-    story.append(Spacer(1, 0.2*cm))
 
-    # Exception streaming
-    streaming_exception_style = ParagraphStyle(
-        'StreamingException',
+    is_streaming_only = contract_data.get('duration_text', '').startswith('Streaming seul')
+
+    streaming_note_style = ParagraphStyle(
+        'StreamingNote',
         parent=normal_style,
         textColor=colors.HexColor('#0066cc'),
         fontSize=9,
         spaceAfter=6
     )
-    story.append(Paragraph(
-        "<b>️ EXCEPTION IMPORTANTE :</b> La durée du contrat ne s'applique <b>PAS</b> au streaming.",
-        streaming_exception_style
-    ))
-    story.append(Paragraph(
-        "Le beat <b>sous la voix de l'Interprète</b> peut rester disponible sur les plateformes de streaming "
-        "(Spotify, Apple Music, YouTube, etc.) <b>indéfiniment</b> sans renouvellement du contrat ni requalification nécessaire.",
-        normal_style
-    ))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph(
-        "À l'expiration, toute <b>autre forme d'exploitation</b> (reproduction mécanique, diffusion publique, etc.) doit cesser sauf renouvellement écrit.",
-        normal_style
-    ))
+
+    if is_streaming_only:
+        story.append(Paragraph(
+            "Ce contrat couvre exclusivement le <b>droit de streaming</b>, accordé de manière <b>perpétuelle</b>.",
+            streaming_note_style
+        ))
+        story.append(Paragraph(
+            "Le beat <b>sous la voix de l'Interprète</b> peut rester disponible sur les plateformes de streaming "
+            "(Spotify, Apple Music, YouTube, etc.) sans limite de durée.<br/>"
+            "<b>Aucun autre droit d'exploitation</b> (reproduction mécanique, diffusion publique, arrangement, etc.) "
+            "n'est accordé par le présent contrat.",
+            normal_style
+        ))
+    else:
+        duration_data = [
+            ['Début :', contract_data['start_date']],
+            ['Fin :', contract_data['end_date']],
+            ['Durée totale :', contract_data.get('duration_text', '______________________')]
+        ]
+        duration_table = Table(duration_data, colWidths=[4*cm, 13*cm])
+        duration_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ]))
+        story.append(duration_table)
+        story.append(Spacer(1, 0.2*cm))
+        story.append(Paragraph(
+            "<b>Streaming inclus à vie :</b> quelle que soit la durée indiquée ci-dessus, "
+            "le droit de streaming est accordé <b>perpétuellement</b> sans renouvellement.",
+            streaming_note_style
+        ))
+        story.append(Paragraph(
+            "À l'expiration, toute <b>autre forme d'exploitation</b> (reproduction mécanique, diffusion publique, etc.) "
+            "doit cesser sauf renouvellement écrit.",
+            normal_style
+        ))
     
     # ============= 4. TERRITOIRE =============
     story.append(Paragraph("<b>4. Territoire</b>", section_style))

@@ -43,6 +43,7 @@ export interface User {
     upload_track_tokens:     number,
     topline_tokens:          number,
     is_premium:              boolean,
+    subscription_plan:       'free' | 'amateur' | 'pro',
     preferred_tag_category:  string | null,
 }
 
@@ -116,6 +117,19 @@ export class AuthService {
   readonly isBeatmaker = computed(() => this._currentUser()?.roles?.is_beatmaker || false);
   readonly isMixEngineer = computed(() => this._currentUser()?.roles?.is_mix_engineer || false);
   readonly isArtist = computed(() => this._currentUser()?.roles?.is_artist || false);
+
+  readonly isPremium = computed(() => {
+    const u = this._currentUser();
+    return !!u && u.is_premium && u.subscription_plan !== 'free';
+  });
+  readonly isPro = computed(() => {
+    const u = this._currentUser();
+    return !!u && u.is_premium && u.subscription_plan === 'pro';
+  });
+  readonly isAmateur = computed(() => {
+    const u = this._currentUser();
+    return !!u && u.is_premium && u.subscription_plan === 'amateur';
+  });
 
   // Préférence locale pour les utilisateurs non connectés (pas persistée)
   private _localTagCategoryPref = signal<string | null>(null);

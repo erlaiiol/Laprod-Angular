@@ -1,7 +1,21 @@
 @use 'variables' as v;
 
 .cb-list-page {
+  position: relative;
   max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+
+  &.page-locked {
+    pointer-events: none;
+    user-select: none;
+    filter: blur(3px);
+    opacity: 0.5;
+
+    app-premium-lock {
+      pointer-events: all;
+      filter: none;
+      opacity: 1;
+    }
+  }
 }
 
 .cb-list-header {

@@ -230,8 +230,10 @@ def get_mix_engineer_dashboard(current_user):
             'price_min':        current_user.mixmaster_price_min,
             'sample_submitted': current_user.mixmaster_sample_submitted,
             'producer_arranger_request_submitted': current_user.producer_arranger_request_submitted,
-            'is_mixmaster_engineer': current_user.is_mixmaster_engineer,
+            'is_mixmaster_engineer':          current_user.is_mixmaster_engineer,
             'is_certified_producer_arranger': current_user.is_certified_producer_arranger,
+            'is_certified_master_engineer':   current_user.is_certified_master_engineer,
+            'master_sample_submitted':        current_user.master_sample_submitted,
         },
         'orders': {
             'awaiting':  [ser_order_full(o, 'engineer') for o in orders if o.status == 'awaiting_acceptance'],

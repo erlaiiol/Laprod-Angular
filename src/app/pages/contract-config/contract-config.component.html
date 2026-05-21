@@ -135,17 +135,21 @@
       <!-- Durée -->
       <section class="form-section">
         <h3>Durée de la licence</h3>
-        <div class="info-box info-warning">
-          <i class="bi bi-exclamation-triangle"></i>
-          La durée ne s'applique <strong>pas</strong> au streaming. Le beat sous votre voix peut rester
-          en ligne indéfiniment sur les plateformes.
+        <div class="info-box info-info">
+          <i class="bi bi-info-circle"></i>
+          <span>
+            Le <strong>streaming est toujours inclus à vie</strong>, quelle que soit l'option choisie.
+            La durée indiquée ci-dessous s'applique uniquement aux <strong>autres droits</strong>
+            (reproduction mécanique, diffusion publique, arrangement…).<br>
+            <em>« Streaming seul »</em> = streaming perpétuel, aucun autre droit accordé.
+          </span>
         </div>
         <div class="duration-group">
           <button type="button"
                   class="duration-btn stream-btn"
                   [class.selected]="!isLifetime() && duration() === 'stream'"
                   (click)="setDuration('stream')">
-            Stream uniquement
+            Streaming seul · à vie
             <span class="btn-fee">+0€</span>
           </button>
           @for (opt of [['3','3 ans','5'],['5','5 ans','10'],['10','10 ans','15']]; track opt[0]) {

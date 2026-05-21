@@ -423,5 +423,17 @@
       }
     }
 
+    <!-- Contrats Pro -->
+    <div class="pro-contracts-block" [class.locked]="!auth.isPremium()">
+      <h3><i class="bi bi-file-earmark-text"></i> Contrats Pro</h3>
+      <div class="pro-contracts-links">
+        <a routerLink="/contract-builder"><i class="bi bi-pencil-square"></i> Créer un contrat</a>
+        <a routerLink="/contract-analyzer"><i class="bi bi-shield-check"></i> Analyser un contrat</a>
+      </div>
+      @if (!auth.isPremium()) {
+        <p class="upgrade-hint">Disponible avec LaProd+ · <a routerLink="/premium">En savoir plus</a></p>
+      }
+    </div>
+
   </div>
 }

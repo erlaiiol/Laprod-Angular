@@ -289,6 +289,11 @@ def post_track(current_user):
         current_app.logger.debug('post_track() l`utilisateur ne peut pas upload (manque de token ?)')
         return err('erreur : upload impossible(manque de token ?)', status=403)
 
+    # Beats exclusifs réservés aux abonnés LaProd+ (amateur ou pro)
+    exclusive_price_raw = request.form.get('contract_price_exclusive')
+    if exclusive_price_raw is not None and not current_user.is_premium_active:
+        return err("L'option de licence exclusive est réservée aux abonnés LaProd+.", status=403)
+
     try:
         title   = request.form.get('title', '').strip()
         bpm_str = request.form.get('bpm', '').strip()
@@ -469,6 +474,12 @@ def put_track(track_id, current_user):
     """Modifier un track existant (propriétaire ou admin)."""
     track = get_or_404(Track, track_id, 'Track introuvable.')
     require_ownership(track, 'composer_id', current_user)
+
+    # Beats exclusifs réservés aux abonnés LaProd+
+    exclusive_price_raw = request.form.get('contract_price_exclusive')
+    if exclusive_price_raw is not None and not current_user.is_premium_active:
+        from utils.crud_helpers import EntityForbidden
+        raise EntityForbidden("L'option de licence exclusive est réservée aux abonnés LaProd+.")
 
     title   = request.form.get('title', '').strip()
     bpm_str = request.form.get('bpm', '').strip()

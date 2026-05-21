@@ -266,7 +266,9 @@ def mix_engineer(eng) -> dict:
         'mixmaster_reference_price':     eng.mixmaster_reference_price,
         'mixmaster_price_min':           eng.mixmaster_price_min,
         'price_max':                     price_max,
-        'is_certified_producer_arranger': eng.is_certified_producer_arranger,
+        'is_certified_producer_arranger':  eng.is_certified_producer_arranger,
+        'is_certified_master_engineer':    eng.is_certified_master_engineer,
+        'subscription_plan':               eng.subscription_plan,
         'sample_raw_url':       f'/{eng.mixmaster_sample_raw}'       if eng.mixmaster_sample_raw       else None,
         'sample_processed_url': f'/{eng.mixmaster_sample_processed}' if eng.mixmaster_sample_processed else None,
         'stripe_ready': bool(

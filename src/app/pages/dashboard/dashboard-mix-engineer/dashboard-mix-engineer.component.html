@@ -293,5 +293,69 @@
       </div>
     }
 
+    <!-- Mise à jour previews (Pro uniquement) -->
+    @if (data()!.stats.is_mixmaster_engineer && auth.isPro()) {
+      <div class="pro-preview-block">
+        <h3><i class="bi bi-star-fill text-gold"></i> Mettre à jour mes previews <span class="badge-pro-sm">Pro</span></h3>
+        <p class="preview-hint">
+          En tant qu'abonné Pro, vous pouvez mettre à jour vos fichiers de preview de mix
+          sans validation admin. Vos anciennes previews sont conservées si vous ne changez pas un fichier.
+        </p>
+        @if (!uploadPreviewRaw && !uploadPreviewProc) {
+          <div class="preview-file-row">
+            <label>
+              Brut (optionnel)
+              <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('raw', $event)">
+            </label>
+            <label>
+              Traité (optionnel)
+              <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('proc', $event)">
+            </label>
+          </div>
+        } @else {
+          <div class="preview-file-row">
+            <label>
+              Brut <span class="file-ok">{{ uploadPreviewRaw?.name || 'inchangé' }}</span>
+              <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('raw', $event)">
+            </label>
+            <label>
+              Traité <span class="file-ok">{{ uploadPreviewProc?.name || 'inchangé' }}</span>
+              <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('proc', $event)">
+            </label>
+          </div>
+          <button class="btn-upload-preview" (click)="submitPreviewUpdate()" [disabled]="uploadingPreview">
+            @if (uploadingPreview) { <span class="spinner-sm"></span> Envoi… }
+            @else { <i class="bi bi-cloud-upload-fill"></i> Mettre à jour }
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Certification Master Engineer -->
+    @if (data()!.stats.is_mixmaster_engineer && !data()!.stats.is_certified_master_engineer) {
+      <div class="master-cert-block">
+        <h3><i class="bi bi-broadcast"></i> Certification Master Engineer</h3>
+        <p>
+          Obtenez le badge <strong>Certifié Master</strong> en soumettant un exemple de mastering
+          à notre équipe. Ce badge renforce la confiance des artistes.
+        </p>
+        <a routerLink="/submit-master-sample" class="btn-secondary-sm">
+          <i class="bi bi-upload"></i> Soumettre une preview mastering
+        </a>
+      </div>
+    }
+
+    <!-- Contrats Pro -->
+    <div class="pro-contracts-block" [class.locked]="!auth.isPremium()">
+      <h3><i class="bi bi-file-earmark-text"></i> Contrats Pro</h3>
+      <div class="pro-contracts-links">
+        <a routerLink="/contract-builder"><i class="bi bi-pencil-square"></i> Créer un contrat</a>
+        <a routerLink="/contract-analyzer"><i class="bi bi-shield-check"></i> Analyser un contrat</a>
+      </div>
+      @if (!auth.isPremium()) {
+        <p class="upgrade-hint">Disponible avec LaProd+ · <a routerLink="/premium">En savoir plus</a></p>
+      }
+    </div>
+
   </div>
 }

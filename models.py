@@ -5,7 +5,8 @@ from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, time, timedelta
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, and_, or_, func
+from sqlalchemy.ext.hybrid import hybrid_property
 
 _TWO_PLACES = Decimal('0.01')
 
@@ -78,10 +79,17 @@ class User(UserMixin, db.Model):
     mixmaster_sample_processed = db.Column(db.String(200), nullable=True)  # Audio traité exemple
     mixmaster_sample_submitted = db.Column(db.Boolean, default=False, nullable=False)  # A soumis échantillon?
     producer_arranger_request_submitted = db.Column(db.Boolean, default=False, nullable=False)  # A demandé certification producteur/arrangeur?
+    # is_mixmaster_engineer = "Certified Mix Engineer" validé par admin (samples de mixage).
+    # is_certified_master_engineer = spécialisation mastering (sample admin OU abonnement Pro).
+    is_certified_master_engineer = db.Column(db.Boolean, default=False, nullable=False)
+    master_sample_raw = db.Column(db.String(200), nullable=True)       # Audio brut mastering (soumission admin)
+    master_sample_processed = db.Column(db.String(200), nullable=True) # Audio masterisé (soumission admin)
+    master_sample_submitted = db.Column(db.Boolean, default=False, nullable=False)  # En attente de validation admin
 
-
-    # PREMIUM
-    is_premium = db.Column(db.Boolean, default=False, nullable=False)
+    # ABONNEMENT
+    # subscription_plan : 'free' | 'amateur' | 'pro'
+    # is_premium est un hybrid_property dérivé (rétrocompatibilité totale)
+    subscription_plan = db.Column(db.String(20), nullable=False, default='free')
     premium_since = db.Column(db.DateTime, nullable=True)
     premium_expires_at = db.Column(db.DateTime, nullable=True)
 
@@ -115,37 +123,54 @@ class User(UserMixin, db.Model):
 
     @property
     def is_premium_active(self):
-        """Vérifie si l'utilisateur a un abonnement premium actif
-
-        Returns:
-            bool: True si premium actif (sans expiration OU pas encore expiré)
-        """
-        if not self.is_premium:
+        """True si abonnement amateur ou pro en cours (non expiré)."""
+        if self.subscription_plan == 'free':
             return False
         return self.premium_expires_at is None or self.premium_expires_at >= datetime.now()
+
+    @hybrid_property
+    def is_premium(self):
+        """Rétrocompatibilité — True si is_premium_active."""
+        return self.is_premium_active
+
+    @is_premium.expression
+    def is_premium(cls):
+        return and_(
+            cls.subscription_plan != 'free',
+            or_(cls.premium_expires_at.is_(None), cls.premium_expires_at >= func.now())
+        )
+
+    @property
+    def is_pro(self):
+        """True si abonnement Pro en cours."""
+        return self.subscription_plan == 'pro' and self.is_premium_active
+
+    @property
+    def can_do_mastering(self):
+        """True si certifié master par admin OU abonnement Pro actif."""
+        return self.is_certified_master_engineer or self.is_pro
 
     
     # TRACKS ALLOW UPLOAD METHODS
 
 
     def _reset_daily_uploads(self):
-        """Réinitialise les tokens d'upload quotidiennement si nécessaire
+        """Réinitialise les tokens d'upload quotidiennement si nécessaire.
 
-        Ajoute des tokens cumulables selon le statut:
-        - Free: +1/jour jusqu'à 2 tokens max
-        - Premium: +5/jour jusqu'à 15 tokens max
-
-        Appelée automatiquement par can_upload_track()
+        - Free    : +1/jour, cap 2
+        - Amateur : +5/jour, cap 15
+        - Pro     : +10/jour, cap 30
         """
         today = date.today()
         if self.last_upload_reset < today:
-            # Premium: +5 tokens/jour (cap 15)
-            if self.is_premium_active and self.upload_track_tokens < 15:
-                self.upload_track_tokens = min(15, self.upload_track_tokens + 5)
-            # Free: +1 token/jour (cap 3)
-            elif not self.is_premium and self.upload_track_tokens < 2:
-                self.upload_track_tokens = min(2, self.upload_track_tokens + 1)
-
+            if self.subscription_plan == 'pro' and self.is_premium_active:
+                cap, gain = 30, 10
+            elif self.subscription_plan == 'amateur' and self.is_premium_active:
+                cap, gain = 15, 5
+            else:
+                cap, gain = 2, 1
+            if self.upload_track_tokens < cap:
+                self.upload_track_tokens = min(cap, self.upload_track_tokens + gain)
             self.last_upload_reset = today
 
     def can_upload_track(self):
@@ -168,11 +193,12 @@ class User(UserMixin, db.Model):
         if self.upload_track_tokens > 0:
             return True, f"✓ {self.upload_track_tokens} token(s) restant(s)"
 
-        # Message différent selon le statut
-        if self.is_premium_active:
+        if self.subscription_plan == 'pro' and self.is_premium_active:
+            return False, "Plus de tokens. Recharge demain (+10 tokens)."
+        elif self.is_premium_active:
             return False, "Plus de tokens. Recharge demain (+5 tokens)."
         else:
-            return False, "Plus de tokens. Recharge demain (+1 token) ou passez Premium."
+            return False, "Plus de tokens. Recharge demain (+1 token) ou passez LaProd+."
 
     def consume_upload_token(self):
         """Consomme un token d'upload après validation réussie
@@ -222,49 +248,39 @@ class User(UserMixin, db.Model):
         self.upload_track_tokens = (self.upload_track_tokens or 0) + additional_tokens
 
     def apply_premium_tokens(self):
-        """Monte immédiatement les tokens au plafond premium lors d'une activation ou d'un renouvellement.
+        """Monte immédiatement les tokens au plafond du plan actif (activation / renouvellement).
 
-        Sans cette méthode, un utilisateur qui achète le premium avec 1 token restant
-        devrait attendre le lendemain (upload) ou la semaine suivante (toplines)
-        pour bénéficier de ses avantages.
-
-        Upload : amené à 15 si inférieur (plafond premium).
-        Toplines : amené à 50 si inférieur (plafond premium).
-        Les dates de reset sont mises à aujourd'hui pour éviter un double-crédit au prochain cycle.
+        - Amateur : upload cap 15, topline cap 50
+        - Pro     : upload cap 30, topline cap 200
         """
         today = date.today()
-
-        if self.upload_track_tokens < 15:
-            self.upload_track_tokens = 15
+        upload_cap, topline_cap = (30, 200) if self.subscription_plan == 'pro' else (15, 50)
+        if self.upload_track_tokens < upload_cap:
+            self.upload_track_tokens = upload_cap
             self.last_upload_reset = today
-
-        if self.topline_tokens < 50:
-            self.topline_tokens = 50
+        if self.topline_tokens < topline_cap:
+            self.topline_tokens = topline_cap
             self.last_topline_reset = today
 
     # TOPLINE ALLOW UPLOAD METHODS
 
     def _reset_weekly_toplines(self):
-        """Réinitialise les tokens de toplines chaque semaine
+        """Réinitialise les tokens de toplines chaque semaine.
 
-        Ajoute des tokens cumulables selon le statut:
-        - Free: +5/semaine jusqu'à 5 tokens max
-        - Premium: +50/semaine jusqu'à 50 tokens max
-
-        Appelée automatiquement par can_submit_topline()
+        - Free    : +5/semaine, cap 5
+        - Amateur : +50/semaine, cap 50
+        - Pro     : +200/semaine, cap 200
         """
         today = date.today()
-        # Reset si au moins 7 jours se sont écoulés
         if self.last_topline_reset + timedelta(days=7) <= today:
-            # Premium: +50 tokens/semaine (cap 50)
-            if self.is_premium_active:
-                if self.topline_tokens < 50:
-                    self.topline_tokens = min(50, self.topline_tokens + 50)
-            # Free: +5 tokens/semaine (cap 5)
+            if self.subscription_plan == 'pro' and self.is_premium_active:
+                cap, gain = 200, 200
+            elif self.subscription_plan == 'amateur' and self.is_premium_active:
+                cap, gain = 50, 50
             else:
-                if self.topline_tokens < 5:
-                    self.topline_tokens = min(5, self.topline_tokens + 5)
-
+                cap, gain = 5, 5
+            if self.topline_tokens < cap:
+                self.topline_tokens = min(cap, self.topline_tokens + gain)
             self.last_topline_reset = today
 
     @property
