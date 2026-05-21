@@ -91,6 +91,38 @@
       </div>
     </div>
 
+    <!-- ── Abonnement LaProd+ ────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-stars"></i> Abonnement LaProd+</h3>
+      @if (subscriptionPlan() === 'free') {
+        <div class="plan-badge plan-badge--free">
+          <i class="bi bi-circle"></i> Plan gratuit
+        </div>
+        <p class="field-hint">
+          Passez à <strong>LaProd+ Amateur</strong> ou <strong>Pro</strong> pour débloquer plus de tokens,
+          les contrats, les beats exclusifs et plus encore.
+        </p>
+        <a routerLink="/premium" class="btn-upgrade-inline">
+          <i class="bi bi-stars"></i> Découvrir LaProd+
+        </a>
+      } @else if (subscriptionPlan() === 'amateur') {
+        <div class="plan-badge plan-badge--amateur">
+          <i class="bi bi-check-circle-fill"></i> LaProd+ Amateur
+        </div>
+        <p class="field-hint">Passez au plan Pro pour accéder au Contract Builder et au badge Master Pro.</p>
+        <a routerLink="/premium" class="btn-upgrade-inline btn-upgrade-inline--manage">
+          <i class="bi bi-arrow-up-circle"></i> Gérer / Passer au Pro
+        </a>
+      } @else {
+        <div class="plan-badge plan-badge--pro">
+          <i class="bi bi-star-fill"></i> LaProd+ Pro
+        </div>
+        <a routerLink="/premium" class="btn-upgrade-inline btn-upgrade-inline--manage">
+          <i class="bi bi-arrow-clockwise"></i> Gérer mon abonnement
+        </a>
+      }
+    </div>
+
     <!-- ── Mixmaster certifié ──────────────────────────────────────────────── -->
     @if (isMixmasterCertified()) {
       <div class="form-section">
@@ -125,6 +157,39 @@
         @if (isCertifiedProducer()) {
           <p class="info-band info-band--success"><i class="bi bi-check-circle-fill"></i> Certification Producteur/Arrangeur obtenue !</p>
         }
+
+        <!-- ── Certification Master Engineer ──────────────────────────────── -->
+        <div class="master-section">
+          <h4 class="subsection-title"><i class="bi bi-broadcast"></i> Certification Master Engineer</h4>
+          @if (isCertifiedMasterEngineer()) {
+            <p class="info-band info-band--success info-band--master">
+              <i class="bi bi-patch-check-fill"></i> Certification <strong>Master Engineer</strong> obtenue —
+              vous pouvez proposer le mastering à vos clients.
+            </p>
+          } @else if (isPro()) {
+            <p class="info-band info-band--pro">
+              <i class="bi bi-star-fill"></i> Accès mastering via votre abonnement <strong>LaProd+ Pro</strong>.
+              Obtenez aussi la certification admin pour afficher le badge <em>Certifié Master</em>.
+            </p>
+            @if (!masterSampleSubmitted()) {
+              <a routerLink="/submit-master-sample" class="btn-cert-link">
+                <i class="bi bi-upload"></i> Soumettre une preview mastering
+              </a>
+            } @else {
+              <p class="info-band"><i class="bi bi-clock"></i> Preview mastering en cours d'examen par l'équipe LaProd.</p>
+            }
+          } @else if (masterSampleSubmitted()) {
+            <p class="info-band"><i class="bi bi-clock"></i> Preview mastering soumise — examen en cours.</p>
+          } @else {
+            <p class="field-hint">
+              Soumettez un exemple de mastering pour obtenir le badge <strong>Certifié Master</strong>
+              et proposer ce service à vos clients.
+            </p>
+            <a routerLink="/submit-master-sample" class="btn-cert-link">
+              <i class="bi bi-upload"></i> Soumettre une preview mastering
+            </a>
+          }
+        </div>
       </div>
     }
 

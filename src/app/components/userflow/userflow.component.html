@@ -1,0 +1,77 @@
+<!-- ── Trigger button ───────────────────────────────────────────────────────── -->
+<button
+  class="uf-trigger"
+  [class.uf-trigger--new]="!hasEverOpened()"
+  [class.uf-trigger--hidden]="isOpen()"
+  (click)="open()"
+  aria-label="Guide interactif LaProd"
+  title="Comment utiliser LaProd ?"
+>
+  <svg class="uf-trigger__svg" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="9" cy="9" r="8" stroke="currentColor" stroke-width="1.4"/>
+    <text x="9" y="13.5" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor" font-family="system-ui, sans-serif">?</text>
+  </svg>
+</button>
+
+<!-- ── Backdrop + sliding panel ────────────────────────────────────────────── -->
+@if (isOpen()) {
+  <div class="uf-backdrop" (click)="onBackdropClick($event)" role="dialog" aria-modal="true" aria-label="Guide interactif">
+    <div class="uf-panel">
+
+      <div class="uf-panel__header">
+        <span class="uf-panel__title">
+          <i class="bi bi-compass-fill"></i>
+          Comment utiliser LaProd ?
+        </span>
+        <button class="uf-panel__close" (click)="close()" aria-label="Fermer">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <p class="uf-panel__intro">{{ flows.length }} parcours pour tout comprendre — cliquez pour dérouler.</p>
+
+      <div class="uf-scroll">
+        <div class="uf-list">
+          @for (flow of flows; track $index) {
+            <div class="uf-flow" [class.uf-flow--open]="openIndex() === $index">
+
+              <button class="uf-flow__header" type="button" (click)="toggle($index)">
+                <span class="uf-flow__icon uf-flow__icon--{{ flow.color }}">
+                  <i class="bi {{ flow.icon }}"></i>
+                </span>
+                <div class="uf-flow__meta">
+                  <span class="uf-flow__title">{{ flow.title }}</span>
+                  @if (openIndex() !== $index) {
+                    <span class="uf-flow__preview">{{ flow.tagline }}</span>
+                  }
+                </div>
+                <i class="bi bi-chevron-right uf-flow__chevron"></i>
+              </button>
+
+              @if (openIndex() === $index) {
+                <div class="uf-flow__body">
+                  <p class="uf-tagline">{{ flow.tagline }}</p>
+                  <ol class="uf-steps">
+                    @for (step of flow.steps; track $index) {
+                      <li>
+                        {{ step.text }}
+                        @if (step.link && step.linkLabel) {
+                          <a [routerLink]="step.link" class="uf-inline-link" (click)="close()">{{ step.linkLabel }}</a>
+                        }
+                      </li>
+                    }
+                  </ol>
+                  <a [routerLink]="flow.cta.link" class="uf-cta uf-cta--{{ flow.color }}" (click)="close()">
+                    {{ flow.cta.label }}&nbsp;<i class="bi bi-arrow-right"></i>
+                  </a>
+                </div>
+              }
+
+            </div>
+          }
+        </div>
+      </div>
+
+    </div>
+  </div>
+}

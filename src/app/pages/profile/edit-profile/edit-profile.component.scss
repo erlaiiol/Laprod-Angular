@@ -276,6 +276,114 @@
     border-color: rgba(25, 135, 84, 0.3);
     color: #75b798;
   }
+
+  &--pro {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.25);
+    color: #fbbf24;
+  }
+
+  &--master {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+  }
+}
+
+/* ── Plan badges ──────────────────────────────────────────────────────────── */
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  &--free {
+    background: rgba(108, 117, 125, 0.12);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    color: #9ca3af;
+  }
+
+  &--amateur {
+    background: rgba(110, 168, 254, 0.1);
+    border: 1px solid rgba(110, 168, 254, 0.3);
+    color: #6ea8fe;
+  }
+
+  &--pro {
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    color: #fbbf24;
+  }
+}
+
+/* ── Upgrade button ───────────────────────────────────────────────────────── */
+
+.btn-upgrade-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.15s;
+  align-self: flex-start;
+
+  &:hover { filter: brightness(1.1); }
+
+  &--manage {
+    background: linear-gradient(135deg, #0d6efd, #0ea5e9);
+  }
+}
+
+/* ── Master section ───────────────────────────────────────────────────────── */
+
+.master-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #343a40;
+}
+
+.subsection-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ced4da;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ── Cert link button ─────────────────────────────────────────────────────── */
+
+.btn-cert-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 6px;
+  color: #34d399;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: flex-start;
+
+  &:hover {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
 }
 
 /* ── Boutons ──────────────────────────────────────────────────────────────── */

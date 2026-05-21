@@ -12,10 +12,11 @@ import {
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import WaveSurfer from 'wavesurfer.js';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
+import { AuthService } from '../../services/auth.service';
 import { MixOrderContext } from '../../services/player.service';
 import { environment } from '../../../environments/environment';
 
@@ -33,6 +34,8 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
 
   player   = inject(PlayerService);
   trackSvc = inject(TrackService);
+  auth     = inject(AuthService);
+  private router = inject(Router);
 
   /** Whether the player is in track_detail context (viewingTrack is set). */
   isDetailContext    = computed(() => this.player.viewingTrack() !== null);
@@ -109,6 +112,10 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   // ── Contextual actions ───────────────────────────────────────────────────
 
   onDownloadClick(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login']);
+      return;
+    }
     if (this.isViewingTrackLoaded()) {
       this.doDownload();
     } else {
@@ -118,6 +125,10 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   onRecClick(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login']);
+      return;
+    }
     if (this.isViewingTrackLoaded()) {
       this.player.recRequested.update(n => n + 1);
     } else {

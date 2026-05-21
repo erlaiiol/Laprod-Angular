@@ -58,8 +58,11 @@ def _profile_payload(user, tracks, is_own=False):
             'bio':              user.mixmaster_bio,
             'sample_submitted': user.mixmaster_sample_submitted,
         }
-        data['is_certified_producer_arranger']    = getattr(user, 'is_certified_producer_arranger', False)
+        data['is_certified_producer_arranger']      = getattr(user, 'is_certified_producer_arranger', False)
         data['producer_arranger_request_submitted'] = getattr(user, 'producer_arranger_request_submitted', False)
+        data['is_certified_master_engineer']        = getattr(user, 'is_certified_master_engineer', False)
+        data['master_sample_submitted']             = getattr(user, 'master_sample_submitted', False)
+        data['subscription_plan']                   = getattr(user, 'subscription_plan', 'free')
     return data
 
 

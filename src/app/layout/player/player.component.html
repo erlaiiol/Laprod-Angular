@@ -83,7 +83,7 @@
           <div class="player-context-actions">
 
             <button class="btn-download" (click)="onDownloadClick()"
-                    title="Télécharger la preview gratuitement">
+                    [title]="auth.isLoggedIn() ? 'Télécharger la preview gratuitement' : 'Connexion requise'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                    stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -92,16 +92,24 @@
               </svg>
               <span class="btn-action-inner">
                 <span class="btn-action-label">Télécharger</span>
-                <span class="btn-action-free">gratuit</span>
+                @if (auth.isLoggedIn()) {
+                  <span class="btn-action-free">gratuit</span>
+                } @else {
+                  <span class="btn-action-free btn-action-free--login">connexion</span>
+                }
               </span>
             </button>
 
             <button class="btn-rec" (click)="onRecClick()"
-                    title="Enregistrer une topline gratuitement">
+                    [title]="auth.isLoggedIn() ? 'Enregistrer une topline gratuitement' : 'Connexion requise'">
               <span class="rec-dot"></span>
               <span class="btn-action-inner">
                 <span class="btn-action-label">Topline</span>
-                <span class="btn-action-free btn-action-free--rec">gratuite</span>
+                @if (auth.isLoggedIn()) {
+                  <span class="btn-action-free btn-action-free--rec">gratuite</span>
+                } @else {
+                  <span class="btn-action-free btn-action-free--login">connexion</span>
+                }
               </span>
             </button>
 

@@ -1,4 +1,5 @@
 @use 'variables' as v;
+@use 'sass:color';
 
 // ── Modal overlay (fixed full-screen) ────────────────────────────────────────
 
@@ -185,7 +186,7 @@
   transition:      background 0.15s;
   width:           100%;
 
-  &:hover:not(:disabled) { background: darken(v.$tag-red, 8%); }
+  &:hover:not(:disabled) { background: color.adjust(v.$tag-red, $lightness: -8%); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 

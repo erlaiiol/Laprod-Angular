@@ -96,6 +96,7 @@ def user_auth(u, notif_count: int = 0) -> dict:
         'upload_track_tokens':   u.upload_track_tokens,
         'topline_tokens':        u.topline_tokens,
         'is_premium':            bool(u.is_premium_active),
+        'subscription_plan':     u.subscription_plan,
         'preferred_tag_category': u.preferred_tag_category,
     }
 

@@ -1,7 +1,7 @@
 <div class="sample-page">
   <div class="sample-card">
 
-    @if (!auth.isLoggedIn() || !auth.currentUser()?.is_mixmaster_engineer) {
+    @if (!auth.isLoggedIn() || !auth.currentUser()?.roles?.is_mixmaster_engineer) {
       <div class="gate-block">
         <i class="bi bi-lock-fill"></i>
         <h2>Accès réservé</h2>
