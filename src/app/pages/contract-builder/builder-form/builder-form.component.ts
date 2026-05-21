@@ -31,6 +31,13 @@ interface Preset {
   clauses: PresetClauseSpec[];
 }
 
+interface QuickStartSpec {
+  group:  string;
+  clause: string;
+  field:  string;
+  value:  string;
+}
+
 @Component({
   selector: 'app-builder-form',
   standalone: true,
@@ -67,17 +74,22 @@ export class BuilderFormComponent implements OnInit {
 
   isFinal      = computed(() => this.status() === 'final');
   hasPdf       = computed(() => !!this.pdfFile());
-  showPreview  = signal(false);
-  downloading  = signal(false);
+  showPreview   = signal(false);
+  downloading   = signal(false);
+  confirmReset  = signal(false);
 
   // ── Intro tab ──────────────────────────────────────────────────────────────
   showIntroTab   = signal(true);
   oeuvreTitle    = signal('');
   oeuvreIsrc     = signal('');
   oeuvreType     = signal<'chanson' | 'album' | 'instrumental' | 'autre'>('chanson');
-  pctArtiste     = signal<number | null>(null);
-  pctEditeur     = signal<number | null>(null);
-  pctProducteur  = signal<number | null>(null);
+  pctArtiste        = signal<number | null>(null);
+  pctEditeur        = signal<number | null>(null);
+  pctProducteur     = signal<number | null>(null);
+  anneeCreation     = signal<number | null>(null);
+  dureeOeuvre       = signal('');
+  debutExploitation = signal('');
+  finExploitation   = signal('');
 
   introVarMap = computed<Record<string, string>>(() => {
     const p  = this.parties();
@@ -96,9 +108,13 @@ export class BuilderFormComponent implements OnInit {
       '[Rôle 2]':         p2?.role ?? '',
       "[l'Œuvre]":        this.oeuvreTitle(),
       '[ISRC]':           this.oeuvreIsrc(),
-      '[% Artiste]':      this.pctArtiste()    !== null ? `${this.pctArtiste()}%`    : '',
-      '[% Éditeur]':      this.pctEditeur()    !== null ? `${this.pctEditeur()}%`    : '',
-      '[% Producteur]':   this.pctProducteur() !== null ? `${this.pctProducteur()}%` : '',
+      '[% Artiste]':              this.pctArtiste()       !== null ? `${this.pctArtiste()}%`    : '',
+      '[% Éditeur]':              this.pctEditeur()       !== null ? `${this.pctEditeur()}%`    : '',
+      '[% Producteur]':           this.pctProducteur()    !== null ? `${this.pctProducteur()}%` : '',
+      '[année de création]':      this.anneeCreation()    !== null ? `${this.anneeCreation()}`  : '',
+      "[durée de l'œuvre]":       this.dureeOeuvre(),
+      "[début d'exploitation]":   this.debutExploitation(),
+      "[fin d'exploitation]":     this.finExploitation(),
     };
   });
 
@@ -107,6 +123,17 @@ export class BuilderFormComponent implements OnInit {
   );
   definedIntroVars = computed(() => this.introVarEntries().filter(e => !!e.value));
   hasAnyIntroVar   = computed(() => this.definedIntroVars().length > 0);
+
+  // True when the 3 "essential" variables (both party names + title) are set
+  hasKeyInfo = computed(() => {
+    const m = this.introVarMap();
+    return !!(m['[Contractant 1]'] && m['[Contractant 2]'] && m["[l'Œuvre]"]);
+  });
+
+  // True when at least one enabled clause carries text or details content
+  hasAnyClauseText = computed(() =>
+    Object.values(this.valuesMap()).some(lv => lv.is_enabled && !!(lv.value?.text || lv.value?.details))
+  );
 
   activeGroupSummaries = computed(() =>
     this.groups()
@@ -593,11 +620,16 @@ export class BuilderFormComponent implements OnInit {
   useExample(clauseId: number, clause: ClauseDTO): void {
     if (!clause.example_text) return;
     const current = this.getValue(clauseId, clause);
+    // Auto-resolve intro variables present in the example text
+    let text = clause.example_text;
+    for (const [bracket, value] of Object.entries(this.introVarMap())) {
+      if (value) text = text.replaceAll(bracket, value);
+    }
     let newValue = { ...current.value };
     if (clause.clause_type === 'text' || clause.clause_type === 'textarea') {
-      newValue = { text: clause.example_text };
+      newValue = { text };
     } else if (clause.clause_type === 'toggle_with_details') {
-      newValue = { details: clause.example_text };
+      newValue = { details: text };
     }
     this.patchValue(clauseId, { ...current, value: newValue });
   }
@@ -753,6 +785,219 @@ export class BuilderFormComponent implements OnInit {
       default:                   return '';
     }
   }
+
+  // ── Quick Start ────────────────────────────────────────────────────────────
+
+  readonly quickStartClauses: QuickStartSpec[] = [
+    {
+      group: 'Préambule', clause: 'Contexte et volonté des parties', field: 'text',
+      value:
+        "[Contractant 1], en qualité de [Rôle 1], ci-après dénommé(e) « le [Rôle 1] », " +
+        "et [Contractant 2], en qualité de [Rôle 2], ci-après dénommé(e) « le [Rôle 2] », " +
+        "ont convenu, d'un commun accord, de formaliser les conditions d'exploitation de " +
+        "l'œuvre musicale intitulée [l'Œuvre], aux fins et dans les limites définies par " +
+        "le présent contrat. Les parties déclarent avoir pris connaissance de l'ensemble " +
+        "des dispositions ci-après et en accepter les termes sans réserve.",
+    },
+    {
+      group: 'Objet du contrat', clause: 'Finalité et description', field: 'text',
+      value:
+        "Le présent contrat a pour objet de définir les conditions dans lesquelles " +
+        "[Contractant 1], en qualité de [Rôle 1], concède à [Contractant 2], en qualité " +
+        "de [Rôle 2], le droit d'exploiter l'œuvre musicale intitulée [l'Œuvre], du " +
+        "[début d'exploitation] au [fin d'exploitation], dans les limites territoriales et " +
+        "selon les modalités précisées aux articles suivants. Cette exploitation s'inscrit " +
+        "dans le cadre du développement de la carrière artistique de [Contractant 1] et " +
+        "de la promotion de [l'Œuvre] sur l'ensemble des marchés couverts par le présent accord.",
+    },
+    {
+      group: 'Désignation des œuvres', clause: 'Description de l\'œuvre', field: 'text',
+      value:
+        "L'œuvre faisant l'objet du présent contrat est une composition musicale originale " +
+        "intitulée [l'Œuvre], créée en [année de création], d'une durée de [durée de l'œuvre], " +
+        "dont les droits d'auteur appartiennent à [Contractant 1]. Elle est identifiée par " +
+        "le code ISRC [ISRC] et livrée sous format WAV 24 bits / 44,1 kHz, accompagnée des " +
+        "stems multipistes, du visuel de pochette haute résolution et des métadonnées " +
+        "complètes conformes aux standards DDEX.",
+    },
+    {
+      group: 'Exclusivité', clause: 'Exclusivité totale', field: 'details',
+      value:
+        "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble " +
+        "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les " +
+        "territoires couverts et pour toute la durée du présent accord. Pendant cette période, " +
+        "[Contractant 1] s'engage à ne pas concéder à un tiers le droit d'exploiter [l'Œuvre], " +
+        "directement ou indirectement, sous quelque forme que ce soit.",
+    },
+    {
+      group: 'Comptabilité et audit', clause: 'Procédure d\'audit', field: 'text',
+      value:
+        "[Contractant 1] ou son mandataire dûment habilité pourra, après notification écrite " +
+        "adressée à [Contractant 2] avec un préavis minimum de trente (30) jours, procéder à " +
+        "la vérification des livres de compte et documents comptables afférents à l'exploitation " +
+        "de [l'Œuvre]. Cet audit ne pourra être effectué qu'une seule fois par exercice " +
+        "comptable. Les frais d'audit seront à la charge de [Contractant 1], sauf si l'audit " +
+        "révèle un écart supérieur à 5 % en défaveur de [Contractant 1], auquel cas ils seront " +
+        "supportés par [Contractant 2].",
+    },
+    {
+      group: 'Résiliation', clause: 'Effets et délais de résiliation', field: 'text',
+      value:
+        "En cas de résiliation du présent contrat, pour quelque cause que ce soit, " +
+        "[Contractant 2] s'engage à retirer [l'Œuvre] de l'ensemble des plateformes de " +
+        "distribution dans un délai de trente (30) jours ouvrés à compter de la notification " +
+        "de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. " +
+        "[Contractant 1] conserve le droit de percevoir les royalties afférentes aux " +
+        "exploitations intervenues avant la date de résiliation effective.",
+    },
+    {
+      group: 'Réversion des droits', clause: 'Retour automatique des droits', field: 'details',
+      value:
+        "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause " +
+        "que ce soit, l'ensemble des droits concédés par [Contractant 1] seront automatiquement " +
+        "et de plein droit révertis à ce dernier, sans formalité ni indemnité. [Contractant 2] " +
+        "s'engage à prendre toutes les mesures nécessaires pour que ces droits soient " +
+        "effectivement libérés dans les meilleurs délais.",
+    },
+    {
+      group: 'Réversion des droits', clause: 'Conditions de réversion', field: 'text',
+      value:
+        "Les droits concédés par [Contractant 1] seront automatiquement révertis dans les " +
+        "cas suivants : (i) si [Contractant 2] n'a pas procédé à la première exploitation " +
+        "commerciale de [l'Œuvre] avant le [début d'exploitation] convenu ou dans les " +
+        "dix-huit (18) mois suivant la livraison des masters définitifs ; (ii) si [l'Œuvre] " +
+        "cesse d'être disponible à l'écoute sur les principales plateformes de streaming " +
+        "(Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; " +
+        "(iii) en cas de liquidation judiciaire de [Contractant 2] ; (iv) à l'échéance " +
+        "du [fin d'exploitation] si aucun renouvellement n'a été signé.",
+    },
+  ];
+
+  readonly quickStartToggles: string[] = [
+    'Préambule||Contexte et volonté des parties',
+    'Nature des droits concédés||Droit de reproduction',
+    'Nature des droits concédés||Droit de représentation',
+    'Nature des droits concédés||Droit de distribution',
+    'Nature des droits concédés||Mise à disposition / Streaming',
+    'Exploitation numérique et plateformes||Plateformes DSP (Spotify, Apple Music...)',
+    'Exploitation numérique et plateformes||YouTube Content ID',
+    'Exploitation numérique et plateformes||TikTok',
+    'Exploitation numérique et plateformes||Meta (Instagram, Facebook Reels)',
+    'Données, métadonnées et collecte||Gestion des identifiants (ISRC, ISWC, UPC)',
+    'Données, métadonnées et collecte||Reporting plateforme',
+    'Données, métadonnées et collecte||Collecte SACEM / droits voisins',
+    'Obligations de l\'exploitant||Obligation de distribution',
+    'Obligations de l\'auteur / artiste||Obligation de bonne foi',
+    'Garanties et propriété intellectuelle||Garantie de titularité',
+    'Garanties et propriété intellectuelle||Garantie d\'originalité',
+    'Garanties et propriété intellectuelle||Absence d\'échantillons non autorisés',
+    'Communication et image||Droit au crédit',
+    'Confidentialité||Périmètre de la confidentialité',
+    'Force majeure||Événements couverts',
+    'Résiliation||Résiliation pour inexécution',
+    'Clauses générales||Divisibilité',
+    'Clauses générales||Intégralité de l\'accord',
+    'Clauses générales||Modification écrite',
+  ];
+
+  applyQuickStart(): void {
+    if (!this.hasKeyInfo()) {
+      this.toast.showToast({
+        level: 'error',
+        message: 'Merci de remplir les informations clés : nom des deux parties et titre de l\'œuvre.',
+      });
+      return;
+    }
+
+    const lookup: Record<string, { id: number; clause: ClauseDTO }> = {};
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        lookup[`${group.name}||${clause.name}`] = { id: clause.id, clause };
+      }
+    }
+
+    for (const key of this.quickStartToggles) {
+      const found = lookup[key];
+      if (!found) continue;
+      const current = this.getValue(found.id, found.clause);
+      this.patchValue(found.id, { ...current, is_enabled: true });
+    }
+
+    for (const spec of this.quickStartClauses) {
+      const found = lookup[`${spec.group}||${spec.clause}`];
+      if (!found) continue;
+      const current = this.getValue(found.id, found.clause);
+      const newValue = { ...(current.value ?? {}), [spec.field]: spec.value };
+      this.patchValue(found.id, { is_enabled: true, value: newValue });
+    }
+
+    if (this.groups().length) this.setGroup(this.groups()[0].id);
+    this.toast.showToast({
+      level: 'info',
+      message: 'Clauses pré-remplies ! Utilisez « Tout résoudre » dans chaque clause pour personnaliser.',
+    });
+  }
+
+  resetContract(): void {
+    if (!this.confirmReset()) {
+      this.confirmReset.set(true);
+      setTimeout(() => this.confirmReset.set(false), 5000);
+      return;
+    }
+    this.confirmReset.set(false);
+    this.valuesMap.set({});
+    this.toast.showToast({ level: 'info', message: 'Clauses réinitialisées.' });
+  }
+
+  cancelReset(): void {
+    this.confirmReset.set(false);
+  }
+
+  isClauseFilled(clauseId: number, clause: ClauseDTO): boolean {
+    const lv = this.getValue(clauseId, clause);
+    if (!lv.is_enabled && !clause.is_required) return false;
+    if (clause.clause_type === 'toggle') return true;
+    const v = lv.value;
+    if (!v) return false;
+    const clean = (s: string) => !!s && !/\[[^\]]+\]/.test(s);
+    switch (clause.clause_type) {
+      case 'toggle_with_details': return clean(v.details ?? '');
+      case 'text':
+      case 'textarea':            return clean(v.text ?? '');
+      case 'number':
+      case 'percentage':          return v.number != null;
+      case 'select':              return !!v.selected;
+      case 'multi_toggle':        return Array.isArray(v.selected) && v.selected.length > 0;
+      case 'date':                return !!v.date;
+      case 'date_range':          return !!(v.start && v.end);
+      case 'territory':           return !!v.territory;
+      case 'duration':            return v.amount != null;
+      default:                    return false;
+    }
+  }
+
+  // Returns 'complete' | 'incomplete' | 'none' for each group
+  groupCompletionMap = computed<Record<number, 'complete' | 'incomplete' | 'none'>>(() => {
+    const result: Record<number, 'complete' | 'incomplete' | 'none'> = {};
+    const artNums = this.articleNumbers();
+    const vm = this.valuesMap();
+
+    for (const group of this.groups()) {
+      if (artNums[group.id] === undefined) {
+        result[group.id] = 'none';
+        continue;
+      }
+      let hasEmpty = false;
+      for (const clause of group.clauses) {
+        const lv = vm[clause.id];
+        const enabled = lv ? lv.is_enabled : clause.is_enabled_by_default;
+        if (!enabled && !clause.is_required) continue;
+        if (!this.isClauseFilled(clause.id, clause)) { hasEmpty = true; break; }
+      }
+      result[group.id] = hasEmpty ? 'incomplete' : 'complete';
+    }
+    return result;
+  });
 
   back(): void {
     this.router.navigate(['/contract-builder']);

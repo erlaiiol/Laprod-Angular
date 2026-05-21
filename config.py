@@ -167,6 +167,7 @@ Pour plus d'informations, consultez www.sacem.fr
 # Tous les chemins sont des objets Path (pathlib)
 UPLOAD_FOLDER = BASE_DIR / 'db_assets' / 'audio'
 CONTRACTS_FOLDER = BASE_DIR / 'db_assets' / 'contracts'
+INVOICES_FOLDER  = BASE_DIR / 'db_assets' / 'invoices'
 IMAGES_FOLDER = BASE_DIR / 'db_assets' / 'images'
 PROFILES_FOLDER = BASE_DIR / 'db_assets' / 'images' / 'profiles'
 

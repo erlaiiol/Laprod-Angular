@@ -6,10 +6,18 @@ from flask import current_app, render_template
 import extensions
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime
 from pathlib import Path
 import html as html_module
 import os
+
+from utils.invoice_generator import (
+    generate_track_purchase_invoice,
+    generate_track_sale_statement,
+    generate_mixmaster_invoice,
+    generate_mixmaster_earnings_statement,
+)
 
 # Instance globale de Flask-Mail (initialisée dans app.py)
 mail = extensions.mail
@@ -357,11 +365,19 @@ L'équipe LaProd
         composer=composer
     )
 
+    attachments = []
+    try:
+        pdf = generate_track_purchase_invoice(purchase)
+        attachments = [(f"facture_laprod_{purchase.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération facture achat #{purchase.id}: {e}")
+
     return send_email(
         subject=f'Achat confirmé - {track.title} - LaProd',
         recipients=[buyer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -409,11 +425,19 @@ L'équipe LaProd
         buyer=buyer
     )
 
+    attachments = []
+    try:
+        pdf = generate_track_sale_statement(purchase)
+        attachments = [(f"releve_vente_laprod_{purchase.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération relevé vente #{purchase.id}: {e}")
+
     return send_email(
         subject=f'Vente confirmée - {track.title} - LaProd',
         recipients=[composer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -490,11 +514,19 @@ L'équipe LaProd
         artist=artist
     )
 
+    attachments = []
+    try:
+        pdf = generate_mixmaster_invoice(mixmaster_request)
+        attachments = [(f"facture_mixmaster_laprod_{mixmaster_request.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération facture mixmaster #{mixmaster_request.id}: {e}")
+
     return send_email(
         subject=f'Nouvelle demande de mixage - LaProd',
         recipients=[engineer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -526,8 +558,8 @@ def send_mixmaster_status_update_email(mixmaster_request, old_status, new_status
         'refunded': 'Délai dépassé. Vous avez été remboursé intégralement.'
     }
 
-    deposit_net = round(float(mixmaster_request.deposit_amount) * 0.90, 2)
-    final_net   = round(float(mixmaster_request.remaining_amount) * 0.90, 2)
+    deposit_net = (mixmaster_request.deposit_amount   * Decimal('0.90')).quantize(Decimal('0.01'), ROUND_HALF_UP)
+    final_net   = (mixmaster_request.remaining_amount * Decimal('0.90')).quantize(Decimal('0.01'), ROUND_HALF_UP)
 
     # Messages pour l'engineer
     engineer_messages = {
@@ -596,11 +628,21 @@ L'équipe LaProd
         revision_message=revision_message
     )
 
+    # Pièce jointe artiste : facture récapitulative si le contrat est terminé
+    artist_attachments = []
+    if new_status == 'completed':
+        try:
+            pdf = generate_mixmaster_invoice(mixmaster_request)
+            artist_attachments = [(f"facture_finale_mixmaster_{mixmaster_request.id}.pdf", 'application/pdf', pdf)]
+        except Exception as e:
+            current_app.logger.error(f"Erreur facture finale artiste mixmaster #{mixmaster_request.id}: {e}")
+
     send_email(
         subject=f'Mix/Master #{mixmaster_request.id} - {status_label} - LaProd',
         recipients=[artist.email],
         text_body=artist_text,
-        html_body=artist_html
+        html_body=artist_html,
+        attachments=artist_attachments,
     )
 
     # Email à l'engineer (pour les statuts pertinents)
@@ -638,11 +680,34 @@ L'équipe LaProd
             revision_message=revision_message
         )
 
+        # Pièce jointe ingénieur : relevé de gains à chaque étape de versement
+        _stage_map = {
+            'delivered': 'deposit',
+            'revision1': 'revision1',
+            'revision2': 'revision2',
+            'completed': 'final',
+        }
+        engineer_attachments = []
+        if new_status in _stage_map:
+            try:
+                stage = _stage_map[new_status]
+                pdf = generate_mixmaster_earnings_statement(mixmaster_request, stage)
+                engineer_attachments = [(
+                    f"releve_gains_{stage}_{mixmaster_request.id}.pdf",
+                    'application/pdf',
+                    pdf,
+                )]
+            except Exception as e:
+                current_app.logger.error(
+                    f"Erreur relevé gains ingénieur mixmaster #{mixmaster_request.id}: {e}"
+                )
+
         send_email(
             subject=f'Mix/Master #{mixmaster_request.id} - {status_label} - LaProd',
             recipients=[engineer.email],
             text_body=engineer_text,
-            html_body=engineer_html
+            html_body=engineer_html,
+            attachments=engineer_attachments,
         )
 
     return True

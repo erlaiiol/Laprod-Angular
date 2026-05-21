@@ -129,6 +129,7 @@ def create_app(test_config=None):
     config.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.UPLOAD_FOLDER / 'toplines').mkdir(parents=True, exist_ok=True)
     config.CONTRACTS_FOLDER.mkdir(parents=True, exist_ok=True)
+    config.INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
     config.IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.IMAGES_FOLDER / 'tracks').mkdir(parents=True, exist_ok=True)
     config.PROFILES_FOLDER.mkdir(parents=True, exist_ok=True)
