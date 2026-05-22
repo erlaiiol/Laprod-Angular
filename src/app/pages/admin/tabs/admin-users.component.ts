@@ -27,6 +27,12 @@ export class AdminUsersComponent implements OnInit {
   tokenType   = signal<'track' | 'topline'>('track');
   tokenAmount = signal(1);
 
+  // Plan modal
+  planUser       = signal<AdminUser | null>(null);
+  planTarget     = signal<'free' | 'amateur' | 'pro'>('amateur');
+  planSubmitting = signal(false);
+  readonly planOptions: ('free' | 'amateur' | 'pro')[] = ['free', 'amateur', 'pro'];
+
   constructor(private adminSvc: AdminService, private toast: ToastService) {}
 
   ngOnInit(): void { this.load(); }
@@ -67,10 +73,33 @@ export class AdminUsersComponent implements OnInit {
     });
   }
 
-  togglePremium(user: AdminUser): void {
-    this.adminSvc.togglePremium(user.id).subscribe({
-      next: res => { if (res.success) this.load(); },
-      error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+  openPlanModal(user: AdminUser): void {
+    this.planUser.set(user);
+    const current = user.subscription_plan ?? 'free';
+    // Proposer le plan suivant par défaut (logique ascendante)
+    if (current === 'free')         this.planTarget.set('amateur');
+    else if (current === 'amateur') this.planTarget.set('pro');
+    else                            this.planTarget.set('free');
+  }
+
+  closePlanModal(): void {
+    this.planUser.set(null);
+    this.planSubmitting.set(false);
+  }
+
+  confirmSetPlan(): void {
+    const user = this.planUser();
+    if (!user) return;
+    this.planSubmitting.set(true);
+    this.adminSvc.setPlan(user.id, this.planTarget()).subscribe({
+      next: res => {
+        this.planSubmitting.set(false);
+        if (res.success) { this.closePlanModal(); this.load(); }
+      },
+      error: err => {
+        this.planSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur changement de plan.' });
+      },
     });
   }
 
@@ -92,6 +121,18 @@ export class AdminUsersComponent implements OnInit {
       },
       error: (err: any) => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
     });
+  }
+
+  daysRemaining(expiresAt: string | null): number | null {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 86_400_000));
+  }
+
+  planLabel(plan: 'free' | 'amateur' | 'pro' | null): string {
+    if (plan === 'amateur') return 'Amateur';
+    if (plan === 'pro')     return 'Pro';
+    return 'Free';
   }
 
   imgUrl(path: string): string {

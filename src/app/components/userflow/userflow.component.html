@@ -1,8 +1,8 @@
 <!-- ── Trigger button ───────────────────────────────────────────────────────── -->
 <button
   class="uf-trigger"
-  [class.uf-trigger--new]="!hasEverOpened()"
-  [class.uf-trigger--hidden]="isOpen()"
+  [class.uf-trigger--new]="!hasEverOpened"
+  [class.uf-trigger--hidden]="isOpen"
   (click)="open()"
   aria-label="Guide interactif LaProd"
   title="Comment utiliser LaProd ?"
@@ -14,7 +14,7 @@
 </button>
 
 <!-- ── Backdrop + sliding panel ────────────────────────────────────────────── -->
-@if (isOpen()) {
+@if (isOpen) {
   <div class="uf-backdrop" (click)="onBackdropClick($event)" role="dialog" aria-modal="true" aria-label="Guide interactif">
     <div class="uf-panel">
 
@@ -33,7 +33,7 @@
       <div class="uf-scroll">
         <div class="uf-list">
           @for (flow of flows; track $index) {
-            <div class="uf-flow" [class.uf-flow--open]="openIndex() === $index">
+            <div class="uf-flow" [class.uf-flow--open]="openIndex === $index">
 
               <button class="uf-flow__header" type="button" (click)="toggle($index)">
                 <span class="uf-flow__icon uf-flow__icon--{{ flow.color }}">
@@ -41,14 +41,14 @@
                 </span>
                 <div class="uf-flow__meta">
                   <span class="uf-flow__title">{{ flow.title }}</span>
-                  @if (openIndex() !== $index) {
+                  @if (openIndex !== $index) {
                     <span class="uf-flow__preview">{{ flow.tagline }}</span>
                   }
                 </div>
                 <i class="bi bi-chevron-right uf-flow__chevron"></i>
               </button>
 
-              @if (openIndex() === $index) {
+              @if (openIndex === $index) {
                 <div class="uf-flow__body">
                   <p class="uf-tagline">{{ flow.tagline }}</p>
                   <ol class="uf-steps">

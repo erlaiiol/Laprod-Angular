@@ -62,10 +62,15 @@ export interface AdminUser {
   is_mixmaster_engineer: boolean;
   is_certified_producer_arranger: boolean;
   producer_arranger_request_submitted: boolean;
-  is_premium:      boolean;
+  is_premium:          boolean;
+  subscription_plan:   'free' | 'amateur' | 'pro';
+  premium_since:       string | null;
+  premium_expires_at:  string | null;
+  premium_source:      'stripe' | 'admin' | null;
+  premium_price_paid:  number | null;
   upload_track_tokens: number;
-  topline_tokens:  number;
-  created_at:      string | null;
+  topline_tokens:      number;
+  created_at:          string | null;
   tracks_count:    number;
   contracts_count: number;
   mm_count:        number;
@@ -239,6 +244,10 @@ export class AdminService {
 
   togglePremium(userId: number): Observable<ApiResponse<{ is_premium: boolean }>> {
     return this.http.post<any>(`${this.base}/users/${userId}/toggle-premium`, {}, { headers: this.headers });
+  }
+
+  setPlan(userId: number, plan: 'free' | 'amateur' | 'pro'): Observable<ApiResponse<{ is_premium: boolean; subscription_plan: string; premium_expires_at: string | null }>> {
+    return this.http.post<any>(`${this.base}/users/${userId}/set-plan`, { plan }, { headers: this.headers });
   }
 
   // ── Engineers CUD ──────────────────────────────────────────────────────────

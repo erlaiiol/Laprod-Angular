@@ -18,8 +18,12 @@
           <td><img [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
           <td>
             {{ u.username }}
-            @if (u.is_premium) { <span class="badge-premium">★</span> }
-            @if (u.is_admin)   { <span class="badge-admin">ADMIN</span> }
+            @if (u.is_premium) {
+              <span class="badge-premium" [title]="'Plan ' + planLabel(u.subscription_plan) + ' — expire le ' + fmtDate(u.premium_expires_at)">
+                {{ u.subscription_plan === 'pro' ? '★ Pro' : '★' }}
+              </span>
+            }
+            @if (u.is_admin) { <span class="badge-admin">ADMIN</span> }
           </td>
           <td class="small">{{ u.email }}</td>
           <td>
@@ -39,8 +43,8 @@
             <button class="btn-icon" title="Toggle Engineer"   (click)="toggleRole(u, 'engineer')"><i class="bi bi-headphones"></i></button>
             <button class="btn-icon" title="Tokens Track"      (click)="openTokenModal(u, 'track')"><i class="bi bi-plus-circle"></i> T</button>
             <button class="btn-icon" title="Tokens Topline"    (click)="openTokenModal(u, 'topline')"><i class="bi bi-plus-circle"></i> TL</button>
-            <button class="btn-icon" [title]="u.is_premium ? 'Retirer premium' : 'Activer premium'" (click)="togglePremium(u)">
-              <i class="bi" [class.bi-star-fill]="!u.is_premium" [class.bi-star]="u.is_premium"></i>
+            <button class="btn-icon btn-icon--plan" title="Gérer l'abonnement" (click)="openPlanModal(u)">
+              <i class="bi bi-patch-check"></i>
             </button>
           </td>
         </tr>
@@ -65,6 +69,97 @@
         <button class="btn-secondary" (click)="tokenUser.set(null)">Annuler</button>
         <button class="btn-primary"   (click)="submitTokens()">Ajouter</button>
       </div>
+    </div>
+  </div>
+}
+
+<!-- Plan modal -->
+@if (planUser()) {
+  <div class="modal-backdrop" (click)="closePlanModal()">
+    <div class="modal modal--plan" (click)="$event.stopPropagation()">
+
+      <div class="plan-modal-header">
+        <h3><i class="bi bi-patch-check"></i> Gérer l'abonnement</h3>
+        <button class="btn-icon-close" (click)="closePlanModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <p class="modal-sub">
+        Utilisateur&nbsp;: <strong>{{ planUser()!.username }}</strong>
+        &nbsp;·&nbsp; {{ planUser()!.email }}
+      </p>
+
+      <!-- Infos abonnement actuel -->
+      @if (planUser()!.is_premium) {
+        <div class="plan-current-block"
+             [class.plan-current-block--stripe]="planUser()!.premium_source === 'stripe'"
+             [class.plan-current-block--admin]="planUser()!.premium_source === 'admin'">
+          <div class="plan-current-row">
+            <span class="plan-current-label">Plan actuel</span>
+            <span class="plan-badge plan-badge--{{ planUser()!.subscription_plan }}">
+              {{ planLabel(planUser()!.subscription_plan) }}
+            </span>
+          </div>
+
+          @if (planUser()!.premium_source === 'stripe') {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-credit-card"></i> Payé via Stripe</span>
+              <strong class="plan-price">{{ planUser()!.premium_price_paid != null ? (planUser()!.premium_price_paid! | number:'1.2-2') + ' €' : '—' }}</strong>
+            </div>
+          } @else if (planUser()!.premium_source === 'admin') {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-shield-check"></i> Accordé par admin</span>
+            </div>
+          }
+
+          @if (planUser()!.premium_expires_at) {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-clock"></i> Expire le</span>
+              <span>{{ fmtDate(planUser()!.premium_expires_at) }}
+                @if (daysRemaining(planUser()!.premium_expires_at) !== null) {
+                  &nbsp;<em class="plan-days-left">({{ daysRemaining(planUser()!.premium_expires_at) }} j restants)</em>
+                }
+              </span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="plan-current-block plan-current-block--free">
+          <span class="plan-current-label">Plan actuel : </span>
+          <span class="plan-badge plan-badge--free">Free</span>
+        </div>
+      }
+
+      <!-- Sélecteur du nouveau plan -->
+      <div class="plan-select-section">
+        <p class="plan-select-label">Nouveau plan à appliquer (30 jours à compter de maintenant)</p>
+        <div class="plan-select-options">
+          @for (opt of planOptions; track opt) {
+            <label class="plan-option" [class.plan-option--selected]="planTarget() === opt">
+              <input type="radio" name="plan" [value]="opt"
+                     [checked]="planTarget() === opt"
+                     (change)="planTarget.set(opt)">
+              <span class="plan-option-label plan-badge plan-badge--{{ opt }}">{{ planLabel(opt) }}</span>
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- Avertissement si déjà payé et qu'on change -->
+      @if (planUser()!.premium_source === 'stripe' && planTarget() !== planUser()!.subscription_plan) {
+        <div class="plan-warning">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Cet utilisateur a payé son abonnement. Êtes-vous sûr de vouloir modifier son plan ?
+        </div>
+      }
+
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="closePlanModal()">Annuler</button>
+        <button class="btn-primary" [disabled]="planSubmitting()" (click)="confirmSetPlan()">
+          @if (planSubmitting()) { <span class="btn-spinner"></span> Envoi… }
+          @else { Confirmer }
+        </button>
+      </div>
+
     </div>
   </div>
 }

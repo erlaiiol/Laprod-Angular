@@ -970,3 +970,59 @@ L'équipe LaProd
         text_body=text_body,
         html_body=html_body
     )
+
+
+def send_plan_changed_email(user, new_plan, expires_at=None, granted_by_admin=False):
+    """
+    Notifie l'utilisateur par email d'un changement de plan d'abonnement.
+
+    Args:
+        user: Instance User
+        new_plan: Nouveau plan ('free' | 'amateur' | 'pro')
+        expires_at: Date d'expiration (datetime) si applicable
+        granted_by_admin: True si accordé manuellement par un admin
+    """
+    plan_labels = {'free': 'Free', 'amateur': 'LaProd+ Amateur', 'pro': 'LaProd+ Pro'}
+    new_label   = plan_labels.get(new_plan, new_plan)
+    expires_str = expires_at.strftime('%d/%m/%Y') if expires_at else ''
+
+    if new_plan == 'free':
+        subject   = 'Votre abonnement LaProd+ a été désactivé'
+        text_body = f"""Bonjour {user.username},
+
+Votre abonnement LaProd+ a été désactivé. Vous repassez en plan Free.
+
+Vous pouvez vous réabonner à tout moment sur laprod.fr/premium.
+
+---
+L'équipe LaProd
+"""
+    else:
+        admin_note = '\nCe plan vous a été accordé par l\'équipe LaProd.' if granted_by_admin else ''
+        subject   = f'Votre plan {new_label} est actif !'
+        text_body = f"""Bonjour {user.username},
+
+Votre plan {new_label} est maintenant actif.{admin_note}
+{"Valable jusqu'au : " + expires_str + '.' if expires_str else ''}
+
+Profitez de toutes vos fonctionnalités sur laprod.fr.
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/plan_changed.html',
+        user=user,
+        new_plan=new_plan,
+        new_label=new_label,
+        expires_str=expires_str,
+        granted_by_admin=granted_by_admin,
+    )
+
+    return send_email(
+        subject=subject,
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )

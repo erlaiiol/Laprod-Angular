@@ -733,7 +733,7 @@ def toggle_premium(user_id, current_user):
 @csrf.exempt
 @require_admin
 def set_plan(user_id, current_user):
-    """Définit le plan de l'utilisateur : free | amateur | pro."""
+    """Définit le plan de l'utilisateur : free | amateur | pro (toujours 30 jours)."""
     import config as _cfg
     user = db.get_or_404(User, user_id)
     data = request.get_json(silent=True) or {}
@@ -741,19 +741,48 @@ def set_plan(user_id, current_user):
     if plan not in ('free', 'amateur', 'pro'):
         return err("Plan invalide. Valeurs : 'free', 'amateur', 'pro'.", 400)
 
+    old_plan = user.subscription_plan
+
     if plan == 'free':
         user.subscription_plan  = 'free'
         user.premium_expires_at = datetime.now()
+        user.premium_source     = None
+        user.premium_price_paid = None
         msg = f'Plan Free appliqué pour {user.username}.'
     else:
         user.subscription_plan  = plan
-        if not user.is_premium_active:
-            user.premium_since      = datetime.now()
-            user.premium_expires_at = datetime.now() + timedelta(days=_cfg.PREMIUM_DURATION_DAYS)
-        msg = f'Plan {plan.capitalize()} appliqué pour {user.username}.'
+        user.premium_since      = datetime.now()
+        user.premium_expires_at = datetime.now() + timedelta(days=_cfg.PREMIUM_DURATION_DAYS)
+        user.premium_source     = 'admin'
+        user.premium_price_paid = None
+        msg = f'Plan {plan.capitalize()} accordé à {user.username} (30 jours).'
 
     db.session.commit()
-    return ok({'is_premium': user.is_premium, 'subscription_plan': user.subscription_plan}, message=msg, level='info')
+
+    try:
+        notification_service.notify_plan_changed(
+            user, plan, old_plan,
+            expires_at=user.premium_expires_at,
+            granted_by_admin=True,
+        )
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif plan_changed: {e}')
+
+    try:
+        email_service.send_plan_changed_email(
+            user, plan,
+            expires_at=user.premium_expires_at if plan != 'free' else None,
+            granted_by_admin=True,
+        )
+    except Exception as e:
+        current_app.logger.warning(f'Email plan_changed: {e}')
+
+    return ok({
+        'is_premium':        user.is_premium,
+        'subscription_plan': user.subscription_plan,
+        'premium_expires_at': user.premium_expires_at.isoformat() if user.premium_expires_at else None,
+    }, message=msg, level='info')
 
 
 # ── Engineers (CUD) ───────────────────────────────────────────────────────────

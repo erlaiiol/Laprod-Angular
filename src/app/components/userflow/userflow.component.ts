@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 interface FlowStep {
@@ -26,23 +26,26 @@ const LS_KEY = 'laprod_guide_opened';
   styleUrl: './userflow.component.scss',
 })
 export class UserflowComponent implements OnDestroy {
+  private cdr = inject(ChangeDetectorRef);
 
-  isOpen         = signal(false);
-  hasEverOpened  = signal(localStorage.getItem(LS_KEY) === '1');
-  openIndex      = signal<number | null>(null);
+  isOpen        = false;
+  hasEverOpened = localStorage.getItem(LS_KEY) === '1';
+  openIndex: number | null = null;
 
   open(): void {
-    this.isOpen.set(true);
-    if (!this.hasEverOpened()) {
-      this.hasEverOpened.set(true);
+    this.isOpen = true;
+    if (!this.hasEverOpened) {
+      this.hasEverOpened = true;
       localStorage.setItem(LS_KEY, '1');
     }
     document.body.style.overflow = 'hidden';
+    this.cdr.detectChanges();
   }
 
   close(): void {
-    this.isOpen.set(false);
+    this.isOpen = false;
     document.body.style.overflow = '';
+    this.cdr.detectChanges();
   }
 
   onBackdropClick(event: MouseEvent): void {
@@ -52,12 +55,13 @@ export class UserflowComponent implements OnDestroy {
   }
 
   toggle(i: number): void {
-    this.openIndex.update(cur => (cur === i ? null : i));
+    this.openIndex = this.openIndex === i ? null : i;
+    this.cdr.detectChanges();
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.isOpen()) this.close();
+    if (this.isOpen) this.close();
   }
 
   ngOnDestroy(): void {
@@ -146,15 +150,15 @@ export class UserflowComponent implements OnDestroy {
     {
       icon: 'bi-stars',
       color: 'teal',
-      title: 'Recommandations sur-mesure — pas des « artistes similaires »',
-      tagline: 'L\'algorithme analyse vos goûts musicaux précis, pas juste votre genre préféré.',
+      title: 'Recommandations sur-mesure',
+      tagline: 'Plus vous utilisez LaProd, plus les suggestions vous ressemblent.',
       steps: [
-        { text: 'Chaque écoute, achat et topline affine votre profil : BPM préférés, gammes, styles, densité rythmique, énergie — des paramètres que les autres plateformes ignorent.' },
-        { text: 'L\'algorithme ne cherche pas « des artistes similaires à X » mais des morceaux dont les caractéristiques musicales objectives correspondent à ce que vous aimez vraiment.' },
-        { text: 'Plus vous utilisez LaProd — écoutes, achats, toplines — plus les suggestions deviennent précises. Le cold start est minimal : vos rôles et tags configurés au profil servent de point de départ.' },
-        { text: 'Les beatmakers sont mis en avant auprès des artistes dont le style colle à leur catalogue, et non selon leur popularité générale — chaque track a sa chance d\'être découverte.' },
+        { text: 'LaProd apprend de vos habitudes — écoutes, achats, toplines — pour affiner continuellement ce qu\'il vous propose.' },
+        { text: 'Les suggestions vont bien au-delà du genre musical : chaque interaction contribue à un profil unique qui évolue avec vous.' },
+        { text: 'Dès votre inscription, vos rôles et préférences servent de point de départ. Pas besoin d\'historique pour commencer à découvrir.' },
+        { text: 'Les beatmakers émergents ont autant de chances d\'être mis en avant que les plus populaires — la pertinence prime sur la notoriété.' },
       ],
-      cta: { label: 'Découvrir mes recommandations', link: '/tracks' },
+      cta: { label: 'Explorer la bibliothèque', link: '/' },
     },
   ];
 }

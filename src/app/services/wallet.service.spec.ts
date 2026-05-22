@@ -6,7 +6,6 @@ import { WalletService, WalletData } from './wallet.service';
 import { environment } from '../../environments/environment';
 
 const WALLET_URL    = `${environment.apiUrl}/api/wallet`;
-const CUD_URL       = `${environment.apiUrl}/api/cud_wallet`;
 const CONTRACTS_URL = `${environment.apiUrl}/api/contracts`;
 const STRIPE_URL    = `${environment.apiUrl}/api/stripe-connect`;
 
@@ -69,10 +68,10 @@ describe('WalletService', () => {
 
   // -- withdraw() --
 
-  it('withdraw() POSTs amount to /api/cud_wallet/withdraw', () => {
+  it('withdraw() POSTs amount to /api/wallet/withdraw', () => {
     service.withdraw(50).subscribe();
 
-    const req = httpMock.expectOne(`${CUD_URL}/withdraw`);
+    const req = httpMock.expectOne(`${WALLET_URL}/withdraw`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ amount: 50 });
     req.flush({ success: true, data: { transfer_id: 'tr_test', amount: 50 } });

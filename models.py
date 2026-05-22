@@ -89,9 +89,12 @@ class User(UserMixin, db.Model):
     # ABONNEMENT
     # subscription_plan : 'free' | 'amateur' | 'pro'
     # is_premium est un hybrid_property dérivé (rétrocompatibilité totale)
-    subscription_plan = db.Column(db.String(20), nullable=False, default='free')
-    premium_since = db.Column(db.DateTime, nullable=True)
-    premium_expires_at = db.Column(db.DateTime, nullable=True)
+    subscription_plan    = db.Column(db.String(20),  nullable=False, default='free')
+    premium_since        = db.Column(db.DateTime,    nullable=True)
+    premium_expires_at   = db.Column(db.DateTime,    nullable=True)
+    # 'stripe' = souscription payée | 'admin' = accordé manuellement | None = jamais eu
+    premium_source       = db.Column(db.String(20),  nullable=True)
+    premium_price_paid   = db.Column(db.Numeric(10, 2), nullable=True)
 
     #  SYSTÈME DE TOKENS POUR UPLOAD DE BEATS
     upload_track_tokens = db.Column(db.Integer, default=20)  # Nombre de beats uploadables

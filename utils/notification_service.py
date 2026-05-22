@@ -451,3 +451,39 @@ def notify_tokens_low(user, token_type='upload'):
         message=message,
         link=None
     )
+
+
+def notify_plan_changed(user, new_plan, old_plan, expires_at=None, granted_by_admin=False):
+    """
+    Notifie l'utilisateur d'un changement de son plan d'abonnement.
+
+    Args:
+        user: Instance User
+        new_plan: Nouveau plan ('free' | 'amateur' | 'pro')
+        old_plan: Ancien plan
+        expires_at: Date d'expiration (datetime) si applicable
+        granted_by_admin: True si l'action vient d'un admin
+    """
+    plan_labels = {'free': 'Free', 'amateur': 'LaProd+ Amateur', 'pro': 'LaProd+ Pro'}
+    new_label = plan_labels.get(new_plan, new_plan)
+
+    if new_plan == 'free':
+        title   = 'Abonnement désactivé'
+        message = 'Votre abonnement LaProd+ a été désactivé. Vous repassez en plan Free.'
+    else:
+        expires_str = expires_at.strftime('%d/%m/%Y') if expires_at else ''
+        title   = f'Plan {new_label} activé !'
+        message = (
+            f'Votre plan {new_label} est actif jusqu\'au {expires_str}.'
+            if expires_str else f'Votre plan {new_label} est maintenant actif.'
+        )
+        if granted_by_admin:
+            message += ' Ce plan vous a été accordé par l\'équipe LaProd.'
+
+    create_notification(
+        user_id=user.id,
+        notif_type='plan_changed',
+        title=title,
+        message=message,
+        link='/premium',
+    )

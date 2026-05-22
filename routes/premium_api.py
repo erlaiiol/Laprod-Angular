@@ -186,6 +186,8 @@ def activate(current_user):
     now           = datetime.now()
     payment_intent_id = stripe_session.payment_intent
 
+    price_paid = _plan_price(plan)
+
     if is_renewal and current_user.is_premium_active and current_user.premium_expires_at:
         current_user.premium_expires_at = current_user.premium_expires_at + timedelta(days=duration_days)
     else:
@@ -193,6 +195,8 @@ def activate(current_user):
         current_user.premium_expires_at = now + timedelta(days=duration_days)
 
     current_user.subscription_plan = plan
+    current_user.premium_source    = 'stripe'
+    current_user.premium_price_paid = price_paid
     current_user.apply_premium_tokens()
     db.session.commit()
 
