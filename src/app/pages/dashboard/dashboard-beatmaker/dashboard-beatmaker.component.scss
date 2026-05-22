@@ -231,3 +231,118 @@
   font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0;
   a { color: #eab308; text-decoration: none; &:hover { text-decoration: underline; } }
 }
+
+// ── Contract link tabs ────────────────────────────────────────────────────────
+
+.tab-btn--link {
+  text-decoration: none;
+  &.active { color: v.$text-primary; border-bottom-color: v.$tag-violet; }
+}
+
+.tab-btn--beta {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.tab-beta-badge {
+  font-size: 0.65rem; font-weight: 700;
+  background: v.$bg-elevated; color: v.$text-muted;
+  border-radius: 4px; padding: 0.05rem 0.3rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+// ── Playlists tab ─────────────────────────────────────────────────────────────
+
+.playlists-tab {
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.pl-tab-header {
+  display: flex; align-items: center; justify-content: space-between;
+  h3 { margin: 0; font-size: 15px; font-weight: 700; color: v.$text-primary; }
+}
+
+.pl-grid {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.pl-dash-card {
+  display: flex; align-items: center; gap: 12px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 8px; padding: 10px 12px;
+}
+
+.pl-dash-img {
+  width: 44px; height: 44px; object-fit: cover;
+  border-radius: 5px; flex-shrink: 0;
+}
+
+.pl-dash-info {
+  flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+
+.pl-dash-title {
+  font-size: 14px; font-weight: 600; color: v.$text-primary;
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  &:hover { color: v.$primary; }
+}
+
+.pl-dash-count {
+  font-size: 12px; color: v.$text-muted;
+}
+
+.pl-dash-actions {
+  display: flex; gap: 4px; flex-shrink: 0;
+}
+
+.rename-inline {
+  display: flex; gap: 6px; align-items: center;
+  input {
+    flex: 1; min-width: 0;
+    background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    border-radius: 5px; color: v.$text-primary; font-size: 13px;
+    padding: 3px 8px; outline: none;
+    &:focus { border-color: v.$primary; }
+  }
+}
+
+.btn-icon {
+  background: none; border: none; cursor: pointer;
+  color: v.$text-muted; font-size: 14px; padding: 4px 6px;
+  border-radius: 4px; transition: color 0.15s, background 0.15s;
+  &:hover { color: v.$text-primary; background: v.$bg-elevated; }
+  &--danger:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+}
+
+.create-inline {
+  display: flex; gap: 8px; align-items: center;
+  input {
+    flex: 1; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    border-radius: 6px; color: v.$text-primary; font-size: 13px;
+    padding: 6px 10px; outline: none;
+    &:focus { border-color: v.$primary; }
+  }
+}
+
+.btn-secondary, .btn-primary, .btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 6px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; transition: opacity 0.15s;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.btn-sm { padding: 6px 12px; }
+.btn-secondary {
+  background: v.$bg-elevated; color: v.$text-primary;
+  &:hover:not(:disabled) { background: v.$bg-border; }
+}
+.btn-primary {
+  background: v.$primary; color: #fff;
+  &:hover:not(:disabled) { opacity: 0.85; }
+}
+.btn-ghost {
+  background: none; color: v.$text-muted;
+  &:hover { color: v.$text-primary; }
+}
+
+.spin { animation: spin-anim 0.8s linear infinite; }
+@keyframes spin-anim { to { transform: rotate(360deg); } }

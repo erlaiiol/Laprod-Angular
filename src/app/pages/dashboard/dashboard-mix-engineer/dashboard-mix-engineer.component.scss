@@ -89,6 +89,15 @@
   &:not(.active):hover { color: v.$text-primary; }
 }
 
+.tab-btn--link { text-decoration: none; &.active { color: v.$text-primary; border-bottom-color: v.$tag-blue; } }
+.tab-btn--beta { pointer-events: none; opacity: 0.5; }
+.tab-beta-badge {
+  font-size: 0.65rem; font-weight: 700;
+  background: v.$bg-elevated; color: v.$text-muted;
+  border-radius: 4px; padding: 0.05rem 0.3rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
 .tab-count {
   background: v.$bg-elevated; color: v.$text-muted;
   padding: 0.05rem 0.4rem; border-radius: 10px; font-size: 0.72rem;

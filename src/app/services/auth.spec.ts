@@ -27,6 +27,7 @@ const mockUser: User = {
   upload_track_tokens: 2,
   topline_tokens: 0,
   is_premium: false,
+  subscription_plan: 'free',
   preferred_tag_category: null,
 };
 

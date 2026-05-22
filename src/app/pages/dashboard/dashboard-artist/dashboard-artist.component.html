@@ -110,6 +110,14 @@
           <span class="tab-count">{{ (purchases()!.purchases.length + purchases()!.mm_orders.length) }}</span>
         }
       </button>
+      <a class="tab-btn tab-btn--link" routerLink="/contract-builder" routerLinkActive="active">
+        <i class="bi bi-pencil-square"></i> Contract Builder
+      </a>
+      <a class="tab-btn tab-btn--link tab-btn--beta" routerLink="/contract-analyzer"
+         title="En cours de développement">
+        <i class="bi bi-shield-check"></i> Analyzer
+        <span class="tab-beta-badge">bêta</span>
+      </a>
     </div>
 
     <!-- ── Toplines ───────────────────────────────────────────────────────── -->

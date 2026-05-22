@@ -1,0 +1,42 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Chargement...</span>
+    </div>
+  </div>
+} @else if (error()) {
+  <div class="state-error">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ error() }}
+  </div>
+} @else if (playlist()) {
+  <div class="playlist-page">
+
+    <div class="playlist-header">
+      <img class="playlist-cover"
+           [src]="coverUrl(playlist()!.image_file)"
+           onerror="this.src='assets/placeholders/placeholder-track.png'"
+           alt="">
+      <div class="playlist-meta">
+        <h1 class="playlist-title">{{ playlist()!.title }}</h1>
+        <a class="playlist-author"
+           [routerLink]="['/profile', playlist()!.beatmaker_username]">
+          <i class="bi bi-person-fill"></i> {{ playlist()!.beatmaker_username }}
+        </a>
+        <p class="playlist-count">{{ playlist()!.track_count }} track(s)</p>
+      </div>
+    </div>
+
+    <div id="tracks-container">
+      @if (playlist()!.tracks.length === 0) {
+        <div class="state-empty">
+          <i class="bi bi-music-note-list"></i>
+          <p>Aucun morceau dans cette playlist.</p>
+        </div>
+      }
+      @for (track of playlist()!.tracks; track track.id) {
+        <app-track-card [track]="track"></app-track-card>
+      }
+    </div>
+
+  </div>
+}

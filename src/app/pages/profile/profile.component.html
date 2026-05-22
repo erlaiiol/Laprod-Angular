@@ -155,6 +155,35 @@
         </div>
       }
     </div>
+
+    @if (playlists().length > 0) {
+      <div class="playlists-section">
+        <h2 class="playlists-heading">
+          <i class="bi bi-collection-play-fill"></i>
+          Playlists de {{ profile()!.username }}
+        </h2>
+        <div class="playlists-grid">
+          @for (pl of playlists(); track pl.id) {
+            <a class="pl-card" [routerLink]="['/playlist', pl.id]">
+              <div class="pl-card-img-wrap">
+                <img class="pl-card-img"
+                     [src]="playlistImgUrl(pl.image_file)"
+                     onerror="this.src='assets/placeholders/placeholder-track.png'"
+                     alt="">
+                @if (containingIds().has(pl.id)) {
+                  <span class="pl-check-badge">
+                    <i class="bi bi-check-lg"></i>
+                  </span>
+                }
+              </div>
+              <span class="pl-card-title">{{ pl.title }}</span>
+              <span class="pl-card-count">{{ pl.track_count }} track(s)</span>
+            </a>
+          }
+        </div>
+      </div>
+    }
+
   }
 
 </div>

@@ -168,7 +168,9 @@ export class PlayerService {
       style:           '',
       price_mp3:       0,
       tags:            [],
-      is_approved:     true,
+      is_approved:         true,
+      playlist_count:      0,
+      first_playlist_image: null,
     };
     this.playOnReady = true;
     this.currentTrack.set(track);

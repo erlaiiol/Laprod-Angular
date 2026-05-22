@@ -41,6 +41,9 @@ export interface Track {
   tags:            { id: number, name: string; category: string; color: string }[];  // tableau d'objets
   is_approved:     boolean;
   full_stream_url: string | null;
+  // Données playlist (toujours présentes dans les listings, 0 / null si absent)
+  playlist_count:       number;
+  first_playlist_image: string | null;
 }
 
 // Correspond au JSON global retourné par jsonify({...}) dans get_tracks()

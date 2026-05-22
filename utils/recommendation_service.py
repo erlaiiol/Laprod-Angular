@@ -223,3 +223,47 @@ def get_cold_start_tracks(limit: int = 20) -> list[Track]:
     )
     tracks.sort(key=lambda t: (t.purchase_count, t.created_at.timestamp()), reverse=True)
     return tracks[:limit]
+
+
+# ── Signal playlist browse ─────────────────────────────────────────────────────
+
+def record_playlist_browse(user_id: int, beatmaker_id: int, tracks: list) -> None:
+    """
+    Enregistre un signal de découverte lorsqu'un utilisateur parcourt une playlist.
+
+    Crée des ListenEvent synthétiques (completion_ratio=0.2, ~30% d'une écoute passive)
+    pour chaque track de la playlist, au même format que les vraies écoutes.
+    Cela s'intègre naturellement dans build_user_vector() sans Redis supplémentaire.
+
+    On évite de polluer l'historique avec des doublons : si un ListenEvent existe
+    déjà dans les dernières 24h pour le même (user_id, track_id), on ne réinsère pas.
+    """
+    if len(tracks) < 3:
+        return
+
+    from datetime import timedelta
+    from models import ListenEvent
+
+    cutoff = datetime.now() - timedelta(hours=24)
+    existing_ids: set[int] = {
+        row[0]
+        for row in db.session.query(ListenEvent.track_id)
+        .filter(
+            ListenEvent.user_id == user_id,
+            ListenEvent.created_at >= cutoff,
+        )
+        .all()
+    }
+    new_events = []
+    for track in tracks:
+        if track.id in existing_ids:
+            continue
+        new_events.append(ListenEvent(
+            user_id=user_id,
+            track_id=track.id,
+            track_duration=float(getattr(track, 'duration', 120)),
+            completion_ratio=0.2,
+        ))
+    if new_events:
+        db.session.add_all(new_events)
+        db.session.commit()

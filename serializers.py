@@ -25,6 +25,7 @@ Usage dans un blueprint :
 """
 
 from flask import jsonify
+from sqlalchemy import func
 
 
 # =============================================================================
@@ -152,12 +153,15 @@ def tag(t) -> dict:
 # Track serializers
 # =============================================================================
 
-def track_card(t) -> dict:
+def track_card(t, playlist_counts: dict | None = None, playlist_images: dict | None = None) -> dict:
     """
     Card catalogue / player card.
     Shape minimal exposé sur la home page, le catalogue, et le player.
     `composer_user` inclut id + profile_image pour permettre les liens de profil
     sans second appel API.
+
+    playlist_counts et playlist_images sont des dicts pré-calculés (id → valeur)
+    passés par l'appelant pour éviter le N+1. Si absents, les champs valent 0 / None.
     """
     return {
         'id':          t.id,
@@ -175,7 +179,48 @@ def track_card(t) -> dict:
         'created_at':  t.created_at.isoformat() if t.created_at else None,
         'composer_user': user_ref(t.composer_user),
         'tags':          [tag(tg) for tg in t.tags],
+        # Données playlist (champ toujours présent, 0 / None si non renseigné)
+        'playlist_count':       (playlist_counts or {}).get(t.id, 0),
+        'first_playlist_image': (playlist_images or {}).get(t.id),
     }
+
+
+def playlist_stats_for_tracks(track_ids: list[int]) -> tuple[dict, dict]:
+    """
+    Retourne (counts_dict, first_images_dict) pour une liste de track IDs.
+    Une seule passe SQL par dict, sans N+1.
+    Doit être appelé depuis un contexte Flask avec db disponible.
+    """
+    if not track_ids:
+        return {}, {}
+    from extensions import db
+    from models import playlist_track, Playlist
+
+    counts = dict(
+        db.session.query(playlist_track.c.track_id, func.count(playlist_track.c.playlist_id))
+        .filter(playlist_track.c.track_id.in_(track_ids))
+        .group_by(playlist_track.c.track_id)
+        .all()
+    )
+    subq = (
+        db.session.query(
+            playlist_track.c.track_id,
+            Playlist.image_file,
+            func.row_number().over(
+                partition_by=playlist_track.c.track_id,
+                order_by=playlist_track.c.playlist_id,
+            ).label('rn'),
+        )
+        .join(Playlist, Playlist.id == playlist_track.c.playlist_id)
+        .filter(playlist_track.c.track_id.in_(track_ids))
+        .subquery()
+    )
+    images = dict(
+        db.session.query(subq.c.track_id, subq.c.image_file)
+        .filter(subq.c.rn == 1)
+        .all()
+    )
+    return counts, images
 
 
 def track_detail(t) -> dict:

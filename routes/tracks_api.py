@@ -22,7 +22,7 @@ import uuid as _uuid
 from extensions import db, limiter, csrf, redis_client
 from models import Track, Tag, Category, User, Topline
 from helpers import generate_track_image
-from serializers import ok, err, track_card, track_detail, topline as ser_topline
+from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
 from utils.crud_helpers import (
     get_or_404, require_ownership,
@@ -217,8 +217,9 @@ def get_tracks():
         count_query = track_query.with_only_columns(func.count()).order_by(None)
         total = db.session.execute(count_query).scalar()
 
+        pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
         return ok({
-            'tracks': [track_card(t) for t in tracks],
+            'tracks': [track_card(t, pl_counts, pl_images) for t in tracks],
             'pagination': {
                 'page':     page,
                 'per_page': per_page,

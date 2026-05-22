@@ -103,7 +103,7 @@ def user(db):
         account_status='active',
         user_type_selected=True,
         is_beatmaker=True,
-        is_premium=True,
+        subscription_plan='pro',
     )
     u.set_password('TestPassword123!')
     db.session.add(u)

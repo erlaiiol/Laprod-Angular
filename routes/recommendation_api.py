@@ -10,8 +10,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from extensions import db
 from models import ListenEvent
-from serializers import ok
-from serializers import track_card
+from serializers import ok, track_card, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
 from utils.recommendation_service import (
     build_user_vector,
@@ -40,8 +39,9 @@ def get_recommendation_tracks():
         tracks = get_cold_start_tracks()
         is_personalized = False
 
+    pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
     return ok({
-        'tracks': [track_card(t) for t in tracks],
+        'tracks': [track_card(t, pl_counts, pl_images) for t in tracks],
         'is_personalized': is_personalized,
     })
 

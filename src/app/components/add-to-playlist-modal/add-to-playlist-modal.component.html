@@ -1,0 +1,55 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal modal--playlist" (click)="$event.stopPropagation()">
+
+    <button class="btn-icon-close" (click)="close()">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <h3><i class="bi bi-collection-play"></i> Ajouter à une playlist</h3>
+
+    @if (loading()) {
+      <div class="modal-loading">
+        <i class="bi bi-arrow-repeat spin"></i>
+      </div>
+    } @else {
+
+      <div class="pl-list">
+        @for (pl of playlists(); track pl.id) {
+          <label class="pl-check-row">
+            <input type="checkbox"
+                   [checked]="containingIds().has(pl.id)"
+                   (change)="toggle(pl, $event)">
+            <img class="pl-thumb" [src]="imgUrl(pl.image_file)"
+                 onerror="this.src='assets/placeholders/placeholder-track.png'" alt="">
+            <span class="pl-row-title">{{ pl.title }}</span>
+            <small class="pl-track-count">{{ pl.track_count }} track(s)</small>
+          </label>
+        }
+
+        @if (playlists().length === 0) {
+          <p class="pl-empty">Aucune playlist. Créez-en une ci-dessous.</p>
+        }
+      </div>
+
+      @if (!showCreate()) {
+        <button class="btn-secondary btn-sm" (click)="showCreate.set(true)">
+          <i class="bi bi-plus"></i> Nouvelle playlist
+        </button>
+      } @else {
+        <div class="create-inline">
+          <input [(ngModel)]="newTitle"
+                 placeholder="Titre de la playlist"
+                 maxlength="200"
+                 (keydown.enter)="createAndAdd()">
+          <button class="btn-primary btn-sm"
+                  (click)="createAndAdd()"
+                  [disabled]="!newTitle.trim() || creating()">
+            @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
+          </button>
+          <button class="btn-ghost btn-sm" (click)="showCreate.set(false)">Annuler</button>
+        </div>
+      }
+
+    }
+  </div>
+</div>

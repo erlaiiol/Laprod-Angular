@@ -323,3 +323,78 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Playlists section ─────────────────────────────────────────────────────────
+
+.playlists-section {
+  margin-top: 48px;
+}
+
+.playlists-heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: v.$text-primary;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.playlists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.pl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: v.$text-primary;
+  transition: opacity 0.15s;
+
+  &:hover { opacity: 0.8; }
+}
+
+.pl-card-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.pl-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.pl-check-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: v.$primary;
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pl-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pl-card-count {
+  font-size: 11px;
+  color: v.$text-secondary;
+}

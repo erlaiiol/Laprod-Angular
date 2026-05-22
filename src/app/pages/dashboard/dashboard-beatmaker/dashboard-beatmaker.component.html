@@ -53,6 +53,17 @@
         <i class="bi bi-bag-check"></i> Ventes
         <span class="tab-count">{{ data()!.sales.length }}</span>
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'playlists'" (click)="setTab('playlists')">
+        <i class="bi bi-collection-play"></i> Playlists
+      </button>
+      <a class="tab-btn tab-btn--link" routerLink="/contract-builder" routerLinkActive="active">
+        <i class="bi bi-pencil-square"></i> Contract Builder
+      </a>
+      <a class="tab-btn tab-btn--link tab-btn--beta" routerLink="/contract-analyzer"
+         title="En cours de développement">
+        <i class="bi bi-shield-check"></i> Analyzer
+        <span class="tab-beta-badge">bêta</span>
+      </a>
     </div>
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
@@ -140,17 +151,80 @@
       }
     }
 
-    <!-- Contrats Pro -->
-    <div class="pro-contracts-block" [class.locked]="!auth.isPremium()">
-      <h3><i class="bi bi-file-earmark-text"></i> Contrats Pro</h3>
-      <div class="pro-contracts-links">
-        <a routerLink="/contract-builder"><i class="bi bi-pencil-square"></i> Créer un contrat</a>
-        <a routerLink="/contract-analyzer"><i class="bi bi-shield-check"></i> Analyser un contrat</a>
+    <!-- ── Tab : Playlists ────────────────────────────────────────────────── -->
+    @if (activeTab() === 'playlists') {
+      <div class="playlists-tab">
+
+        <div class="pl-tab-header">
+          <h3>Mes playlists</h3>
+          @if (!showCreateForm()) {
+            <button class="btn-secondary btn-sm" (click)="showCreateForm.set(true)">
+              <i class="bi bi-plus"></i> Nouvelle playlist
+            </button>
+          }
+        </div>
+
+        @if (showCreateForm()) {
+          <div class="create-inline">
+            <input [(ngModel)]="newTitle" placeholder="Titre de la playlist" maxlength="200"
+                   (keydown.enter)="createPlaylist()">
+            <button class="btn-primary btn-sm" (click)="createPlaylist()"
+                    [disabled]="!newTitle.trim() || creating()">
+              @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
+            </button>
+            <button class="btn-ghost btn-sm" (click)="showCreateForm.set(false)">Annuler</button>
+          </div>
+        }
+
+        @if (playlistsLoading()) {
+          <div class="state-loading"><div class="spinner"></div></div>
+        } @else if (playlists().length === 0) {
+          <div class="empty-state">
+            <i class="bi bi-collection-play"></i>
+            <p>Aucune playlist pour l'instant.</p>
+          </div>
+        } @else {
+          <div class="pl-grid">
+            @for (pl of playlists(); track pl.id) {
+              <div class="pl-dash-card">
+                <a [routerLink]="['/playlist', pl.id]">
+                  <img class="pl-dash-img"
+                       [src]="imgUrl(pl.image_file)"
+                       onerror="this.src='assets/placeholders/placeholder-track.png'"
+                       alt="">
+                </a>
+                <div class="pl-dash-info">
+                  @if (editingId() === pl.id) {
+                    <div class="rename-inline">
+                      <input [(ngModel)]="editTitle" maxlength="200"
+                             (keydown.enter)="saveRename(pl)"
+                             (keydown.escape)="cancelRename()">
+                      <button class="btn-primary btn-sm" (click)="saveRename(pl)"
+                              [disabled]="!editTitle.trim() || renameSaving()">
+                        @if (renameSaving()) { <i class="bi bi-arrow-repeat spin"></i> } @else { OK }
+                      </button>
+                      <button class="btn-ghost btn-sm" (click)="cancelRename()">✕</button>
+                    </div>
+                  } @else {
+                    <a class="pl-dash-title" [routerLink]="['/playlist', pl.id]">{{ pl.title }}</a>
+                  }
+                  <span class="pl-dash-count">{{ pl.track_count }} track(s)</span>
+                </div>
+                <div class="pl-dash-actions">
+                  <button class="btn-icon" title="Renommer" (click)="startRename(pl)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn-icon btn-icon--danger" title="Supprimer" (click)="deletePlaylist(pl)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
       </div>
-      @if (!auth.isPremium()) {
-        <p class="upgrade-hint">Disponible avec LaProd+ · <a routerLink="/premium">En savoir plus</a></p>
-      }
-    </div>
+    }
 
   </div>
 }

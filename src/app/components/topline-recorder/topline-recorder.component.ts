@@ -213,6 +213,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
           full_stream_url: null,
           image_file:    this.track.image_file,
           bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
+          playlist_count: 0, first_playlist_image: null,
         });
         this.loadingAudio.set(false);
         this.cdr.markForCheck();

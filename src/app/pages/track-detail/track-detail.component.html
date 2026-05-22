@@ -44,6 +44,15 @@
             <a [routerLink]="['/edit-track', track()!.id]" class="btn-edit">
               <i class="bi bi-pencil-fill"></i> Modifier
             </a>
+            <button class="btn-playlist" (click)="showPlaylistModal.set(true)">
+              <i class="bi bi-collection-play-fill"></i> Playlists
+            </button>
+          }
+          @if (showPlaylistModal()) {
+            <app-add-to-playlist-modal
+              [trackId]="track()!.id"
+              (closed)="showPlaylistModal.set(false)">
+            </app-add-to-playlist-modal>
           }
         </div>
 

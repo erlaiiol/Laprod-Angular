@@ -80,7 +80,7 @@ describe('WalletService', () => {
   it('withdraw() sends the amount as a number (not a string)', () => {
     service.withdraw(100).subscribe();
 
-    const req = httpMock.expectOne(`${CUD_URL}/withdraw`);
+    const req = httpMock.expectOne(`${WALLET_URL}/withdraw`);
     expect(typeof req.request.body.amount).toBe('number');
     req.flush({ success: true, data: { transfer_id: 'tr_test', amount: 100 } });
   });

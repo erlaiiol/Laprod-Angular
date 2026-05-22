@@ -590,8 +590,34 @@ class Track(db.Model):
 
     def __repr__(self):
         return f"<Track {self.title} by {self.composer_user.username}>"
-    
 
+
+# ── Playlists ─────────────────────────────────────────────────────────────────
+
+playlist_track = db.Table(
+    'playlist_track',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlist.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('track_id',    db.Integer, db.ForeignKey('track.id',    ondelete='CASCADE'), primary_key=True),
+    db.Column('position',    db.Integer, default=0),
+    db.Column('added_at',    db.DateTime, default=datetime.now),
+)
+
+
+class Playlist(db.Model):
+    __tablename__ = 'playlist'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    beatmaker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title        = db.Column(db.String(200), nullable=False)
+    image_file   = db.Column(db.String(200), nullable=True)
+    created_at   = db.Column(db.DateTime, default=datetime.now)
+
+    beatmaker = db.relationship('User', backref=db.backref('playlists', cascade='all, delete-orphan'))
+    tracks    = db.relationship('Track', secondary=playlist_track, backref='playlists',
+                                order_by=playlist_track.c.position)
+
+    def __repr__(self):
+        return f"<Playlist '{self.title}' by user#{self.beatmaker_id}>"
 
 
 class Topline(db.Model):

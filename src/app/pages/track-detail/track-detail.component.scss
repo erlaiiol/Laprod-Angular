@@ -221,6 +221,23 @@
   &:hover { background-color: v.$tag-orange; border-color: v.$tag-orange-dark; }
 }
 
+.btn-playlist {
+  background-color: #4b5563;
+  border:           1px solid #6b7280;
+  color:            #f3f4f6;
+  border-radius:    6px;
+  padding:          0.25rem 0.5rem;
+  font-size:        0.75rem;
+  font-weight:      600;
+  cursor:           pointer;
+  display:          inline-flex;
+  align-items:      center;
+  gap:              0.3rem;
+  transition:       background-color 0.15s;
+
+  &:hover { background-color: #6b7280; }
+}
+
 .btn-record {
   display:      flex;
   align-items:  center;

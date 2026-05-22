@@ -1,0 +1,48 @@
+.playlist-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text-muted, #9ca3af);
+
+  &:hover { color: var(--text-primary, #f3f4f6); }
+}
+
+// Stack visuelle des pochettes de playlists
+.pl-stack {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.pl-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+// Petits carrés gris "derrière" la pochette principale
+.pl-ghost {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #4b5563;
+  border-radius: 3px;
+
+  &--2 { transform: translate(3px, -3px); }
+  &--3 { transform: translate(6px, -6px); }
+}
+
+// Badge "+N"
+.pl-count {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-muted, #9ca3af);
+}

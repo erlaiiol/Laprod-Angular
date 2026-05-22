@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
+import { PlaylistService, Playlist } from '../../services/playlist.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -19,9 +20,14 @@ export class ProfileComponent implements OnInit {
 
   staticBase = `/db_assets/`;
 
-  loading = signal(true);
-  error   = signal<string | null>(null);
-  profile = signal<UserProfile | null>(null);
+  loading         = signal(true);
+  error           = signal<string | null>(null);
+  profile         = signal<UserProfile | null>(null);
+  playlists       = signal<Playlist[]>([]);
+  containingIds   = signal(new Set<number>());
+  highlightTrackId = signal<number | null>(null);
+
+  private playlistSvc = inject(PlaylistService);
 
   constructor(
     private route:      ActivatedRoute,
@@ -38,17 +44,25 @@ export class ProfileComponent implements OnInit {
       const username = params.get('username') ?? '';
       this.loadProfile(username);
     });
-    
   }
 
   loadProfile(username: string): void {
     this.loading.set(true);
     this.error.set(null);
+    this.playlists.set([]);
+    this.containingIds.set(new Set());
+
+    const highlightTrack = Number(this.route.snapshot.queryParamMap.get('highlight_track')) || null;
+    this.highlightTrackId.set(highlightTrack);
+
     this.userSvc.getProfile(username).subscribe({
       next: res => {
         this.loading.set(false);
         if (res.success && res.data) {
           this.profile.set(res.data.user);
+          if (res.data.user.roles.is_beatmaker) {
+            this.loadPlaylists(username, highlightTrack);
+          }
         } else {
           this.error.set(res.feedback?.message ?? 'Profil introuvable.');
         }
@@ -61,6 +75,25 @@ export class ProfileComponent implements OnInit {
         this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger le profil.');
       },
     });
+  }
+
+  private loadPlaylists(username: string, highlightTrackId: number | null): void {
+    this.playlistSvc.getByBeatmaker(username).subscribe({
+      next: res => {
+        this.playlists.set(res.data ?? []);
+        if (highlightTrackId && (res.data ?? []).length > 0) {
+          this.playlistSvc.getContaining(highlightTrackId, username).subscribe({
+            next: r => this.containingIds.set(new Set(r.data ?? [])),
+          });
+        }
+      },
+    });
+  }
+
+  playlistImgUrl(path: string | null): string {
+    if (!path) return '/assets/placeholders/placeholder-track.png';
+    if (path.startsWith('http')) return path;
+    return `${environment.apiUrl}/db_assets/${path}`;
   }
 
   isOwnProfile(): boolean {

@@ -13,12 +13,13 @@ import { Track, TrackService } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { FavoriteButtonComponent } from '../favorite-button/favorite-button.component';
+import { PlaylistButtonComponent } from '../playlist-button/playlist-button.component';
 
 
 @Component({
   selector: 'app-track-card',
   standalone: true,
-  imports: [CommonModule, RouterModule, FavoriteButtonComponent],
+  imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent],
   templateUrl: './track-card.component.html',
   styleUrls:   ['./track-card.component.scss']
 })

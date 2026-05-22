@@ -36,6 +36,7 @@ import { BuilderFormComponent }       from './pages/contract-builder/builder-for
 import { ContractAnalyzerComponent }  from './pages/contract-analyzer/contract-analyzer.component';
 import { PremiumComponent }           from './pages/premium/premium.component';
 import { SubmitMasterSampleComponent } from './pages/auth/submit-master-sample/submit-master-sample.component';
+import { PlaylistComponent }          from './pages/playlist/playlist.component';
 import { CguComponent }               from './pages/legal/cgu/cgu.component';
 import { PrivacyComponent }           from './pages/legal/privacy/privacy.component';
 import { MentionsLegalesComponent }   from './pages/legal/mentions-legales/mentions-legales.component';
@@ -50,6 +51,7 @@ export const routes: Routes = [
   { path: 'complete-profile',              component: CompleteProfileComponent },
   { path: 'select-role',                   component: SelectRoleComponent },
   { path: 'track/:id',                     component: TrackDetailComponent },
+  { path: 'playlist/:id',                  component: PlaylistComponent },
   { path: 'edit-track/:id',                component: EditTrackComponent,               canActivate: [authGuard] },
   { path: 'contract/:trackId/:format',     component: ContractConfigComponent,          canActivate: [authGuard] },
   { path: 'wallet',                        component: WalletComponent,                  canActivate: [authGuard] },
