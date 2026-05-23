@@ -11,6 +11,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 //        └── service Angular qui effectue les requêtes HTTP (fetch côté navigateur)
 
 import { Observable, tap } from 'rxjs';
+import { ApiResponse } from './topline.service';
 // Observable = "promesse améliorée" de RxJS.
 // Représente une valeur qui arrivera dans le futur (la réponse HTTP).
 // Le composant s'y abonne avec .subscribe().
@@ -193,6 +194,23 @@ export class TrackService {
     const params = excludeId ? `?exclude_id=${excludeId}` : '';
     return this.http.get<{ success: boolean; data: { track: Track } }>(
       `${this.tracksApiUrl}/random${params}`
+    );
+  }
+
+
+  // ── Enregistrement d'une vue (fire-and-forget) ──────────────────────────
+
+  recordView(trackId: number, source: 'player' | 'detail'): void {
+    this.http.post(`${this.tracksApiUrl}/track/${trackId}/view`, { source }).subscribe({
+      error: () => {}  // silencieux — analytics non bloquants
+    });
+  }
+
+  // ── Stats de vues pour le beatmaker connecté ────────────────────────────
+
+  getViewStats(): Observable<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>> {
+    return this.http.get<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>>(
+      `${this.tracksApiUrl}/my/view-stats`
     );
   }
 

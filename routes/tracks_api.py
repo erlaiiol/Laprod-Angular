@@ -15,12 +15,13 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
+import hashlib
 import shutil
 import config
 import uuid as _uuid
 
 from extensions import db, limiter, csrf, redis_client
-from models import Track, Tag, Category, User, Topline
+from models import Track, Tag, Category, User, Topline, TrackView
 from helpers import generate_track_image
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
@@ -629,3 +630,94 @@ def delete_track(track_id, current_user):
 
     current_app.logger.info(f'Track #{track_id} "{title}" supprimé par user #{current_user.id}')
     return ok(message=f'Track "{title}" supprimé avec succès', level='info')
+
+
+# ── Enregistrement d'une vue ──────────────────────────────────────────────────
+# Fire-and-forget depuis Angular au chargement du player ou de track-detail.
+# Déduplique par ip_hash + track_id sur une fenêtre de 24 h pour les vues uniques.
+
+@tracks_api_bp.route('/track/<int:track_id>/view', methods=['POST'])
+@csrf.exempt
+@limiter.limit('60 per minute')
+def record_track_view(track_id):
+    track = db.session.get(Track, track_id)
+    if not track:
+        return err('Track introuvable', status=404)
+
+    source = (request.get_json(silent=True) or {}).get('source', 'player')
+    if source not in ('player', 'detail'):
+        source = 'player'
+
+    # IP hash — on ne stocke jamais l'IP brute
+    raw_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    ip_hash = hashlib.sha256(raw_ip.encode()).hexdigest()[:32]
+
+    # Récupération optionnelle du user connecté (JWT non obligatoire)
+    user_id = None
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+        if identity:
+            user_id = int(identity)
+    except Exception:
+        pass
+
+    # Déduplification : une seule vue par (track, ip_hash) dans les dernières 24 h
+    from datetime import timedelta
+    cutoff = datetime.now() - timedelta(hours=24)
+    already = db.session.query(TrackView).filter(
+        TrackView.track_id == track_id,
+        TrackView.ip_hash  == ip_hash,
+        TrackView.created_at >= cutoff,
+    ).first()
+
+    if not already:
+        db.session.add(TrackView(
+            track_id=track_id,
+            user_id=user_id,
+            ip_hash=ip_hash,
+            source=source,
+        ))
+        db.session.commit()
+
+    return ok(message='ok')
+
+
+# ── Stats de vues par track (beatmaker dashboard) ─────────────────────────────
+# Retourne total_views + unique_views pour chaque track du beatmaker connecté.
+# Agrégation en deux requêtes groupées — pas de N+1.
+
+@tracks_api_bp.route('/my/view-stats', methods=['GET'])
+@jwt_required()
+@require_user
+def my_view_stats(current_user):
+    track_ids = [
+        row[0] for row in
+        db.session.query(Track.id).filter_by(composer_id=current_user.id).all()
+    ]
+    if not track_ids:
+        return ok({'stats': []})
+
+    totals = dict(
+        db.session.query(TrackView.track_id, func.count(TrackView.id))
+        .filter(TrackView.track_id.in_(track_ids))
+        .group_by(TrackView.track_id)
+        .all()
+    )
+    # Vue unique = ip_hash distinct par track
+    uniques = dict(
+        db.session.query(TrackView.track_id, func.count(TrackView.ip_hash.distinct()))
+        .filter(TrackView.track_id.in_(track_ids))
+        .group_by(TrackView.track_id)
+        .all()
+    )
+
+    stats = [
+        {
+            'track_id':    tid,
+            'total_views':  totals.get(tid, 0),
+            'unique_views': uniques.get(tid, 0),
+        }
+        for tid in track_ids
+    ]
+    return ok({'stats': stats})

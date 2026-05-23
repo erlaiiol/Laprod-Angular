@@ -112,7 +112,7 @@ class BaseContractAI(ABC):
 
 class MistralContractAI(BaseContractAI):
     def __init__(self) -> None:
-        from mistralai import Mistral  # import local pour ne pas planter si non installé
+        from mistralai.client import Mistral  # mistralai v2 — import depuis le sous-module
         api_key = os.environ.get('MISTRAL_API_KEY')
         if not api_key:
             raise EnvironmentError("La variable d'environnement MISTRAL_API_KEY est manquante.")

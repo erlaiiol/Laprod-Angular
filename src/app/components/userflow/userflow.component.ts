@@ -101,10 +101,10 @@ export class UserflowComponent implements OnDestroy {
       title: 'Acheter un service Mix / Master',
       tagline: 'Confiez votre son à des ingénieurs certifiés par LaProd.',
       steps: [
-        { text: 'Parcourir les ingénieurs disponibles, écouter leurs previews et comparer les profils.' },
-        { text: 'Sélectionner les services (mixage, mastering, arrangement) et personnaliser la commande.' },
-        { text: 'Payer en ligne — les fonds sont bloqués en escrow jusqu\'à la livraison et validation.' },
-        { text: 'Envoyer ses fichiers séparés (stems / pistes). Valider ou demander des retouches depuis son espace.' },
+        { text: 'Parcourez les ingénieurs disponibles, écoutez leurs previews et comparez les profils.' },
+        { text: 'Sélectionnez les services (mixage, mastering, arrangement) et personnalisez la commande.' },
+        { text: 'Payez en ligne — les fonds sont bloqués jusqu\'à la livraison et validation.' },
+        { text: 'Envoyez ses fichiers séparés (stems / pistes). Validez ou demandez des retouches depuis son espace.' },
       ],
       cta: { label: 'Voir les ingénieurs', link: '/mixmaster/engineers' },
     },
@@ -114,9 +114,9 @@ export class UserflowComponent implements OnDestroy {
       title: 'Vendre ses services Mix / Master',
       tagline: 'Monétisez votre expertise audio. Recevez des commandes, livrez, encaissez.',
       steps: [
-        { text: 'Activer le rôle « Mix / Master Engineer » et soumettre un exemple pour être certifié depuis ', link: '/edit-profile', linkLabel: 'Modifier le profil' },
-        { text: 'Définir son prix de référence et son prix minimum (négociation automatique avec les clients).' },
-        { text: 'Recevoir des commandes, traiter les fichiers dans son DAW, et livrer depuis son dashboard.' },
+        { text: 'Activez le rôle « Mix / Master Engineer » et soumettez un exemple pour être certifié depuis ', link: '/edit-profile', linkLabel: 'Modifier le profil' },
+        { text: 'Définissez votre prix de référence et votre prix minimum (négociation automatique avec les clients).' },
+        { text: 'Recevez des commandes, traitez les fichiers dans votre DAW, et livrez depuis le dashboard.' },
         { text: 'LaProd+ Pro débloque le mastering certifié et un badge doré visible par les clients.', link: '/premium', linkLabel: 'LaProd+ Pro' },
       ],
       cta: { label: 'Devenir ingénieur', link: '/edit-profile' },
@@ -124,7 +124,7 @@ export class UserflowComponent implements OnDestroy {
     {
       icon: 'bi-file-earmark-text-fill',
       color: 'pink',
-      title: 'Contrats pro — protéger tout le monde',
+      title: 'Contrats pro — protégez tout le monde',
       tagline: 'Créez ou analysez des contrats clairs pour éviter les arnaques et les litiges.',
       steps: [
         { text: 'Le Contract Builder génère un contrat complet : parties, droits cédés, royalties, exclusivité.', link: '/contract-builder', linkLabel: '' },
@@ -138,7 +138,7 @@ export class UserflowComponent implements OnDestroy {
       icon: 'bi-mic-fill',
       color: 'indigo',
       title: 'Toplines — Écrire & chanter sur des beats',
-      tagline: 'La killer feature : autotune en ligne, gratuit, sans logiciel à installer.',
+      tagline: 'utotune en ligne, gratuit, sans logiciel à installer.',
       steps: [
         { text: 'Choisir un beat dans la bibliothèque — il se lance directement dans le player.' },
         { text: 'Ouvrir l\'éditeur Topline : enregistrez votre voix par-dessus le beat en temps réel.' },

@@ -152,6 +152,13 @@ CONTRACT_TERRITORY_WORLD = 10
 
 
 # ============================================
+# CONTRACT ANALYZER — IA (Mistral)
+# ============================================
+MISTRAL_API_KEY      = os.environ.get('MISTRAL_API_KEY')
+MISTRAL_MODEL        = os.environ.get('MISTRAL_MODEL', 'mistral-large-latest')
+CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'mistral')
+
+# ============================================
 # SACEM CONFIGURATION
 # ============================================
 SACEM_URL = "https://www.sacem.fr"

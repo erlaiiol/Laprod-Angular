@@ -117,6 +117,11 @@ export class PlayerService {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
         .subscribe({ error: () => {} });
     }
+    // Vue de lecture — fire-and-forget, pas d'auth requise
+    if (track.id > 0) {
+      this.http.post(`${environment.apiUrl}/api/tracks/track/${track.id}/view`, { source: 'player' })
+        .subscribe({ error: () => {} });
+    }
   }
 
   pause(): void {

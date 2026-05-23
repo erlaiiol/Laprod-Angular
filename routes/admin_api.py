@@ -39,7 +39,7 @@ POST   /api/admin/tags                          → créer tag
 PUT    /api/admin/tags/<id>                     → modifier tag
 DELETE /api/admin/tags/<id>                     → supprimer tag
 """
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename

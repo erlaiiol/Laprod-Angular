@@ -182,3 +182,53 @@
   padding: 1rem 1.25rem;
   border-top: 1px solid #495057;
 }
+
+// ── Contrats Pro — section premium dans le dropdown ──────────────────────────
+
+.dropdown-header--pro {
+  color: #eab308;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 1rem 0.2rem;
+}
+
+.dropdown-item--pro {
+  color: #eab308 !important;
+  font-weight: 500;
+
+  i { opacity: 0.85; }
+
+  &:hover, &:focus {
+    background-color: rgba(234, 179, 8, 0.12) !important;
+    color: #fde047 !important;
+  }
+
+  &.active {
+    background-color: rgba(234, 179, 8, 0.2) !important;
+    color: #fde047 !important;
+  }
+}
+
+.dropdown-item--beta {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.nav-beta-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(234, 179, 8, 0.2);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}

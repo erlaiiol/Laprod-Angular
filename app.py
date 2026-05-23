@@ -103,6 +103,11 @@ def create_app(test_config=None):
     app.config['CONTRACT_TERRITORY_EUROPE'] = config.CONTRACT_TERRITORY_EUROPE
     app.config['CONTRACT_TERRITORY_WORLD'] = config.CONTRACT_TERRITORY_WORLD
 
+    # Contract Analyzer — IA Mistral
+    app.config['MISTRAL_API_KEY']      = config.MISTRAL_API_KEY
+    app.config['MISTRAL_MODEL']        = config.MISTRAL_MODEL
+    app.config['CONTRACT_AI_PROVIDER'] = config.CONTRACT_AI_PROVIDER
+
     # Mail Flask-Mail
     app.config['MAIL_SERVER'] = config.MAIL_SERVER
     app.config['MAIL_PORT'] = config.MAIL_PORT

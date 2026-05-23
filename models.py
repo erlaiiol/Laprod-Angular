@@ -1070,6 +1070,31 @@ class ListenEvent(db.Model):
         return f"<ListenEvent User#{self.user_id} Track#{self.track_id} {self.completion_ratio:.0%}>"
 
 
+class TrackView(db.Model):
+    """Impression de vue sur un track (player ou page détail).
+    user_id nullable → vues anonymes. ip_hash pour dédupliquer les vues uniques."""
+    __tablename__ = 'track_view'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id', ondelete='CASCADE'), nullable=False)
+    user_id  = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    ip_hash  = db.Column(db.String(64), nullable=False)   # SHA-256 tronqué de l'IP
+    source   = db.Column(db.String(32), nullable=False, default='player')  # 'player' | 'detail'
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    track = db.relationship('Track', backref='views')
+    user  = db.relationship('User',  backref='track_views')
+
+    __table_args__ = (
+        db.Index('ix_track_view_track',   'track_id'),
+        db.Index('ix_track_view_user',    'user_id'),
+        db.Index('ix_track_view_ip_date', 'track_id', 'ip_hash', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<TrackView Track#{self.track_id} source={self.source}>"
+
+
 class Notification(db.Model):
     """Rappel des 'nouvelles entrées' pour l'utilisateur
     en particulier pour ce qui concerne les ventes & achats"""

@@ -72,6 +72,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
           ];
           this.track.set({ ...t, toplines: merged });
           this.player.viewingTrack.set(t as any);
+          this.trackSvc.recordView(t.id, 'detail');
         } else {
           this.error.set('Track introuvable.');
         }

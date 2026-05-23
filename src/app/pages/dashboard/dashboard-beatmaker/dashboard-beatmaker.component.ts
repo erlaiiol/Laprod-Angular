@@ -7,9 +7,16 @@ import { AuthService } from '../../../services/auth.service';
 import {
   DashboardService, BeatmakerDashboard, BeatmakerTrack, SaleRecord,
 } from '../../../services/dashboard.service';
+import { TrackService } from '../../../services/track.service';
 import { ToastService } from '../../../services/toast.service';
 import { PlaylistService, Playlist } from '../../../services/playlist.service';
 import { environment } from '../../../../environments/environment';
+
+export interface TrackViewStat {
+  track_id:    number;
+  total_views:  number;
+  unique_views: number;
+}
 
 type Tab = 'tracks' | 'sales' | 'playlists';
 
@@ -37,8 +44,12 @@ export class DashboardBeatmakerComponent implements OnInit {
   editTitle        = '';
   renameSaving     = signal(false);
 
+  viewStats        = signal<TrackViewStat[]>([]);
+  viewStatsLoading = signal(false);
+
   readonly auth        = inject(AuthService);
   private dashboardSvc = inject(DashboardService);
+  private trackSvc     = inject(TrackService);
   private router       = inject(Router);
   private toast        = inject(ToastService);
   private playlistSvc  = inject(PlaylistService);
@@ -60,6 +71,17 @@ export class DashboardBeatmakerComponent implements OnInit {
         this.loading.set(false);
       },
     });
+
+    this.viewStatsLoading.set(true);
+    this.trackSvc.getViewStats().subscribe({
+      next: res => { this.viewStats.set(res.data?.stats ?? []); this.viewStatsLoading.set(false); },
+      error: () => this.viewStatsLoading.set(false),
+    });
+  }
+
+  viewStatFor(trackId: number): TrackViewStat {
+    return this.viewStats().find(s => s.track_id === trackId)
+      ?? { track_id: trackId, total_views: 0, unique_views: 0 };
   }
 
   setTab(tab: Tab): void {

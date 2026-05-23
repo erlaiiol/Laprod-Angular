@@ -121,6 +121,32 @@
                     </a>
                   </li>
                 }
+
+                <li><hr class="dropdown-divider"></li>
+
+                <li>
+                  <span class="dropdown-header dropdown-header--pro">
+                    @if (isPremium()) {
+                      <i class="bi bi-stars"></i>
+                    } @else {
+                      <i class="bi bi-lock-fill"></i>
+                    }
+                    Contrats Pro
+                  </span>
+                </li>
+                <li>
+                  <a class="dropdown-item dropdown-item--pro" [routerLink]="['/contract-builder']" routerLinkActive="active">
+                    <i class="bi bi-pencil-square"></i> Créer un contrat
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item dropdown-item--pro dropdown-item--beta" [routerLink]="['/contract-analyzer']" routerLinkActive="active"
+                     title="En cours de développement">
+                    <i class="bi bi-shield-check"></i> Analyser un contrat
+                    <span class="nav-beta-badge">bêta</span>
+                  </a>
+                </li>
+
               </ul>
             </li>
           }

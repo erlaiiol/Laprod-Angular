@@ -69,6 +69,7 @@ export class NavbarComponent implements OnInit {
   isArtist      = computed(() => this.authService.isArtist());
   isMixEngineer = computed(() => this.authService.isMixEngineer());
   isAdmin       = computed(() => this.authService.isAdmin());
+  isPremium     = computed(() => this.authService.isPremium());
   username      = computed(() => this.authService.currentUser()?.username || '');
   notifCount    = computed(() => this.notifSvc.unreadCount());
 

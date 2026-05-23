@@ -103,6 +103,13 @@
                   }
                 </span>
                 <span class="sales-count"><i class="bi bi-bag"></i> {{ track.sales_count }} vente(s)</span>
+                @if (!viewStatsLoading()) {
+                  <span class="view-count" title="Vues totales / uniques">
+                    <i class="bi bi-eye"></i>
+                    {{ viewStatFor(track.id).total_views }}
+                    <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
+                  </span>
+                }
               </div>
             </div>
           }
