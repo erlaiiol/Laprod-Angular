@@ -29,7 +29,7 @@ def upgrade():
         batch_op.add_column(sa.Column('contract_price_arrangement', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('contract_price_territory_eu', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('contract_price_territory_world', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('is_exclusive_sold', sa.Boolean(), nullable=False))
+        batch_op.add_column(sa.Column('is_exclusive_sold', sa.Boolean(), nullable=False, server_default=sa.text('false')))
         batch_op.add_column(sa.Column('exclusive_sold_at', sa.DateTime(), nullable=True))
         batch_op.add_column(sa.Column('exclusive_buyer_id', sa.Integer(), nullable=True))
         batch_op.create_foreign_key(None, 'user', ['exclusive_buyer_id'], ['id'])
