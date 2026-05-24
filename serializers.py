@@ -300,7 +300,7 @@ def mix_engineer(eng) -> dict:
     Inclut les prix calculés, les slots disponibles, et les URLs d'échantillons.
     """
     from models import MixMasterRequest  # import local pour éviter les imports circulaires
-    ref = eng.mixmaster_reference_price or 0
+    ref = float(eng.mixmaster_reference_price or 0)
     if ref and eng.is_certified_producer_arranger:
         price_max = round(ref * 1.80, 2)
     elif ref:
