@@ -981,3 +981,34 @@
 .bf-guide-sep {
   height: 1px; background: v.$bg-border; margin: 0.25rem 0;
 }
+
+.bf-fill-card {
+  background: color-mix(in srgb, v.$tag-violet 6%, transparent);
+  border: 1px solid color-mix(in srgb, v.$tag-violet 25%, transparent);
+  border-radius: 10px; padding: 0.85rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+
+.bf-fill-card-head {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; font-weight: 700; color: v.$tag-violet;
+}
+
+.bf-fill-count-badge {
+  margin-left: auto; font-size: 0.63rem; font-weight: 700;
+  background: color-mix(in srgb, v.$tag-violet 20%, transparent);
+  border-radius: 8px; padding: 0.1rem 0.45rem; color: v.$tag-violet;
+}
+
+.bf-fill-card-desc {
+  font-size: 0.75rem; color: v.$text-secondary; margin: 0; line-height: 1.4;
+}
+
+.bf-fill-card-btn {
+  background: transparent; border: 1px solid v.$tag-violet; color: v.$tag-violet;
+  border-radius: 7px; padding: 0.42rem 0.8rem; font-size: 0.78rem;
+  font-weight: 600; cursor: pointer; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  transition: background 0.15s, color 0.15s;
+  &:hover { background: v.$tag-violet; color: #fff; }
+}

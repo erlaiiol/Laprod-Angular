@@ -622,6 +622,49 @@ export class BuilderFormComponent implements OnInit {
     if (this.expandedTooltip() === clauseId) this.expandedTooltip.set(null);
   }
 
+  fillAllExamples(): void {
+    const introVars = this.introVarMap();
+    let filled = 0;
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        if (!clause.example_text) continue;
+        if (!['text', 'textarea', 'toggle_with_details'].includes(clause.clause_type)) continue;
+        const lv = this.getValue(clause.id, clause);
+        if (!lv.is_enabled && !clause.is_required) continue;
+        let text = clause.example_text;
+        for (const [bracket, value] of Object.entries(introVars)) {
+          if (value) text = text.replaceAll(bracket, value);
+        }
+        let newValue = { ...lv.value };
+        if (clause.clause_type === 'text' || clause.clause_type === 'textarea') {
+          newValue = { text };
+        } else if (clause.clause_type === 'toggle_with_details') {
+          newValue = { details: text };
+        }
+        this.patchValue(clause.id, { ...lv, value: newValue });
+        filled++;
+      }
+    }
+    if (filled === 0) {
+      this.toast.showToast({ level: 'warning', message: 'Aucune clause activée ne dispose d\'un exemple.' });
+    } else {
+      this.toast.showToast({ level: 'info', message: `${filled} clause(s) remplies avec les exemples. Personnalisez-les selon votre situation.` });
+    }
+  }
+
+  fillableCount = computed(() => {
+    let count = 0;
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        if (!clause.example_text) continue;
+        if (!['text', 'textarea', 'toggle_with_details'].includes(clause.clause_type)) continue;
+        const lv = this.getValue(clause.id, clause);
+        if (lv.is_enabled || clause.is_required) count++;
+      }
+    }
+    return count;
+  });
+
   useExample(clauseId: number, clause: ClauseDTO): void {
     if (!clause.example_text) return;
     const current = this.getValue(clauseId, clause);

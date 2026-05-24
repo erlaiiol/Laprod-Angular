@@ -805,6 +805,21 @@
               }
             </div>
             <div class="bf-guide-sep"></div>
+
+            @if (fillableCount() > 0) {
+              <div class="bf-fill-card">
+                <div class="bf-fill-card-head">
+                  <i class="bi bi-pencil-fill"></i>
+                  Remplir les exemples
+                  <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
+                </div>
+                <p class="bf-fill-card-desc">Applique les textes d'exemple sur toutes les clauses actives. Personnalisez ensuite.</p>
+                <button type="button" class="bf-fill-card-btn" (click)="fillAllExamples()">
+                  <i class="bi bi-pen-fill"></i> Tout remplir avec les exemples
+                </button>
+              </div>
+              <div class="bf-guide-sep"></div>
+            }
           }
           @for (preset of presets; track preset.id) {
             <button class="bf-preset-card" (click)="applyPreset(preset.id)" [disabled]="isFinal()">
