@@ -680,7 +680,7 @@ def record_track_view(track_id):
         ))
         db.session.commit()
 
-    return ok(message='ok')
+    return ok()
 
 
 # ── Stats de vues par track (beatmaker dashboard) ─────────────────────────────
