@@ -122,6 +122,57 @@
         <!-- ── Colonne droite : sections analysées ─────────────────────── -->
         <div class="ca-main">
 
+          <!-- Articles critiques -->
+          @if (a.critical_articles.length > 0) {
+            <div class="ca-critical-block">
+              <h2 class="ca-critical-title">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Points critiques à examiner en priorité
+              </h2>
+
+              @for (art of a.critical_articles; track $index) {
+                <div class="ca-section-card risk-border-{{ art.risk }}"
+                  (click)="toggleCritical(art)"
+                  [class.expanded]="selectedCritical() === art">
+                  <div class="ca-section-header">
+                    <span class="ca-risk-dot risk-dot-{{ art.risk }}"></span>
+                    <span class="ca-article-ref">{{ art.article_ref }}</span>
+                    <span class="ca-section-title">{{ art.title }}</span>
+                    <span class="ca-risk-tag risk-tag-{{ art.risk }}">{{ riskLabel(art.risk) }}</span>
+                    <i class="bi" [class.bi-chevron-down]="selectedCritical() !== art"
+                                  [class.bi-chevron-up]="selectedCritical() === art"></i>
+                  </div>
+
+                  @if (selectedCritical() === art) {
+                    <div class="ca-section-body">
+                      @if (art.excerpt) {
+                        <blockquote class="ca-excerpt">« {{ art.excerpt }} »</blockquote>
+                      }
+                      <p class="ca-explanation ca-legal-analysis">{{ art.legal_analysis }}</p>
+                      @if (art.legal_references.length > 0) {
+                        <div class="ca-legal-refs">
+                          @for (ref of art.legal_references; track $index) {
+                            <span class="ca-legal-ref"><i class="bi bi-book"></i> {{ ref }}</span>
+                          }
+                        </div>
+                      }
+                      @if (art.negotiation_levers.length > 0) {
+                        <div class="ca-levers">
+                          <p class="ca-levers-title"><i class="bi bi-tools"></i> Points à négocier</p>
+                          <ul class="ca-levers-list">
+                            @for (lever of art.negotiation_levers; track $index) {
+                              <li>{{ lever }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
           <h2 class="ca-sections-title">Analyse clause par clause</h2>
 
           @for (section of a.sections; track $index) {

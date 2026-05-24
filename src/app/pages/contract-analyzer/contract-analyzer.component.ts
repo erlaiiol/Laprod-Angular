@@ -5,6 +5,7 @@ import {
   ContractAnalyzerService,
   ContractAnalysis,
   ContractSection,
+  CriticalArticle,
 } from '../../services/contract-analyzer.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
@@ -34,12 +35,13 @@ export class ContractAnalyzerComponent implements OnDestroy {
   private auth   = inject(AuthService);
   readonly isPremium = this.auth.isPremium;
 
-  phase           = signal<'upload' | 'loading' | 'result'>('upload');
-  analysis        = signal<ContractAnalysis | null>(null);
-  selectedSection = signal<ContractSection | null>(null);
-  loadingMessage  = signal(LOADING_MESSAGES[0]);
-  dragOver        = signal(false);
-  fileError       = signal<string | null>(null);
+  phase            = signal<'upload' | 'loading' | 'result'>('upload');
+  analysis         = signal<ContractAnalysis | null>(null);
+  selectedSection  = signal<ContractSection | null>(null);
+  selectedCritical = signal<CriticalArticle | null>(null);
+  loadingMessage   = signal(LOADING_MESSAGES[0]);
+  dragOver         = signal(false);
+  fileError        = signal<string | null>(null);
 
   scoreColor = computed(() => {
     const s = this.analysis()?.overall_score ?? 0;
@@ -137,6 +139,7 @@ export class ContractAnalyzerComponent implements OnDestroy {
     this.phase.set('upload');
     this.analysis.set(null);
     this.selectedSection.set(null);
+    this.selectedCritical.set(null);
     this.fileError.set(null);
     this.clearInterval();
   }
@@ -146,6 +149,11 @@ export class ContractAnalyzerComponent implements OnDestroy {
   toggleSection(section: ContractSection): void {
     const current = this.selectedSection();
     this.selectedSection.set(current === section ? null : section);
+  }
+
+  toggleCritical(article: CriticalArticle): void {
+    const current = this.selectedCritical();
+    this.selectedCritical.set(current === article ? null : article);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

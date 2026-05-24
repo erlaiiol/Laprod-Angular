@@ -152,11 +152,11 @@ CONTRACT_TERRITORY_WORLD = 10
 
 
 # ============================================
-# CONTRACT ANALYZER — IA (Mistral)
+# CONTRACT ANALYZER — IA (Groq)
 # ============================================
-MISTRAL_API_KEY      = os.environ.get('MISTRAL_API_KEY')
-MISTRAL_MODEL        = os.environ.get('MISTRAL_MODEL', 'mistral-large-latest')
-CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'mistral')
+GROQ_API_KEY         = os.environ.get('GROQ_API_KEY')
+GROQ_MODEL           = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
+CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'groq')
 
 # ============================================
 # SACEM CONFIGURATION
