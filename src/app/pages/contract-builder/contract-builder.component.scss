@@ -16,6 +16,48 @@
       opacity: 1;
     }
   }
+
+  &.page-guest {
+    pointer-events: none;
+    user-select: none;
+    filter: blur(4px);
+    opacity: 0.45;
+
+    .cb-guest-overlay {
+      pointer-events: all;
+      filter: none;
+      opacity: 1;
+    }
+  }
+}
+
+// ── Guest overlay ──────────────────────────────────────────────────────────────
+
+.cb-guest-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.9rem; text-align: center; padding: 2rem;
+}
+
+.cb-guest-icon {
+  font-size: 2.8rem; color: v.$tag-violet; line-height: 1;
+}
+
+.cb-guest-title {
+  font-size: 1.35rem; font-weight: 800; margin: 0; color: v.$text-primary;
+}
+
+.cb-guest-sub {
+  font-size: 0.9rem; color: v.$text-secondary; margin: 0; line-height: 1.55;
+}
+
+.cb-guest-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: v.$tag-violet; color: #fff; border-radius: 10px;
+  padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 700;
+  text-decoration: none; margin-top: 0.25rem;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.88; }
 }
 
 .cb-list-header {

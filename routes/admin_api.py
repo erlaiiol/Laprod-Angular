@@ -487,9 +487,10 @@ def get_categories(current_user):
     for cat in categories:
         tags = db.session.scalars(select(Tag).where(Tag.category_id == cat.id)).all()
         categories_data.append({
-            'id':    cat.id,
-            'name':  cat.name,
-            'color': cat.color if hasattr(cat, 'color') and cat.color else '#6b7280',
+            'id':          cat.id,
+            'name':        cat.name,
+            'color':       cat.color        if hasattr(cat, 'color')        and cat.color        else '#6b7280',
+            'description': cat.description  if hasattr(cat, 'description') and cat.description  else None,
             'tags': [{'id': tag.id, 'name': tag.name} for tag in tags],
         })
 
@@ -1179,8 +1180,9 @@ def edit_category(cat_id, current_user):
     cat  = db.get_or_404(Category, cat_id)
     data = request.get_json(silent=True) or {}
 
-    if 'name'  in data: cat.name  = data['name'].strip()
-    if 'color' in data and hasattr(cat, 'color'): cat.color = data['color'].strip()
+    if 'name'        in data: cat.name        = data['name'].strip()
+    if 'color'       in data and hasattr(cat, 'color'):       cat.color       = data['color'].strip()
+    if 'description' in data and hasattr(cat, 'description'): cat.description = data['description'] or None
 
     db.session.commit()
     return ok(message=f'Catégorie "{cat.name}" mise à jour.', level='info')

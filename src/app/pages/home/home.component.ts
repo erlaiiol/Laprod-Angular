@@ -13,6 +13,7 @@ import { TrackService, Track, TrackFilters } from '../../services/track.service'
 import { RecommendationService } from '../../services/recommendation.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
+import { OnboardingModalComponent } from '../../components/onboarding-modal/onboarding-modal.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -22,7 +23,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, TrackCardComponent, TagCategoryFilterComponent],
+  imports: [CommonModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss']
 })
@@ -32,6 +33,7 @@ export class HomeComponent implements OnInit {
   loading         = signal(true);
   error           = signal<string | null>(null);
   isPersonalized  = signal(false);
+  showOnboarding  = signal(false);
 
   private trackService       = inject(TrackService);
   private recoService        = inject(RecommendationService);
@@ -59,7 +61,14 @@ export class HomeComponent implements OnInit {
     }, { allowSignalWrites: true });
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Modale d'onboarding : uniquement si connecté, rôles définis, et jamais vue
+    const user = this.auth.currentUser();
+    const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
+    if (hasRole && OnboardingModalComponent.shouldShow()) {
+      this.showOnboarding.set(true);
+    }
+  }
 
   loadTracks(): void {
     this.loading.set(true);

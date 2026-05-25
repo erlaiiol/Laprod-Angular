@@ -26,12 +26,19 @@
             <span class="cat-dot" [style.background]="cat.color"></span>
             <strong>{{ cat.name }}</strong>
             <span class="small">({{ cat.tags.length }} tag{{ cat.tags.length > 1 ? 's' : '' }})</span>
-            <button class="btn-icon-sm" (click)="startEdit(cat)" title="Modifier nom / couleur">
+            <button class="btn-icon-sm" (click)="startEdit(cat)" title="Modifier nom / couleur / description">
               <i class="bi bi-pencil"></i>
             </button>
             <button class="btn-danger-sm" (click)="deleteCategory(cat)" title="Supprimer la catégorie">
               <i class="bi bi-trash"></i>
             </button>
+          }
+          @if (editingId() === cat.id) {
+            <textarea class="cat-edit-desc" [ngModel]="editDesc()" (ngModelChange)="editDesc.set($event)"
+                      placeholder="Description courte affichée dans la modale d'accueil (optionnel)…"
+                      rows="2"></textarea>
+          } @else if (cat.description) {
+            <p class="cat-desc-preview"><i class="bi bi-chat-left-text"></i> {{ cat.description }}</p>
           }
         </div>
         <div class="tag-list">

@@ -1,6 +1,20 @@
-<div class="cb-list-page" [class.page-locked]="!isPro()">
+<div class="cb-list-page"
+     [class.page-locked]="isLoggedIn() && !isPro()"
+     [class.page-guest]="!isLoggedIn()">
 
-  @if (!isPro()) {
+  @if (!isLoggedIn()) {
+    <div class="cb-guest-overlay">
+      <i class="bi bi-pencil-square cb-guest-icon"></i>
+      <h2 class="cb-guest-title">Créez vos contrats musicaux</h2>
+      <p class="cb-guest-sub">
+        Générez des contrats d'exploitation d'œuvre conformes au droit français.<br>
+        Connectez-vous pour accéder au Contract Builder.
+      </p>
+      <a routerLink="/login" class="cb-guest-btn">
+        <i class="bi bi-box-arrow-in-right"></i> Se connecter
+      </a>
+    </div>
+  } @else if (!isPro()) {
     <app-premium-lock requiredPlan="pro" />
   }
 

@@ -111,10 +111,11 @@ export interface AdminTransaction {
 }
 
 export interface AdminCategory {
-  id:    number;
-  name:  string;
-  color: string;
-  tags:  { id: number; name: string }[];
+  id:          number;
+  name:        string;
+  color:       string;
+  description: string | null;
+  tags:        { id: number; name: string }[];
 }
 
 export interface AdminMixEngineer {
@@ -347,8 +348,8 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/categories`, { name, color }, { headers: this.headers });
   }
 
-  editCategory(catId: number, name: string, color: string): Observable<ApiResponse> {
-    return this.http.put<any>(`${this.base}/categories/${catId}`, { name, color }, { headers: this.headers });
+  editCategory(catId: number, name: string, color: string, description?: string | null): Observable<ApiResponse> {
+    return this.http.put<any>(`${this.base}/categories/${catId}`, { name, color, description }, { headers: this.headers });
   }
 
   deleteCategory(catId: number): Observable<ApiResponse> {

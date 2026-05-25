@@ -24,6 +24,7 @@ export class AdminCategoriesComponent implements OnInit {
   editingId    = signal<number | null>(null);
   editName     = signal('');
   editColor    = signal('#6b7280');
+  editDesc     = signal<string>('');
 
   // One tag-input field per category (keyed by category id)
   tagInputs: Record<number, string> = {};
@@ -64,6 +65,7 @@ export class AdminCategoriesComponent implements OnInit {
     this.editingId.set(cat.id);
     this.editName.set(cat.name);
     this.editColor.set(cat.color || '#6b7280');
+    this.editDesc.set(cat.description || '');
   }
 
   cancelEdit(): void { this.editingId.set(null); }
@@ -71,7 +73,7 @@ export class AdminCategoriesComponent implements OnInit {
   saveEdit(cat: AdminCategory): void {
     const name = this.editName().trim();
     if (!name) return;
-    this.adminSvc.editCategory(cat.id, name, this.editColor()).subscribe({
+    this.adminSvc.editCategory(cat.id, name, this.editColor(), this.editDesc().trim() || null).subscribe({
       next: res => {
         if (res.success) { this.editingId.set(null); this.load(); this.TagsService.refreshTags(); }
       },

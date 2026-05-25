@@ -1,0 +1,41 @@
+<div class="ob-backdrop" (click)="skip()">
+  <div class="ob-modal" (click)="$event.stopPropagation()">
+
+    <div class="ob-header">
+      <i class="bi bi-music-note-beamed ob-icon"></i>
+      <h2 class="ob-title">Bienvenue sur LaProd+ !</h2>
+      <p class="ob-subtitle">
+        Comment cherches-tu tes beats ? Sélectionne la catégorie qui correspond à ta façon d'explorer.
+        Tu pourras changer ce réglage à tout moment.
+      </p>
+    </div>
+
+    <div class="ob-categories">
+      @for (cat of categories(); track cat.name) {
+        <button
+          class="ob-cat-card"
+          [class.ob-cat-card--selected]="selected() === cat.name"
+          [style.--cat-color]="cat.color"
+          (click)="select(cat.name)">
+          <span class="ob-cat-dot" [style.background]="cat.color"></span>
+          <span class="ob-cat-name">{{ cat.name }}</span>
+          @if (cat.description) {
+            <span class="ob-cat-desc">{{ cat.description }}</span>
+          }
+          @if (selected() === cat.name) {
+            <i class="bi bi-check-circle-fill ob-cat-check"></i>
+          }
+        </button>
+      }
+    </div>
+
+    <div class="ob-actions">
+      <button class="ob-btn-skip" (click)="skip()">Passer</button>
+      <button class="ob-btn-confirm" (click)="confirm()" [disabled]="!selected()">
+        <i class="bi bi-arrow-right-circle-fill"></i>
+        Commencer à explorer
+      </button>
+    </div>
+
+  </div>
+</div>

@@ -40,8 +40,9 @@ def get_all_tags():
                 'id':   tag.id,
                 'name': tag.name,
                 'category': {
-                    'name':  tag.category_obj.name  if tag.category_obj else 'other',
-                    'color': tag.category_obj.color if tag.category_obj else '#000000'
+                    'name':        tag.category_obj.name        if tag.category_obj else 'other',
+                    'color':       tag.category_obj.color       if tag.category_obj else '#000000',
+                    'description': tag.category_obj.description if tag.category_obj else None,
                 }
             })
 

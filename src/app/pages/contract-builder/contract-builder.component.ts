@@ -17,7 +17,8 @@ import { PremiumLockComponent } from '../../components/premium-lock/premium-lock
 export class ContractBuilderComponent implements OnInit {
 
   private auth = inject(AuthService);
-  readonly isPro = this.auth.isPro;
+  readonly isPro      = this.auth.isPro;
+  readonly isLoggedIn = this.auth.isLoggedIn;
 
   loading   = signal(false);
   creating  = signal(false);
@@ -31,7 +32,7 @@ export class ContractBuilderComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.load();
+    if (this.isLoggedIn()) this.load();
   }
 
   load(): void {

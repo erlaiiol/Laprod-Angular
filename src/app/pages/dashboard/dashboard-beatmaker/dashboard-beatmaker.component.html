@@ -56,14 +56,6 @@
       <button class="tab-btn" [class.active]="activeTab() === 'playlists'" (click)="setTab('playlists')">
         <i class="bi bi-collection-play"></i> Playlists
       </button>
-      <a class="tab-btn tab-btn--link" routerLink="/contract-builder" routerLinkActive="active">
-        <i class="bi bi-pencil-square"></i> Contract Builder
-      </a>
-      <a class="tab-btn tab-btn--link tab-btn--beta" routerLink="/contract-analyzer"
-         title="En cours de développement">
-        <i class="bi bi-shield-check"></i> Analyzer
-        <span class="tab-beta-badge">bêta</span>
-      </a>
     </div>
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->

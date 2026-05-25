@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterOutlet, RouterModule } from '@angular/router';
 import { NavbarComponent } from './layout/navbar/navbar.component';
 import { ToastComponent } from './components/ui/toast.component/toast.component';
 import { FooterComponent } from './layout/footer/footer.component';
@@ -11,7 +11,7 @@ import { UserflowComponent } from './components/userflow/userflow.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, UserflowComponent],
+  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, UserflowComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
