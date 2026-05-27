@@ -1,20 +1,7 @@
 <div class="cb-list-page"
-     [class.page-locked]="isLoggedIn() && !isPro()"
-     [class.page-guest]="!isLoggedIn()">
+     [class.page-locked]="isLoggedIn() && !isPro()">
 
-  @if (!isLoggedIn()) {
-    <div class="cb-guest-overlay">
-      <i class="bi bi-pencil-square cb-guest-icon"></i>
-      <h2 class="cb-guest-title">Créez vos contrats musicaux</h2>
-      <p class="cb-guest-sub">
-        Générez des contrats d'exploitation d'œuvre conformes au droit français.<br>
-        Connectez-vous pour accéder au Contract Builder.
-      </p>
-      <a routerLink="/login" class="cb-guest-btn">
-        <i class="bi bi-box-arrow-in-right"></i> Se connecter
-      </a>
-    </div>
-  } @else if (!isPro()) {
+  @if (isLoggedIn() && !isPro()) {
     <app-premium-lock requiredPlan="pro" />
   }
 
@@ -22,6 +9,16 @@
     <h1>Générateur de contrats</h1>
     <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale professionnel, adapté au droit français.</p>
   </div>
+
+  @if (!isLoggedIn()) {
+    <div class="cb-guest-banner">
+      <i class="bi bi-pencil-square"></i>
+      <span>Connectez-vous pour créer et gérer vos contrats musicaux.</span>
+      <a routerLink="/login" class="cb-guest-banner-btn">
+        <i class="bi bi-box-arrow-in-right"></i> Se connecter
+      </a>
+    </div>
+  }
 
   <!-- Nouveau contrat -->
   <div class="cb-new-card">
@@ -33,12 +30,18 @@
         placeholder="Titre de l'œuvre ou du projet..."
         [ngModel]="newTitle()"
         (ngModelChange)="newTitle.set($event)"
-        (keydown.enter)="create()"
-        [disabled]="creating()"
+        (keydown.enter)="isLoggedIn() && create()"
+        [disabled]="creating() || !isLoggedIn()"
       />
-      <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
-        @if (creating()) { Création... } @else { Créer le contrat }
-      </button>
+      @if (isLoggedIn()) {
+        <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
+          @if (creating()) { Création... } @else { Créer le contrat }
+        </button>
+      } @else {
+        <a routerLink="/login" class="btn-primary cb-login-btn">
+          <i class="bi bi-box-arrow-in-right"></i> Se connecter pour créer
+        </a>
+      }
     </div>
   </div>
 
@@ -46,7 +49,11 @@
   <div class="cb-contracts-list">
     <h2>Mes contrats</h2>
 
-    @if (loading()) {
+    @if (!isLoggedIn()) {
+      <p class="cb-guest-list-msg">
+        <i class="bi bi-lock"></i> Connectez-vous pour accéder à vos contrats.
+      </p>
+    } @else if (loading()) {
       <p class="cb-loading">Chargement...</p>
     } @else if (contracts().length === 0) {
       <p class="cb-empty">Aucun contrat pour le moment. Créez votre premier contrat ci-dessus.</p>

@@ -17,47 +17,39 @@
     }
   }
 
-  &.page-guest {
-    pointer-events: none;
-    user-select: none;
-    filter: blur(4px);
-    opacity: 0.45;
-
-    .cb-guest-overlay {
-      pointer-events: all;
-      filter: none;
-      opacity: 1;
-    }
-  }
 }
 
-// ── Guest overlay ──────────────────────────────────────────────────────────────
+// ── Guest banner ───────────────────────────────────────────────────────────────
 
-.cb-guest-overlay {
-  position: absolute; inset: 0; z-index: 10;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.9rem; text-align: center; padding: 2rem;
+.cb-guest-banner {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: rgba(v.$tag-violet, 0.08);
+  border: 1px solid rgba(v.$tag-violet, 0.25);
+  border-radius: 10px; padding: 0.7rem 1rem;
+  font-size: 0.875rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+
+  i { color: v.$tag-violet; font-size: 1.1rem; }
+  span { flex: 1; color: v.$text-secondary; min-width: 0; }
 }
 
-.cb-guest-icon {
-  font-size: 2.8rem; color: v.$tag-violet; line-height: 1;
-}
-
-.cb-guest-title {
-  font-size: 1.35rem; font-weight: 800; margin: 0; color: v.$text-primary;
-}
-
-.cb-guest-sub {
-  font-size: 0.9rem; color: v.$text-secondary; margin: 0; line-height: 1.55;
-}
-
-.cb-guest-btn {
-  display: inline-flex; align-items: center; gap: 0.4rem;
-  background: v.$tag-violet; color: #fff; border-radius: 10px;
-  padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 700;
-  text-decoration: none; margin-top: 0.25rem;
+.cb-guest-banner-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: v.$tag-violet; color: #fff; border-radius: 8px;
+  padding: 0.35rem 0.9rem; font-size: 0.85rem; font-weight: 600;
+  text-decoration: none; white-space: nowrap;
   transition: opacity 0.15s;
   &:hover { opacity: 0.88; }
+}
+
+.cb-login-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  text-decoration: none;
+}
+
+.cb-guest-list-msg {
+  display: flex; align-items: center; gap: 0.5rem;
+  color: v.$text-muted; font-size: 0.875rem; padding: 1.25rem 0;
+  i { font-size: 0.9rem; }
 }
 
 .cb-list-header {

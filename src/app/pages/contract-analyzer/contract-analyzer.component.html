@@ -1,6 +1,6 @@
-<div class="ca-page" [class.page-locked]="!isPremium()">
+<div class="ca-page" [class.page-locked]="isLoggedIn() && !isPremium()">
 
-  @if (!isPremium()) {
+  @if (isLoggedIn() && !isPremium()) {
     <app-premium-lock requiredPlan="amateur" />
   }
 
