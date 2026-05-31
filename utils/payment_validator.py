@@ -106,11 +106,12 @@ class TrackPriceCalculator(PriceCalculator):
                 str(current_app.config['CONTRACT_DURATIONS']['lifetime']))
         else:
             years = str(int(options.get('duration_years', 3)))
-            _dur_attr = {'3': 'contract_price_duration_3y', '5': 'contract_price_duration_5y',
-                         '10': 'contract_price_duration_10y'}.get(years)
-            val = getattr(track, _dur_attr, None) if (track and _dur_attr) else None
-            contract_price += Decimal(str(val)) if val is not None else Decimal(
-                str(current_app.config['CONTRACT_DURATIONS'].get(years, 5)))
+            if years != '0':  # 0 = streaming seul, inclus dans le prix de base (aucun surcoût)
+                _dur_attr = {'3': 'contract_price_duration_3y', '5': 'contract_price_duration_5y',
+                             '10': 'contract_price_duration_10y'}.get(years)
+                val = getattr(track, _dur_attr, None) if (track and _dur_attr) else None
+                contract_price += Decimal(str(val)) if val is not None else Decimal(
+                    str(current_app.config['CONTRACT_DURATIONS'].get(years, 5)))
 
         territory = options.get('territory', 'Monde entier')
         territory_prices = {

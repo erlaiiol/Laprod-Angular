@@ -9,13 +9,29 @@ import { TrackService, TrackDetail } from '../../services/track.service';
 import { PaymentService } from '../../services/payment.service';
 import { AuthService } from '../../services/auth.service';
 
-type Format    = 'mp3' | 'wav' | 'stems';
-type Territory = 'France' | 'Europe' | 'Monde entier';
+type Format      = 'mp3' | 'wav' | 'stems';
+type Territory   = 'France' | 'Europe' | 'Monde entier';
 type DurationKey = 'stream' | '3' | '5' | '10' | 'lifetime';
+type PresetKey   = 'starter' | 'standard' | 'integral';
 
 // Seuils globaux d'auto-inclusion (non modifiables par le beatmaker)
 const MECHANICAL_THRESHOLD  = 199.99;
 const PUBLIC_SHOW_THRESHOLD = 74.99;
+
+interface LicensePreset {
+  key:        PresetKey;
+  name:       string;
+  tagline:    string;
+  icon:       string;
+  duration:   DurationKey;
+  isLifetime: boolean;
+  territory:  Territory;
+  mechanical: boolean;
+  publicShow: boolean;
+  arrangement: boolean;
+  popular?:   boolean;
+}
+
 
 @Component({
   selector: 'app-contract-config',
@@ -103,6 +119,62 @@ export class ContractConfigComponent implements OnInit {
     : ({ 'stream': 'Stream uniquement', '3': '3 ans', '5': '5 ans', '10': '10 ans', 'lifetime': 'À vie' } as Record<DurationKey, string>)[this.duration()]
   );
 
+  readonly presets: readonly LicensePreset[] = [
+    {
+      key:         'starter',
+      name:        'Starter',
+      tagline:     'Streaming & réseaux sociaux',
+      icon:        'bi-music-note-beamed',
+      duration:    'stream',
+      isLifetime:  false,
+      territory:   'France',
+      mechanical:  false,
+      publicShow:  false,
+      arrangement: false,
+    },
+    {
+      key:         'standard',
+      name:        'Standard',
+      tagline:     'Sorties officielles + concerts',
+      icon:        'bi-vinyl-fill',
+      duration:    '5',
+      isLifetime:  false,
+      territory:   'Europe',
+      mechanical:  true,
+      publicShow:  true,
+      arrangement: false,
+      popular:     true,
+    },
+    {
+      key:         'integral',
+      name:        'Liberté totale',
+      tagline:     'Tous droits · monde entier · à vie',
+      icon:        'bi-globe2',
+      duration:    'stream',
+      isLifetime:  true,
+      territory:   'Monde entier',
+      mechanical:  true,
+      publicShow:  true,
+      arrangement: true,
+    },
+  ];
+
+  activePreset = computed<PresetKey | null>(() => {
+    const mechEffective = this.mechanicalAutoIncluded() || this.rightMechanical();
+    const showEffective = this.publicShowAutoIncluded() || this.rightPublicShow();
+    for (const p of this.presets) {
+      if (
+        this.isLifetime()     === p.isLifetime &&
+        (p.isLifetime || this.duration()   === p.duration) &&
+        this.territory()      === p.territory &&
+        mechEffective         === p.mechanical &&
+        showEffective         === p.publicShow &&
+        this.rightArrangement() === p.arrangement
+      ) return p.key;
+    }
+    return null;
+  });
+
   constructor() {
     // Quand un droit devient auto-inclus, on efface la sélection manuelle
     // pour éviter un double-comptage si le seuil repasse en dessous.
@@ -128,6 +200,16 @@ export class ContractConfigComponent implements OnInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  applyPreset(p: LicensePreset): void {
+    this.duration.set(p.duration);
+    this.isLifetime.set(p.isLifetime);
+    this.territory.set(p.territory);
+    this.rightMechanical.set(p.mechanical);
+    this.rightPublicShow.set(p.publicShow);
+    this.rightArrangement.set(p.arrangement);
+    this.cdr.markForCheck();
   }
 
   getImageUrl(path: string | null | undefined): string {

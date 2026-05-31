@@ -287,3 +287,141 @@ class TestTrackPriceCalculator:
             _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
             # durée 3 ans (config=10) + territoire monde (custom=25) = 35
             assert opts_price == Decimal('35')
+
+
+# ── TrackPriceCalculator — scénarios presets quick-start ──────────────────────
+
+class TestTrackPriceCalculatorPresets:
+    """
+    Vérifie que chaque preset quick-start produit le prix attendu côté serveur,
+    garantissant que le total_price envoyé par le frontend passe le contrôle
+    anti-manipulation de payment_track_api.py.
+
+    Config de test (conftest.py) :
+      CONTRACT_DURATIONS  : {'1': 5, '2': 8, '3': 10, 'lifetime': 30}
+      CONTRACT_TERRITORY_EUROPE : 5  /  CONTRACT_TERRITORY_WORLD : 10
+      CONTRACT_MECHANICAL_REPRODUCTION_PRICE : 30
+      CONTRACT_PUBLIC_SHOW_PRICE              : 40
+      CONTRACT_ARRANGEMENT_PRICE              : 10
+      Seuils : MECHANICAL_THRESHOLD=199.99 / PUBLIC_SHOW_THRESHOLD=74.99
+    """
+
+    def _make_track(self, mp3=9.99):
+        t = MagicMock()
+        t.price_mp3 = mp3
+        for attr in [
+            'contract_price_exclusive', 'contract_price_duration_3y',
+            'contract_price_duration_5y', 'contract_price_duration_10y',
+            'contract_price_lifetime', 'contract_price_mechanical',
+            'contract_price_public_show', 'contract_price_arrangement',
+            'contract_price_territory_eu', 'contract_price_territory_world',
+        ]:
+            setattr(t, attr, None)
+        return t
+
+    def test_preset_starter_equals_base_price_only(self, app):
+        """
+        Starter : streaming seul (duration_years=0), France, aucun droit.
+        Options fee = 0 → total = prix de base uniquement.
+        Couvre aussi le fix du bug duration_years=0 (anciennement +5€ par défaut).
+        """
+        from utils.payment_validator import TrackPriceCalculator
+        track = self._make_track(mp3=9.99)
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 0,   'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _base, opts_price, total = TrackPriceCalculator().calculate_total(
+                track, options, format_type='mp3'
+            )
+        assert opts_price == Decimal('0'), "Streaming seul ne doit ajouter aucun surcoût"
+        assert total == Decimal('9.99')
+
+    def test_preset_standard_includes_duration_territory_and_rights(self, app):
+        """
+        Standard : 5 ans, Europe, reproduction mécanique + diffusion publique.
+        Calcul (test config) :
+          duration_years=5 → CONTRACT_DURATIONS.get('5', 5) = 5
+          Europe           → CONTRACT_TERRITORY_EUROPE = 5
+          sous-total intermédiaire = 9.99 + 10 = 19.99 < 74.99 → droits facturés
+          mechanical       → +30
+          public_show      → +40
+          options_fee      = 5 + 5 + 30 + 40 = 80
+          total            = 9.99 + 80 = 89.99
+        """
+        from utils.payment_validator import TrackPriceCalculator
+        track = self._make_track(mp3=9.99)
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 5,   'territory': 'Europe',
+                'mechanical_reproduction': True, 'public_show': True, 'arrangement': False,
+            }
+            _base, opts_price, total = TrackPriceCalculator().calculate_total(
+                track, options, format_type='mp3'
+            )
+        assert opts_price == Decimal('80')
+        assert total == Decimal('89.99')
+
+    def test_preset_integral_all_rights_lifetime_worldwide(self, app):
+        """
+        Liberté totale : à vie, monde entier, tous les droits y compris arrangement.
+        Calcul (test config) :
+          is_lifetime=True → CONTRACT_DURATIONS['lifetime'] = 30
+          Monde entier     → CONTRACT_TERRITORY_WORLD = 10
+          arrangement      → +10  (traité avant le calcul des seuils)
+          sous-total intermédiaire = 9.99 + 50 = 59.99 < 74.99 → droits facturés
+          mechanical       → +30
+          public_show      → +40
+          options_fee      = 30 + 10 + 10 + 30 + 40 = 120
+          total            = 9.99 + 120 = 129.99
+        """
+        from utils.payment_validator import TrackPriceCalculator
+        track = self._make_track(mp3=9.99)
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': True,
+                'duration_years': 999, 'territory': 'Monde entier',
+                'mechanical_reproduction': True, 'public_show': True, 'arrangement': True,
+            }
+            _base, opts_price, total = TrackPriceCalculator().calculate_total(
+                track, options, format_type='mp3'
+            )
+        assert opts_price == Decimal('120')
+        assert total == Decimal('129.99')
+
+    def test_duration_years_zero_does_not_charge_default_duration_fee(self, app):
+        """
+        Régression : avant le fix, duration_years=0 déclenchait CONTRACT_DURATIONS.get('0', 5)
+        et ajoutait 5€ côté serveur alors que le frontend affichait +0€.
+        Ce test garantit que le scénario 'streaming seul' ne provoque plus
+        d'erreur PRICE_TAMPERED lors du checkout.
+        """
+        from utils.payment_validator import TrackPriceCalculator
+        track = self._make_track(mp3=15.00)
+
+        with app.app_context():
+            options_stream = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 0,   'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            options_3y = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 3,   'territory': 'France',
+                'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
+            }
+            _, _, total_stream = TrackPriceCalculator().calculate_total(
+                track, options_stream, format_type='mp3'
+            )
+            _, _, total_3y = TrackPriceCalculator().calculate_total(
+                track, options_3y, format_type='mp3'
+            )
+
+        assert total_stream == Decimal('15.00'), "Streaming seul = prix de base exact"
+        assert total_3y > total_stream, "3 ans doit coûter plus cher que streaming seul"

@@ -42,10 +42,23 @@ def _send(relative_path: str, mimetype: str,
     """
     Résout le chemin relatif depuis la racine Flask et sert le fichier.
     conditional=True active le support Range (seek WaveSurfer / lecture partielle).
+
+    Sécurité : résolution realpath() pour bloquer toute tentative de path traversal
+    (ex. audio_file = '../../config.py' en DB).
     """
-    path = Path(current_app.root_path) / relative_path
+    db_assets_root = (Path(current_app.root_path) / 'db_assets').resolve()
+    path = (Path(current_app.root_path) / relative_path).resolve()
+
+    if not path.is_relative_to(db_assets_root):
+        current_app.logger.warning(
+            "[SECURITY] Path traversal bloqué — relative_path=%r résolu en %s",
+            relative_path, path,
+        )
+        abort(403)
+
     if not path.exists():
         abort(404)
+
     return send_file(
         path,
         mimetype=mimetype,
@@ -82,15 +95,17 @@ def stream_track_preview(track_id):
         abort(404)
 
 
-# ── 2. Stream MP3 complet (public, rate-limité, pas d'attachment) ─────────────
+# ── 2. Stream MP3 complet (authentifié, rate-limité, pas d'attachment) ──────────
 
 @streaming_bp.route('/tracks/<int:track_id>/full', methods=['GET'])
-@limiter.limit('120 per minute')
-def stream_track_full(track_id):
+@limiter.limit('60 per minute')
+@jwt_required()
+@require_user
+def stream_track_full(track_id, current_user):
     """
     Sert le MP3 complet d'un track approuvé en streaming pur (sans attachment).
-    Public et rate-limité — l'absence de Content-Disposition empêche le download direct.
-    Le téléchargement payant reste réservé à /download/<format> (JWT + achat vérifié).
+    Requiert un compte — évite l'accès anonyme au fichier payant identique à /download/mp3.
+    Le téléchargement avec contrat reste réservé à /download/<format> (achat vérifié).
     """
     track = db.session.get(Track, track_id)
     if not track or not track.is_approved:

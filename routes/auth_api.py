@@ -225,6 +225,7 @@ def logout():
 
 
 @auth_api_bp.route('/register', methods=['POST'])
+@limiter.limit('5 per hour')
 @csrf.exempt
 def register_user():
 

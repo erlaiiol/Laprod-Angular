@@ -522,6 +522,10 @@ def approve_track(track_id, current_user):
     track.is_approved = True
     track.approved_at = datetime.now()
     db.session.commit()
+    current_app.logger.info(
+        "[AUDIT] approve_track — admin=%s (#%d) → track=%r (#%d)",
+        current_user.username, current_user.id, track.title, track_id,
+    )
 
     try:
         email_service.send_track_approved_email(track)
@@ -542,6 +546,11 @@ def approve_track(track_id, current_user):
 def reject_track(track_id, current_user):
     track = db.get_or_404(Track, track_id)
     title = track.title
+
+    current_app.logger.info(
+        "[AUDIT] reject_track — admin=%s (#%d) → track=%r (#%d)",
+        current_user.username, current_user.id, title, track_id,
+    )
 
     try:
         email_service.send_track_rejected_email(track)
