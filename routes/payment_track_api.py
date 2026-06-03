@@ -217,14 +217,26 @@ def verify_payment(current_user):
         if existing:
             return ok({'purchase_id': existing.id}, message='Achat déjà enregistré.', level='info')
 
-        track_id = int(meta.get('track_id'))
-        track = db.session.get(Track, track_id)
+        track_id    = int(meta.get('track_id'))
+        is_exclusive = meta.get('is_exclusive') == 'True'
+
+        if is_exclusive:
+            # Verrou de ligne (SELECT … FOR UPDATE) — garantit qu'un seul verify
+            # exclusif peut lire-puis-écrire is_exclusive_sold de façon atomique.
+            # Sans ce verrou, deux verify simultanés passeraient tous les deux la
+            # vérification (is_exclusive_sold=False) avant que l'un commite.
+            from sqlalchemy import select as _sa_select
+            track = db.session.execute(
+                _sa_select(Track).where(Track.id == track_id).with_for_update()
+            ).scalar_one_or_none()
+        else:
+            track = db.session.get(Track, track_id)
+
         if not track:
             return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
 
-        # Guard anti-double-vente exclusive : deux acheteurs peuvent avoir obtenu
-        # chacun une session Stripe avant que l'un des deux ne vérifie son paiement.
-        if meta.get('is_exclusive') == 'True' and track.is_exclusive_sold:
+        # Guard anti-double-vente — vérification sous verrou pour les achats exclusifs.
+        if is_exclusive and track.is_exclusive_sold:
             return err(
                 'Ce track a déjà été vendu en exclusivité à un autre acheteur. '
                 'Contactez le support pour un remboursement.',
@@ -251,7 +263,7 @@ def verify_payment(current_user):
         db.session.flush()  # obtenir purchase.id
 
         # ── Marquer le track comme vendu en exclusivité ──────────────────────
-        if meta.get('is_exclusive') == 'True':
+        if is_exclusive:
             track.is_exclusive_sold  = True
             track.exclusive_sold_at  = datetime.now()
             track.exclusive_buyer_id = purchase.buyer_id

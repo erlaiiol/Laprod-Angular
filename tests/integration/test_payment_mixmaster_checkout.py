@@ -33,6 +33,7 @@ def engineer(db):
         account_status='active',
         user_type_selected=True,
         is_mixmaster_engineer=True,
+        is_certified_master_engineer=True,   # requis pour service_mastering
         mixmaster_reference_price=100,
         mixmaster_price_min=10,
         is_certified_producer_arranger=False,
@@ -65,6 +66,7 @@ def engineer_high_min(db):
         account_status='active',
         user_type_selected=True,
         is_mixmaster_engineer=True,
+        is_certified_master_engineer=True,   # requis pour service_mastering
         mixmaster_reference_price=100,
         mixmaster_price_min=30,
         is_certified_producer_arranger=False,

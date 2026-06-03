@@ -595,6 +595,14 @@ def accept_order(order_id, current_user):
     if order.status != 'awaiting_acceptance':
         return ser_err('Cette commande a déjà été traitée.', level='warning')
 
+    # Verrou de sérialisation sur la ligne de l'ingénieur (SELECT … FOR UPDATE).
+    # Deux acceptations concurrentes de cet ingénieur s'attendent mutuellement ici :
+    # la seconde re-vérifie le compteur après que la première a commité,
+    # évitant de dépasser la limite de 5 mix actifs.
+    db.session.execute(
+        select(User).where(User.id == current_user.id).with_for_update()
+    )
+
     if not MixMasterRequest.can_accept_more_requests(current_user.id):
         return ser_err('Vous avez déjà 5 mix/master en cours.', level='warning')
 
