@@ -421,6 +421,14 @@ def post_track(current_user):
             except Exception as e:
                 current_app.logger.warning(f'Erreur parsing tag_ids: {e}')
 
+        playlist_ids_str = request.form.get('playlist_ids', '')
+        playlist_ids = []
+        if playlist_ids_str:
+            try:
+                playlist_ids = [int(pid) for pid in playlist_ids_str.split(',') if pid.strip().isdigit()]
+            except Exception as e:
+                current_app.logger.warning(f'Erreur parsing playlist_ids: {e}')
+
         job_id = str(_uuid.uuid4())
 
         job_payload = {
@@ -444,6 +452,7 @@ def post_track(current_user):
             'image_filename':            image_filename if (file_image and file_image.filename != '') else None,
             'image_disk_path':           str(image_disk_path) if (file_image and file_image.filename != '') else None,
             'tag_ids':                   tag_ids,
+            'playlist_ids':              playlist_ids,
             **{field: request.form.get(field, type=int) for field in _CONTRACT_PRICE_FIELDS},
         }
 

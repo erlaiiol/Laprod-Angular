@@ -255,7 +255,7 @@ def add_track(playlist_id, current_user):
     if not track_id:
         raise EntityForbidden("track_id requis.")
     track = get_or_404(Track, track_id, "Track introuvable.")
-    if track.composer_id != current_user.id:
+    if track.composer_id != current_user.id and not current_user.is_admin:
         raise EntityForbidden("Vous ne pouvez ajouter que vos propres tracks.")
     # Eviter les doublons
     already = db.session.execute(

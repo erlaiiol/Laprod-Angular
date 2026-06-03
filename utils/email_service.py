@@ -3,6 +3,13 @@ Service d'envoi d'emails pour LaProd
 Gère l'envoi d'emails de vérification, notifications, et factures
 """
 from flask import current_app, render_template
+
+
+def _fe(path: str = '') -> str:
+    """Construit une URL absolue vers le frontend Angular.
+    Remplace url_for() — l'app est API-only, les routes Flask n'existent plus."""
+    base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
+    return f"{base.rstrip('/')}/{path.lstrip('/')}"
 import extensions
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
@@ -214,11 +221,7 @@ def verify_email_change_token(token, expiration=3600):
 def send_email_change_verification_email(user, new_email):
     """Envoie un email de vérification pour le changement d'email"""
     token = generate_email_change_token(user.id, new_email)
-    verification_url = url_for(
-        'auth.confirm_email_change',
-        token=token,
-        _external=True
-    )
+    verification_url = _fe(f'/confirm-email-change?token={token}')
     html_body = render_template(
         'emails/confirm_email_change.html',
         user=user,
@@ -271,11 +274,7 @@ def send_password_reset_email(user):
     """
     reset_token = generate_password_reset_token(user.id)
 
-    reset_url = url_for(
-        'auth.reset_password_via_email',
-        token=reset_token,
-        _external=True
-    )
+    reset_url = _fe(f'/reset-password?token={reset_token}')
 
     text_body = f"""
 Bonjour {user.username},
@@ -349,7 +348,7 @@ Format : {purchase.format_purchased.upper()}
 Prix payé : {purchase.price_paid}€
 
 Vous pouvez télécharger votre fichier depuis votre espace "Mes achats" :
-{url_for('payment.my_purchases', _external=True)}
+{_fe('/dashboard')}
 
 Merci pour votre confiance !
 

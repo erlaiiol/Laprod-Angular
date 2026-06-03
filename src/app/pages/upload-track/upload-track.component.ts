@@ -7,6 +7,7 @@ import { CudTrackService } from '../../services/cud-track.service';
 import { AuthService } from '../../services/auth.service';
 import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
+import { Playlist, PlaylistService } from '../../services/playlist.service';
 
 
 
@@ -55,6 +56,12 @@ export class UploadTrackComponent implements OnInit {
   /* ── Section states ─────────────────────────────────────────────────────── */
   showCustomPrices = signal(false);
   showPreview      = signal(false);
+  showTags         = signal(false);
+  showPlaylists    = signal(false);
+
+  /* ── Playlists ──────────────────────────────────────────────────────────── */
+  playlists            = signal<Playlist[]>([]);
+  selectedPlaylistIds  = signal<number[]>([]);
 
   hasCustomPrices = computed(() => {
     const d = this.DEFAULT_CONTRACT_PRICES;
@@ -190,11 +197,12 @@ export class UploadTrackComponent implements OnInit {
   );
 
   constructor(
-    private tagsService:   TagsService,
-    private cudTrackService: CudTrackService,
-    private router:        Router,
-    readonly auth:         AuthService,
-    private uploadStatusSvc : UploadStatusService
+    private tagsService:      TagsService,
+    private cudTrackService:  CudTrackService,
+    private router:           Router,
+    readonly auth:            AuthService,
+    private uploadStatusSvc:  UploadStatusService,
+    private playlistService:  PlaylistService,
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
@@ -203,7 +211,7 @@ export class UploadTrackComponent implements OnInit {
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
-    this.auth.me().subscribe();  // rafraîchit les tokens depuis le serveur
+    this.auth.me().subscribe();
 
     this.tagsService.getTags().subscribe({
       next: res => {
@@ -213,6 +221,12 @@ export class UploadTrackComponent implements OnInit {
         }
       },
     });
+
+    if (this.auth.isBeatmaker()) {
+      this.playlistService.getMyPlaylists().subscribe({
+        next: res => this.playlists.set(res.data ?? []),
+      });
+    }
   }
 
   onFileSelected(event: Event, field: 'mp3' | 'wav' | 'stems' | 'image'): void {
@@ -234,6 +248,13 @@ export class UploadTrackComponent implements OnInit {
     return this.selectedTagIds().includes(id);
   }
 
+  togglePlaylist(id: number): void {
+    const current = this.selectedPlaylistIds();
+    this.selectedPlaylistIds.set(
+      current.includes(id) ? current.filter(p => p !== id) : [...current, id],
+    );
+  }
+
   onSubmit(): void {
     if (!this.canSubmit()) return;
     this.loading.set(true);
@@ -249,6 +270,7 @@ export class UploadTrackComponent implements OnInit {
       price_stems:              this.priceStems(),
       sacem_percentage_composer: this.sacemComposer(),
       tag_ids:                  this.selectedTagIds().join(','),
+      playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
       file_mp3:                 this.fileMp3()!,
       file_wav:                 this.fileWav()   ?? undefined,
       file_image:               this.fileImage() ?? undefined,

@@ -5,7 +5,8 @@ from pathlib import Path
 import shutil, logging
 from extensions import db
 from app import create_app
-from models import Track, User, Tag
+from models import Track, User, Tag, Playlist, playlist_track
+from sqlalchemy import func
 from helpers import generate_track_image
 
 try:
@@ -136,8 +137,26 @@ def process_track_data(job_payload : dict):
                 db.session.add(track)
                 db.session.commit()
                 
+                # Ajouter le track aux playlists sélectionnées (propriétaires uniquement)
+                playlist_ids = job_payload.get('playlist_ids', [])
+                if playlist_ids:
+                    playlists = db.session.query(Playlist).filter(
+                        Playlist.id.in_(playlist_ids),
+                        Playlist.beatmaker_id == user.id,
+                    ).all()
+                    for pl in playlists:
+                        max_pos = db.session.query(func.max(playlist_track.c.position)).filter(
+                            playlist_track.c.playlist_id == pl.id
+                        ).scalar() or 0
+                        db.session.execute(
+                            playlist_track.insert().values(
+                                playlist_id=pl.id, track_id=track.id, position=max_pos + 1
+                            )
+                        )
+                    db.session.commit()
+
                 redis_client.hset(f"job:{job_payload['job_id']}", mapping={'status': 'done', 'track_id': str(track.id)})
-                redis_client.expire(f"job:{job_payload['job_id']}", 3600)  
+                redis_client.expire(f"job:{job_payload['job_id']}", 3600)
             except Exception as e:
                 db.session.rollback()
                 logging.error(f"Database error during track creation: {e}", exc_info=True)

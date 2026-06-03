@@ -31,7 +31,9 @@ def setup_logging(app):
     logs_folder.mkdir(exist_ok=True)
 
     # Déterminer le niveau de log selon l'environnement
-    if app.debug:
+    # En production, forcer INFO même si app.debug est True (mauvaise config)
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    if app.debug and not is_production:
         log_level = logging.DEBUG
         console_level = logging.DEBUG
     else:

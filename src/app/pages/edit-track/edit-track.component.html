@@ -205,19 +205,73 @@
       <div class="card-divider"></div>
 
       <!-- ═══ TAGS ════════════════════════════════════════════════════════════ -->
-      @if (availableTags().length > 0) {
+      @if (tagGroups().length > 0) {
         <div class="card-section">
-          <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
-          <div class="tag-pills">
-            @for (tag of availableTags(); track tag.id) {
-              <button type="button" class="tag-pill"
-                      [class.selected]="isTagSelected(tag.id)"
-                      [style.--tag-color]="tag.category.color"
-                      (click)="toggleTag(tag.id)">
-                {{ tag.name }}
-              </button>
-            }
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
+              @if (selectedTagIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedTagIds().length }} sélectionné{{ selectedTagIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun tag</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showTags.set(!showTags())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showTags()" [class.bi-chevron-down]="!showTags()"></i>
+            </button>
           </div>
+          @if (showTags()) {
+            @for (group of tagGroups(); track group.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" [style.color]="group.color">{{ group.name }}</span>
+                <div class="tag-pills">
+                  @for (tag of group.tags; track tag.id) {
+                    <button type="button" class="tag-pill"
+                            [class.selected]="isTagSelected(tag.id)"
+                            [style.--tag-color]="tag.category.color"
+                            (click)="toggleTag(tag.id)">
+                      {{ tag.name }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+        <div class="card-divider"></div>
+      }
+
+      <!-- ═══ PLAYLISTS ═══════════════════════════════════════════════════════ -->
+      @if (auth.isBeatmaker() && playlists().length > 0) {
+        <div class="card-section">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-collection-fill"></i> Playlists</h3>
+              @if (selectedPlaylistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedPlaylistIds().length }} playlist{{ selectedPlaylistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucune</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showPlaylists.set(!showPlaylists())">
+              Gérer
+              <i class="bi" [class.bi-chevron-up]="showPlaylists()" [class.bi-chevron-down]="!showPlaylists()"></i>
+            </button>
+          </div>
+          @if (showPlaylists()) {
+            <div class="playlist-list">
+              @for (pl of playlists(); track pl.id) {
+                <label class="playlist-item">
+                  <input type="checkbox"
+                         [checked]="selectedPlaylistIds().includes(pl.id)"
+                         (change)="togglePlaylist(pl.id)" />
+                  <span class="playlist-item-name">{{ pl.title }}</span>
+                  <span class="playlist-item-count">{{ pl.track_count }} track{{ pl.track_count !== 1 ? 's' : '' }}</span>
+                </label>
+              }
+            </div>
+          }
         </div>
         <div class="card-divider"></div>
       }
