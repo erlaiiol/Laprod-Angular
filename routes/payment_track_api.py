@@ -222,6 +222,15 @@ def verify_payment(current_user):
         if not track:
             return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
 
+        # Guard anti-double-vente exclusive : deux acheteurs peuvent avoir obtenu
+        # chacun une session Stripe avant que l'un des deux ne vérifie son paiement.
+        if meta.get('is_exclusive') == 'True' and track.is_exclusive_sold:
+            return err(
+                'Ce track a déjà été vendu en exclusivité à un autre acheteur. '
+                'Contactez le support pour un remboursement.',
+                code='TRACK_EXCLUSIVE_SOLD', status=409,
+            )
+
         total_price      = Decimal(str(meta.get('track_price', payment_intent.amount / 100)))
         platform_fee     = (total_price * Decimal('0.10')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         composer_revenue = (total_price - platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)

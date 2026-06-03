@@ -222,7 +222,8 @@ def perform_withdrawal(user, amount_requested):
     Pas de commit : géré par la route appelante.
     """
     import stripe
-    from models import WalletTransaction
+    from models import WalletTransaction, Wallet
+    from sqlalchemy import select
 
     MIN_WITHDRAWAL = Decimal('10.00')
     amount = Decimal(str(amount_requested))
@@ -230,7 +231,11 @@ def perform_withdrawal(user, amount_requested):
     if amount < MIN_WITHDRAWAL:
         return {'success': False, 'error': f'Montant minimum de retrait : {MIN_WITHDRAWAL}€'}
 
-    wallet = user.wallet
+    # Verrou de ligne (SELECT … FOR UPDATE) — garantit l'exclusivité mutuelle
+    # et évite le double retrait par requêtes concurrentes sur le même wallet.
+    wallet = db.session.execute(
+        select(Wallet).where(Wallet.user_id == user.id).with_for_update()
+    ).scalar_one_or_none()
     if not wallet or wallet.balance_available < amount:
         return {'success': False, 'error': 'Solde disponible insuffisant'}
 

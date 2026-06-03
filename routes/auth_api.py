@@ -686,7 +686,7 @@ def google_callback():
 
             return redirect(f'{angular_base}/oauth-callback?code={code}')
 
-        current_app.logger.debug(f'user: {user}, authorize_access_token ?: {token}, resp ? {resp}.')
+        current_app.logger.debug('[OAuth] google_callback — google_id inconnu, passage au cas 2 (email lookup)')
 
         # ── CAS 2 : google_id inconnu (exclut les comptes soft-deleted) ────────
         user_by_email = (db.session.query(User)

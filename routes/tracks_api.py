@@ -321,6 +321,10 @@ def post_track(current_user):
         except ValueError:
             return err('Prix invalides', level='warning')
 
+        for _label, _val in (('MP3', price_mp3), ('WAV', price_wav), ('Stems', price_stems)):
+            if not (0.50 <= _val <= 999.99):
+                return err(f'Le prix {_label} doit être entre 0.50€ et 999.99€', level='warning')
+
         try:
             sacem_percentage_composer = int(request.form.get('sacem_percentage_composer', 50))
             if sacem_percentage_composer > 85 or sacem_percentage_composer < 0:
@@ -506,6 +510,10 @@ def put_track(track_id, current_user):
         price_stems = float(request.form.get('price_stems', track.price_stems or 0))
     except ValueError:
         return err('Prix invalides', level='warning')
+
+    for _label, _val in (('MP3', price_mp3), ('WAV', price_wav), ('Stems', price_stems)):
+        if not (0.50 <= _val <= 999.99):
+            return err(f'Le prix {_label} doit être entre 0.50€ et 999.99€', level='warning')
 
     file_image = request.files.get('file_image')
     if file_image and file_image.filename != '':

@@ -285,8 +285,8 @@ class TestTrackPriceCalculator:
                 'mechanical_reproduction': False, 'public_show': False, 'arrangement': False,
             }
             _base, opts_price, _total = calc.calculate_total(track, options, format_type='mp3')
-            # durée 3 ans (config=10) + territoire monde (custom=25) = 35
-            assert opts_price == Decimal('35')
+            # durée 3 ans (config prod=5) + territoire monde (custom=25) = 30
+            assert opts_price == Decimal('30')
 
 
 # ── TrackPriceCalculator — scénarios presets quick-start ──────────────────────
@@ -343,14 +343,14 @@ class TestTrackPriceCalculatorPresets:
     def test_preset_standard_includes_duration_territory_and_rights(self, app):
         """
         Standard : 5 ans, Europe, reproduction mécanique + diffusion publique.
-        Calcul (test config) :
-          duration_years=5 → CONTRACT_DURATIONS.get('5', 5) = 5
+        Calcul (config prod) :
+          duration_years=5 → CONTRACT_DURATIONS['5'] = 10
           Europe           → CONTRACT_TERRITORY_EUROPE = 5
-          sous-total intermédiaire = 9.99 + 10 = 19.99 < 74.99 → droits facturés
+          intermédiaire = 9.99 + 15 = 24.99 < 74.99 → droits facturés
           mechanical       → +30
           public_show      → +40
-          options_fee      = 5 + 5 + 30 + 40 = 80
-          total            = 9.99 + 80 = 89.99
+          options_fee      = 10 + 5 + 30 + 40 = 85
+          total            = 9.99 + 85 = 94.99
         """
         from utils.payment_validator import TrackPriceCalculator
         track = self._make_track(mp3=9.99)
@@ -364,21 +364,24 @@ class TestTrackPriceCalculatorPresets:
             _base, opts_price, total = TrackPriceCalculator().calculate_total(
                 track, options, format_type='mp3'
             )
-        assert opts_price == Decimal('80')
-        assert total == Decimal('89.99')
+        assert opts_price == Decimal('85')
+        assert total == Decimal('94.99')
 
     def test_preset_integral_all_rights_lifetime_worldwide(self, app):
         """
         Liberté totale : à vie, monde entier, tous les droits y compris arrangement.
-        Calcul (test config) :
-          is_lifetime=True → CONTRACT_DURATIONS['lifetime'] = 30
+        Calcul (config prod) :
+          is_lifetime=True → CONTRACT_DURATIONS['lifetime'] = 50
           Monde entier     → CONTRACT_TERRITORY_WORLD = 10
-          arrangement      → +10  (traité avant le calcul des seuils)
-          sous-total intermédiaire = 9.99 + 50 = 59.99 < 74.99 → droits facturés
-          mechanical       → +30
-          public_show      → +40
-          options_fee      = 30 + 10 + 10 + 30 + 40 = 120
-          total            = 9.99 + 120 = 129.99
+          arrangement      → +10  (traité AVANT les seuils)
+          contrat_price avant seuils = 70
+          intermédiaire = 9.99 + 70 = 79.99
+
+          public_show : 79.99 >= 74.99 → AUTO-INCLUS (aucun surcoût)
+          mechanical  : 79.99 < 199.99 → +30
+
+          options_fee = 50 + 10 + 10 + 30 = 100  (pas de public_show en plus)
+          total       = 9.99 + 100 = 109.99
         """
         from utils.payment_validator import TrackPriceCalculator
         track = self._make_track(mp3=9.99)
@@ -392,8 +395,8 @@ class TestTrackPriceCalculatorPresets:
             _base, opts_price, total = TrackPriceCalculator().calculate_total(
                 track, options, format_type='mp3'
             )
-        assert opts_price == Decimal('120')
-        assert total == Decimal('129.99')
+        assert opts_price == Decimal('100')
+        assert total == Decimal('109.99')
 
     def test_duration_years_zero_does_not_charge_default_duration_fee(self, app):
         """

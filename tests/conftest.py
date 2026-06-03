@@ -62,7 +62,7 @@ def app():
         'PLATFORM_COMMISSION': 0.10,
         # Contrats - valeurs de test
         'CONTRACT_EXCLUSIVE_PRICE': 150,
-        'CONTRACT_DURATIONS': {'1': 5, '2': 8, '3': 10, 'lifetime': 30},
+        'CONTRACT_DURATIONS': {'3': 5, '5': 10, '10': 15, 'lifetime': 50},
         'CONTRACT_MECHANICAL_REPRODUCTION_PRICE': 30,
         'CONTRACT_PUBLIC_SHOW_PRICE': 40,
         'CONTRACT_ARRANGEMENT_PRICE': 10,

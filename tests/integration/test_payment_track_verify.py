@@ -331,12 +331,14 @@ class TestVerifyPaymentSuccess:
         assert purchase.buyer_id == buyer.id
         assert purchase.format_purchased == 'mp3'
 
-        # Wallet du compositeur crédité
+        # Wallet du compositeur crédité avec le montant exact
+        # track_price=14.99, commission=10% → platform_fee=1.50, composer_revenue=13.49
+        # 14.99 × 0.10 = 1.499 → ROUND_HALF_UP → 1.50 ; 14.99 - 1.50 = 13.49
         composer_wallet = db.session.query(Wallet).filter_by(
             user_id=track.composer_id
         ).first()
         assert composer_wallet is not None
-        assert composer_wallet.balance_pending > 0
+        assert composer_wallet.balance_pending == Decimal('13.49')
 
     def test_track_not_found_returns_404(self, client, db, buyer_data):
         """Si le track_id en metadata n'existe pas → 404."""

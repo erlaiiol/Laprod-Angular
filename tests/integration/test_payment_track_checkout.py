@@ -4,14 +4,15 @@ Tests d'intégration — calcul du prix Track envoyé à Stripe
 Vérifie que unit_amount (en centimes) passé à stripe.checkout.Session.create()
 reflète exactement le calcul serveur selon les options de contrat cochées.
 
-Config de test (conftest.py) :
+Config de test (conftest.py) — IDENTIQUE à la production (config.py) :
   CONTRACT_EXCLUSIVE_PRICE                : 150
-  CONTRACT_DURATIONS                      : {'1': 5, '2': 8, '3': 10, 'lifetime': 30}
+  CONTRACT_DURATIONS                      : {'3': 5, '5': 10, '10': 15, 'lifetime': 50}
   CONTRACT_MECHANICAL_REPRODUCTION_PRICE  : 30
   CONTRACT_PUBLIC_SHOW_PRICE              : 40
   CONTRACT_ARRANGEMENT_PRICE              : 10
   CONTRACT_TERRITORY_EUROPE               : 5
   CONTRACT_TERRITORY_WORLD                : 10
+  Seuils auto-inclusion : mechanical >= 199.99€ / public_show >= 74.99€
 """
 import json
 import uuid
@@ -148,30 +149,30 @@ class TestTrackCheckoutUnitAmount:
 
     def test_base_price_with_3y_duration(self, client, track_standard, buyer_headers):
         """
-        MP3 (9.99) + durée 3 ans (CONTRACT_DURATIONS['3']=10) + France (0) = 19.99€.
-        unit_amount attendu : 1999 centimes.
+        MP3 (9.99) + durée 3 ans (CONTRACT_DURATIONS['3']=5) + France (0) = 14.99€.
+        unit_amount attendu : 1499 centimes.
         """
         headers, _ = buyer_headers
-        payload = {'duration_years': 3, 'territory': 'France', 'total_price': 19.99}
+        payload = {'duration_years': 3, 'territory': 'France', 'total_price': 14.99}
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
             resp = self._post(client, track_standard.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 1999
+        assert _unit_amount(mock_create) == 1499
 
     def test_exclusive_adds_config_price(self, client, track_standard, buyer_headers):
         """
         is_exclusive=True → +CONTRACT_EXCLUSIVE_PRICE (150).
-        9.99 + 150 + 10 (3y) = 169.99€ → unit_amount=16999.
+        9.99 + 150 + 5 (3y) = 164.99€ → unit_amount=16499.
         """
         headers, _ = buyer_headers
         payload = {
             'is_exclusive': True,
             'duration_years': 3,
             'territory': 'France',
-            'total_price': 169.99,
+            'total_price': 164.99,
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
@@ -179,19 +180,19 @@ class TestTrackCheckoutUnitAmount:
             resp = self._post(client, track_standard.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 16999
+        assert _unit_amount(mock_create) == 16499
 
     def test_exclusive_uses_custom_track_price(self, client, track_with_custom_prices, buyer_headers):
         """
         track.contract_price_exclusive=500 prime sur le config (150).
-        9.99 + 500 + 10 (3y) = 519.99€ → unit_amount=51999.
+        9.99 + 500 + 5 (3y) = 514.99€ → unit_amount=51499.
         """
         headers, _ = buyer_headers
         payload = {
             'is_exclusive': True,
             'duration_years': 3,
             'territory': 'France',
-            'total_price': 519.99,
+            'total_price': 514.99,
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
@@ -199,30 +200,15 @@ class TestTrackCheckoutUnitAmount:
             resp = self._post(client, track_with_custom_prices.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 51999
+        assert _unit_amount(mock_create) == 51499
 
     def test_territory_world_adds_fee(self, client, track_standard, buyer_headers):
         """
         territory='Monde entier' → +CONTRACT_TERRITORY_WORLD (10).
-        9.99 + 10 (3y) + 10 = 29.99€ → unit_amount=2999.
+        9.99 + 5 (3y) + 10 = 24.99€ → unit_amount=2499.
         """
         headers, _ = buyer_headers
-        payload = {'duration_years': 3, 'territory': 'Monde entier', 'total_price': 29.99}
-
-        with patch('stripe.checkout.Session.create') as mock_create:
-            mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
-
-        assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 2999
-
-    def test_territory_europe_adds_fee(self, client, track_standard, buyer_headers):
-        """
-        territory='Europe' → +CONTRACT_TERRITORY_EUROPE (5).
-        9.99 + 10 (3y) + 5 = 24.99€ → unit_amount=2499.
-        """
-        headers, _ = buyer_headers
-        payload = {'duration_years': 3, 'territory': 'Europe', 'total_price': 24.99}
+        payload = {'duration_years': 3, 'territory': 'Monde entier', 'total_price': 24.99}
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
@@ -231,32 +217,47 @@ class TestTrackCheckoutUnitAmount:
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 2499
 
+    def test_territory_europe_adds_fee(self, client, track_standard, buyer_headers):
+        """
+        territory='Europe' → +CONTRACT_TERRITORY_EUROPE (5).
+        9.99 + 5 (3y) + 5 = 19.99€ → unit_amount=1999.
+        """
+        headers, _ = buyer_headers
+        payload = {'duration_years': 3, 'territory': 'Europe', 'total_price': 19.99}
+
+        with patch('stripe.checkout.Session.create') as mock_create:
+            mock_create.return_value = MagicMock(url='https://stripe.test')
+            resp = self._post(client, track_standard.id, headers, payload)
+
+        assert resp.status_code == 200
+        assert _unit_amount(mock_create) == 1999
+
     def test_custom_territory_eu_price(self, client, track_with_custom_prices, buyer_headers):
         """
         track.contract_price_territory_eu=20 prime sur le config (5).
-        9.99 + 10 (3y) + 20 = 39.99€ → unit_amount=3999.
+        9.99 + 5 (3y) + 20 = 34.99€ → unit_amount=3499.
         """
         headers, _ = buyer_headers
-        payload = {'duration_years': 3, 'territory': 'Europe', 'total_price': 39.99}
+        payload = {'duration_years': 3, 'territory': 'Europe', 'total_price': 34.99}
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
             resp = self._post(client, track_with_custom_prices.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 3999
+        assert _unit_amount(mock_create) == 3499
 
     def test_arrangement_adds_fee(self, client, track_standard, buyer_headers):
         """
         arrangement=True → +CONTRACT_ARRANGEMENT_PRICE (10).
-        9.99 + 10 (3y) + 10 = 29.99€ → unit_amount=2999.
+        9.99 + 5 (3y) + 10 = 24.99€ → unit_amount=2499.
         """
         headers, _ = buyer_headers
         payload = {
             'arrangement': True,
             'duration_years': 3,
             'territory': 'France',
-            'total_price': 29.99,
+            'total_price': 24.99,
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
@@ -264,20 +265,20 @@ class TestTrackCheckoutUnitAmount:
             resp = self._post(client, track_standard.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 2999
+        assert _unit_amount(mock_create) == 2499
 
     def test_mechanical_added_below_threshold(self, client, track_standard, buyer_headers):
         """
-        mechanical_reproduction=True et subtotal < 199.99 → +CONTRACT_MECHANICAL_PRICE (30).
-        intermediate = 9.99 + 10 = 19.99 < 199.99 → mécanique ajouté.
-        total = 49.99€ → unit_amount=4999.
+        mechanical_reproduction=True et intermediate < 199.99 → +CONTRACT_MECHANICAL_PRICE (30).
+        intermediate = 9.99 + 5 (3y) = 14.99 < 199.99 → mécanique ajouté.
+        total = 9.99 + 5 + 30 = 44.99€ → unit_amount=4499.
         """
         headers, _ = buyer_headers
         payload = {
             'mechanical_reproduction': True,
             'duration_years': 3,
             'territory': 'France',
-            'total_price': 49.99,
+            'total_price': 44.99,
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
@@ -285,13 +286,13 @@ class TestTrackCheckoutUnitAmount:
             resp = self._post(client, track_standard.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 4999
+        assert _unit_amount(mock_create) == 4499
 
     def test_mechanical_not_added_above_threshold(self, client, track_with_custom_prices, buyer_headers):
         """
-        mechanical_reproduction=True mais subtotal >= 199.99 → droit auto-inclus, aucun surcoût.
-        exclusive=500 → intermediate = 9.99 + 500 + 10 = 519.99 >= 199.99 → mécanique non ajouté.
-        total = 519.99€ → unit_amount=51999 (identique sans mechanical).
+        mechanical_reproduction=True mais intermediate >= 199.99 → droit auto-inclus, aucun surcoût.
+        exclusive=500 → intermediate = 9.99 + 500 + 5 (3y) = 514.99 >= 199.99 → mécanique non ajouté.
+        total = 514.99€ → unit_amount=51499 (identique sans mechanical).
         """
         headers, _ = buyer_headers
         payload = {
@@ -299,7 +300,7 @@ class TestTrackCheckoutUnitAmount:
             'mechanical_reproduction': True,
             'duration_years': 3,
             'territory': 'France',
-            'total_price': 519.99,
+            'total_price': 514.99,
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
@@ -307,11 +308,11 @@ class TestTrackCheckoutUnitAmount:
             resp = self._post(client, track_with_custom_prices.id, headers, payload)
 
         assert resp.status_code == 200
-        assert _unit_amount(mock_create) == 51999
+        assert _unit_amount(mock_create) == 51499
 
     def test_price_tampered_returns_403(self, client, track_standard, buyer_headers):
         """
-        Client envoie total_price=1.00 alors que le serveur calcule 19.99€.
+        Client envoie total_price=1.00 alors que le serveur calcule 14.99€ (9.99 + 5).
         Écart > 0.01€ → 403 PRICE_TAMPERED, Stripe n'est pas appelé.
         """
         headers, _ = buyer_headers

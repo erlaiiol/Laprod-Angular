@@ -207,10 +207,21 @@ class TestCreditWalletForMixmasterDeposit:
 # ── perform_withdrawal ────────────────────────────────────────────────────────
 
 class TestPerformWithdrawal:
+    """
+    Après le fix with_for_update(), perform_withdrawal() charge le wallet via
+    db.session.execute(select(Wallet).where(...).with_for_update()).scalar_one_or_none()
+    et non plus via user.wallet. Les mocks doivent configurer ce chemin.
+    """
+
+    def _setup_locked_wallet(self, mock_db, balance: Decimal) -> MagicMock:
+        """Configure mock_db pour retourner un wallet locké avec le solde donné."""
+        locked = _make_wallet(balance_available=balance)
+        mock_db.session.execute.return_value.scalar_one_or_none.return_value = locked
+        return locked
 
     def test_rejects_amount_below_minimum(self, mocker):
-        """Retrait < 10€ doit être refusé avec un message clair."""
-        mocker.patch('utils.wallet_service.db')
+        """Retrait < 10€ doit être refusé avant tout accès DB."""
+        mock_db = mocker.patch('utils.wallet_service.db')
         user = _make_user()
 
         from utils.wallet_service import perform_withdrawal
@@ -218,12 +229,15 @@ class TestPerformWithdrawal:
 
         assert result['success'] is False
         assert '10' in result['error']
+        # La DB ne doit pas être consultée pour un montant sous le minimum
+        mock_db.session.execute.assert_not_called()
 
     def test_rejects_insufficient_balance(self, mocker):
         """Retrait supérieur au solde disponible doit être refusé."""
-        mocker.patch('utils.wallet_service.db')
-        wallet = _make_wallet(balance_available=Decimal('20.00'))
-        user = _make_user(wallet=wallet)
+        mock_db = mocker.patch('utils.wallet_service.db')
+        self._setup_locked_wallet(mock_db, Decimal('20.00'))
+        user = _make_user(stripe_account_id='acct_test')
+        user.id = 1
 
         from utils.wallet_service import perform_withdrawal
         result = perform_withdrawal(user, Decimal('50.00'))
@@ -233,9 +247,10 @@ class TestPerformWithdrawal:
 
     def test_rejects_no_stripe_connect(self, mocker):
         """Retrait sans compte Stripe Connect doit retourner 'connect_required'."""
-        mocker.patch('utils.wallet_service.db')
-        wallet = _make_wallet(balance_available=Decimal('100.00'))
-        user = _make_user(wallet=wallet, stripe_account_id=None)
+        mock_db = mocker.patch('utils.wallet_service.db')
+        self._setup_locked_wallet(mock_db, Decimal('100.00'))
+        user = _make_user(stripe_account_id=None)
+        user.id = 1
 
         from utils.wallet_service import perform_withdrawal
         result = perform_withdrawal(user, Decimal('50.00'))
@@ -245,14 +260,14 @@ class TestPerformWithdrawal:
 
     def test_rejects_incomplete_onboarding(self, mocker):
         """Retrait sans onboarding Stripe complet doit retourner 'connect_incomplete'."""
-        mocker.patch('utils.wallet_service.db')
-        wallet = _make_wallet(balance_available=Decimal('100.00'))
+        mock_db = mocker.patch('utils.wallet_service.db')
+        self._setup_locked_wallet(mock_db, Decimal('100.00'))
         user = _make_user(
-            wallet=wallet,
             stripe_account_id='acct_test123',
             onboarding_complete=False,
             account_status='pending',
         )
+        user.id = 1
 
         from utils.wallet_service import perform_withdrawal
         result = perform_withdrawal(user, Decimal('50.00'))
@@ -263,24 +278,19 @@ class TestPerformWithdrawal:
     def test_successful_withdrawal(self, mocker):
         """Retrait valide doit créer un Transfer Stripe et retourner success=True."""
         mock_db = mocker.patch('utils.wallet_service.db')
+        locked_wallet = self._setup_locked_wallet(mock_db, Decimal('80.00'))
 
-        # stripe est importé en lazy dans perform_withdrawal → on patch le module directement
         mock_transfer = MagicMock()
         mock_transfer.id = 'tr_test_abc123'
         mocker.patch('stripe.Transfer.create', return_value=mock_transfer)
-
-        # WalletTransaction (importé depuis models à l'intérieur de la fonction)
         mocker.patch('models.WalletTransaction')
 
-        # Simuler une transaction disponible en DB
         mock_txn = MagicMock()
         mock_txn.amount = Decimal('80.00')
         mock_txn.status = 'available'
         mock_db.session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_txn]
 
-        wallet = _make_wallet(balance_available=Decimal('80.00'))
         user = _make_user(
-            wallet=wallet,
             stripe_account_id='acct_test123',
             onboarding_complete=True,
             account_status='active',
@@ -294,17 +304,18 @@ class TestPerformWithdrawal:
         assert result['success'] is True
         assert result['transfer_id'] == 'tr_test_abc123'
         assert result['amount'] == 50.0
+        # Le wallet locké doit avoir été débité
+        assert locked_wallet.balance_available == Decimal('30.00')
 
     def test_stripe_error_returns_failure(self, mocker):
-        """Une erreur Stripe doit retourner success=False sans lever d'exception."""
-        mocker.patch('utils.wallet_service.db')
+        """Une erreur Stripe ne doit pas modifier le wallet et retourner success=False."""
+        mock_db = mocker.patch('utils.wallet_service.db')
+        locked_wallet = self._setup_locked_wallet(mock_db, Decimal('100.00'))
 
         from stripe._error import StripeError
         mocker.patch('stripe.Transfer.create', side_effect=StripeError('Stripe down'))
 
-        wallet = _make_wallet(balance_available=Decimal('100.00'))
         user = _make_user(
-            wallet=wallet,
             stripe_account_id='acct_test123',
             onboarding_complete=True,
             account_status='active',
@@ -317,6 +328,8 @@ class TestPerformWithdrawal:
 
         assert result['success'] is False
         assert 'Stripe down' in result['error']
+        # Le wallet ne doit PAS avoir été modifié
+        assert locked_wallet.balance_available == Decimal('100.00')
 
 
 # ── process_pending_to_available ──────────────────────────────────────────────
