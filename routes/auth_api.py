@@ -657,7 +657,15 @@ def google_callback():
                 .first())
 
         if user:
-            if picture and getattr(user, 'profile_picture_url', None) != picture:
+            # Ne restaure l'URL Google que si l'utilisateur n'a PAS uploadé
+            # de photo personnalisée. Un upload custom efface profile_picture_url
+            # (cf. edit_profile) — on ne doit jamais l'écraser en retour.
+            _has_custom_image = (
+                user.profile_image
+                and user.profile_image != 'images/default_profile.png'
+                and user.profile_image.startswith('images/profiles/')
+            )
+            if picture and not _has_custom_image and getattr(user, 'profile_picture_url', None) != picture:
                 user.profile_picture_url = picture
                 db.session.commit()
 
@@ -697,9 +705,16 @@ def google_callback():
         if user_by_email:
             if user_by_email.oauth_provider is None:
                 # Lier le compte classique à Google
-                user_by_email.google_id           = google_id
-                user_by_email.oauth_provider      = 'google'
-                user_by_email.profile_picture_url = picture
+                user_by_email.google_id      = google_id
+                user_by_email.oauth_provider = 'google'
+                # N'écrase pas une photo personnalisée déjà uploadée
+                _has_custom = (
+                    user_by_email.profile_image
+                    and user_by_email.profile_image != 'images/default_profile.png'
+                    and user_by_email.profile_image.startswith('images/profiles/')
+                )
+                if picture and not _has_custom:
+                    user_by_email.profile_picture_url = picture
                 user_by_email.email_verified      = user_by_email.email_verified or email_verified
                 if user_by_email.email_verified:
                     user_by_email.account_status = 'active'
