@@ -301,10 +301,16 @@ def mix_engineer(eng) -> dict:
     """
     from models import MixMasterRequest  # import local pour éviter les imports circulaires
     ref = float(eng.mixmaster_reference_price or 0)
-    if ref and eng.is_certified_producer_arranger:
-        price_max = round(ref * 1.80, 2)
-    elif ref:
-        price_max = round(ref * 1.20, 2)
+    if ref:
+        # Services toujours disponibles pour tout mix engineer
+        max_pct = 0.35 + 0.45 + 0.20   # cleaning + effects + stems
+        # Mastering : certifié admin OU abonnement Pro actif
+        if eng.can_do_mastering:
+            max_pct += 0.20
+        # Intervention artistique : certifié producteur/arrangeur
+        if eng.is_certified_producer_arranger:
+            max_pct += 0.60
+        price_max = round(ref * max_pct, 2)
     else:
         price_max = 0
 
