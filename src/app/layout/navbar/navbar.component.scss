@@ -173,6 +173,20 @@
   }
 }
 
+.tag-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.tag-group-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .no-tags { color: #6c757d; font-size: 0.8rem; }
 
 .filters-footer {

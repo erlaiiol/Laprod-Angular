@@ -78,9 +78,17 @@ def _generate_telephone_preview(audio_segment: AudioSegment) -> AudioSegment:
 @mixmaster_api_bp.route('/engineers', methods=['GET'])
 @csrf.exempt
 def get_engineers():
-    """Liste des ingénieurs certifiés (public)."""
+    """Liste des ingénieurs certifiés (public).
+    Filtre : prix définis + Stripe onboarding complet → profil commandable.
+    """
+    # Seuls les ingénieurs avec leurs prix configurés sont affichés.
+    # Stripe Connect (payout) est indépendant : les gains s'accumulent en wallet.
     engineers = db.session.scalars(
-        select(User).where(User.is_mixmaster_engineer == True).order_by(User.username)
+        select(User).where(
+            User.is_mixmaster_engineer == True,
+            User.mixmaster_reference_price.is_not(None),
+            User.mixmaster_price_min.is_not(None),
+        ).order_by(User.username)
     ).all()
     return ok({'engineers': [mix_engineer(e) for e in engineers]})
 

@@ -76,7 +76,7 @@
                      (change)="!mandatoryServices().has('cleaning') && serviceCleaning.set(!serviceCleaning())">
               Nettoyage &amp; équilibre
               @if (mandatoryServices().has('cleaning')) { <span class="chk-mandatory">inclus</span> }
-              <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.35).toFixed(2) }}€</span>
+              <span class="chk-price">+{{ (ref() * 0.35).toFixed(2) }}€</span>
             </label>
             <label class="chk-row" [class.chk-locked]="mandatoryServices().has('effects')">
               <input type="checkbox"
@@ -85,7 +85,7 @@
                      (change)="!mandatoryServices().has('effects') && serviceEffects.set(!serviceEffects())">
               Mixage avec effets
               @if (mandatoryServices().has('effects')) { <span class="chk-mandatory">inclus</span> }
-              <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.45).toFixed(2) }}€</span>
+              <span class="chk-price">+{{ (ref() * 0.45).toFixed(2) }}€</span>
             </label>
             @if (engineer()!.is_certified_master_engineer || engineer()!.subscription_plan === 'pro') {
               <label class="chk-row" [class.chk-locked]="mandatoryServices().has('mastering')">
@@ -100,7 +100,7 @@
                   <span class="chk-badge-pro"><i class="bi bi-star-fill"></i> Pro</span>
                 }
                 @if (mandatoryServices().has('mastering')) { <span class="chk-mandatory">inclus</span> }
-                <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€</span>
+                <span class="chk-price">+{{ (ref() * 0.20).toFixed(2) }}€</span>
               </label>
             }
             @if (engineer()!.is_certified_producer_arranger) {
@@ -112,13 +112,13 @@
                 Intervention artistique
                 <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Producteur</span>
                 @if (mandatoryServices().has('artistic')) { <span class="chk-mandatory">inclus</span> }
-                <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.60).toFixed(2) }}€</span>
+                <span class="chk-price">+{{ (ref() * 0.60).toFixed(2) }}€</span>
               </label>
             }
             <label class="chk-row">
               <input type="checkbox" [checked]="hasSeparatedStems()" (change)="hasSeparatedStems.set(!hasSeparatedStems())">
               Stems (pistes) de la composition / beat séparées
-              <span class="chk-price">+{{ (engineer()!.mixmaster_reference_price * 0.20).toFixed(2) }}€</span>
+              <span class="chk-price">+{{ (ref() * 0.20).toFixed(2) }}€</span>
             </label>
           </div>
         </div>

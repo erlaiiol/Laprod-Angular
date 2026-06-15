@@ -267,20 +267,24 @@
 
     <div class="filter-section">
       <label class="filter-label">Tags</label>
-      <div class="filter-tags-container">
-        @for (tag of tags(); track tag.name) {
-          <span class="filter-tag"
-                [style.--tag-color]="tag.category.color"
-                [class.selected]="selectedTags().includes(tag.name)"
-                (click)="toggleTag(tag.name)">
-            #{{ tag.name }}
-          </span>
-        } @empty {
-          @if (!loading()) {
-            <span class="no-tags">Aucun tag disponible</span>
-          }
-        }
-      </div>
+      @if (tagGroups().length === 0 && !loading()) {
+        <span class="no-tags">Aucun tag disponible</span>
+      }
+      @for (group of tagGroups(); track group.name) {
+        <div class="tag-group">
+          <span class="tag-group-label" [style.color]="group.color">{{ group.name }}</span>
+          <div class="filter-tags-container">
+            @for (tag of group.tags; track tag.name) {
+              <span class="filter-tag"
+                    [style.--tag-color]="tag.category.color"
+                    [class.selected]="selectedTags().includes(tag.name)"
+                    (click)="toggleTag(tag.name)">
+                #{{ tag.name }}
+              </span>
+            }
+          </div>
+        </div>
+      }
     </div>
 
   </div>

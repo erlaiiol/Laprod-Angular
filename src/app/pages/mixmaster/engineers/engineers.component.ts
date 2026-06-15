@@ -5,7 +5,6 @@ import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster
 import { AuthService } from '../../../services/auth.service';
 import { PlayerService } from '../../../services/player.service';
 import { Track } from '../../../services/track.service';
-import { environment } from '../../../../environments/environment';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 
 @Component({
@@ -76,11 +75,9 @@ export class MixmasterEngineersComponent implements OnInit {
   }
 
   priceRange(e: MixEngineerPublic): string {
-    const ref = e.mixmaster_reference_price;
-    const max = Math.round(
-      (ref * 0.35 + ref * 0.45 + ref * 0.20 + ref * 0.20
-       + (e.is_certified_producer_arranger ? ref * 0.60 : 0)) * 100
-    ) / 100;
-    return `${e.mixmaster_price_min.toFixed(2)}€ — ${max.toFixed(2)}€`;
+    const min = e.mixmaster_price_min;
+    const max = e.price_max;
+    if (min == null || !max) return 'Prix sur demande';
+    return `${(+min).toFixed(2)}€ — ${(+max).toFixed(2)}€`;
   }
 }

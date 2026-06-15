@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
-import { environment } from '../../../../environments/environment';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 
 @Component({
@@ -66,15 +65,18 @@ export class MixmasterOrderComponent implements OnInit {
   referenceFile = signal<File | null>(null);
 
   // ── Price (computed) ──────────────────────────────────────────────────────
+  ref = computed(() => +(this.engineer()?.mixmaster_reference_price ?? 0));
+
   estimatedPrice = computed(() => {
     const eng = this.engineer();
     if (!eng) return 0;
     const ref = eng.mixmaster_reference_price;
+    if (ref == null) return 0;
     let price = 0;
-    if (this.serviceCleaning())  price += ref * 0.35;
-    if (this.serviceEffects())   price += ref * 0.45;
-    if (this.serviceMastering()) price += ref * 0.20;
-    if (this.serviceArtistic())  price += ref * 0.60;
+    if (this.serviceCleaning())   price += ref * 0.35;
+    if (this.serviceEffects())    price += ref * 0.45;
+    if (this.serviceMastering())  price += ref * 0.20;
+    if (this.serviceArtistic())   price += ref * 0.60;
     if (this.hasSeparatedStems()) price += ref * 0.20;
     return Math.round(price * 100) / 100;
   });

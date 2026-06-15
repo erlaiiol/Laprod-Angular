@@ -9,7 +9,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
-import { TagsService } from '../../services/tags.service';
+import { TagsService, Tag } from '../../services/tags.service';
 import { FilterStateService } from '../../services/filter-state.service';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
@@ -61,9 +61,23 @@ export class NavbarComponent implements OnInit {
     private authService:        AuthService,
   ) {}
 
-  tags = computed(() => this.tagsService.tags())
-  keys = computed(() => this.tagsService.keys())
+  keys   = computed(() => this.tagsService.keys())
   styles = computed(() => this.tagsService.styles())
+
+  tagGroups = computed<{ name: string; color: string; tags: Tag[] }[]>(() => {
+    const map    = new Map<string, { name: string; color: string; tags: Tag[] }>();
+    const groups: { name: string; color: string; tags: Tag[] }[] = [];
+    for (const tag of this.tagsService.tags()) {
+      const key = tag.category.name;
+      if (!map.has(key)) {
+        const g = { name: key, color: tag.category.color, tags: [] as Tag[] };
+        map.set(key, g);
+        groups.push(g);
+      }
+      map.get(key)!.tags.push(tag);
+    }
+    return groups;
+  });
 
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
   isArtist      = computed(() => this.authService.isArtist());

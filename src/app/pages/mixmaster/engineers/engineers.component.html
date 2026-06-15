@@ -99,6 +99,8 @@
                 {{ eng.active_orders }}/5 slots</div>
               @if (eng.slots_available === 0) {
                 <span class="btn-order btn-full">Complet</span>
+              } @else if (!eng.stripe_ready) {
+                <span class="btn-order btn-full">Indisponible</span>
               } @else if (auth.isLoggedIn()) {
                 <a class="btn-order" [routerLink]="['/mix/order', eng.id]">
                   Commander <i class="bi bi-arrow-right"></i>

@@ -323,8 +323,7 @@ def mix_engineer(eng) -> dict:
         'sample_raw_url':       f'/{eng.mixmaster_sample_raw}'       if eng.mixmaster_sample_raw       else None,
         'sample_processed_url': f'/{eng.mixmaster_sample_processed}' if eng.mixmaster_sample_processed else None,
         'stripe_ready': bool(
-            eng.stripe_onboarding_complete
-            and eng.mixmaster_reference_price
+            eng.mixmaster_reference_price
             and eng.mixmaster_price_min
         ),
         'active_orders':   active,
