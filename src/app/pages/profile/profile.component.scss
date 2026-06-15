@@ -346,6 +346,33 @@
   gap: 16px;
 }
 
+.pl-card-wrap {
+  position: relative;
+
+  &:hover .pl-card-edit-btn { opacity: 1; }
+}
+
+.pl-card-edit-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  backdrop-filter: blur(4px);
+
+  &:hover { background: rgba(59, 130, 246, 0.8); }
+}
+
 .pl-card {
   display: flex;
   flex-direction: column;

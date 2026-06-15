@@ -44,6 +44,12 @@ export class DashboardBeatmakerComponent implements OnInit {
   editTitle        = '';
   renameSaving     = signal(false);
 
+  // Image pour la création
+  newImageFile     = signal<File | null>(null);
+  newImagePreview  = signal<string | null>(null);
+  // Image update per-card (ID de la playlist en cours de mise à jour)
+  imageUpdatingId  = signal<number | null>(null);
+
   viewStats        = signal<TrackViewStat[]>([]);
   viewStatsLoading = signal(false);
 
@@ -99,22 +105,60 @@ export class DashboardBeatmakerComponent implements OnInit {
     });
   }
 
+  onCreateImageSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (!file) return;
+    this.newImageFile.set(file);
+    const prev = this.newImagePreview();
+    if (prev) URL.revokeObjectURL(prev);
+    this.newImagePreview.set(URL.createObjectURL(file));
+  }
+
+  cancelCreate(): void {
+    this.showCreateForm.set(false);
+    this.newTitle = '';
+    const prev = this.newImagePreview();
+    if (prev) URL.revokeObjectURL(prev);
+    this.newImageFile.set(null);
+    this.newImagePreview.set(null);
+  }
+
   createPlaylist(): void {
     const title = this.newTitle.trim();
     if (!title) return;
     this.creating.set(true);
     const fd = new FormData();
     fd.append('title', title);
+    const img = this.newImageFile();
+    if (img) fd.append('image', img);
     this.playlistSvc.createPlaylist(fd).subscribe({
       next: res => {
         this.playlists.update(list => [res.data!, ...list]);
-        this.newTitle = '';
-        this.showCreateForm.set(false);
+        this.cancelCreate();
         this.creating.set(false);
       },
       error: () => {
         this.creating.set(false);
         this.toast.showToast({ level: 'error', message: 'Erreur lors de la création.' });
+      },
+    });
+  }
+
+  onPlaylistImageSelected(pl: Playlist, event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (!file) return;
+    this.imageUpdatingId.set(pl.id);
+    const fd = new FormData();
+    fd.append('title', pl.title);
+    fd.append('image', file);
+    this.playlistSvc.updatePlaylist(pl.id, fd).subscribe({
+      next: res => {
+        this.playlists.update(list => list.map(p => p.id === pl.id ? res.data! : p));
+        this.imageUpdatingId.set(null);
+      },
+      error: () => {
+        this.imageUpdatingId.set(null);
+        this.toast.showToast({ level: 'error', message: "Erreur lors du changement d'image." });
       },
     });
   }

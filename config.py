@@ -229,7 +229,9 @@ PREMIUM_PRICE = PREMIUM_AMATEUR_PRICE  # alias rétrocompat (ancienne valeur)
 # ============================================
 # ENVIRONNEMENT
 # ============================================
-ENV = os.environ.get('FLASK_ENV', 'development')
+# Fail-safe : si FLASK_ENV non défini, on suppose la production (jamais exposer le debug par défaut)
+_env_raw = os.environ.get('FLASK_ENV')
+ENV   = _env_raw if _env_raw in ('development', 'production') else 'production'
 DEBUG = ENV == 'development'
 
 # ============================================

@@ -164,21 +164,31 @@
         </h2>
         <div class="playlists-grid">
           @for (pl of playlists(); track pl.id) {
-            <a class="pl-card" [routerLink]="['/playlist', pl.id]">
-              <div class="pl-card-img-wrap">
-                <img class="pl-card-img"
-                     [src]="playlistImgUrl(pl.image_file)"
-                     onerror="this.src='assets/placeholders/placeholder-track.png'"
-                     alt="">
-                @if (containingIds().has(pl.id)) {
-                  <span class="pl-check-badge">
-                    <i class="bi bi-check-lg"></i>
-                  </span>
-                }
-              </div>
-              <span class="pl-card-title">{{ pl.title }}</span>
-              <span class="pl-card-count">{{ pl.track_count }} track(s)</span>
-            </a>
+            <div class="pl-card-wrap">
+              <a class="pl-card" [routerLink]="['/playlist', pl.id]">
+                <div class="pl-card-img-wrap">
+                  <img class="pl-card-img"
+                       [src]="playlistImgUrl(pl.image_file)"
+                       onerror="this.src='assets/placeholders/placeholder-track.png'"
+                       alt="">
+                  @if (containingIds().has(pl.id)) {
+                    <span class="pl-check-badge">
+                      <i class="bi bi-check-lg"></i>
+                    </span>
+                  }
+                </div>
+                <span class="pl-card-title">{{ pl.title }}</span>
+                <span class="pl-card-count">{{ pl.track_count }} track(s)</span>
+              </a>
+              @if (isOwnProfile()) {
+                <a class="pl-card-edit-btn"
+                   [routerLink]="['/playlist', pl.id]"
+                   [queryParams]="{ edit: 1 }"
+                   title="Modifier cette playlist">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+              }
+            </div>
           }
         </div>
       </div>

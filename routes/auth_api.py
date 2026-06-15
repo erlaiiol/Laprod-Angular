@@ -796,6 +796,7 @@ def token_exchange():
 
 @auth_api_bp.route('/refresh', methods=['POST'])
 @csrf.exempt
+@limiter.limit('30 per minute')
 @jwt_required(refresh=True)
 def jwt_token_refresh():
     user_id = int(get_jwt_identity())

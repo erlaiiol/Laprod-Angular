@@ -12,19 +12,64 @@
   <div class="playlist-page">
 
     <div class="playlist-header">
-      <img class="playlist-cover"
-           [src]="coverUrl(playlist()!.image_file)"
-           onerror="this.src='assets/placeholders/placeholder-track.png'"
-           alt="">
+
+      <!-- ── Cover (avec picker en mode édition) ──────────────────────────── -->
+      <div class="playlist-cover-wrap">
+        <img class="playlist-cover"
+             [src]="editImagePreview() ?? coverUrl(playlist()!.image_file)"
+             onerror="this.src='assets/placeholders/placeholder-track.png'"
+             alt="">
+        @if (editMode()) {
+          <label class="cover-edit-overlay" title="Changer l'image">
+            <i class="bi bi-camera-fill"></i>
+            <input type="file" accept="image/*" (change)="onEditImageSelected($event)" />
+          </label>
+        }
+      </div>
+
+      <!-- ── Méta ─────────────────────────────────────────────────────────── -->
       <div class="playlist-meta">
-        <h1 class="playlist-title">{{ playlist()!.title }}</h1>
+        @if (editMode()) {
+          <input class="edit-title-input"
+                 [(ngModel)]="editTitle"
+                 maxlength="200"
+                 placeholder="Titre de la playlist"
+                 (keydown.enter)="saveMeta()"
+                 (keydown.escape)="cancelEdit()" />
+        } @else {
+          <h1 class="playlist-title">{{ playlist()!.title }}</h1>
+        }
+
         <a class="playlist-author"
            [routerLink]="['/profile', playlist()!.beatmaker_username]">
           <i class="bi bi-person-fill"></i> {{ playlist()!.beatmaker_username }}
         </a>
         <p class="playlist-count">{{ playlist()!.track_count }} track(s)</p>
+
+        @if (isOwner()) {
+          <div class="owner-actions">
+            @if (editMode()) {
+              <button class="btn-save" (click)="saveMeta()" [disabled]="!editTitle.trim() || metaSaving()">
+                @if (metaSaving()) { <i class="bi bi-arrow-repeat spin"></i> } @else { <i class="bi bi-check-lg"></i> Sauvegarder }
+              </button>
+              <button class="btn-cancel" (click)="cancelEdit()">Annuler</button>
+            } @else {
+              <button class="btn-edit-toggle" (click)="enterEditMode()">
+                <i class="bi bi-pencil-fill"></i> Modifier la playlist
+              </button>
+            }
+          </div>
+        }
       </div>
     </div>
+
+    <!-- ── Bandeau mode édition ────────────────────────────────────────────── -->
+    @if (editMode()) {
+      <div class="edit-mode-banner">
+        <i class="bi bi-pencil-fill"></i>
+        Mode édition — cliquez sur <i class="bi bi-x-circle-fill"></i> pour retirer un track de la playlist.
+      </div>
+    }
 
     <div id="tracks-container">
       @if (playlist()!.tracks.length === 0) {
@@ -34,7 +79,21 @@
         </div>
       }
       @for (track of playlist()!.tracks; track track.id) {
-        <app-track-card [track]="track"></app-track-card>
+        <div class="track-row-wrap">
+          <app-track-card [track]="track"></app-track-card>
+          @if (editMode()) {
+            <button class="btn-remove-track"
+                    title="Retirer de la playlist"
+                    [disabled]="removingIds().has(track.id)"
+                    (click)="removeTrack(track.id)">
+              @if (removingIds().has(track.id)) {
+                <i class="bi bi-arrow-repeat spin"></i>
+              } @else {
+                <i class="bi bi-x-circle-fill"></i>
+              }
+            </button>
+          }
+        </div>
       }
     </div>
 

@@ -164,14 +164,27 @@
         </div>
 
         @if (showCreateForm()) {
-          <div class="create-inline">
-            <input [(ngModel)]="newTitle" placeholder="Titre de la playlist" maxlength="200"
-                   (keydown.enter)="createPlaylist()">
-            <button class="btn-primary btn-sm" (click)="createPlaylist()"
-                    [disabled]="!newTitle.trim() || creating()">
-              @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
-            </button>
-            <button class="btn-ghost btn-sm" (click)="showCreateForm.set(false)">Annuler</button>
+          <div class="create-form">
+            <label class="create-image-picker" [class.has-image]="newImagePreview()">
+              @if (newImagePreview()) {
+                <img [src]="newImagePreview()" alt="aperçu" />
+              } @else {
+                <i class="bi bi-camera-fill"></i>
+                <span>Image</span>
+              }
+              <input type="file" accept="image/*" (change)="onCreateImageSelected($event)" />
+            </label>
+            <div class="create-fields">
+              <input [(ngModel)]="newTitle" placeholder="Titre de la playlist" maxlength="200"
+                     (keydown.enter)="createPlaylist()">
+              <div class="create-actions">
+                <button class="btn-primary btn-sm" (click)="createPlaylist()"
+                        [disabled]="!newTitle.trim() || creating()">
+                  @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
+                </button>
+                <button class="btn-ghost btn-sm" (click)="cancelCreate()">Annuler</button>
+              </div>
+            </div>
           </div>
         }
 
@@ -186,12 +199,22 @@
           <div class="pl-grid">
             @for (pl of playlists(); track pl.id) {
               <div class="pl-dash-card">
-                <a [routerLink]="['/playlist', pl.id]">
-                  <img class="pl-dash-img"
-                       [src]="imgUrl(pl.image_file)"
-                       onerror="this.src='assets/placeholders/placeholder-track.png'"
-                       alt="">
-                </a>
+                <div class="pl-cover-wrap">
+                  <a [routerLink]="['/playlist', pl.id]">
+                    <img class="pl-dash-img"
+                         [src]="imgUrl(pl.image_file)"
+                         onerror="this.src='assets/placeholders/placeholder-track.png'"
+                         alt="">
+                  </a>
+                  @if (imageUpdatingId() === pl.id) {
+                    <div class="pl-cover-spinner"><i class="bi bi-arrow-repeat spin"></i></div>
+                  } @else {
+                    <label class="pl-cover-camera" title="Changer l'image">
+                      <i class="bi bi-camera-fill"></i>
+                      <input type="file" accept="image/*" (change)="onPlaylistImageSelected(pl, $event)" />
+                    </label>
+                  }
+                </div>
                 <div class="pl-dash-info">
                   @if (editingId() === pl.id) {
                     <div class="rename-inline">
@@ -210,6 +233,11 @@
                   <span class="pl-dash-count">{{ pl.track_count }} track(s)</span>
                 </div>
                 <div class="pl-dash-actions">
+                  <a class="btn-icon" title="Gérer les tracks"
+                     [routerLink]="['/playlist', pl.id]"
+                     [queryParams]="{ edit: 1 }">
+                    <i class="bi bi-collection-play"></i>
+                  </a>
                   <button class="btn-icon" title="Renommer" (click)="startRename(pl)">
                     <i class="bi bi-pencil"></i>
                   </button>

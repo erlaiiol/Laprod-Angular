@@ -8,6 +8,7 @@ GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + ache
 """
 from flask import Blueprint, current_app, send_file, abort
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
+from flask_jwt_extended.exceptions import JWTExtendedException
 from pathlib import Path
 from sqlalchemy import select
 
@@ -175,7 +176,7 @@ def stream_topline(topline_id):
         try:
             verify_jwt_in_request()
             current_user_id = int(get_jwt_identity())
-        except Exception:
+        except (JWTExtendedException, ValueError, TypeError):
             abort(403)
         if topline.artist_id != current_user_id:
             abort(403)
