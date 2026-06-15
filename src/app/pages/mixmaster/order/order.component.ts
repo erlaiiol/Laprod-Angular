@@ -67,18 +67,34 @@ export class MixmasterOrderComponent implements OnInit {
   // ── Price (computed) ──────────────────────────────────────────────────────
   ref = computed(() => +(this.engineer()?.mixmaster_reference_price ?? 0));
 
-  estimatedPrice = computed(() => {
+  /** Prix brut des services cochés (sans plancher price_min). */
+  rawServicesPrice = computed(() => {
     const eng = this.engineer();
     if (!eng) return 0;
-    const ref = eng.mixmaster_reference_price;
-    if (ref == null) return 0;
+    const r = eng.mixmaster_reference_price;
+    if (r == null) return 0;
     let price = 0;
-    if (this.serviceCleaning())   price += ref * 0.35;
-    if (this.serviceEffects())    price += ref * 0.45;
-    if (this.serviceMastering())  price += ref * 0.20;
-    if (this.serviceArtistic())   price += ref * 0.60;
-    if (this.hasSeparatedStems()) price += ref * 0.20;
+    if (this.serviceCleaning())   price += +r * 0.35;
+    if (this.serviceEffects())    price += +r * 0.45;
+    if (this.serviceMastering())  price += +r * 0.20;
+    if (this.serviceArtistic())   price += +r * 0.60;
+    if (this.hasSeparatedStems()) price += +r * 0.20;
     return Math.round(price * 100) / 100;
+  });
+
+  /**
+   * Supplément appliqué pour atteindre le tarif minimum de l'ingénieur.
+   * Positif quand les services cochés sont inférieurs à price_min.
+   */
+  priceMinSupplement = computed(() => {
+    const priceMin = +(this.engineer()?.mixmaster_price_min ?? 0);
+    const raw      = this.rawServicesPrice();
+    return Math.max(0, Math.round((priceMin - raw) * 100) / 100);
+  });
+
+  /** Prix total réel = max(services, price_min). Cohérent avec le backend. */
+  estimatedPrice = computed(() => {
+    return this.rawServicesPrice() + this.priceMinSupplement();
   });
 
   depositAmount = computed(() => Math.round(this.estimatedPrice() * 0.30 * 100) / 100);

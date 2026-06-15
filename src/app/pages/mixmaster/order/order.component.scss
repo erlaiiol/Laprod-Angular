@@ -36,7 +36,9 @@
 .price-row {
   display: flex; justify-content: space-between; align-items: baseline;
   font-size: 0.85rem; color: v.$text-secondary; margin-bottom: 0.35rem;
-  &.small { font-size: 0.78rem; color: v.$text-muted; }
+  &.small      { font-size: 0.78rem; color: v.$text-muted; }
+  &--supplement { color: #fbbf24; font-size: 0.8rem; font-style: italic; }
+  &--total     { border-top: 1px solid v.$bg-border; padding-top: 0.4rem; margin-top: 0.2rem; }
   strong.price-value { font-size: 1.4rem; font-weight: 800; color: v.$tag-green; }
 }
 
