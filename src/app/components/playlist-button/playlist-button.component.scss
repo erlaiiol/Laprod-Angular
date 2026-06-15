@@ -5,17 +5,28 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px;
-  color: var(--text-muted, #9ca3af);
+  padding: 0.25rem;
+  color: #6c757d;
+  font-size: 1.35rem;
+  line-height: 1;
+  transition: color 0.15s, transform 0.15s;
 
-  &:hover { color: var(--text-primary, #f3f4f6); }
+  &:hover {
+    color: #a78bfa;          // violet clair, cohérent avec la couleur playlist
+    transform: scale(1.15);
+  }
+
+  &--active {
+    color: #7c3aed;          // violet plus marqué quand dans une playlist
+    font-size: 1rem;         // taille réduite pour laisser place au stack d'images
+  }
 }
 
 // Stack visuelle des pochettes de playlists
 .pl-stack {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .pl-cover {
@@ -39,10 +50,10 @@
   &--3 { transform: translate(6px, -6px); }
 }
 
-// Badge "+N"
+// Badge count
 .pl-count {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
-  color: var(--text-muted, #9ca3af);
+  color: #a78bfa;
 }

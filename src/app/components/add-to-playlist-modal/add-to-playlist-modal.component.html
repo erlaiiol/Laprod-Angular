@@ -13,12 +13,15 @@
       </div>
     } @else {
 
+      <!-- Liste des playlists avec état en attente -->
       <div class="pl-list">
         @for (pl of playlists(); track pl.id) {
-          <label class="pl-check-row">
+          <label class="pl-check-row"
+                 [class.pl-check-row--added]="pendingIds().has(pl.id) && !initialIds.has(pl.id)"
+                 [class.pl-check-row--removed]="!pendingIds().has(pl.id) && initialIds.has(pl.id)">
             <input type="checkbox"
-                   [checked]="containingIds().has(pl.id)"
-                   (change)="toggle(pl, $event)">
+                   [checked]="pendingIds().has(pl.id)"
+                   (change)="togglePending(pl)">
             <img class="pl-thumb" [src]="imgUrl(pl.image_file)"
                  onerror="this.src='assets/placeholders/placeholder-track.png'" alt="">
             <span class="pl-row-title">{{ pl.title }}</span>
@@ -31,24 +34,51 @@
         }
       </div>
 
+      <!-- Créer une nouvelle playlist (avec image) -->
       @if (!showCreate()) {
         <button class="btn-secondary btn-sm" (click)="showCreate.set(true)">
           <i class="bi bi-plus"></i> Nouvelle playlist
         </button>
       } @else {
-        <div class="create-inline">
-          <input [(ngModel)]="newTitle"
-                 placeholder="Titre de la playlist"
-                 maxlength="200"
-                 (keydown.enter)="createAndAdd()">
-          <button class="btn-primary btn-sm"
-                  (click)="createAndAdd()"
-                  [disabled]="!newTitle.trim() || creating()">
-            @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
-          </button>
-          <button class="btn-ghost btn-sm" (click)="showCreate.set(false)">Annuler</button>
+        <div class="create-form-row">
+          <label class="create-img-mini" [class.has-image]="newImagePreview()">
+            @if (newImagePreview()) {
+              <img [src]="newImagePreview()" alt="aperçu">
+            } @else {
+              <i class="bi bi-camera-fill"></i>
+            }
+            <input type="file" accept="image/*" (change)="onCreateImageSelected($event)">
+          </label>
+          <div class="create-fields-col">
+            <input [(ngModel)]="newTitle"
+                   placeholder="Titre de la playlist"
+                   maxlength="200"
+                   (keydown.enter)="createAndAdd()">
+            <div class="create-actions-row">
+              <button class="btn-primary btn-sm"
+                      (click)="createAndAdd()"
+                      [disabled]="!newTitle.trim() || creating()">
+                @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
+              </button>
+              <button class="btn-ghost btn-sm" (click)="showCreate.set(false)">Annuler</button>
+            </div>
+          </div>
         </div>
       }
+
+      <!-- Footer : sauvegarder -->
+      <div class="modal-footer">
+        <button class="btn-primary btn-sm"
+                (click)="saveChanges()"
+                [disabled]="!hasPendingChanges() || saving()">
+          @if (saving()) {
+            <i class="bi bi-arrow-repeat spin"></i> Sauvegarde…
+          } @else {
+            <i class="bi bi-check-lg"></i> Sauvegarder
+          }
+        </button>
+        <button class="btn-ghost btn-sm" (click)="close()">Fermer</button>
+      </div>
 
     }
   </div>

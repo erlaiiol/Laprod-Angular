@@ -1,7 +1,8 @@
-@if (track.playlist_count > 0) {
-  <button class="playlist-btn"
-          [title]="track.playlist_count + ' playlist(s)'"
-          (click)="goToPlaylists($event)">
+<button class="playlist-btn"
+        [class.playlist-btn--active]="track.playlist_count > 0"
+        [title]="track.playlist_count > 0 ? track.playlist_count + ' playlist(s)' : 'Playlists'"
+        (click)="goToPlaylists($event)">
+  @if (track.playlist_count > 0) {
     <div class="pl-stack">
       @if (track.playlist_count >= 3) { <div class="pl-ghost pl-ghost--3"></div> }
       @if (track.playlist_count >= 2) { <div class="pl-ghost pl-ghost--2"></div> }
@@ -10,8 +11,10 @@
            onerror="this.src='assets/placeholders/placeholder-track.png'"
            alt="">
     </div>
-    @if (track.playlist_count >= 3) {
-      <span class="pl-count">+{{ track.playlist_count }}</span>
+    @if (track.playlist_count >= 2) {
+      <span class="pl-count">{{ track.playlist_count }}</span>
     }
-  </button>
-}
+  } @else {
+    <i class="bi bi-collection-play"></i>
+  }
+</button>

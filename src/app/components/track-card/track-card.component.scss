@@ -141,7 +141,13 @@
 
 .no-tags { color: #6c757d; font-size: 0.8rem; }
 
-.track-actions { flex-shrink: 0; }
+.track-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
 
 .btn-favorite {
   background: none;

@@ -50,6 +50,12 @@ def setup_logging(app):
 
     app.logger.setLevel(log_level)
 
+    # En production : couper la propagation vers le root logger pour éviter
+    # que des handlers de bas niveau (gunicorn, bibliothèques) affichent les messages Flask.
+    if is_production:
+        app.logger.propagate = False
+        logging.root.setLevel(logging.WARNING)
+
     # Format des logs
     detailed_formatter = logging.Formatter(
         '[%(asctime)s] %(levelname)s in %(module)s.%(funcName)s:%(lineno)d: %(message)s',
