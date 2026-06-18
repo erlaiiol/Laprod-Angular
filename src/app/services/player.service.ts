@@ -1,6 +1,7 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Track } from './track.service';
+import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 
 /** Contexte d'une commande de mixage en cours de lecture dans le player. */
@@ -38,6 +39,7 @@ export class PlayerService {
   playOnReady = false;
 
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   private tracksApiUrl  = `${environment.apiUrl}/api/tracks`;
   private favoritesUrl  = `${environment.apiUrl}/api/favorites`;
 
@@ -222,7 +224,11 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    const url = track.full_stream_url ?? track.stream_url;
+    // full_stream_url requiert @jwt_required — on ne l'utilise que si connecté.
+    // Sinon WaveSurfer obtient un 401 et ne charge rien.
+    const url = (this.auth.isLoggedIn() && track.full_stream_url)
+      ? track.full_stream_url
+      : track.stream_url;
     if (!url) return '';
     // Blob URLs (createObjectURL) et URLs absolues passent tels quels
     if (url.startsWith('blob:') || url.startsWith('http')) {
