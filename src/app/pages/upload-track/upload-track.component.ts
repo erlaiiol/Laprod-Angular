@@ -260,21 +260,9 @@ export class UploadTrackComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.cudTrackService.postTrack({
-      title:                    this.title(),
-      bpm:                      this.bpm()!,
-      key:                      this.key(),
-      style:                    this.style(),
-      price_mp3:                this.priceMp3(),
-      price_wav:                this.priceWav(),
-      price_stems:              this.priceStems(),
-      sacem_percentage_composer: this.sacemComposer(),
-      tag_ids:                  this.selectedTagIds().join(','),
-      playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
-      file_mp3:                 this.fileMp3()!,
-      file_wav:                 this.fileWav()   ?? undefined,
-      file_image:               this.fileImage() ?? undefined,
-      file_stems:               this.fileStems() ?? undefined,
+    const premiumFields = this.auth.isPremium() ? {
+      price_stems:                    this.priceStems(),
+      file_stems:                     this.fileStems() ?? undefined,
       contract_price_exclusive:       this.cpExclusive(),
       contract_price_duration_3y:     this.cpDuration3y(),
       contract_price_duration_5y:     this.cpDuration5y(),
@@ -285,6 +273,22 @@ export class UploadTrackComponent implements OnInit {
       contract_price_arrangement:     this.cpArrangement(),
       contract_price_territory_eu:    this.cpTerritoryEu(),
       contract_price_territory_world: this.cpTerritoryWorld(),
+    } : {};
+
+    this.cudTrackService.postTrack({
+      title:                    this.title(),
+      bpm:                      this.bpm()!,
+      key:                      this.key(),
+      style:                    this.style(),
+      price_mp3:                this.priceMp3(),
+      price_wav:                this.priceWav(),
+      sacem_percentage_composer: this.sacemComposer(),
+      tag_ids:                  this.selectedTagIds().join(','),
+      playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
+      file_mp3:                 this.fileMp3()!,
+      file_wav:                 this.fileWav() ?? undefined,
+      file_image:               this.fileImage() ?? undefined,
+      ...premiumFields,
     }).subscribe({
       next: res => {
         this.loading.set(false);

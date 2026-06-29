@@ -583,7 +583,7 @@
   // Titre/artiste serrés
   .player-title  { font-size: 0.78rem; }
   .player-artist { font-size: 0.66rem; }
-  .preview-tag   { display: none; } // trop verbeux sur mobile
+  .preview-tag   { font-size: 0.52rem; padding: 1px 4px; }
 
   // Boutons detail + download : icône seule sur mobile (texte masqué)
   .btn-free-dl {
