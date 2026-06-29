@@ -11,7 +11,7 @@ export interface TrackData {
   style: string;
   price_mp3: number;
   price_wav: number;
-  price_stems: number;
+  price_stems?: number;
   sacem_percentage_composer?: number;
   tag_ids?: string;
   playlist_ids?: string;
@@ -67,7 +67,9 @@ export class CudTrackService {
     formData.append('style', trackData.style);
     formData.append('price_mp3', trackData.price_mp3.toString());
     formData.append('price_wav', trackData.price_wav.toString());
-    formData.append('price_stems', trackData.price_stems.toString());
+    if (trackData.price_stems !== undefined) {
+      formData.append('price_stems', trackData.price_stems.toString());
+    }
     formData.append('sacem_percentage_composer', trackData.sacem_percentage_composer?.toString() || '0');
 
     if (trackData.tag_ids) {
@@ -121,7 +123,9 @@ export class CudTrackService {
     formData.append('style', trackData.style);
     formData.append('price_mp3', trackData.price_mp3.toString());
     formData.append('price_wav', trackData.price_wav.toString());
-    formData.append('price_stems', trackData.price_stems.toString());
+    if (trackData.price_stems !== undefined) {
+      formData.append('price_stems', trackData.price_stems.toString());
+    }
 
     if (trackData.tag_ids) {
       formData.append('tag_ids', trackData.tag_ids);
