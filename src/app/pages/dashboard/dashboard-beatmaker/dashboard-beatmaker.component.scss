@@ -113,9 +113,9 @@
 .fmt-badge {
   display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px;
   font-size: 0.7rem; font-weight: 700;
-  &.fmt-mp3   { background: rgba(59,130,246,0.15); color: #93c5fd; }
-  &.fmt-wav   { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-  &.fmt-stems { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  &.fmt-mp3   { background: rgba(v.$tag-blue, 0.15); color: v.$tag-blue-light; }
+  &.fmt-wav   { background: rgba(16,185,129,0.15); color: v.$tag-green-light; }
+  &.fmt-stems { background: rgba(139,92,246,0.15); color: v.$tag-violet-light; }
 }
 
 .track-right {
@@ -126,8 +126,8 @@
   display: inline-flex; align-items: center; gap: 0.3rem;
   padding: 0.2rem 0.55rem; border-radius: 5px; font-size: 0.72rem; font-weight: 700;
 
-  &.status-approved { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-  &.status-pending  { background: rgba(251,191,36,0.12); color: #fcd34d; }
+  &.status-approved { background: rgba(16,185,129,0.15); color: v.$tag-green-light; }
+  &.status-pending  { background: rgba(251,191,36,0.12); color: v.$gold-light; }
 }
 
 .sales-count { font-size: 0.75rem; color: v.$text-muted;
@@ -183,7 +183,7 @@
 }
 
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
-.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+.state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
 
 .spinner {
   width: 36px; height: 36px; border: 3px solid v.$bg-border;
@@ -212,7 +212,7 @@
 
   h3 {
     font-size: 1rem; font-weight: 700; margin: 0 0 0.75rem;
-    i { margin-right: 0.4rem; color: #8b949e; }
+    i { margin-right: 0.4rem; color: v.$text-secondary; }
   }
 }
 
@@ -221,21 +221,21 @@
 
   a {
     display: inline-flex; align-items: center; gap: 0.35rem;
-    font-size: 0.88rem; font-weight: 600; color: #3b82f6;
+    font-size: 0.88rem; font-weight: 600; color: v.$tag-blue;
     text-decoration: none;
     padding: 0.35rem 0.85rem;
-    background: rgba(59,130,246,0.1);
-    border: 1px solid rgba(59,130,246,0.25);
+    background: rgba(v.$tag-blue, 0.1);
+    border: 1px solid rgba(v.$tag-blue, 0.25);
     border-radius: 6px;
     transition: background 0.15s;
 
-    &:hover { background: rgba(59,130,246,0.2); }
+    &:hover { background: rgba(v.$tag-blue, 0.2); }
   }
 }
 
 .upgrade-hint {
-  font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0;
-  a { color: #eab308; text-decoration: none; &:hover { text-decoration: underline; } }
+  font-size: 0.8rem; color: v.$tag-neutral; margin: 0.25rem 0 0;
+  a { color: v.$gold; text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
 // ── Contract link tabs ────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@
   color: v.$text-muted; font-size: 14px; padding: 4px 6px;
   border-radius: 4px; transition: color 0.15s, background 0.15s;
   &:hover { color: v.$text-primary; background: v.$bg-elevated; }
-  &--danger:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+  &--danger:hover { color: v.$tag-red; background: rgba(239, 68, 68, 0.1); }
 }
 
 .create-form {

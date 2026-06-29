@@ -40,6 +40,8 @@ import { PlaylistComponent }          from './pages/playlist/playlist.component'
 import { CguComponent }               from './pages/legal/cgu/cgu.component';
 import { PrivacyComponent }           from './pages/legal/privacy/privacy.component';
 import { MentionsLegalesComponent }   from './pages/legal/mentions-legales/mentions-legales.component';
+import { DmcaComponent }              from './pages/legal/dmca/dmca.component';
+import { CookiesComponent }           from './pages/legal/cookies/cookies.component';
 
 export const routes: Routes = [
   { path: '',                              component: HomeComponent },
@@ -77,6 +79,8 @@ export const routes: Routes = [
   { path: 'cgu',                            component: CguComponent },
   { path: 'privacy',                        component: PrivacyComponent },
   { path: 'mentions-legales',               component: MentionsLegalesComponent },
+  { path: 'dmca',                           component: DmcaComponent },
+  { path: 'cookies',                        component: CookiesComponent },
   { path: 'admin',                         component: AdminComponent,                   canActivate: [adminGuard] },
   { path: 'erreur',                        component: NotFoundComponent },
   { path: '**',                            component: NotFoundComponent },

@@ -1,7 +1,9 @@
+@use 'variables' as v;
+
 .upload-wrapper {
   min-height: 100vh;
   padding: 2rem 1rem 3rem;
-  background: #1a1d20;
+  background: v.$bg-base;
 }
 
 .upload-page {
@@ -24,7 +26,7 @@
   h1 {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #f8f9fa;
+    color: v.$off-white;
     margin: 0;
     display: flex;
     align-items: center;
@@ -41,12 +43,12 @@
   border-radius: 20px;
   padding:       0.3rem 0.8rem;
   font-size:     0.82rem;
-  color:         #c4b5fd;
+  color:         v.$tag-violet-light;
 
   i { font-size: 0.78rem; }
 
   .token-refill {
-    color:     #6b7280;
+    color:     v.$tag-neutral;
     font-size: 0.75rem;
     &::before { content: '·'; margin: 0 0.25rem; }
   }
@@ -60,14 +62,14 @@
   border-radius: 6px;
   padding: 0.65rem 1rem;
   font-size: 0.85rem;
-  color: #dc3545;
+  color: v.$tag-red;
 }
 
 /* ── Sections ─────────────────────────────────────────────────────────────── */
 
 .section-card {
-  background: #2c3034;
-  border: 1px solid #3d4449;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   display: flex;
@@ -78,13 +80,13 @@
 .section-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #f8f9fa;
+  color: v.$off-white;
   margin: 0 0 0.25rem;
 
   .optional {
     font-weight: 400;
     font-size: 0.8rem;
-    color: #6c757d;
+    color: v.$tag-neutral;
   }
 }
 
@@ -98,41 +100,41 @@
   label {
     font-size: 0.82rem;
     font-weight: 600;
-    color: #ced4da;
+    color: v.$bg-border-subtle;
     display: flex;
     align-items: center;
     gap: 0.35rem;
   }
 
   .tooltip-icon {
-    color: #6c757d;
+    color: v.$tag-neutral;
     cursor: help;
     font-size: 0.8rem;
     line-height: 1;
 
-    &:hover { color: #adb5bd; }
+    &:hover { color: v.$text-secondary; }
   }
 
   input, select {
-    background: #1a1d20;
-    border: 1px solid #495057;
+    background: v.$bg-base;
+    border: 1px solid v.$bg-border;
     border-radius: 6px;
-    color: #f8f9fa;
+    color: v.$off-white;
     font-size: 0.9rem;
     padding: 0.55rem 0.75rem;
     width: 100%;
     font-family: inherit;
     transition: border-color 0.2s;
 
-    &:focus { outline: none; border-color: #6ea8fe; }
+    &:focus { outline: none; border-color: v.$primary-dark; }
   }
 
-  select option { background: #2c3034; }
+  select option { background: v.$bg-surface; }
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
 }
 
 .row-2 {
@@ -177,18 +179,18 @@
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid #495057;
+  border: 1px solid v.$bg-border;
   background: transparent;
-  color: #adb5bd;
+  color: v.$text-secondary;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 
-  &:hover { border-color: var(--tag-color, #6ea8fe); color: #f8f9fa; }
+  &:hover { border-color: var(--tag-color, v.$primary-dark); color: v.$off-white; }
 
   &.selected {
-    border-color: var(--tag-color, #6ea8fe);
-    color: var(--tag-color, #6ea8fe);
-    background: color-mix(in srgb, var(--tag-color, #6ea8fe) 12%, transparent);
+    border-color: var(--tag-color, v.$primary-dark);
+    color: var(--tag-color, v.$primary-dark);
+    background: color-mix(in srgb, var(--tag-color, v.$primary-dark) 12%, transparent);
   }
 }
 
@@ -199,18 +201,18 @@
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    background: #1a1d20;
-    border: 1px solid #495057;
+    background: v.$bg-base;
+    border: 1px solid v.$bg-border;
     border-radius: 6px;
     padding: 0.7rem 1rem;
     cursor: pointer;
     transition: border-color 0.15s;
 
-    &:hover { border-color: #6ea8fe; }
+    &:hover { border-color: v.$primary-dark; }
 
     > i {
       font-size: 1.3rem;
-      color: #6c757d;
+      color: v.$tag-neutral;
       flex-shrink: 0;
     }
 
@@ -220,10 +222,10 @@
       gap: 0.1rem;
       font-size: 0.85rem;
 
-      strong { color: #f8f9fa; }
-      em     { font-style: normal; color: #6c757d; font-size: 0.78rem; }
-      .opt   { color: #495057; }
-      .file-name { color: #6ea8fe; }
+      strong { color: v.$off-white; }
+      em     { font-style: normal; color: v.$tag-neutral; font-size: 0.78rem; }
+      .opt   { color: v.$bg-border; }
+      .file-name { color: v.$primary-dark; }
     }
 
     input[type="file"] { display: none; }
@@ -235,7 +237,7 @@
 .btn-submit {
   width: 100%;
   padding: 0.75rem;
-  background: #0d6efd;
+  background: v.$primary;
   border: none;
   border-radius: 6px;
   color: #fff;
@@ -264,17 +266,17 @@
 
   .success-icon {
     font-size: 3.5rem;
-    color: #198754;
+    color: v.$tag-green;
   }
 
-  h2 { font-size: 1.3rem; font-weight: 700; color: #f8f9fa; margin: 0; }
-  p  { font-size: 0.85rem; color: #6c757d; max-width: 420px; margin: 0; }
+  h2 { font-size: 1.3rem; font-weight: 700; color: v.$off-white; margin: 0; }
+  p  { font-size: 0.85rem; color: v.$tag-neutral; max-width: 420px; margin: 0; }
 
   .btn-submit {
     max-width: 280px;
     background: transparent;
-    border: 1px solid #495057;
-    color: #adb5bd;
+    border: 1px solid v.$bg-border;
+    color: v.$text-secondary;
     font-size: 0.88rem;
   }
 }
@@ -322,13 +324,13 @@
   &--standard {
     background: rgba(108, 117, 125, 0.12);
     border:     1px solid rgba(108, 117, 125, 0.3);
-    color:      #6c757d;
+    color:      v.$tag-neutral;
   }
 
   &--custom {
     background: rgba(139, 92, 246, 0.12);
     border:     1px solid rgba(139, 92, 246, 0.35);
-    color:      #c4b5fd;
+    color:      v.$tag-violet-light;
   }
 }
 
@@ -338,16 +340,16 @@
   gap:           0.35rem;
   padding:       0.3rem 0.75rem;
   background:    transparent;
-  border:        1px solid #495057;
+  border:        1px solid v.$bg-border;
   border-radius: 6px;
-  color:         #adb5bd;
+  color:         v.$text-secondary;
   font-size:     0.8rem;
   font-weight:   500;
   cursor:        pointer;
   white-space:   nowrap;
   transition:    border-color 0.15s, color 0.15s;
 
-  &:hover { border-color: #6ea8fe; color: #f8f9fa; }
+  &:hover { border-color: v.$primary-dark; color: v.$off-white; }
 }
 
 .license-price-subheader {
@@ -360,7 +362,7 @@
 
 .section-hint {
   font-size: 0.75rem;
-  color:     #6c757d;
+  color:     v.$tag-neutral;
   margin:    0;
 }
 
@@ -370,15 +372,15 @@
   gap:           0.3rem;
   padding:       0.25rem 0.65rem;
   background:    transparent;
-  border:        1px solid #3d4449;
+  border:        1px solid v.$bg-border;
   border-radius: 5px;
-  color:         #6c757d;
+  color:         v.$tag-neutral;
   font-size:     0.75rem;
   cursor:        pointer;
   white-space:   nowrap;
   transition:    border-color 0.15s, color 0.15s;
 
-  &:hover { border-color: #6ea8fe; color: #adb5bd; }
+  &:hover { border-color: v.$primary-dark; color: v.$text-secondary; }
 }
 
 .contract-prices-grid {
@@ -406,7 +408,7 @@
 .preview-group-label {
   font-size:      0.75rem;
   font-weight:    600;
-  color:          #6c757d;
+  color:          v.$tag-neutral;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -423,35 +425,35 @@
   gap:           0.3rem;
   padding:       0.35rem 0.75rem;
   background:    transparent;
-  border:        1px solid #495057;
+  border:        1px solid v.$bg-border;
   border-radius: 6px;
-  color:         #adb5bd;
+  color:         v.$text-secondary;
   font-size:     0.8rem;
   cursor:        pointer;
   transition:    border-color 0.15s, color 0.15s, background 0.15s;
 
   span {
     font-size: 0.7rem;
-    color:     #6c757d;
+    color:     v.$tag-neutral;
   }
 
   &:hover {
-    border-color: #6ea8fe;
-    color:        #f8f9fa;
-    span { color: #adb5bd; }
+    border-color: v.$primary-dark;
+    color:        v.$off-white;
+    span { color: v.$text-secondary; }
   }
 
   &.active {
-    border-color: #6ea8fe;
-    background:   rgba(110, 168, 254, 0.1);
-    color:        #6ea8fe;
-    span { color: #adb5bd; }
+    border-color: v.$primary-dark;
+    background:   rgba(v.$tag-blue, 0.1);
+    color:        v.$primary-dark;
+    span { color: v.$text-secondary; }
   }
 }
 
 .duration-info {
   font-size:   0.72rem;
-  color:       #6c757d;
+  color:       v.$tag-neutral;
   margin:      0.25rem 0 0;
   line-height: 1.4;
 }
@@ -468,13 +470,13 @@
   gap:         0.5rem;
   cursor:      pointer;
   font-size:   0.83rem;
-  color:       #ced4da;
+  color:       v.$bg-border-subtle;
 
   input[type="checkbox"] {
     width:  15px;
     height: 15px;
     cursor: pointer;
-    accent-color: #6ea8fe;
+    accent-color: v.$primary-dark;
     flex-shrink: 0;
 
     &:disabled { cursor: default; opacity: 0.5; }
@@ -483,14 +485,14 @@
   span { flex: 1; }
 
   &.auto-included {
-    color: #6c757d;
+    color: v.$tag-neutral;
   }
 }
 
 .preview-right-price {
   font-size:   0.78rem;
   font-weight: 600;
-  color:       #6ea8fe;
+  color:       v.$primary-dark;
   white-space: nowrap;
 }
 
@@ -498,7 +500,7 @@
   font-size:     0.7rem;
   font-style:    normal;
   font-weight:   600;
-  color:         #198754;
+  color:         v.$tag-green;
   background:    rgba(25, 135, 84, 0.12);
   border:        1px solid rgba(25, 135, 84, 0.3);
   border-radius: 20px;
@@ -510,14 +512,14 @@
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  background:      rgba(110, 168, 254, 0.06);
-  border:          1px solid rgba(110, 168, 254, 0.2);
+  background:      rgba(v.$tag-blue, 0.06);
+  border:          1px solid rgba(v.$tag-blue, 0.2);
   border-radius:   8px;
   padding:         0.65rem 1rem;
   margin-top:      0.25rem;
 
-  span   { font-size: 0.85rem; color: #adb5bd; }
-  strong { font-size: 1.1rem;  color: #6ea8fe; font-weight: 700; }
+  span   { font-size: 0.85rem; color: v.$text-secondary; }
+  strong { font-size: 1.1rem;  color: v.$primary-dark; font-weight: 700; }
 }
 
 /* ── Playlists ───────────────────────────────────────────────────────────────── */
@@ -535,22 +537,22 @@
   gap: 0.6rem;
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid #2c3035;
+  border: 1px solid v.$bg-surface;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 
-  &:hover { border-color: #495057; background: rgba(255,255,255,0.03); }
+  &:hover { border-color: v.$bg-border; background: rgba(255,255,255,0.03); }
 
-  input[type="checkbox"] { accent-color: #0d6efd; flex-shrink: 0; cursor: pointer; }
+  input[type="checkbox"] { accent-color: v.$primary; flex-shrink: 0; cursor: pointer; }
 }
 
 .playlist-item-name {
   flex: 1;
   font-size: 0.88rem;
-  color: #dee2e6;
+  color: v.$bg-border-subtle;
 }
 
 .playlist-item-count {
   font-size: 0.78rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
 }

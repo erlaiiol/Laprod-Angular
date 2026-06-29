@@ -1,3 +1,5 @@
+@use 'variables' as v;
+
 .toast-container {
   position: fixed;
   top: 80px;
@@ -24,21 +26,21 @@
   animation: slideDown 0.25s ease forwards;
 
   &.info {
-    background-color: #0a1f28;
-    border-color: #22d3ee;
-    color: #ffffff;
+    background-color: v.$tag-blue-dark;
+    border-color: v.$tag-blue;
+    color: v.$white;
   }
 
   &.warning {
-    background-color: #221500;
-    border-color: #f97316;
-    color: #ffffff;
+    background-color: v.$tag-orange-dark;
+    border-color: v.$tag-orange;
+    color: v.$white;
   }
 
   &.error {
-    background-color: #250b0b;
-    border-color: #ef4444;
-    color: #ffffff;
+    background-color: v.$tag-red-dark;
+    border-color: v.$tag-red;
+    color: v.$white;
   }
 }
 

@@ -4,13 +4,13 @@
 // ── Color map ─────────────────────────────────────────────────────────────────
 
 $flow-colors: (
-  "violet": (base: v.$primary,       bg: rgba(167, 139, 250, 0.1),  border: rgba(167, 139, 250, 0.25)),
-  "green":  (base: v.$tag-green,     bg: rgba(16, 185, 129, 0.1),   border: rgba(16, 185, 129, 0.25)),
-  "cyan":   (base: #38bdf8,          bg: rgba(56, 189, 248, 0.1),   border: rgba(56, 189, 248, 0.25)),
-  "orange": (base: v.$tag-orange,    bg: rgba(249, 115, 22, 0.1),   border: rgba(249, 115, 22, 0.25)),
-  "pink":   (base: v.$tag-pink,      bg: rgba(236, 72, 153, 0.1),   border: rgba(236, 72, 153, 0.25)),
-  "indigo": (base: v.$tag-violet,    bg: rgba(139, 92, 246, 0.1),   border: rgba(139, 92, 246, 0.25)),
-  "teal":   (base: #2dd4bf,          bg: rgba(45, 212, 191, 0.1),   border: rgba(45, 212, 191, 0.25)),
+  "violet": (base: v.$primary,       bg: rgba(v.$primary, 0.1),       border: rgba(v.$primary, 0.25)),
+  "green":  (base: v.$tag-green,     bg: rgba(v.$tag-green, 0.1),     border: rgba(v.$tag-green, 0.25)),
+  "cyan":   (base: v.$tag-blue,      bg: rgba(v.$tag-blue, 0.1),      border: rgba(v.$tag-blue, 0.25)),
+  "orange": (base: v.$tag-orange,    bg: rgba(v.$tag-orange, 0.1),    border: rgba(v.$tag-orange, 0.25)),
+  "pink":   (base: v.$tag-pink,      bg: rgba(v.$tag-pink, 0.1),      border: rgba(v.$tag-pink, 0.25)),
+  "indigo": (base: v.$tag-violet,    bg: rgba(v.$tag-violet, 0.1),    border: rgba(v.$tag-violet, 0.25)),
+  "teal":   (base: v.$tag-teal,      bg: rgba(v.$tag-teal, 0.1),      border: rgba(v.$tag-teal, 0.25)),
 );
 
 // ── Trigger button ────────────────────────────────────────────────────────────

@@ -7,13 +7,9 @@
   &.page-locked {
     pointer-events: none;
     user-select: none;
-    filter: blur(3px);
-    opacity: 0.5;
 
     app-premium-lock {
       pointer-events: all;
-      filter: none;
-      opacity: 1;
     }
   }
 

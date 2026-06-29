@@ -9,13 +9,9 @@
   &.page-locked {
     pointer-events: none;
     user-select: none;
-    filter: blur(3px);
-    opacity: 0.5;
 
     app-premium-lock {
       pointer-events: all;
-      filter: none;
-      opacity: 1;
     }
   }
 }
@@ -294,7 +290,7 @@
 
   &.risk-border-ok       { border-left-color: v.$tag-green; }
   &.risk-border-attention{ border-left-color: v.$tag-orange; }
-  &.risk-border-risque   { border-left-color: #e05e15; }
+  &.risk-border-risque   { border-left-color: v.$tag-orange; }
   &.risk-border-critique { border-left-color: v.$tag-red; }
   &:hover { border-color: v.$bg-border-subtle; }
 }
@@ -307,7 +303,7 @@
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
   &.risk-dot-ok        { background: v.$tag-green; }
   &.risk-dot-attention { background: v.$tag-orange; }
-  &.risk-dot-risque    { background: #e05e15; }
+  &.risk-dot-risque    { background: v.$tag-orange; }
   &.risk-dot-critique  { background: v.$tag-red; }
 }
 
@@ -320,7 +316,7 @@
   border-radius: 4px; white-space: nowrap;
   &.risk-tag-ok        { background: rgba(v.$tag-green, 0.15); color: v.$tag-green; }
   &.risk-tag-attention { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
-  &.risk-tag-risque    { background: rgba(#e05e15, 0.15); color: #e05e15; }
+  &.risk-tag-risque    { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
   &.risk-tag-critique  { background: rgba(v.$tag-red, 0.15); color: v.$tag-red; }
 }
 

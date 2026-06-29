@@ -7,6 +7,7 @@
 
 import { Component, OnInit, signal, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
@@ -23,7 +24,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent],
+  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss']
 })
@@ -34,13 +35,14 @@ export class HomeComponent implements OnInit {
   error           = signal<string | null>(null);
   isPersonalized  = signal(false);
   showOnboarding  = signal(false);
+  showHero        = signal(false);
 
   private trackService       = inject(TrackService);
   private recoService        = inject(RecommendationService);
   private filterStateService = inject(FilterStateService);
   private toast              = inject(ToastService);
   private favSvc             = inject(FavoritesService);
-  private auth               = inject(AuthService);
+  readonly auth              = inject(AuthService);
 
   private hasActiveFilters = computed(() => {
     const f = this.filterStateService.filters();
@@ -62,12 +64,22 @@ export class HomeComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Hero de présentation : seulement visiteur anonyme + première visite (localStorage)
+    if (!this.auth.isLoggedIn() && !localStorage.getItem('laprod_visited')) {
+      this.showHero.set(true);
+      localStorage.setItem('laprod_visited', '1');
+    }
+
     // Modale d'onboarding : uniquement si connecté, rôles définis, et jamais vue
     const user = this.auth.currentUser();
     const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
     if (hasRole && OnboardingModalComponent.shouldShow()) {
       this.showOnboarding.set(true);
     }
+  }
+
+  dismissHero(): void {
+    this.showHero.set(false);
   }
 
   loadTracks(): void {

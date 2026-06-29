@@ -8,28 +8,88 @@
 
 <app-tag-category-filter />
 
+@if (!auth.isLoggedIn() && showHero()) {
+  <section class="lp-landing">
+
+    <div class="lp-landing__header">
+      <img src="/db_assets/main/logo.png" class="lp-landing__logo" alt="LaProd">
+      <h1 class="lp-landing__title">Le marché musical<br><span>qui te respecte.</span></h1>
+      <p class="lp-landing__sub">Achète des beats, commande un mix professionnel, vends tes créations. Contrats clairs, paiements sécurisés, droits protégés.</p>
+      <div class="lp-landing__actions">
+        <a routerLink="/register" class="lp-btn-cta">
+          <i class="bi bi-person-plus-fill"></i> S'inscrire gratuitement
+        </a>
+        <button class="lp-btn-explore" (click)="dismissHero()">
+          Explorer les beats <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="lp-landing__features">
+      <div class="lp-feature">
+        <img src="/db_assets/main/laprod_sounddesign.png" alt="Beats & Licences">
+        <h3>Exactement ce qu'il te faut. Rien de plus.</h3>
+        <p>MP3, WAV ou Stems — tous les budgets, tous les niveaux de droits. Tu choisis ce que tu utilises. Tu paies pour ça, et seulement ça.</p>
+      </div>
+      <div class="lp-feature">
+        <img src="/db_assets/main/laprod_mixengineer.png" alt="Mix & Mastering">
+        <h3>Tu paies au rythme du travail.</h3>
+        <p>Acompte à la commande, solde à la livraison. Ton investissement est protégé à chaque étape. Zéro prise de risque inutile.</p>
+      </div>
+      <div class="lp-feature">
+        <img src="/db_assets/main/laprod_session.png" alt="Le beat parfait">
+        <h3>Le beat parfait est là. Maintenant.</h3>
+        <p>Notre algorithme trie par vrais critères musicaux — BPM, tonalité, style. Facile à utiliser que tu débutes ou que tu produises depuis dix ans.</p>
+      </div>
+      <div class="lp-feature">
+        <img src="/db_assets/main/laprod_contract.png" alt="Signe en sachant ce que tu cèdes">
+        <h3>Signe en sachant ce que tu cèdes.</h3>
+        <p>Dépose n'importe quel contrat musical. On t'explique droits, exclusivités et durée — avant que tu n'apposer ta signature. Partout dans ta vie, pas seulement en ligne.</p>
+      </div>
+      <div class="lp-feature lp-feature--topline">
+        <div class="lp-feature__icon-wrap">
+          <i class="bi bi-mic-fill"></i>
+        </div>
+        <h3>Ta mélodie sur le beat. Avant d'acheter.</h3>
+        <p>Chante en un clic — autotune intégré, zéro logiciel. Tu sais si ça marche avant de dépenser un centime.</p>
+      </div>
+    </div>
+
+    <div class="lp-manifesto">
+      <strong>Une rémunération juste pour chaque créateur. Un marché géré par ses acteurs, pas par des intermédiaires.</strong>
+      <p>LaProd est pensé par et pour ceux qui aiment la musique — pas seulement ceux qui en ont fait un business juteux et déshumanisé.</p>
+    </div>
+
+  </section>
+}
+
 <div id="tracks-container">
 
-  <div class="state-loading" *ngIf="loading()">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Chargement...</span>
+  @if (loading()) {
+    <div class="state-loading">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Chargement...</span>
+      </div>
+      <p>Chargement des morceaux...</p>
     </div>
-    <p>Chargement des morceaux...</p>
-  </div>
+  }
 
-  <div class="state-error" *ngIf="error() && !loading()">
-    <i class="bi bi-exclamation-triangle-fill"></i>
-    {{ error() }}. Rechargez la page ou contactez le support.
-  </div>
+  @if (error() && !loading()) {
+    <div class="state-error">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {{ error() }}. Rechargez la page ou contactez le support.
+    </div>
+  }
 
-  <div class="state-empty" *ngIf="!loading() && !error() && tracks().length === 0">
-    <i class="bi bi-music-note-list"></i>
-    <p>Aucun morceau trouvé.</p>
-  </div>
+  @if (!loading() && !error() && tracks().length === 0) {
+    <div class="state-empty">
+      <i class="bi bi-music-note-list"></i>
+      <p>Aucun morceau trouvé.</p>
+    </div>
+  }
 
-  <app-track-card
-    *ngFor="let track of tracks()"
-    [track]="track">
-  </app-track-card>
+  @for (track of tracks(); track track.id) {
+    <app-track-card [track]="track" />
+  }
 
 </div>

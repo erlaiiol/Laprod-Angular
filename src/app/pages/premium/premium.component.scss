@@ -1,3 +1,5 @@
+@use 'variables' as v;
+
 .premium-page {
   max-width: 960px;
   margin: 0 auto;
@@ -13,14 +15,14 @@
     font-size: 2.4rem;
     font-weight: 800;
     letter-spacing: -0.5px;
-    i { color: #eab308; margin-right: 0.4rem; }
+    i { color: v.$gold; margin-right: 0.4rem; }
   }
 
-  .plus { color: #eab308; }
+  .plus { color: v.$gold; }
 
   .hero-sub {
     font-size: 1.05rem;
-    color: #8b949e;
+    color: v.$text-secondary;
     margin-top: 0.5rem;
   }
 }
@@ -42,10 +44,10 @@
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
 
-  i { color: #10b981; font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+  i { color: v.$tag-green; font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
 
-  strong { display: block; margin-bottom: 0.25rem; color: #10b981; }
-  p { margin: 0; font-size: 0.9rem; color: #8b949e; }
+  strong { display: block; margin-bottom: 0.25rem; color: v.$tag-green; }
+  p { margin: 0; font-size: 0.9rem; color: v.$text-secondary; }
 }
 
 // Active plan banner
@@ -53,8 +55,8 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: rgba(59, 130, 246, 0.07);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(v.$tag-blue, 0.07);
+  border: 1px solid rgba(v.$tag-blue, 0.2);
   border-radius: 10px;
   padding: 0.9rem 1.25rem;
   margin-bottom: 2rem;
@@ -63,8 +65,8 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    background: rgba(v.$tag-blue, 0.15);
+    color: v.$tag-blue;
     border-radius: 20px;
     padding: 0.3rem 0.9rem;
     font-weight: 600;
@@ -73,13 +75,13 @@
 
     &.is-pro {
       background: rgba(234, 179, 8, 0.15);
-      color: #eab308;
+      color: v.$gold;
     }
   }
 
   .current-plan-info {
     p { margin: 0; font-size: 0.9rem; }
-    .upgrade-hint { color: #8b949e; font-size: 0.82rem; margin-top: 0.2rem; }
+    .upgrade-hint { color: v.$text-secondary; font-size: 0.82rem; margin-top: 0.2rem; }
   }
 }
 
@@ -100,13 +102,13 @@
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 14px;
   padding: 1.75rem 1.5rem;
-  background: #0d1117;
+  background: v.$black;
   display: flex;
   flex-direction: column;
   transition: border-color 0.2s;
 
   &.plan-current {
-    border-color: rgba(59, 130, 246, 0.4);
+    border-color: rgba(v.$tag-blue, 0.4);
   }
 
   &.plan-pro {
@@ -120,8 +122,8 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: #eab308;
-  color: #0d1117;
+  background: v.$gold;
+  color: v.$black;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -134,8 +136,8 @@
   position: absolute;
   top: -12px;
   right: 1rem;
-  background: #3b82f6;
-  color: #fff;
+  background: v.$tag-blue;
+  color: v.$black;
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.2rem 0.75rem;
@@ -155,7 +157,7 @@
     font-size: 1.8rem;
     font-weight: 800;
 
-    span { font-size: 0.9rem; font-weight: 400; color: #8b949e; }
+    span { font-size: 0.9rem; font-weight: 400; color: v.$text-secondary; }
   }
 }
 
@@ -175,10 +177,10 @@
 
     &:last-child { border-bottom: none; }
 
-    i.bi-check-circle-fill { color: #10b981; flex-shrink: 0; }
-    i.bi-check             { color: #6b7280; flex-shrink: 0; }
-    i.bi-x                 { color: #4b5563; flex-shrink: 0; }
-    .muted                 { color: #4b5563; }
+    i.bi-check-circle-fill { color: v.$tag-green; flex-shrink: 0; }
+    i.bi-check             { color: v.$tag-neutral; flex-shrink: 0; }
+    i.bi-x                 { color: v.$bg-elevated; flex-shrink: 0; }
+    .muted                 { color: v.$bg-elevated; }
   }
 }
 
@@ -200,20 +202,20 @@
 
 .btn-plan-disabled {
   background: rgba(255,255,255,0.05);
-  color: #6b7280;
+  color: v.$tag-neutral;
 }
 
 .btn-plan-amateur {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: rgba(v.$tag-blue, 0.15);
+  color: v.$tag-blue;
+  border: 1px solid rgba(v.$tag-blue, 0.4);
 
-  &:hover:not(:disabled) { background: rgba(59, 130, 246, 0.25); }
+  &:hover:not(:disabled) { background: rgba(v.$tag-blue, 0.25); }
 }
 
 .btn-plan-pro {
-  background: #eab308;
-  color: #0d1117;
+  background: v.$gold;
+  color: v.$black;
 
   &:hover:not(:disabled) { opacity: 0.88; }
 }
@@ -230,6 +232,6 @@
   &:last-child { border-bottom: none; }
 
   strong { display: block; margin-bottom: 0.35rem; }
-  p { margin: 0; font-size: 0.88rem; color: #8b949e; line-height: 1.6; }
-  a { color: #3b82f6; }
+  p { margin: 0; font-size: 0.88rem; color: v.$text-secondary; line-height: 1.6; }
+  a { color: v.$tag-blue; }
 }

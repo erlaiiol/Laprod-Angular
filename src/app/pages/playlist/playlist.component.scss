@@ -1,207 +1,109 @@
+@use 'variables' as v;
+
 .state-loading {
-  display: flex;
-  justify-content: center;
-  padding: 60px 0;
+  display: flex; justify-content: center; padding: 60px 0;
 }
 
 .state-error, .state-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 60px 0;
-  color: var(--text-muted, #9ca3af);
-  font-size: 15px;
-
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 60px 0; color: v.$text-muted; font-size: 15px;
   i { font-size: 32px; }
   p { margin: 0; }
 }
 
 .playlist-page {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 32px 16px;
+  max-width: 860px; margin: 0 auto; padding: 32px 16px;
 }
 
 .playlist-header {
-  display: flex;
-  align-items: flex-end;
-  gap: 24px;
-  margin-bottom: 40px;
+  display: flex; align-items: flex-end; gap: 24px; margin-bottom: 40px;
 }
 
-// Wrapper cover pour l'overlay caméra en mode édition
 .playlist-cover-wrap {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  flex-shrink: 0;
-
+  position: relative; width: 160px; height: 160px; flex-shrink: 0;
   &:hover .cover-edit-overlay { opacity: 1; }
 }
 
 .playlist-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  display: block;
+  width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); display: block;
 }
 
 .cover-edit-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 22px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s;
-
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); border-radius: 8px;
+  color: v.$white; font-size: 22px; cursor: pointer; opacity: 0; transition: opacity 0.15s;
   input[type="file"] { display: none; }
 }
 
-.playlist-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.playlist-meta { display: flex; flex-direction: column; gap: 8px; }
 
-.playlist-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary, #f3f4f6);
-}
+.playlist-title { margin: 0; font-size: 28px; font-weight: 700; color: v.$text-primary; }
 
 .playlist-author {
-  font-size: 14px;
-  color: var(--text-muted, #9ca3af);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  &:hover { color: var(--text-primary, #f3f4f6); }
+  font-size: 14px; color: v.$text-muted; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  &:hover { color: v.$text-primary; }
 }
 
-.playlist-count {
-  font-size: 13px;
-  color: var(--text-muted, #9ca3af);
-  margin: 0;
-}
+.playlist-count { font-size: 13px; color: v.$text-muted; margin: 0; }
 
 // ── Contrôles owner ──────────────────────────────────────────────────────────
 
-.owner-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 4px;
-}
+.owner-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 
 .btn-edit-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text-primary, #f3f4f6);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.07);
+  color: v.$text-primary; font-size: 13px; font-weight: 500; cursor: pointer;
   transition: background 0.15s;
-
   &:hover { background: rgba(255, 255, 255, 0.12); }
 }
 
 .edit-title-input {
-  font-size: 22px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: var(--text-primary, #f3f4f6);
-  padding: 4px 10px;
-  outline: none;
-  width: 100%;
-
-  &:focus { border-color: #3b82f6; }
+  font-size: 22px; font-weight: 700; background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px;
+  color: v.$text-primary; padding: 4px 10px; outline: none; width: 100%;
+  &:focus { border-color: v.$primary; }
 }
 
 .btn-save {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: none;
-  background: #3b82f6;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s;
-
-  &:hover:not(:disabled) { opacity: 0.85; }
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 6px; border: none;
+  background: v.$primary; color: v.$white; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s, opacity 0.15s;
+  &:hover:not(:disabled) { background: v.$primary-dark; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .btn-cancel {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  background: none;
-  color: var(--text-muted, #9ca3af);
-  font-size: 13px;
-  cursor: pointer;
-
-  &:hover { color: var(--text-primary, #f3f4f6); }
+  padding: 6px 12px; border-radius: 6px; border: none; background: none;
+  color: v.$text-muted; font-size: 13px; cursor: pointer;
+  &:hover { color: v.$text-primary; }
 }
 
 // ── Bandeau mode édition ─────────────────────────────────────────────────────
 
 .edit-mode-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  color: #93c5fd;
-  font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px; padding: 10px 14px; border-radius: 8px;
+  background: rgba(v.$primary, 0.1); border: 1px solid rgba(v.$primary, 0.25);
+  color: v.$tag-red-light; font-size: 13px;
 }
 
 // ── Track row avec bouton retrait ────────────────────────────────────────────
 
 .track-row-wrap {
-  position: relative;
-  display: flex;
-  align-items: stretch;
+  position: relative; display: flex; align-items: stretch;
 }
 
 .btn-remove-track {
-  flex-shrink: 0;
-  align-self: center;
-  background: none;
-  border: none;
-  color: #f87171;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0 12px;
-  transition: color 0.15s, transform 0.1s;
-  line-height: 1;
+  flex-shrink: 0; align-self: center; background: none; border: none;
+  color: v.$tag-red-light; font-size: 20px; cursor: pointer;
+  padding: 0 12px; transition: color 0.15s, transform 0.1s; line-height: 1;
 
-  &:hover:not(:disabled) { color: #ef4444; transform: scale(1.15); }
+  &:hover:not(:disabled) { color: v.$tag-red; transform: scale(1.15); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 

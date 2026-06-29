@@ -28,7 +28,7 @@
   position:  absolute;
   right:     0;
   padding:   0.45rem 1rem;
-  background: v.$tag-orange-dark; color: #ffffff;
+  background: v.$tag-orange-dark; color: v.$white;
   border-radius: 7px; border: 1px solid v.$tag-orange;
   font-size: 0.82rem; font-weight: 600;
   cursor: pointer; white-space: nowrap;
@@ -74,22 +74,22 @@
 
 .badge-eng-mix {
   @extend %badge-base;
-  color: #3b82f6; background: rgba(59,130,246,0.12); border-color: #3b82f6;
+  color: v.$tag-blue; background: rgba(v.$tag-blue, 0.12); border-color: v.$tag-blue;
 }
 
 .badge-eng-master {
   @extend %badge-base;
-  color: #10b981; background: rgba(16,185,129,0.12); border-color: #10b981;
+  color: v.$tag-green; background: rgba(16,185,129,0.12); border-color: v.$tag-green;
 }
 
 .badge-eng-master-pro {
   @extend %badge-base;
-  color: #eab308; background: rgba(234,179,8,0.12); border-color: #eab308;
+  color: v.$gold; background: rgba(234,179,8,0.12); border-color: v.$gold;
 }
 
 .badge-eng-pa {
   @extend %badge-base;
-  color: #8b5cf6; background: rgba(139,92,246,0.12); border-color: #8b5cf6;
+  color: v.$tag-violet; background: rgba(139,92,246,0.12); border-color: v.$tag-violet;
 }
 
 .eng-bio {
@@ -124,9 +124,9 @@
 }
 
 @keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0.45); }
-  70%  { box-shadow: 0 0 0 7px rgba(59,130,246,0); }
-  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(v.$tag-blue, 0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(v.$tag-blue, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(v.$tag-blue, 0); }
 }
 
 .sample-label {
@@ -139,7 +139,7 @@
 }
 
 .price-range {
-  font-size: 0.83rem; font-weight: 700; color: #ffffff;
+  font-size: 0.83rem; font-weight: 700; color: v.$white;
   padding: 0.15rem 0.4rem; border-radius: 6px;
   background-color: rgba(32, 32, 32, 0.3); border: 1px solid rgba(73, 80, 87, 0.55);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
@@ -154,7 +154,7 @@
 .btn-order {
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 0.4rem;
-  background: #000000; color: #ffffff; padding: 0.45rem 1rem;
+  background: v.$black; color: v.$white; padding: 0.45rem 1rem;
   border-radius: 7px; font-size: 0.83rem; font-weight: 700;
   text-decoration: none; transition: color 0.25s, background 0.25s ;
   &:hover { background: #fff; color: #000; transition: background 0.25s, color 0.25s;  }
@@ -165,7 +165,7 @@
 // ── States ─────────────────────────────────────────────────────────────────────
 
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
-.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+.state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
 
 .empty-state {
   text-align: center; padding: 4rem 1rem; color: v.$text-muted;

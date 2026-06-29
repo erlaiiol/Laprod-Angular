@@ -1,7 +1,9 @@
+@use 'variables' as v;
+
 .notif-wrapper {
   min-height: 100vh;
   padding: 2rem 1rem 3rem;
-  background: #1a1d20;
+  background: v.$bg-base;
 }
 
 .notif-page {
@@ -22,7 +24,7 @@
   h1 {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #f8f9fa;
+    color: v.$off-white;
     margin: 0;
     display: flex;
     align-items: center;
@@ -36,14 +38,14 @@
   gap: 0.4rem;
   padding: 0.4rem 0.9rem;
   background: transparent;
-  border: 1px solid #495057;
+  border: 1px solid v.$bg-border;
   border-radius: 6px;
-  color: #adb5bd;
+  color: v.$text-secondary;
   font-size: 0.82rem;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 
-  &:hover:not(:disabled) { border-color: #6ea8fe; color: #6ea8fe; }
+  &:hover:not(:disabled) { border-color: v.$primary-dark; color: v.$primary-dark; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
@@ -58,13 +60,13 @@
   justify-content: center;
   padding: 4rem 1rem;
   gap: 0.75rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
 
   i { font-size: 2.5rem; }
   p { margin: 0; font-size: 0.9rem; }
 }
 
-.error-state { color: #dc3545; }
+.error-state { color: v.$tag-red; }
 
 /* ── Liste ────────────────────────────────────────────────────────────────── */
 
@@ -78,20 +80,20 @@
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  background: #2c3034;
-  border: 1px solid #3d4449;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
   border-radius: 8px;
   padding: 1rem;
   transition: border-color 0.15s, background 0.15s;
 
   &.unread {
-    border-left: 3px solid #6ea8fe;
+    border-left: 3px solid v.$primary-dark;
     background: rgba(110, 168, 254, 0.04);
   }
 
   &.clickable {
     cursor: pointer;
-    &:hover { border-color: #495057; background: #343a40; }
+    &:hover { border-color: v.$bg-border; background: v.$bg-surface; }
   }
 }
 
@@ -107,12 +109,12 @@
   justify-content: center;
   font-size: 1rem;
 
-  &--blue   { background: rgba(13, 110, 253, 0.2);  color: #6ea8fe; }
-  &--green  { background: rgba(25, 135, 84, 0.2);   color: #75b798; }
-  &--red    { background: rgba(220, 53, 69, 0.2);   color: #dc3545; }
-  &--yellow { background: rgba(255, 193, 7, 0.2);   color: #ffc107; }
-  &--cyan   { background: rgba(13, 202, 240, 0.15); color: #0dcaf0; }
-  &--grey   { background: rgba(108, 117, 125, 0.2); color: #adb5bd; }
+  &--blue   { background: rgba(13, 110, 253, 0.2);  color: v.$primary-dark; }
+  &--green  { background: rgba(25, 135, 84, 0.2);   color: v.$tag-green-light; }
+  &--red    { background: rgba(220, 53, 69, 0.2);   color: v.$tag-red; }
+  &--yellow { background: rgba(255, 193, 7, 0.2);   color: v.$gold; }
+  &--cyan   { background: rgba(v.$tag-blue, 0.15); color: v.$tag-blue; }
+  &--grey   { background: rgba(108, 117, 125, 0.2); color: v.$text-secondary; }
 }
 
 /* ── Corps ────────────────────────────────────────────────────────────────── */
@@ -125,20 +127,20 @@
 .notif-title {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #f8f9fa;
+  color: v.$off-white;
   margin: 0 0 0.2rem;
 }
 
 .notif-message {
   font-size: 0.82rem;
-  color: #adb5bd;
+  color: v.$text-secondary;
   margin: 0 0 0.35rem;
   line-height: 1.4;
 }
 
 .notif-date {
   font-size: 0.72rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
 }
 
 /* ── Droite ───────────────────────────────────────────────────────────────── */
@@ -155,13 +157,13 @@
 .unread-dot {
   width: 8px;
   height: 8px;
-  background: #6ea8fe;
+  background: v.$primary-dark;
   border-radius: 50%;
 }
 
 .notif-arrow {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
 }
 
 /* ── Spinners ─────────────────────────────────────────────────────────────── */
@@ -178,8 +180,8 @@
 .spinner-lg {
   width: 36px;
   height: 36px;
-  border: 3px solid #495057;
-  border-top-color: #6ea8fe;
+  border: 3px solid v.$bg-border;
+  border-top-color: v.$primary-dark;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

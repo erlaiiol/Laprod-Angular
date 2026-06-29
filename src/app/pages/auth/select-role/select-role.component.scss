@@ -1,3 +1,5 @@
+@use 'variables' as v;
+
 /* ── Centrage page ────────────────────────────────────────────────────────── */
 
 .role-wrapper {
@@ -6,14 +8,14 @@
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  background: #1a1d20;
+  background: v.$bg-base;
 }
 
 .role-card {
   width: 100%;
   max-width: 680px;
-  background: #2c3034;
-  border: 1px solid #495057;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
   border-radius: 8px;
   padding: 2rem;
   display: flex;
@@ -30,13 +32,13 @@
   h2 {
     font-size: 1.4rem;
     font-weight: 700;
-    color: #f8f9fa;
+    color: v.$off-white;
     margin: 0 0 0.35rem;
   }
 
   p {
     font-size: 0.88rem;
-    color: #6c757d;
+    color: v.$tag-neutral;
     margin: 0;
   }
 }
@@ -50,7 +52,7 @@
   border-radius: 6px;
   padding: 0.65rem 1rem;
   font-size: 0.82rem;
-  color: #93c5fd;
+  color: v.$tag-blue-light;
 
   i { margin-right: 0.4rem; }
 }
@@ -61,7 +63,7 @@
   border-radius: 6px;
   padding: 0.65rem 1rem;
   font-size: 0.85rem;
-  color: #dc3545;
+  color: v.$tag-red;
 }
 
 
@@ -85,15 +87,15 @@
   padding: 1.5rem 1rem;
   min-height: 200px;
 
-  background: #1a1d20;
-  border: 2px solid #495057;
+  background: v.$bg-base;
+  border: 2px solid v.$bg-border;
   border-radius: 8px;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
 
   &:hover {
     transform: translateY(-4px);
-    border-color: #6c757d;
+    border-color: v.$tag-neutral;
   }
 
   &.selected {
@@ -105,18 +107,18 @@
   }
 
   // Sélectionné : couleurs spécifiques par rôle
-  &.selected .role-icon.artist    { color: #0dcaf0; }
-  &.selected .role-icon.beatmaker { color: #198754; }
-  &.selected .role-icon.mix       { color: #ffc107; }
+  &.selected .role-icon.artist    { color: v.$tag-blue; }
+  &.selected .role-icon.beatmaker { color: v.$tag-green; }
+  &.selected .role-icon.mix       { color: v.$gold; }
 
-  &.selected:has(.role-icon.artist)    { border-color: #0dcaf0; }
-  &.selected:has(.role-icon.beatmaker) { border-color: #198754; }
-  &.selected:has(.role-icon.mix)       { border-color: #ffc107; }
+  &.selected:has(.role-icon.artist)    { border-color: v.$tag-blue; }
+  &.selected:has(.role-icon.beatmaker) { border-color: v.$tag-green; }
+  &.selected:has(.role-icon.mix)       { border-color: v.$gold; }
 }
 
 .role-icon {
   font-size: 2.75rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
   transition: color 0.2s;
 
   &.artist    { }
@@ -127,12 +129,12 @@
 .role-name {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #f8f9fa;
+  color: v.$off-white;
 }
 
 .role-desc {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
   line-height: 1.4;
 }
 
@@ -141,16 +143,16 @@
   top: 0.6rem;
   right: 0.6rem;
   font-size: 1.1rem;
-  color: #adb5bd;
+  color: v.$text-secondary;
   opacity: 0;
   transition: opacity 0.15s;
 
   &.visible { opacity: 1; }
 
   // Couleurs de la coche par rôle
-  .role-btn:has(.artist)    & { color: #0dcaf0; }
-  .role-btn:has(.beatmaker) & { color: #198754; }
-  .role-btn:has(.mix)       & { color: #ffc107; }
+  .role-btn:has(.artist)    & { color: v.$tag-blue; }
+  .role-btn:has(.beatmaker) & { color: v.$tag-green; }
+  .role-btn:has(.mix)       & { color: v.$gold; }
 }
 
 
@@ -159,7 +161,7 @@
 .btn-submit {
   width: 100%;
   padding: 0.7rem;
-  background: #0d6efd;
+  background: v.$primary;
   border: none;
   border-radius: 6px;
   color: #fff;
@@ -186,7 +188,7 @@
 .role-hint {
   text-align: center;
   font-size: 0.78rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
   margin: 0;
 }
 

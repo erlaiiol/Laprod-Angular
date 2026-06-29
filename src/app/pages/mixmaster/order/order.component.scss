@@ -37,7 +37,7 @@
   display: flex; justify-content: space-between; align-items: baseline;
   font-size: 0.85rem; color: v.$text-secondary; margin-bottom: 0.35rem;
   &.small      { font-size: 0.78rem; color: v.$text-muted; }
-  &--supplement { color: #fbbf24; font-size: 0.8rem; font-style: italic; }
+  &--supplement { color: v.$gold; font-size: 0.8rem; font-style: italic; }
   &--total     { border-top: 1px solid v.$bg-border; padding-top: 0.4rem; margin-top: 0.2rem; }
   strong.price-value { font-size: 1.4rem; font-weight: 800; color: v.$tag-green; }
 }
@@ -47,9 +47,9 @@
   background: #fff; border: 1px solid #000; border-radius: 8px;
   padding: 0.65rem 0.75rem; line-height: 1.65;
   transition: background 0.15s;
-  &:hover { background: #f3f4f6; }
+  &:hover { background: v.$off-white; }
   strong { color: #000; }
-  em { color: #374151; }
+  em { color: v.$tag-neutral-dark; }
 }
 
 // ── Form ─────────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@
 .field-group {
   display: flex; flex-direction: column; gap: 0.4rem;
   label { font-size: 0.83rem; font-weight: 600; color: v.$text-secondary; }
-  .req { color: #f87171; }
+  .req { color: v.$tag-red-light; }
   input[type="text"], textarea {
     background: v.$bg-elevated; border: 1px solid v.$bg-border;
     border-radius: 7px; padding: 0.55rem 0.75rem; font-size: 0.85rem;
@@ -104,7 +104,7 @@
 
 .mandatory-notice {
   display: flex; align-items: flex-start; gap: 0.4rem;
-  font-size: 0.78rem; color: #fcd34d; margin: 0 0 0.4rem;
+  font-size: 0.78rem; color: v.$gold-light; margin: 0 0 0.4rem;
   i { margin-top: 0.1rem; flex-shrink: 0; }
 }
 
@@ -116,7 +116,7 @@
   input[type="checkbox"] { accent-color: v.$tag-blue; width: 15px; height: 15px; flex-shrink: 0; }
   &:hover { color: v.$text-primary; }
 
-  &.chk-artistic { color: #fcd34d; }
+  &.chk-artistic { color: v.$gold-light; }
 }
 
 .chk-price {
@@ -124,7 +124,7 @@
 }
 
 .chk-mandatory {
-  font-size: 0.68rem; font-weight: 700; color: #fcd34d;
+  font-size: 0.68rem; font-weight: 700; color: v.$gold-light;
   background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3);
   padding: 0.05rem 0.45rem; border-radius: 8px; white-space: nowrap;
 }
@@ -136,14 +136,14 @@
 
 .chk-badge-certif {
   display: inline-flex; align-items: center; gap: 0.2rem;
-  font-size: 0.65rem; font-weight: 600; color: #10b981;
+  font-size: 0.65rem; font-weight: 600; color: v.$tag-green;
   background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);
   padding: 0.05rem 0.4rem; border-radius: 8px; white-space: nowrap;
 }
 
 .chk-badge-pro {
   display: inline-flex; align-items: center; gap: 0.2rem;
-  font-size: 0.65rem; font-weight: 600; color: #eab308;
+  font-size: 0.65rem; font-weight: 600; color: v.$gold;
   background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.3);
   padding: 0.05rem 0.4rem; border-radius: 8px; white-space: nowrap;
 }
@@ -169,10 +169,10 @@
 
 .btn-submit {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  background: v.$tag-blue-dark; color: #ffffff; border: v.$tag-blue 1px solid; border-radius: 8px;
+  background: v.$tag-blue-dark; color: v.$white; border: v.$tag-blue 1px solid; border-radius: 8px;
   padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 700; cursor: pointer;
   transition: opacity 0.15s;
-  &:hover:not(:disabled) { opacity: 0.85; background: v.$tag-blue; color: #000000; transition: border-color 0.15s, background 0.15s;}
+  &:hover:not(:disabled) { opacity: 0.85; background: v.$tag-blue; color: v.$black; transition: border-color 0.15s, background 0.15s;}
   &:disabled { opacity: 0.55; cursor: not-allowed; }
   i { font-size: 1rem; }
 }
@@ -190,18 +190,18 @@
   background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.3);
   border-radius: 8px; padding: 0.75rem 1rem;
 
-  i { color: #fbbf24; font-size: 1rem; flex-shrink: 0; margin-top: 0.15rem; }
+  i { color: v.$gold; font-size: 1rem; flex-shrink: 0; margin-top: 0.15rem; }
 
   p {
     margin: 0; font-size: 0.78rem; color: v.$text-secondary; line-height: 1.6;
-    strong { color: #fcd34d; }
+    strong { color: v.$gold-light; }
     em { font-style: normal; color: v.$text-muted; }
   }
 }
 
 // ── States ────────────────────────────────────────────────────────────────────
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
-.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+.state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
 
 .spinner {
   width: 36px; height: 36px; border: 3px solid v.$bg-border;

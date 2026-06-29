@@ -183,9 +183,9 @@
   align-items:     center;
   gap:             6px;
   padding:         5px 10px 5px 9px;
-  background:      rgba(16, 185, 129, 0.12);
+  background:      rgba(v.$tag-green, 0.12);
   color:           v.$tag-green;
-  border:          1px solid rgba(16, 185, 129, 0.35);
+  border:          1px solid rgba(v.$tag-green, 0.35);
   border-radius:   20px;         // pill
   font-size:       0.72rem;
   font-weight:     600;
@@ -197,9 +197,9 @@
   svg { flex-shrink: 0; opacity: 0.85; transition: opacity 0.15s; }
 
   &:hover {
-    background:   rgba(16, 185, 129, 0.22);
+    background:   rgba(v.$tag-green, 0.22);
     border-color: v.$tag-green;
-    box-shadow:   0 0 8px rgba(16, 185, 129, 0.25);
+    box-shadow:   0 0 8px rgba(v.$tag-green, 0.25);
     color:        #fff;
     svg { opacity: 1; }
   }
@@ -288,7 +288,7 @@
   }
 
   &--login {
-    color: #6b7280;
+    color: v.$tag-neutral;
   }
 }
 
@@ -297,9 +297,9 @@
   align-items:   center;
   gap:           7px;
   padding:       6px 12px 6px 10px;
-  background:    rgba(16, 185, 129, 0.10);
+  background:    rgba(v.$tag-green, 0.10);
   color:         v.$tag-green-light;
-  border:        1px solid rgba(16, 185, 129, 0.30);
+  border:        1px solid rgba(v.$tag-green, 0.30);
   border-radius: 8px;
   cursor:        pointer;
   white-space:   nowrap;
@@ -309,9 +309,9 @@
   svg { flex-shrink: 0; color: v.$tag-green; opacity: 0.85; transition: opacity 0.15s; }
 
   &:hover {
-    background:   rgba(16, 185, 129, 0.22);
+    background:   rgba(v.$tag-green, 0.22);
     border-color: v.$tag-green;
-    box-shadow:   0 0 10px rgba(16, 185, 129, 0.2);
+    box-shadow:   0 0 10px rgba(v.$tag-green, 0.2);
     svg { opacity: 1; }
     .btn-action-free { opacity: 1; }
   }
@@ -324,7 +324,7 @@
   padding:       6px 12px 6px 10px;
   background:    v.$tag-red-dark;
   color:         v.$tag-red-light;
-  border:        1px solid rgba(239, 68, 68, 0.35);
+  border:        1px solid rgba(v.$tag-red, 0.35);
   border-radius: 8px;
   cursor:        pointer;
   white-space:   nowrap;
@@ -332,9 +332,9 @@
   transition:    background 0.18s, border-color 0.18s, box-shadow 0.18s;
 
   &:hover {
-    background:   rgba(239, 68, 68, 0.22);
+    background:   rgba(v.$tag-red, 0.22);
     border-color: v.$tag-red;
-    box-shadow:   0 0 10px rgba(239, 68, 68, 0.2);
+    box-shadow:   0 0 10px rgba(v.$tag-red, 0.2);
     .btn-action-free--rec { opacity: 1; }
   }
 }
@@ -418,15 +418,15 @@
   font-weight:   700;
   white-space:   nowrap;
 
-  &.status-awaiting_acceptance { background: rgba(251,191,36,0.12); color: #fcd34d; }
-  &.status-accepted             { background: rgba(59,130,246,0.15); color: #93c5fd; }
-  &.status-processing           { background: rgba(99,102,241,0.15); color: #c4b5fd; }
-  &.status-delivered            { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  &.status-awaiting_acceptance { background: rgba(v.$gold, 0.12);       color: v.$gold-light; }
+  &.status-accepted             { background: rgba(59,130,246,0.15);    color: v.$tag-blue-light; }
+  &.status-processing           { background: rgba(v.$tag-violet, 0.15); color: v.$tag-violet-light; }
+  &.status-delivered            { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green-light; }
   &.status-revision1,
-  &.status-revision2            { background: rgba(249,115,22,0.15); color: #fdba74; }
-  &.status-completed            { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  &.status-revision2            { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange-light; }
+  &.status-completed            { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green-light; }
   &.status-rejected,
-  &.status-refunded             { background: rgba(239,68,68,0.12);  color: #fca5a5; }
+  &.status-refunded             { background: rgba(v.$tag-red, 0.12);    color: v.$tag-red-light; }
 }
 
 // ── Modal de confirmation ────────────────────────────────────────────────────
