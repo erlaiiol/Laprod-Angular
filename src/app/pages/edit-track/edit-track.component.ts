@@ -226,6 +226,19 @@ export class EditTrackComponent implements OnInit {
   }
 
   onSubmit(): void {
+    const contractPrices = this.auth.isPremium() ? {
+      contract_price_exclusive:       this.cpExclusive(),
+      contract_price_duration_3y:     this.cpDuration3y(),
+      contract_price_duration_5y:     this.cpDuration5y(),
+      contract_price_duration_10y:    this.cpDuration10y(),
+      contract_price_lifetime:        this.cpLifetime(),
+      contract_price_mechanical:      this.cpMechanical(),
+      contract_price_public_show:     this.cpPublicShow(),
+      contract_price_arrangement:     this.cpArrangement(),
+      contract_price_territory_eu:    this.cpTerritoryEu(),
+      contract_price_territory_world: this.cpTerritoryWorld(),
+    } : {};
+
     this.cudTrackService.putTrack(this.trackId, {
       title:        this.title(),
       bpm:          this.bpm()!,
@@ -239,16 +252,7 @@ export class EditTrackComponent implements OnInit {
       file_image:   this.fileImage() ?? undefined,
       file_wav:     this.fileWav()   ?? undefined,
       file_stems:   this.fileStems() ?? undefined,
-      contract_price_exclusive:       this.cpExclusive(),
-      contract_price_duration_3y:     this.cpDuration3y(),
-      contract_price_duration_5y:     this.cpDuration5y(),
-      contract_price_duration_10y:    this.cpDuration10y(),
-      contract_price_lifetime:        this.cpLifetime(),
-      contract_price_mechanical:      this.cpMechanical(),
-      contract_price_public_show:     this.cpPublicShow(),
-      contract_price_arrangement:     this.cpArrangement(),
-      contract_price_territory_eu:    this.cpTerritoryEu(),
-      contract_price_territory_world: this.cpTerritoryWorld(),
+      ...contractPrices,
     }).subscribe({
       next: res => {
         if (!res.success) {

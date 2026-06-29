@@ -61,7 +61,19 @@
 }
 
 .confirm-icon { font-size: 3rem; color: v.$primary; line-height: 1; }
-.confirm-spam { font-size: 0.78rem !important; color: v.$text-muted !important; }
+.confirm-spam {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: v.$gold;
+  background: rgba(v.$gold, 0.08);
+  border: 1px solid rgba(v.$gold, 0.25);
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+
+  i { flex-shrink: 0; }
+}
 
 .resend-ok {
   font-size: 0.85rem;

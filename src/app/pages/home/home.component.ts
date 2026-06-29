@@ -70,10 +70,13 @@ export class HomeComponent implements OnInit {
       localStorage.setItem('laprod_visited', '1');
     }
 
-    // Modale d'onboarding : uniquement si connecté, rôles définis, et jamais vue
+    // Modale d'onboarding : uniquement si connecté, rôles définis, et jamais vue.
+    // La clé est posée immédiatement pour éviter la ré-apparition si l'utilisateur
+    // navigue ou ferme l'onglet sans interagir avec la modale.
     const user = this.auth.currentUser();
     const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
     if (hasRole && OnboardingModalComponent.shouldShow()) {
+      localStorage.setItem('laprod_onboarding_done', '1');
       this.showOnboarding.set(true);
     }
   }

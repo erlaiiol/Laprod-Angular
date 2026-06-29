@@ -121,7 +121,8 @@
 
       <div class="card-divider"></div>
 
-      <!-- ═══ PRIX DES DROITS DE LICENCE ════════════════════════════════════ -->
+      <!-- ═══ PRIX DES DROITS DE LICENCE (premium only) ═══════════════════ -->
+      @if (auth.isPremium()) {
       <div class="card-section">
         <div class="license-price-header">
           <div class="license-price-left">
@@ -201,6 +202,7 @@
           </div>
         }
       </div>
+      }
 
       <div class="card-divider"></div>
 
