@@ -38,6 +38,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options: { max-size: "5m", max-file: "2" }
 
   # ---------------------------------------------------------------------------
   # Redis — stockage refresh tokens JWT + cache OAuth
@@ -54,6 +57,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options: { max-size: "5m", max-file: "2" }
 
   # ---------------------------------------------------------------------------
   # Flask / Gunicorn (API uniquement — plus de Jinja en prod)
@@ -89,6 +95,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    logging:
+      driver: "json-file"
+      options: { max-size: "20m", max-file: "5" }
 
   # ---------------------------------------------------------------------------
   # RQ Worker — traitement asynchrone des beats (watermark, image, DB)
@@ -119,6 +128,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
 
   # ---------------------------------------------------------------------------
   # Frontend : Angular (build) + Nginx (reverse proxy + SPA)
@@ -138,6 +150,9 @@ services:
     depends_on:
       web:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
 
   # ---------------------------------------------------------------------------
   # Certbot — Let's Encrypt (déclenché manuellement)
