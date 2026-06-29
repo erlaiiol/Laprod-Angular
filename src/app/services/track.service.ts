@@ -100,14 +100,15 @@ export interface TrackDetail extends Track {
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)
 // Chaque champ ici correspond à un request.args.get('...') dans get_tracks()
 export interface TrackFilters {
-  search?:   string;
-  bpm_min?:  number;
-  bpm_max?:  number;
-  keys?:     string;
-  styles?:   string; 
-  tags?:     string;
-  page?:     number;
-  per_page?: number;
+  search?:       string;
+  bpm_min?:      number;
+  bpm_max?:      number;
+  keys?:         string;
+  styles?:       string;
+  tags?:         string;
+  tag_category?: string;
+  page?:         number;
+  per_page?:     number;
 }
 
 

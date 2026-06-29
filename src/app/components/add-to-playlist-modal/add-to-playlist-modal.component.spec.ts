@@ -45,42 +45,57 @@ describe('AddToPlaylistModalComponent', () => {
     component.trackId = 99;
   });
 
-  it('loads playlists and containing ids on init', () => {
+  it('loads playlists and pendingIds on init', () => {
     fixture.detectChanges();
     expect(playlistSvc.getMyPlaylists).toHaveBeenCalled();
     expect(playlistSvc.getContaining).toHaveBeenCalledWith(99, 'bm');
     expect(component.playlists().length).toBe(2);
-    expect(component.containingIds().has(1)).toBe(true);
-    expect(component.containingIds().has(2)).toBe(false);
+    expect(component.pendingIds().has(1)).toBe(true);
+    expect(component.pendingIds().has(2)).toBe(false);
     expect(component.loading()).toBe(false);
   });
 
-  it('calls addTrack when unchecked playlist is checked', () => {
-    playlistSvc.addTrack.mockReturnValue(of({ success: true, data: undefined }));
+  it('adds to pendingIds when unchecked playlist is toggled', () => {
     fixture.detectChanges();
-
-    const event = { target: { checked: true } } as unknown as Event;
-    component.toggle(makePl(2), event);
-
-    expect(playlistSvc.addTrack).toHaveBeenCalledWith(2, 99);
-    expect(component.containingIds().has(2)).toBe(true);
+    component.togglePending(makePl(2));
+    expect(component.pendingIds().has(2)).toBe(true);
+    // API calls happen only on saveChanges(), not on toggle
+    expect(playlistSvc.addTrack).not.toHaveBeenCalled();
   });
 
-  it('calls removeTrack when checked playlist is unchecked', () => {
+  it('removes from pendingIds when checked playlist is toggled', () => {
+    fixture.detectChanges();
+    component.togglePending(makePl(1));
+    expect(component.pendingIds().has(1)).toBe(false);
+    expect(playlistSvc.removeTrack).not.toHaveBeenCalled();
+  });
+
+  it('detects pending changes correctly', () => {
+    fixture.detectChanges();
+    expect(component.hasPendingChanges()).toBe(false);
+    component.togglePending(makePl(2));
+    expect(component.hasPendingChanges()).toBe(true);
+    component.togglePending(makePl(2)); // revert
+    expect(component.hasPendingChanges()).toBe(false);
+  });
+
+  it('calls addTrack and removeTrack on saveChanges()', async () => {
+    playlistSvc.addTrack.mockReturnValue(of({ success: true, data: undefined }));
     playlistSvc.removeTrack.mockReturnValue(of({ success: true, data: undefined }));
     fixture.detectChanges();
 
-    const event = { target: { checked: false } } as unknown as Event;
-    component.toggle(makePl(1), event);
+    component.togglePending(makePl(2)); // add pl 2
+    component.togglePending(makePl(1)); // remove pl 1
 
+    await component.saveChanges();
+
+    expect(playlistSvc.addTrack).toHaveBeenCalledWith(2, 99);
     expect(playlistSvc.removeTrack).toHaveBeenCalledWith(1, 99);
-    expect(component.containingIds().has(1)).toBe(false);
   });
 
-  it('creates playlist and adds track on createAndAdd()', () => {
+  it('creates playlist and adds to pendingIds on createAndAdd()', () => {
     const newPl = makePl(3, 'New PL');
     playlistSvc.createPlaylist.mockReturnValue(of({ success: true, data: newPl }));
-    playlistSvc.addTrack.mockReturnValue(of({ success: true, data: undefined }));
     fixture.detectChanges();
 
     component.newTitle = 'New PL';
@@ -88,9 +103,8 @@ describe('AddToPlaylistModalComponent', () => {
     component.createAndAdd();
 
     expect(playlistSvc.createPlaylist).toHaveBeenCalled();
-    expect(playlistSvc.addTrack).toHaveBeenCalledWith(3, 99);
     expect(component.playlists().some(p => p.id === 3)).toBe(true);
-    expect(component.containingIds().has(3)).toBe(true);
+    expect(component.pendingIds().has(3)).toBe(true);
     expect(component.showCreate()).toBe(false);
     expect(component.newTitle).toBe('');
   });

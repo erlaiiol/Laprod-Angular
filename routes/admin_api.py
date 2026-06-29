@@ -659,12 +659,20 @@ def toggle_user_role(user_id, role, current_user):
         msg = f'Rôle Interprète {"activé" if user.is_artist else "désactivé"} pour {user.username}.'
     elif role == 'engineer':
         user.is_mixmaster_engineer = not user.is_mixmaster_engineer
-        msg = f'Rôle Engineer {"activé" if user.is_mixmaster_engineer else "désactivé"} pour {user.username}.'
+        if not user.is_mixmaster_engineer:
+            user.is_certified_master_engineer      = False
+            user.is_certified_producer_arranger    = False
+        msg = f'Certification Mix {"accordée" if user.is_mixmaster_engineer else "révoquée"} pour {user.username}.'
+    elif role == 'master':
+        if not user.is_mixmaster_engineer:
+            return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
+        user.is_certified_master_engineer = not user.is_certified_master_engineer
+        msg = f'Certification Master {"accordée" if user.is_certified_master_engineer else "révoquée"} pour {user.username}.'
     elif role == 'producer_arranger':
         if not user.is_mixmaster_engineer:
-            return ser_err(f"{user.username} doit d'abord être Engineer.")
+            return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
         user.is_certified_producer_arranger = not user.is_certified_producer_arranger
-        msg = f'Certification Producteur/Arrangeur {"activée" if user.is_certified_producer_arranger else "désactivée"} pour {user.username}.'
+        msg = f'Certification Producteur/Arrangeur {"accordée" if user.is_certified_producer_arranger else "révoquée"} pour {user.username}.'
     else:
         return ser_err('Rôle invalide.')
 

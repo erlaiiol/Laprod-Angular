@@ -49,6 +49,13 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 # ferme sa propre connexion PostgreSQL. Légèrement plus lent mais entièrement sûr.
 # En développement on garde le pool standard pour les performances.
 import os as _os
+# X-Accel-Redirect : nginx sert les fichiers directement après auth Flask.
+# Activer en production (FLASK_ENV=production ou USE_X_ACCEL_REDIRECT=true).
+USE_X_ACCEL_REDIRECT = (
+    _os.environ.get('USE_X_ACCEL_REDIRECT', '').lower() == 'true'
+    or _os.environ.get('FLASK_ENV') == 'production'
+)
+
 if _os.environ.get('FLASK_ENV') == 'production':
     from sqlalchemy.pool import NullPool
     SQLALCHEMY_ENGINE_OPTIONS = {

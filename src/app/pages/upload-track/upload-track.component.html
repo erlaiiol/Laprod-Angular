@@ -531,5 +531,13 @@
         }
       </button>
 
+      @if (submitErrors().length) {
+        <ul class="submit-errors">
+          @for (err of submitErrors(); track err) {
+            <li><i class="bi bi-exclamation-circle-fill"></i> {{ err }}</li>
+          }
+        </ul>
+      }
+
   </div>
 </div>

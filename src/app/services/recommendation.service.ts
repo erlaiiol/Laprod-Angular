@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Track } from './track.service';
@@ -34,8 +34,10 @@ export class RecommendationService {
   private http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/api/recommendations`;
 
-  getTracks(): Observable<RecommendationsResponse> {
-    return this.http.get<RecommendationsResponse>(`${this.apiUrl}/tracks`);
+  getTracks(tagCategory?: string | null): Observable<RecommendationsResponse> {
+    let params = new HttpParams();
+    if (tagCategory) params = params.set('tag_category', tagCategory);
+    return this.http.get<RecommendationsResponse>(`${this.apiUrl}/tracks`, { params });
   }
 
   getMyProfile(): Observable<RecommendationProfile> {

@@ -6,7 +6,7 @@ GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
 """
-from flask import Blueprint, current_app, send_file, abort
+from flask import Blueprint, current_app, send_file, abort, make_response
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
 from flask_jwt_extended.exceptions import JWTExtendedException
 from pathlib import Path
@@ -41,11 +41,14 @@ _FORMAT_MIME = {
 def _send(relative_path: str, mimetype: str,
           as_attachment: bool = False, download_name: str | None = None):
     """
-    Résout le chemin relatif depuis la racine Flask et sert le fichier.
-    conditional=True active le support Range (seek WaveSurfer / lecture partielle).
+    Sert un fichier depuis db_assets/ après vérification sécurité (path traversal).
 
-    Sécurité : résolution realpath() pour bloquer toute tentative de path traversal
-    (ex. audio_file = '../../config.py' en DB).
+    En production (USE_X_ACCEL_REDIRECT=true), retourne un header X-Accel-Redirect
+    pour que nginx serve le fichier directement — le worker Gunicorn est libéré
+    immédiatement au lieu de bloquer pendant toute la durée du stream.
+
+    En dev (défaut), utilise send_file() avec conditional=True (Range requests,
+    seek WaveSurfer).
     """
     db_assets_root = (Path(current_app.root_path) / 'db_assets').resolve()
     path = (Path(current_app.root_path) / relative_path).resolve()
@@ -59,6 +62,19 @@ def _send(relative_path: str, mimetype: str,
 
     if not path.exists():
         abort(404)
+
+    if current_app.config.get('USE_X_ACCEL_REDIRECT'):
+        # Chemin interne nginx : /_protected/<chemin relatif depuis db_assets/>
+        accel_path = '/_protected/' + path.relative_to(db_assets_root).as_posix()
+        response = make_response()
+        response.headers['X-Accel-Redirect'] = accel_path
+        response.headers['Content-Type'] = mimetype
+        if as_attachment and download_name:
+            safe_name = download_name.encode('utf-8').decode('latin-1', errors='replace')
+            response.headers['Content-Disposition'] = (
+                f"attachment; filename*=UTF-8''{download_name}"
+            )
+        return response
 
     return send_file(
         path,

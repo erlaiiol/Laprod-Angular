@@ -57,7 +57,7 @@ describe('AuthService', () => {
         AuthService,
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        provideRouter([{ path: 'login', redirectTo: '' }, { path: '**', redirectTo: '' }]),
       ],
     });
 

@@ -55,13 +55,15 @@ export interface AdminUser {
   email:           string;
   profile_image:   string;
   account_status:  string;
-  email_verified:  boolean;
+  email_verified:     boolean;
   user_type_selected: boolean;
+  auth_method:        'local' | 'google';
   is_admin:        boolean;
   is_beatmaker:    boolean;
   is_artist:       boolean;
   is_mix_engineer: boolean;
-  is_mixmaster_engineer: boolean;
+  is_mixmaster_engineer:          boolean;
+  is_certified_master_engineer:   boolean;
   is_certified_producer_arranger: boolean;
   producer_arranger_request_submitted: boolean;
   is_premium:          boolean;

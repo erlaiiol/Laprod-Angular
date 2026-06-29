@@ -58,7 +58,8 @@ export class HomeComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      this.filterStateService.applied(); // lecture → crée la dépendance
+      this.filterStateService.applied();    // filtre navbar → recharge
+      this.auth.preferredTagCategory();     // préférence catégorie → recharge
       this.loadTracks();
     }, { allowSignalWrites: true });
   }
@@ -92,7 +93,7 @@ export class HomeComponent implements OnInit {
     const useRecommendations = this.auth.isLoggedIn() && !this.hasActiveFilters();
 
     if (useRecommendations) {
-      this.recoService.getTracks().pipe(
+      this.recoService.getTracks(this.auth.preferredTagCategory()).pipe(
         switchMap(response => {
           if (!response.success) return of(response);
           const ids = response.data.tracks.map(t => t.id);
@@ -154,12 +155,13 @@ export class HomeComponent implements OnInit {
   // ── Conversion de format ──────────────────────────────────────────────────
   private toTrackFilters(f: ActiveFilters): TrackFilters {
     return {
-      search:   f.search   || undefined,
-      bpm_min:  f.bpmMin   ?? undefined,
-      bpm_max:  f.bpmMax   ?? undefined,
-      keys:     f.keys.length   ? f.keys.join(',')   : undefined,
-      styles:   f.styles.length ? f.styles.join(',') : undefined,
-      tags:     f.tags.length   ? f.tags.join(',')   : undefined,
+      search:       f.search   || undefined,
+      bpm_min:      f.bpmMin   ?? undefined,
+      bpm_max:      f.bpmMax   ?? undefined,
+      keys:         f.keys.length   ? f.keys.join(',')   : undefined,
+      styles:       f.styles.length ? f.styles.join(',') : undefined,
+      tags:         f.tags.length   ? f.tags.join(',')   : undefined,
+      tag_category: this.auth.preferredTagCategory() ?? undefined,
     };
   }
 

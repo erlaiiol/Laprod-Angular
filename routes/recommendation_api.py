@@ -5,7 +5,7 @@ GET  /api/recommendations/tracks      — top-N tracks personnalisés (ou cold s
 GET  /api/recommendations/my-profile  — vecteur de préférences utilisateur (debug)
 """
 
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from extensions import db
@@ -30,7 +30,8 @@ def get_recommendation_tracks():
     Retourne des tracks personnalisés si l'utilisateur est connecté et a ≥ 3
     événements d'écoute, sinon retourne les tracks les plus populaires.
     """
-    identity = get_jwt_identity()
+    identity     = get_jwt_identity()
+    tag_category = request.args.get('tag_category', '').strip()
 
     if identity:
         user_id = int(identity)
@@ -38,6 +39,15 @@ def get_recommendation_tracks():
     else:
         tracks = get_cold_start_tracks()
         is_personalized = False
+
+    if tag_category:
+        tracks = [
+            t for t in tracks
+            if any(
+                tag.category_obj and tag.category_obj.name == tag_category
+                for tag in t.tags
+            )
+        ]
 
     pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
     return ok({

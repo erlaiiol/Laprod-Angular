@@ -217,7 +217,28 @@
   &.role-bm  { background: rgba(v.$tag-violet, 0.2); color: v.$tag-violet; }
   &.role-art { background: rgba(v.$tag-pink, 0.2);   color: v.$tag-pink; }
   &.role-eng { background: rgba(v.$tag-blue, 0.2);   color: v.$tag-blue; }
+  &.role-mst { background: rgba(v.$tag-teal, 0.2);   color: v.$tag-teal; }
   &.role-pa  { background: rgba(v.$tag-green, 0.2);  color: v.$tag-green; }
+}
+
+// Boutons de certification engineer groupés
+.cert-group {
+  display: inline-flex; gap: 2px; vertical-align: middle;
+}
+
+.btn-cert {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 0.2rem 0.3rem; line-height: 1;
+  opacity: 0.45;
+
+  &--on { opacity: 1; }
+  &:disabled { opacity: 0.2; cursor: not-allowed; }
+}
+
+.btn-icon--cert-on {
+  color: v.$tag-blue;
+  border-color: rgba(v.$tag-blue, 0.4);
+  background: rgba(v.$tag-blue, 0.08);
 }
 
 .badge-premium { color: v.$tag-orange; font-size: 0.8rem; margin-left: 0.3rem; }

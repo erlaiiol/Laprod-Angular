@@ -42,11 +42,12 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   /** Whether the player is showing a mix order reference/preview. */
   isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
 
-  /** True when the player streams a preview (not the full track). */
+  /** True when the player streams a preview (not the full track).
+   *  Mirrors buildAudioUrl(): full stream only in detail context + logged in + full_stream_url. */
   isPreview = computed(() => {
     const track = this.player.currentTrack();
     if (!track) return false;
-    return !(this.auth.isLoggedIn() && track.full_stream_url);
+    return !(this.isDetailContext() && this.auth.isLoggedIn() && !!track.full_stream_url);
   });
 
   /** True when the currently playing track IS the viewing track → actions work directly. */
@@ -60,13 +61,18 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   private pendingAction: 'download' | 'rec' | null = null;
 
   private wavesurfer: WaveSurfer | null = null;
+  // Dernière URL chargée dans WaveSurfer — évite les rechargements quand seul
+  // le contexte change (ex: viewingTrack s'active sur le même track en lecture).
+  private _lastLoadedUrl = '';
 
   constructor() {
     effect(() => {
       const track = this.player.currentTrack();
       if (!track || !this.wavesurfer) return;
       const url = this.player.buildAudioUrl(track);
-      if (url) this.wavesurfer.load(url);
+      if (!url || url === this._lastLoadedUrl) return;
+      this._lastLoadedUrl = url;
+      this.wavesurfer.load(url);
     });
   }
 
@@ -96,13 +102,14 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       this.player.seek(newTime);
     });
 
-    // Fix race condition: effect() in constructor may have fired before
-    // ngAfterViewInit (this.wavesurfer was null → early return → no load).
-    // If a track is already queued, load it now that WaveSurfer is ready.
+    // Fix race condition: effect() fires before ngAfterViewInit (wavesurfer null → skip).
     const pending = this.player.currentTrack();
     if (pending && this.player.playOnReady) {
       const url = this.player.buildAudioUrl(pending);
-      if (url) this.wavesurfer.load(url);
+      if (url && url !== this._lastLoadedUrl) {
+        this._lastLoadedUrl = url;
+        this.wavesurfer.load(url);
+      }
     }
   }
 

@@ -187,14 +187,18 @@ export class UploadTrackComponent implements OnInit {
   loading = signal(false);
   error   = signal<string | null>(null);
 
-  canSubmit = computed(() =>
-    !!this.title().trim() &&
-    !!this.bpm() && this.bpm()! >= 60 && this.bpm()! <= 220 &&
-    !!this.key() &&
-    !!this.style() &&
-    !!this.fileMp3() &&
-    !this.loading(),
-  );
+  submitErrors = computed(() => {
+    const errs: string[] = [];
+    if (!this.title().trim())                          errs.push('Titre manquant');
+    if (!this.bpm())                                   errs.push('BPM manquant');
+    else if (this.bpm()! < 60 || this.bpm()! > 220)   errs.push('BPM invalide (60–220)');
+    if (!this.key())                                   errs.push('Tonalité non sélectionnée');
+    if (!this.style())                                 errs.push('Style non sélectionné');
+    if (!this.fileMp3())                               errs.push('Fichier MP3 obligatoire');
+    return errs;
+  });
+
+  canSubmit = computed(() => this.submitErrors().length === 0 && !this.loading());
 
   constructor(
     private tagsService:      TagsService,

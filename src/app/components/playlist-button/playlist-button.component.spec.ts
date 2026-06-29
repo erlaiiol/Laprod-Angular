@@ -44,14 +44,18 @@ describe('PlaylistButtonComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('renders nothing when playlist_count is 0', () => {
+  it('renders button with icon when playlist_count is 0', () => {
     component.track = mockTrack(0);
     fixture.detectChanges();
     const btn = fixture.nativeElement.querySelector('.playlist-btn');
-    expect(btn).toBeNull();
+    expect(btn).not.toBeNull();
+    const icon = fixture.nativeElement.querySelector('.bi-collection-play');
+    expect(icon).not.toBeNull();
+    const stack = fixture.nativeElement.querySelector('.pl-stack');
+    expect(stack).toBeNull();
   });
 
-  it('renders one image when playlist_count is 1', () => {
+  it('renders one image and no badge when playlist_count is 1', () => {
     component.track = mockTrack(1);
     fixture.detectChanges();
     const btn = fixture.nativeElement.querySelector('.playlist-btn');
@@ -62,16 +66,17 @@ describe('PlaylistButtonComponent', () => {
     expect(badge).toBeNull();
   });
 
-  it('renders one ghost square when playlist_count is 2', () => {
+  it('renders one ghost square and count badge when playlist_count is 2', () => {
     component.track = mockTrack(2);
     fixture.detectChanges();
     const ghosts = fixture.nativeElement.querySelectorAll('.pl-ghost');
     expect(ghosts.length).toBe(1);
     const badge = fixture.nativeElement.querySelector('.pl-count');
-    expect(badge).toBeNull();
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('2');
   });
 
-  it('renders two ghost squares and +N badge when playlist_count >= 3', () => {
+  it('renders two ghost squares and count badge when playlist_count >= 3', () => {
     component.track = mockTrack(5);
     fixture.detectChanges();
     const ghosts = fixture.nativeElement.querySelectorAll('.pl-ghost');

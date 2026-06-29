@@ -174,7 +174,8 @@ def get_tracks():
         bpm_max      = request.args.get('bpm_max', type=int)
         keys_param   = request.args.get('keys', '').strip()
         styles_param = request.args.get('styles', '').strip()
-        tags_param   = request.args.get('tags', '').strip()
+        tags_param     = request.args.get('tags', '').strip()
+        tag_category   = request.args.get('tag_category', '').strip()
 
         # Échapper les caractères spéciaux SQL LIKE
         search = search.replace('%', '\\%').replace('_', '\\_')
@@ -208,6 +209,13 @@ def get_tracks():
                 track_query = track_query.where(
                     Track.tags.any(Tag.name.in_(tags_list))
                 )
+
+        if tag_category:
+            track_query = track_query.where(
+                Track.tags.any(
+                    Tag.category_obj.has(Category.name == tag_category)
+                )
+            )
 
         tracks = db.session.execute(
             track_query.order_by(Track.created_at.desc())

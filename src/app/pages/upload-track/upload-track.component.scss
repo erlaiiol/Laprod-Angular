@@ -254,6 +254,26 @@
   &:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
+.submit-errors {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: v.$primary;
+    opacity: 0.85;
+
+    i { font-size: 0.75rem; flex-shrink: 0; }
+  }
+}
+
 /* ── Succès ───────────────────────────────────────────────────────────────── */
 
 .success-state {
