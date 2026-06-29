@@ -138,7 +138,7 @@ export class UserflowComponent implements OnDestroy {
       icon: 'bi-mic-fill',
       color: 'indigo',
       title: 'Toplines — Écrire & chanter sur des beats',
-      tagline: 'utotune en ligne, gratuit, sans logiciel à installer.',
+      tagline: 'Autotune en ligne, gratuit, sans logiciel à installer.',
       steps: [
         { text: 'Choisir un beat dans la bibliothèque — il se lance directement dans le player.' },
         { text: 'Ouvrir l\'éditeur Topline : enregistrez votre voix par-dessus le beat en temps réel.' },

@@ -104,8 +104,16 @@
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .preview-tag {
-  font-size: 0.65rem; font-weight: 400; color: v.$text-secondary;
-  opacity: 0.75; white-space: nowrap;
+  font-size:     0.58rem;
+  font-weight:   700;
+  color:         v.$tag-orange;
+  background:    rgba(v.$tag-orange, 0.12);
+  border:        1px solid rgba(v.$tag-orange, 0.3);
+  border-radius: 4px;
+  padding:       1px 5px;
+  letter-spacing: 0.04em;
+  white-space:   nowrap;
+  text-transform: uppercase;
 }
 .player-artist { font-size: 0.73rem; color: v.$text-secondary; margin-top: 3px !important; }
 
@@ -252,6 +260,16 @@
 
 .btn-track-detail__text {
   // visible desktop, masqué mobile
+}
+
+.btn-detail-sub {
+  font-size:   0.6rem;
+  font-weight: 600;
+  color:       v.$primary;
+  opacity:     0.85;
+  letter-spacing: 0.02em;
+
+  i { font-size: 0.55rem; }
 }
 
 // ── Download + REC — contexte track-detail ────────────────────────────────────

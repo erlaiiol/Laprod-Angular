@@ -42,6 +42,13 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   /** Whether the player is showing a mix order reference/preview. */
   isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
 
+  /** True when the player streams a preview (not the full track). */
+  isPreview = computed(() => {
+    const track = this.player.currentTrack();
+    if (!track) return false;
+    return !(this.auth.isLoggedIn() && track.full_stream_url);
+  });
+
   /** True when the currently playing track IS the viewing track → actions work directly. */
   isViewingTrackLoaded = computed(() => {
     const v = this.player.viewingTrack();

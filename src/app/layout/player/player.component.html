@@ -31,6 +31,9 @@
       <div class="player-info">
         <p class="player-title">
           {{ player.currentTrack()?.title }}
+          @if (isPreview()) {
+            <span class="preview-tag">Aperçu</span>
+          }
         </p>
         <p class="player-artist">{{ player.currentTrack()?.composer_user?.username }}</p>
       </div>
@@ -40,6 +43,9 @@
     <div class="player-center">
       <div class="waveform-container">
         <div #waveformContainer class="waveform-inner"></div>
+        @if (isPreview()) {
+          <span class="preview-notice">Aperçu · 1 min 30 s — version complète sur la page du beat</span>
+        }
       </div>
 
       <!-- Actions — always visible, adapt layout per context -->
@@ -62,7 +68,7 @@
                 <span class="btn-free-dl__text">Télécharger</span>
                 <span class="btn-free-dl__badge">GRATUIT</span>
               </a>
-              <!-- Voir les détails -->
+              <!-- Voir les détails + hint topline -->
               <a class="btn-track-detail"
                  [routerLink]="['/track', player.currentTrack()!.id]"
                  title="Voir les détails du beat">
@@ -72,7 +78,12 @@
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <span class="btn-track-detail__text">Détails</span>
+                <span class="btn-action-inner btn-track-detail__text">
+                  <span class="btn-action-label">Détails</span>
+                  <span class="btn-detail-sub">
+                    <i class="bi bi-mic-fill"></i> topline
+                  </span>
+                </span>
               </a>
             }
           </div>
