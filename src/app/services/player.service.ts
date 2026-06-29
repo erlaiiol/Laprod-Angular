@@ -224,9 +224,11 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    // full_stream_url requiert @jwt_required — on ne l'utilise que si connecté.
-    // Sinon WaveSurfer obtient un 401 et ne charge rien.
-    const url = (this.auth.isLoggedIn() && track.full_stream_url)
+    // full_stream_url = accès acheteur uniquement.
+    // En contexte catalogue (viewingTrack === null), on utilise toujours la preview
+    // pour éviter un 401 (le beatmaker owner ne passe pas par le même endpoint).
+    const isDetailContext = this.viewingTrack() !== null;
+    const url = (isDetailContext && this.auth.isLoggedIn() && track.full_stream_url)
       ? track.full_stream_url
       : track.stream_url;
     if (!url) return '';

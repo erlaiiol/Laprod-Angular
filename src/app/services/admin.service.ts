@@ -55,6 +55,8 @@ export interface AdminUser {
   email:           string;
   profile_image:   string;
   account_status:  string;
+  email_verified:  boolean;
+  user_type_selected: boolean;
   is_admin:        boolean;
   is_beatmaker:    boolean;
   is_artist:       boolean;
@@ -249,6 +251,14 @@ export class AdminService {
 
   setPlan(userId: number, plan: 'free' | 'amateur' | 'pro'): Observable<ApiResponse<{ is_premium: boolean; subscription_plan: string; premium_expires_at: string | null }>> {
     return this.http.post<any>(`${this.base}/users/${userId}/set-plan`, { plan }, { headers: this.headers });
+  }
+
+  resendVerificationEmail(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/resend-verification`, {}, { headers: this.headers });
+  }
+
+  deleteUser(userId: number): Observable<ApiResponse> {
+    return this.http.delete<any>(`${this.base}/users/${userId}`, { headers: this.headers });
   }
 
   // ── Engineers CUD ──────────────────────────────────────────────────────────

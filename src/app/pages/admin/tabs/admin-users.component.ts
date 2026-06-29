@@ -27,6 +27,13 @@ export class AdminUsersComponent implements OnInit {
   tokenType   = signal<'track' | 'topline'>('track');
   tokenAmount = signal(1);
 
+  // Delete modal
+  deleteTarget    = signal<AdminUser | null>(null);
+  deleteSubmitting = signal(false);
+
+  // Resend email
+  resendingId = signal<number | null>(null);
+
   // Plan modal
   planUser       = signal<AdminUser | null>(null);
   planTarget     = signal<'free' | 'amateur' | 'pro'>('amateur');
@@ -120,6 +127,44 @@ export class AdminUsersComponent implements OnInit {
         if (res.success) { this.tokenUser.set(null); this.load(); }
       },
       error: (err: any) => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+    });
+  }
+
+  resendVerification(user: AdminUser): void {
+    this.resendingId.set(user.id);
+    this.adminSvc.resendVerificationEmail(user.id).subscribe({
+      next: res => {
+        this.resendingId.set(null);
+        if (res.success) this.toast.showToast({ level: 'success', message: `Email de vérification renvoyé à ${user.email}.` });
+      },
+      error: err => {
+        this.resendingId.set(null);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors du renvoi.' });
+      },
+    });
+  }
+
+  openDeleteModal(user: AdminUser): void {
+    this.deleteTarget.set(user);
+  }
+
+  confirmDelete(): void {
+    const user = this.deleteTarget();
+    if (!user) return;
+    this.deleteSubmitting.set(true);
+    this.adminSvc.deleteUser(user.id).subscribe({
+      next: res => {
+        this.deleteSubmitting.set(false);
+        if (res.success) {
+          this.deleteTarget.set(null);
+          this.toast.showToast({ level: 'success', message: `Compte de ${user.username} supprimé.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.deleteSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la suppression.' });
+      },
     });
   }
 

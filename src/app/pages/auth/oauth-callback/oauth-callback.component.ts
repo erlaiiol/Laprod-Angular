@@ -98,6 +98,17 @@ export class OauthCallbackComponent implements OnInit {
   }
 
   private navigate(next: string, suggestedName: string): void {
+    // Filet de sécurité : le backend peut renvoyer '/' même si le profil est incomplet
+    // (ex. compte dont l'email n'était pas vérifié au moment de la création).
+    // On vérifie user_type_selected directement sur le user stocké.
+    if (next === '/') {
+      const user = this.auth.currentUser();
+      if (user && !user.user_type_selected) {
+        this.router.navigate(['/select-role']);
+        return;
+      }
+    }
+
     switch (next) {
       case 'complete-profile':
         this.router.navigate(['/complete-profile'], {

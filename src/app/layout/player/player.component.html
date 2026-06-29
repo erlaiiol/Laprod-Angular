@@ -54,7 +54,7 @@
         <!-- ── Contexte home / catalogue ──────────────────────────────────── -->
         @if (!isDetailContext() && !isMixOrderContext()) {
           <div class="player-catalog-actions">
-            @if (player.currentTrack()?.id !== 0) {
+            @if (player.currentTrack()?.id) {
               <!-- Télécharger la preview -->
               <a class="btn-free-dl"
                  [routerLink]="['/track', player.currentTrack()!.id]"

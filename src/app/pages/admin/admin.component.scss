@@ -579,7 +579,37 @@
   i { flex-shrink: 0; margin-top: 0.05rem; }
 }
 
-.btn-icon--plan { color: v.$primary; }
+.btn-icon--plan   { color: v.$primary; }
+.btn-icon--warn   { color: v.$gold; }
+.btn-icon--danger { color: v.$tag-red; }
+
+.acct-chip {
+  display: inline-flex; align-items: center;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+  border-radius: 4px; padding: 1px 5px; margin-left: 4px;
+
+  &--warn { background: rgba(v.$gold, 0.12); color: v.$gold; border: 1px solid rgba(v.$gold, 0.3); }
+  &--ok   { background: rgba(v.$tag-green, 0.12); color: v.$tag-green; border: 1px solid rgba(v.$tag-green, 0.3); }
+}
+
+.modal--danger { max-width: 420px; }
+
+.delete-warning {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  background: rgba(v.$tag-red, 0.08); border: 1px solid rgba(v.$tag-red, 0.3);
+  border-radius: 7px; padding: 0.6rem 0.75rem; font-size: 0.82rem;
+  color: v.$tag-red-light; margin-bottom: 0.85rem;
+  i { flex-shrink: 0; margin-top: 0.05rem; }
+}
+
+.btn-danger {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem; background: v.$tag-red; color: #fff;
+  border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+  &:hover:not(:disabled) { opacity: 0.85; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
 
 .btn-spinner {
   display: inline-block; width: 12px; height: 12px;
