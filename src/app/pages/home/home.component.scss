@@ -102,7 +102,7 @@
 }
 
 .lp-landing__header {
-  max-width: 660px;
+  max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -226,12 +226,13 @@
 
 .lp-landing__features {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  max-width: 1160px;
-  margin: 3.5rem auto 0;
+  width: 100%;
+  max-width: 860px;
+  margin: 1.25rem auto 0;
+  text-align: left;
 
-  @media (max-width: 1000px) { grid-template-columns: repeat(3, 1fr); }
   @media (max-width: 640px)  { grid-template-columns: repeat(2, 1fr); }
   @media (max-width: 400px)  { grid-template-columns: 1fr; }
 }
@@ -240,11 +241,11 @@
   background: v.$bg-surface;
   border: 1px solid v.$bg-border;
   border-radius: 14px;
-  padding: 1.5rem 1rem 1.25rem;
+  padding: 1.25rem 1rem 1rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: flex-start;
+  gap: 0.65rem;
   transition: border-color 0.2s, transform 0.2s;
 
   &:hover {
@@ -254,39 +255,52 @@
 
   img {
     width: 100%;
-    height: 120px;
+    height: 110px;
     object-fit: cover;
     border-radius: 8px;
   }
 
   h3 {
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: v.$text-primary;
     margin: 0;
+    line-height: 1.35;
   }
 
   p {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: v.$text-secondary;
     margin: 0;
     line-height: 1.55;
   }
 }
 
-// Carte topline — icon à la place de l'image
+// Carte icon — remplace l'image par un bloc coloré
 .lp-feature__icon-wrap {
   width: 100%;
-  height: 120px;
+  height: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(v.$primary, 0.07);
   border-radius: 8px;
 
-  i {
-    font-size: 2.75rem;
-    color: v.$primary;
+  i { font-size: 2.5rem; color: v.$primary; }
+
+  &--green {
+    background: rgba(v.$tag-green, 0.1);
+    i { color: v.$tag-green; }
+  }
+
+  &--blue {
+    background: rgba(v.$tag-blue, 0.1);
+    i { color: v.$tag-blue; }
+  }
+
+  &--violet {
+    background: rgba(v.$tag-violet, 0.1);
+    i { color: v.$tag-violet; }
   }
 }
 

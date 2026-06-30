@@ -38,7 +38,7 @@ export class HomeComponent implements OnInit {
   isPersonalized  = signal(false);
   showOnboarding  = signal(false);
   showHero        = signal(false);
-  heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur'>('artiste');
+  heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
   displayMode     = signal<'list' | 'gallery'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'gallery'
   );
@@ -125,8 +125,8 @@ export class HomeComponent implements OnInit {
       ).subscribe({
         next: (response) => {
           if (response.success) {
-            // Moins de 10 reco → catalogue régulier (évite l'impression de "moins de beats")
-            if (response.data.tracks.length < 10) {
+            // Moins d'une page complète → catalogue régulier (parité avec mode déconnecté)
+            if (response.data.tracks.length < PER_PAGE) {
               this._loadRegularTracks(page);
               return;
             }
