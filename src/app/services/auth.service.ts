@@ -138,6 +138,17 @@ export class AuthService {
     () => this._currentUser()?.preferred_tag_category ?? this._localTagCategoryPref()
   );
 
+  // Mode d'affichage des infos dans les track cards (tags ou artistes similaires)
+  private _cardInfoMode = signal<'tags' | 'artists'>(
+    (localStorage.getItem('card_info_mode') as 'tags' | 'artists' | null) ?? 'artists'
+  );
+  readonly preferredCardInfoMode = this._cardInfoMode.asReadonly();
+
+  setCardInfoMode(mode: 'tags' | 'artists'): void {
+    this._cardInfoMode.set(mode);
+    localStorage.setItem('card_info_mode', mode);
+  }
+
 
 
   //// ======================================================

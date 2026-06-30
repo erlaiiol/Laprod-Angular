@@ -156,8 +156,7 @@ def send_verification_email(user):
         send_verification_email(new_user)
     """
     token = generate_verification_token(user.email)
-    frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
-    verification_url = f"{frontend_url}/verify-email?token={token}"
+    verification_url = _fe(f'verify-email?token={token}')
 
     # Texte brut
     text_body = f"""

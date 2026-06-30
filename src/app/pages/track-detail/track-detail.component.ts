@@ -118,9 +118,11 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   playThisTrack(): void {
     const t = this.track();
     if (!t) return;
-    if (this.player.currentTrack()?.id === t.id) {
-      this.player.togglePlay();
+    if (this.player.isPlaying() && this.player.currentTrack()?.id === t.id) {
+      this.player.pause();
     } else {
+      // Toujours appeler play() — gère aussi la reprise du même track
+      // et le cas où playOnReady était bloqué sur même URL.
       this.player.play(t as any);
     }
   }

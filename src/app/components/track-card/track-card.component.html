@@ -50,32 +50,43 @@
         @if (track.style) {
           <span class="style-chip">{{ track.style }}</span>
         }
-        @for (tag of visibleTags(); track tag.name) {
-          <span
-            class="tag"
-            [attr.data-category]="tag.category"
-            [style.background-color]="tagBgColor(tag.color)"
-            [style.border-color]="tagBorderColor(tag.color)">
-            #{{ tag.name }}
-          </span>
-        }
-        @if (hiddenTagCount() > 0) {
-          <button class="tag-more-btn"
-                  (click)="toggleTags($event)"
-                  [title]="'Voir ' + hiddenTagCount() + ' tag(s) de plus'">
-            +{{ hiddenTagCount() }}
-          </button>
-        } @else if (canCollapseTags()) {
-          <button class="tag-more-btn tag-more-btn--collapse"
-                  (click)="toggleTags($event)"
-                  title="Réduire">
-            ↑
-          </button>
-        }
-        @if (track.similar_artists?.length) {
-          <span class="artist-ref-chip">
-            <i class="bi bi-person-circle"></i>{{ track.similar_artists![0].name }}
-          </span>
+        @if (showArtists() && track.similar_artists?.length) {
+          @for (a of track.similar_artists!.slice(0, 2); track a.id) {
+            <span class="artist-ref-chip">
+              <i class="bi bi-person-circle"></i>{{ a.name }}
+            </span>
+          }
+          @if (track.similar_artists!.length > 2) {
+            <span class="tag-more-btn">+{{ track.similar_artists!.length - 2 }}</span>
+          }
+        } @else {
+          @for (tag of visibleTags(); track tag.name) {
+            <span
+              class="tag"
+              [attr.data-category]="tag.category"
+              [style.background-color]="tagBgColor(tag.color)"
+              [style.border-color]="tagBorderColor(tag.color)">
+              #{{ tag.name }}
+            </span>
+          }
+          @if (hiddenTagCount() > 0) {
+            <button class="tag-more-btn"
+                    (click)="toggleTags($event)"
+                    [title]="'Voir ' + hiddenTagCount() + ' tag(s) de plus'">
+              +{{ hiddenTagCount() }}
+            </button>
+          } @else if (canCollapseTags()) {
+            <button class="tag-more-btn tag-more-btn--collapse"
+                    (click)="toggleTags($event)"
+                    title="Réduire">
+              ↑
+            </button>
+          }
+          @if (track.similar_artists?.length) {
+            <span class="artist-ref-chip">
+              <i class="bi bi-person-circle"></i>{{ track.similar_artists![0].name }}
+            </span>
+          }
         }
       </div>
       <button class="btn-price" type="button"

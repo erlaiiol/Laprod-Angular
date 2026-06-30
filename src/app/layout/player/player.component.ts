@@ -70,7 +70,16 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       const track = this.player.currentTrack();
       if (!track || !this.wavesurfer) return;
       const url = this.player.buildAudioUrl(track);
-      if (!url || url === this._lastLoadedUrl) return;
+      if (!url) return;
+      if (url === this._lastLoadedUrl) {
+        // Même URL → WaveSurfer ne recharge pas, 'ready' ne refirend pas.
+        // Si play() a posé playOnReady, on joue directement.
+        if (this.player.playOnReady) {
+          this.player.playOnReady = false;
+          this.player.audioEl.play().catch(err => console.warn('PlayerComponent: play() direct failed', err));
+        }
+        return;
+      }
       this._lastLoadedUrl = url;
       this.wavesurfer.load(url);
     });

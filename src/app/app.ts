@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { RouterOutlet, RouterModule } from '@angular/router';
+import { Router, RouterOutlet, RouterModule } from '@angular/router';
 import { NavbarComponent } from './layout/navbar/navbar.component';
 import { ToastComponent } from './components/ui/toast.component/toast.component';
 import { FooterComponent } from './layout/footer/footer.component';
@@ -18,14 +18,22 @@ import { UserflowComponent } from './components/userflow/userflow.component';
 export class App implements OnInit {
   protected readonly title = signal('Laprod-Angular');
 
-  private auth    = inject(AuthService);
+  private auth     = inject(AuthService);
   private notifSvc = inject(NotificationService);
+  private router   = inject(Router);
 
   ngOnInit(): void {
     if (this.auth.isLoggedIn()) {
       // Vérifie que le user localStorage est toujours valide en DB.
       // Si le token est expiré ou l'user supprimé, l'interceptor appelle silentLogout().
-      this.auth.me().subscribe();
+      this.auth.me().subscribe({
+        next: (res) => {
+          // Utilisateur OAuth sans profil finalisé → rediriger vers la complétion
+          if (res.success && res.data?.user && !res.data.user.user_type_selected) {
+            this.router.navigate(['/complete-profile']);
+          }
+        },
+      });
       this.notifSvc.load().subscribe();
     }
   }

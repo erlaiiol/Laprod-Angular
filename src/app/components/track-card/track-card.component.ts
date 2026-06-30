@@ -37,6 +37,8 @@ export class TrackCardComponent {
 
   showAllTags = signal(false);
 
+  showArtists = computed(() => this.authService.preferredCardInfoMode() === 'artists');
+
   // Tags filtrés par catégorie active (si filtre posé), sinon tous
   private filteredTags = computed(() => {
     const pref = this.authService.preferredTagCategory();

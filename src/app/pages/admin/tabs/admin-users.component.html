@@ -79,13 +79,20 @@
             <button class="btn-icon btn-icon--plan" title="Gérer l'abonnement" (click)="openPlanModal(u)">
               <i class="bi bi-patch-check"></i>
             </button>
-            @if (!u.email_verified && u.auth_method === 'local') {
+            @if (!u.email_verified) {
               <button class="btn-icon btn-icon--warn"
                       [disabled]="resendingId() === u.id"
                       title="Renvoyer l'email de vérification"
                       (click)="resendVerification(u)">
                 <i class="bi" [class.bi-envelope-arrow-up]="resendingId() !== u.id"
                               [class.bi-hourglass-split]="resendingId() === u.id"></i>
+              </button>
+              <button class="btn-icon btn-icon--ok"
+                      [disabled]="forcingVerifId() === u.id"
+                      title="Forcer la vérification email (sans envoyer d'email)"
+                      (click)="forceVerifyEmail(u)">
+                <i class="bi" [class.bi-envelope-check]="forcingVerifId() !== u.id"
+                              [class.bi-hourglass-split]="forcingVerifId() === u.id"></i>
               </button>
             }
             <button class="btn-icon btn-icon--danger" title="Supprimer le compte" (click)="openDeleteModal(u)">

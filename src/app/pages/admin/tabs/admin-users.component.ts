@@ -32,7 +32,8 @@ export class AdminUsersComponent implements OnInit {
   deleteSubmitting = signal(false);
 
   // Resend email
-  resendingId = signal<number | null>(null);
+  resendingId    = signal<number | null>(null);
+  forcingVerifId = signal<number | null>(null);
 
   // Plan modal
   planUser       = signal<AdminUser | null>(null);
@@ -140,6 +141,23 @@ export class AdminUsersComponent implements OnInit {
       error: err => {
         this.resendingId.set(null);
         if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors du renvoi.' });
+      },
+    });
+  }
+
+  forceVerifyEmail(user: AdminUser): void {
+    this.forcingVerifId.set(user.id);
+    this.adminSvc.forceVerifyEmail(user.id).subscribe({
+      next: res => {
+        this.forcingVerifId.set(null);
+        if (res.success) {
+          this.toast.showToast({ level: 'success', message: `Email de ${user.username} marqué comme vérifié.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.forcingVerifId.set(null);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la vérification forcée.' });
       },
     });
   }

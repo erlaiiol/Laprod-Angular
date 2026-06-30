@@ -261,6 +261,10 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/users/${userId}/resend-verification`, {}, { headers: this.headers });
   }
 
+  forceVerifyEmail(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/force-verify-email`, {}, { headers: this.headers });
+  }
+
   deleteUser(userId: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/users/${userId}`, { headers: this.headers });
   }

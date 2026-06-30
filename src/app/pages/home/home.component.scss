@@ -21,6 +21,13 @@
   app-tag-category-filter { flex: 1; min-width: 0; }
 }
 
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .layout-toggle {
   display: flex;
   gap: 0.25rem;

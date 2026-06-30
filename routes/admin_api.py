@@ -643,6 +643,21 @@ def admin_resend_verification(user_id, current_user):
     return ok(message=f'Email de vérification renvoyé à {user.email}.', level='info')
 
 
+@admin_api_bp.route('/users/<int:user_id>/force-verify-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_force_verify_email(user_id, current_user):
+    """Admin force la vérification email d'un utilisateur sans envoyer d'email."""
+    user = db.get_or_404(User, user_id)
+    if user.email_verified:
+        return ok(message='Email déjà vérifié.', level='info')
+    user.email_verified = True
+    db.session.commit()
+    current_app.logger.info(f'Admin #{current_user.id} a forcé la vérification email de user #{user_id}')
+    return ok(message=f'Email de {user.username} marqué comme vérifié.')
+
+
 @admin_api_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @jwt_required()
 @csrf.exempt

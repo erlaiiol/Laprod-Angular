@@ -8,21 +8,39 @@
 
 <div class="tracks-toolbar">
   <app-tag-category-filter />
-  <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
-    <button
-      class="layout-btn"
-      [class.layout-btn--active]="displayMode() === 'list'"
-      (click)="setDisplayMode('list')"
-      title="Vue liste">
-      <i class="bi bi-list-ul"></i>
-    </button>
-    <button
-      class="layout-btn"
-      [class.layout-btn--active]="displayMode() === 'gallery'"
-      (click)="setDisplayMode('gallery')"
-      title="Vue galerie">
-      <i class="bi bi-grid-3x3-gap-fill"></i>
-    </button>
+  <div class="toolbar-right">
+    <div class="layout-toggle" role="group" aria-label="Infos affichées">
+      <button
+        class="layout-btn"
+        [class.layout-btn--active]="auth.preferredCardInfoMode() === 'artists'"
+        (click)="auth.setCardInfoMode('artists')"
+        title="Afficher les artistes similaires">
+        <i class="bi bi-person-circle"></i>
+      </button>
+      <button
+        class="layout-btn"
+        [class.layout-btn--active]="auth.preferredCardInfoMode() === 'tags'"
+        (click)="auth.setCardInfoMode('tags')"
+        title="Afficher les tags">
+        <i class="bi bi-tags"></i>
+      </button>
+    </div>
+    <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
+      <button
+        class="layout-btn"
+        [class.layout-btn--active]="displayMode() === 'list'"
+        (click)="setDisplayMode('list')"
+        title="Vue liste">
+        <i class="bi bi-list-ul"></i>
+      </button>
+      <button
+        class="layout-btn"
+        [class.layout-btn--active]="displayMode() === 'gallery'"
+        (click)="setDisplayMode('gallery')"
+        title="Vue galerie">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+      </button>
+    </div>
   </div>
 </div>
 
