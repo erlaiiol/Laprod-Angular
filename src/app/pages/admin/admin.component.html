@@ -34,6 +34,9 @@
     <button [class.active]="activeTab() === 'recommendations'" (click)="setTab('recommendations')">
       <i class="bi bi-stars"></i> Recommandations
     </button>
+    <button [class.active]="activeTab() === 'support'" (click)="setTab('support')">
+      <i class="bi bi-envelope-heart"></i> Support
+    </button>
   </div>
 
   <div class="tab-content">
@@ -63,6 +66,9 @@
     }
     @if (activeTab() === 'recommendations') {
       <app-admin-recommendations />
+    }
+    @if (activeTab() === 'support') {
+      <app-admin-support />
     }
   </div>
 

@@ -1,20 +1,31 @@
 @if (categories().length > 0) {
   <div class="tag-cat-filter">
     <span class="label">Afficher :</span>
+
     <button
       class="cat-chip"
-      [class.active]="active() === null"
-      (click)="select(null)">
+      [class.active]="!artistsModeOn() && activeCategory() === null"
+      (click)="selectCategory(null)">
       Tous
     </button>
+
     @for (cat of categories(); track cat.name) {
       <button
         class="cat-chip"
-        [class.active]="active() === cat.name"
+        [class.active]="!artistsModeOn() && activeCategory() === cat.name"
         [style.--cat-color]="cat.color"
-        (click)="select(cat.name)">
+        (click)="selectCategory(cat.name)">
         {{ cat.name }}
       </button>
     }
+
+    <span class="filter-separator"></span>
+
+    <button
+      class="cat-chip cat-chip--artists"
+      [class.active]="artistsModeOn()"
+      (click)="toggleArtistsMode()">
+      <i class="bi bi-person-circle"></i> Artistes similaires
+    </button>
   </div>
 }

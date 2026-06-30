@@ -18,6 +18,7 @@
 .cat-chip {
   display:       inline-flex;
   align-items:   center;
+  gap:           0.3rem;
   padding:       0.25rem 0.75rem;
   border-radius: 999px;
   font-size:     0.75rem;
@@ -38,4 +39,25 @@
     border-color: var(--cat-color, v.$tag-neutral);
     color:        var(--cat-color, white);
   }
+
+  &--artists {
+    --cat-color: #{v.$text-secondary};
+    font-style: italic;
+
+    &.active {
+      --cat-color: #{v.$off-white};
+      background:   rgba(v.$off-white, 0.08);
+      border-color: v.$off-white;
+      color:        v.$off-white;
+      font-style:   normal;
+    }
+  }
+}
+
+.filter-separator {
+  width: 1px;
+  height: 1.1rem;
+  background: v.$bg-border;
+  flex-shrink: 0;
+  align-self: center;
 }

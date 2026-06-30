@@ -347,6 +347,12 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/tracks/search`, { headers: this.headers, params: { q } });
   }
 
+  // ── Support email ───────────────────────────────────────────────────────────
+
+  sendSupportEmail(payload: { email: string; name: string; subject: string; body: string }): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/send-support-email`, payload, { headers: this.headers });
+  }
+
   // ── Manual contract ────────────────────────────────────────────────────────
 
   createContract(payload: {

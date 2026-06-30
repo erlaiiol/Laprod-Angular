@@ -640,3 +640,130 @@
 }
 
 @keyframes spin-btn { to { transform: rotate(360deg); } }
+
+// ── Onglet Support / Emails ───────────────────────────────────────────────────
+
+.support-wrap {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.support-section {
+  margin-bottom: 1.25rem;
+}
+
+.support-section-title {
+  font-size: 0.78rem; font-weight: 600; color: v.$text-secondary;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 0 0 0.55rem;
+  i { margin-right: 0.35rem; }
+}
+
+.support-input {
+  width: 100%; padding: 0.5rem 0.75rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  color: v.$text-primary; font-size: 0.88rem;
+  transition: border-color 0.15s;
+  &:focus { outline: none; border-color: v.$primary; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &--inline { width: auto; flex: 1; }
+}
+
+.support-textarea {
+  width: 100%; padding: 0.6rem 0.75rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  color: v.$text-primary; font-size: 0.88rem; font-family: inherit; line-height: 1.6;
+  resize: vertical; min-height: 200px;
+  transition: border-color 0.15s;
+  &:focus { outline: none; border-color: v.$primary; }
+}
+
+.support-hint {
+  margin: 0.4rem 0 0; font-size: 0.75rem; color: v.$text-muted;
+  code { background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 3px; padding: 0.05rem 0.3rem; font-size: 0.8em; }
+  i { margin-right: 0.25rem; }
+}
+
+.recipient-search-wrap { position: relative; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.recipient-pill {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.65rem; background: v.$bg-surface; border: 1px solid v.$primary;
+  border-radius: 20px; font-size: 0.85rem; color: v.$text-primary;
+
+  .recipient-clear {
+    background: none; border: none; color: v.$text-muted; cursor: pointer; padding: 0; line-height: 1;
+    font-size: 0.7rem; display: flex; align-items: center;
+    &:hover { color: v.$tag-red; }
+  }
+}
+
+.search-dropdown {
+  position: absolute; top: calc(100% + 0.25rem); left: 0; right: 0; z-index: 10;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden;
+}
+
+.search-result-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%; padding: 0.5rem 0.75rem; background: none; border: none;
+  color: v.$text-primary; cursor: pointer; font-size: 0.85rem; text-align: left;
+  transition: background 0.1s;
+  &:hover { background: v.$bg-surface; }
+  i { color: v.$text-muted; flex-shrink: 0; }
+  .search-email { color: v.$text-muted; font-size: 0.78rem; margin-left: auto; }
+}
+
+.manual-email-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  .or-divider { font-size: 0.75rem; color: v.$text-muted; white-space: nowrap; }
+}
+
+.template-pills {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+}
+
+.template-pill {
+  padding: 0.3rem 0.75rem; background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 16px; color: v.$text-secondary; cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+  &.active { background: rgba(v.$primary, 0.15); border-color: v.$primary; color: v.$primary; font-weight: 600; }
+}
+
+.support-actions {
+  display: flex; justify-content: flex-end; padding-top: 0.5rem;
+}
+
+// Prévisualisation
+.support-preview {
+  position: sticky; top: 1rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-header {
+  padding: 0.65rem 1rem; background: v.$bg-surface; border-bottom: 1px solid v.$bg-border;
+  font-size: 0.78rem; font-weight: 600; color: v.$text-secondary; text-transform: uppercase;
+  letter-spacing: 0.05em;
+  i { margin-right: 0.35rem; }
+}
+
+.preview-meta {
+  display: flex; gap: 0.5rem; align-items: baseline;
+  padding: 0.3rem 1rem;
+  border-bottom: 1px solid v.$bg-border;
+  font-size: 0.8rem;
+  .preview-label { color: v.$text-muted; min-width: 50px; flex-shrink: 0; }
+  .preview-value { color: v.$text-primary; word-break: break-all; }
+  &:last-of-type { border-bottom: 2px solid v.$bg-border; }
+}
+
+.preview-body {
+  padding: 1rem; font-size: 0.85rem; color: v.$text-secondary;
+  white-space: pre-wrap; line-height: 1.7; min-height: 150px;
+}

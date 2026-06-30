@@ -15,7 +15,6 @@ export class TagCategoryFilterComponent {
   private tagsService = inject(TagsService);
   private authService = inject(AuthService);
 
-  // Catégories uniques extraites de la liste globale des tags
   categories = computed(() => {
     const seen = new Set<string>();
     const result: { name: string; color: string }[] = [];
@@ -28,10 +27,23 @@ export class TagCategoryFilterComponent {
     return result;
   });
 
-  active = computed(() => this.authService.preferredTagCategory());
+  activeCategory  = computed(() => this.authService.preferredTagCategory());
+  artistsModeOn   = computed(() => this.authService.preferredCardInfoMode() === 'artists');
 
-  select(name: string | null): void {
-    const newValue = this.active() === name ? null : name;  // reclic = désactive
+  selectCategory(name: string | null): void {
+    // Reclic sur la même catégorie → désactive
+    const newValue = this.activeCategory() === name ? null : name;
+    this.authService.setCardInfoMode('tags');
     this.authService.updateTagCategoryPreference(newValue);
+  }
+
+  toggleArtistsMode(): void {
+    if (this.artistsModeOn()) {
+      // Reclic → retour aux tags
+      this.authService.setCardInfoMode('tags');
+    } else {
+      this.authService.setCardInfoMode('artists');
+      this.authService.updateTagCategoryPreference(null);
+    }
   }
 }

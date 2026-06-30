@@ -44,6 +44,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from pathlib import Path
+import html as html_lib
 from sqlalchemy import select, distinct
 import uuid
 import config
@@ -1757,3 +1758,45 @@ def cb_reorder_clauses(current_user):
             c.sort_order = int(item.get('sort_order', c.sort_order))
     db.session.commit()
     return jsonify({'success': True})
+
+
+@admin_api_bp.route('/send-support-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_send_support_email(current_user):
+    """Envoie un email de support à un utilisateur depuis l'interface admin."""
+    data     = request.get_json(silent=True) or {}
+    to_email = (data.get('email') or '').strip()
+    to_name  = (data.get('name')  or 'utilisateur').strip()
+    subject  = (data.get('subject') or '').strip()
+    body     = (data.get('body')    or '').strip()
+
+    if not to_email or not subject or not body:
+        return ser_err('Destinataire, sujet et corps requis.')
+
+    safe_body = html_lib.escape(body).replace('\n', '<br>')
+    body_html = (
+        f'<div style="font-family:sans-serif;line-height:1.6;color:#1a1a1a">'
+        f'{safe_body}'
+        f'</div>'
+    )
+
+    try:
+        sent = email_service.send_email(
+            subject=subject,
+            recipients=[to_email],
+            text_body=body,
+            html_body=body_html,
+        )
+    except Exception as e:
+        current_app.logger.error(f'Admin support email error: {e}', exc_info=True)
+        return ser_err('Erreur lors de l\'envoi.', status=500)
+
+    if not sent:
+        return ser_err('Erreur lors de l\'envoi.', status=500)
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} ({current_user.username}) a envoyé un email support à {to_email}: "{subject}"'
+    )
+    return ok(message=f'Email envoyé à {to_email}.', level='info')
