@@ -26,8 +26,8 @@
       <div class="position-relative flex-grow-1 me-2">
         <input type="text"
                class="form-control form-control-sm"
-               placeholder="Rechercher (appuyez sur Entrée)..."
-               title="Rechercher par titre ou artiste — appuyez sur Entrée"
+               placeholder="Titre, beatmaker, tag, BPM, style..."
+               title="Recherche par titre, beatmaker, tag, BPM, style ou gamme — appuyez sur Entrée"
                [value]="search()"
                (input)="search.set($any($event.target).value)"
                (keyup.enter)="onSearchEnter()">
@@ -227,6 +227,26 @@
   </div>
 
   <div class="filters-body">
+
+    @if (artistScenes().length > 0) {
+      <div class="filter-section">
+        <label class="filter-label">Artistes similaires</label>
+        @for (scene of artistScenes(); track scene.name) {
+          <div class="filter-scene-group">
+            <span class="filter-scene-label">{{ scene.name }}</span>
+            <div class="filter-tags-container">
+              @for (a of scene.artists; track a.id) {
+                <span class="filter-tag filter-tag--artist"
+                      [class.selected]="isArtistFilterActive(a.name)"
+                      (click)="toggleArtistFilter(a.name)">
+                  {{ a.name }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
 
     <div class="filter-section">
       <label class="filter-label">BPM</label>

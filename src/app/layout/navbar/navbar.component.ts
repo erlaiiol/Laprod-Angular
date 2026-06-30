@@ -1,10 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPOSANT DE LAYOUT : Navbar
-// Rôle : barre de navigation globale, toujours présente (app.html).
-// Charge les tags/keys/styles via TagsService.
-// Écrit les filtres sélectionnés dans FilterStateService → Home recharge.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -13,6 +6,7 @@ import { TagsService, Tag } from '../../services/tags.service';
 import { FilterStateService } from '../../services/filter-state.service';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
+import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 
 @Component({
   selector: 'app-navbar',
@@ -23,37 +17,24 @@ import { NotificationService } from '../../services/notification.service';
 })
 export class NavbarComponent implements OnInit {
 
-  // ── Données de filtres (chargées depuis /filters/tags/all) ───────────────
-
   loading = signal(true);
   error   = signal<string | null>(null);
 
-
-
-  // ── Sélections "en cours" dans le popover ─────────────────────────────────
-  // Ces signaux sont LOCAUX à la navbar — ils ne sont poussés vers
-  // FilterStateService qu'au clic sur "Appliquer".
-  // (Même comportement que filters.js : sélection ≠ application)
-
-  selectedKeys   = signal<string[]>([]);
-  selectedStyles = signal<string[]>([]);
-  selectedTags   = signal<string[]>([]);
-
-  // ── Champs texte du popover / barre de recherche ──────────────────────────
+  selectedKeys           = signal<string[]>([]);
+  selectedStyles         = signal<string[]>([]);
+  selectedTags           = signal<string[]>([]);
+  selectedSimilarArtists = signal<string[]>([]);
 
   search = signal('');
   bpmMin = signal('');
   bpmMax = signal('');
 
-  // ── Auth (placeholder — à connecter avec un AuthService) ─────────────────
-
-
-
-  // ── État du popover ───────────────────────────────────────────────────────
-
   filtersOpen = signal(false);
 
-  private notifSvc = inject(NotificationService);
+  artistScenes = signal<SimilarArtistScene[]>([]);
+
+  private notifSvc          = inject(NotificationService);
+  private similarArtistsSvc = inject(SimilarArtistsService);
 
   constructor(
     private tagsService:        TagsService,
@@ -86,33 +67,19 @@ export class NavbarComponent implements OnInit {
   isPremium     = computed(() => this.authService.isPremium());
   username      = computed(() => this.authService.currentUser()?.username || '');
   notifCount    = computed(() => this.notifSvc.unreadCount());
-
-
-
-  // Encapsuler le login pour le redistribuer dans le HTML malgré authService private
-  isLoggedIn = computed(() => this.authService.isLoggedIn())
+  isLoggedIn    = computed(() => this.authService.isLoggedIn());
 
   logout() {
     this.authService.logout().subscribe({
-      next: () => {
-        console.log('déconnexion réussie')
-      },
-      error: (err) =>{
-        console.error('erreur logout', err)
-      }
+      next:  () => console.log('déconnexion réussie'),
+      error: (err) => console.error('erreur logout', err),
     });
   }
 
-  // =====================================
-  // DEBUG ONY
-  // =====================================
-  clearLocalStorage(){
-    console.log(localStorage)
-    localStorage.clear()
+  clearLocalStorage() {
+    console.log(localStorage);
+    localStorage.clear();
   }
-  // =====================================
-
-
 
   ngOnInit(): void {
     this.tagsService.loadTags().subscribe({
@@ -120,13 +87,14 @@ export class NavbarComponent implements OnInit {
       error:    () => this.loading.set(false),
       complete: () => this.loading.set(false),
     });
+
+    this.similarArtistsSvc.getSimilarArtists().subscribe({
+      next: (res) => {
+        if (res.success) this.artistScenes.set(res.data.scenes);
+      },
+      error: () => {},
+    });
   }
-
-
-  // ── Toggle d'une valeur dans un tableau de sélection ─────────────────────
-  // signal.update(fn) : lit la valeur actuelle, applique fn, écrit le résultat.
-  // [...arr, val] : nouvel tableau (immuable) — Angular détecte le changement.
-  // arr.filter(v => v !== val) : retire la valeur sans muter le tableau.
 
   toggleKey(key: string): void {
     this.selectedKeys.update(arr =>
@@ -146,24 +114,29 @@ export class NavbarComponent implements OnInit {
     );
   }
 
-  // ── Application des filtres ───────────────────────────────────────────────
-  // Pousse l'état local vers FilterStateService → Home le reçoit via effect().
-  // Même logique que applyFiltersAndReload() de filters.js — mais sans
-  // rechargement de page (SPA).
+  toggleArtistFilter(name: string): void {
+    this.selectedSimilarArtists.update(arr =>
+      arr.includes(name) ? arr.filter(v => v !== name) : [...arr, name]
+    );
+  }
+
+  isArtistFilterActive(name: string): boolean {
+    return this.selectedSimilarArtists().includes(name);
+  }
 
   applyFilters(): void {
     this.filterStateService.apply({
-      search:  this.search(),
-      bpmMin:  this.bpmMin()  ? parseInt(this.bpmMin(),  10) : null,
-      bpmMax:  this.bpmMax()  ? parseInt(this.bpmMax(),  10) : null,
-      keys:    this.selectedKeys(),
-      styles:  this.selectedStyles(),
-      tags:    this.selectedTags(),
+      search:         this.search(),
+      bpmMin:         this.bpmMin()  ? parseInt(this.bpmMin(),  10) : null,
+      bpmMax:         this.bpmMax()  ? parseInt(this.bpmMax(),  10) : null,
+      keys:           this.selectedKeys(),
+      styles:         this.selectedStyles(),
+      tags:           this.selectedTags(),
+      similarArtists: this.selectedSimilarArtists(),
     });
     this.closeFilters();
   }
 
-  // Même logique que resetFilters() de filters.js.
   resetFilters(): void {
     this.search.set('');
     this.bpmMin.set('');
@@ -171,25 +144,23 @@ export class NavbarComponent implements OnInit {
     this.selectedKeys.set([]);
     this.selectedStyles.set([]);
     this.selectedTags.set([]);
+    this.selectedSimilarArtists.set([]);
     this.filterStateService.reset();
     this.closeFilters();
   }
 
-  // Recherche via la barre (Entrée) — applique immédiatement sans ouvrir le popover.
   onSearchEnter(): void {
     this.filterStateService.apply({
-      search:  this.search(),
-      bpmMin:  this.bpmMin() ? parseInt(this.bpmMin(), 10) : null,
-      bpmMax:  this.bpmMax() ? parseInt(this.bpmMax(), 10) : null,
-      keys:    this.selectedKeys(),
-      styles:  this.selectedStyles(),
-      tags:    this.selectedTags(),
+      search:         this.search(),
+      bpmMin:         this.bpmMin() ? parseInt(this.bpmMin(), 10) : null,
+      bpmMax:         this.bpmMax() ? parseInt(this.bpmMax(), 10) : null,
+      keys:           this.selectedKeys(),
+      styles:         this.selectedStyles(),
+      tags:           this.selectedTags(),
+      similarArtists: this.selectedSimilarArtists(),
     });
   }
 
-  // ── Contrôle du popover ───────────────────────────────────────────────────
-
   toggleFilters(): void { this.filtersOpen.set(!this.filtersOpen()); }
   closeFilters():  void { this.filtersOpen.set(false); }
-
 }

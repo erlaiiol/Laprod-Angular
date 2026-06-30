@@ -162,6 +162,8 @@ export interface RecommendationStats {
   top_keys:  [string, number][];
   top_tags:  [string, number][];
   top_correlations: { from: string; to: string; probability: number }[];
+  top_artists?: [string, number][];
+  artist_correlations?: { from: string; to: string; probability: number }[];
 }
 
 export type ApiFeedback = { level: 'info' | 'warning' | 'error'; message: string };
@@ -382,5 +384,17 @@ export class AdminService {
 
   getRecommendationStats(): Observable<ApiResponse<RecommendationStats>> {
     return this.http.get<any>(`${this.base}/recommendation-stats`, { headers: this.headers });
+  }
+
+  getSimilarArtists(): Observable<any> {
+    return this.http.get<any>(`${this.base}/similar-artists`, { headers: this.headers });
+  }
+
+  createSimilarArtist(name: string, scene: string): Observable<any> {
+    return this.http.post<any>(`${this.base}/similar-artists`, { name, scene }, { headers: this.headers });
+  }
+
+  deleteSimilarArtist(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.base}/similar-artists/${id}`, { headers: this.headers });
   }
 }

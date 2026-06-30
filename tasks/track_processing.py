@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil, logging
 from extensions import db
 from app import create_app
-from models import Track, User, Tag, Playlist, playlist_track
+from models import Track, User, Tag, Playlist, playlist_track, SimilarArtist
 from sqlalchemy import func
 from helpers import generate_track_image
 
@@ -98,7 +98,10 @@ def process_track_data(job_payload : dict):
                         raise TrackProcessingError(f"Job {job_payload['job_id']} failed during image copying: {e}") from e
 
 
-            selected_tags = db.session.query(Tag).filter(Tag.id.in_(job_payload['tag_ids'])).all()
+            selected_tags    = db.session.query(Tag).filter(Tag.id.in_(job_payload['tag_ids'])).all()
+            selected_artists = db.session.query(SimilarArtist).filter(
+                SimilarArtist.id.in_(job_payload.get('artist_ids', []))
+            ).all()
             # Créer le track
             track = Track(
                 title=job_payload['title'],
@@ -118,6 +121,7 @@ def process_track_data(job_payload : dict):
                 file_hash=job_payload['file_hash'],
                 is_approved=True,
                 tags=selected_tags,
+                similar_artists=selected_artists,
                 contract_price_exclusive=job_payload.get('contract_price_exclusive'),
                 contract_price_duration_3y=job_payload.get('contract_price_duration_3y'),
                 contract_price_duration_5y=job_payload.get('contract_price_duration_5y'),

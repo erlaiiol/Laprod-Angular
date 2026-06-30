@@ -29,6 +29,8 @@ import { environment } from '../../environments/environment';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Correspond au dict Python construit dans get_tracks() → tracks_data.append({...})
+export interface SimilarArtistEntry { id: number; name: string; scene: string; }
+
 export interface Track {
   id:            number;
   title:         string;
@@ -40,6 +42,7 @@ export interface Track {
   style:         string;
   price_mp3:     number;
   tags:            { id: number, name: string; category: string; color: string }[];  // tableau d'objets
+  similar_artists?: SimilarArtistEntry[];
   is_approved:      boolean;
   is_ai_suggested?: boolean;
   full_stream_url: string | null;
@@ -101,16 +104,17 @@ export interface TrackDetail extends Track {
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)
 // Chaque champ ici correspond à un request.args.get('...') dans get_tracks()
 export interface TrackFilters {
-  search?:       string;
-  bpm_min?:      number;
-  bpm_max?:      number;
-  keys?:         string;
-  styles?:       string;
-  tags?:         string;
-  tag_category?: string;
-  page?:         number;
-  per_page?:     number;
-  sort?:         'recent' | 'recommended';
+  search?:             string;
+  bpm_min?:            number;
+  bpm_max?:            number;
+  keys?:               string;
+  styles?:             string;
+  tags?:               string;
+  similar_artist_ids?: string;
+  tag_category?:       string;
+  page?:               number;
+  per_page?:           number;
+  sort?:               'recent' | 'recommended';
 }
 
 

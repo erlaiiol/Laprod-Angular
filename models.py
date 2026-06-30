@@ -487,6 +487,25 @@ track_tag = db.Table('track_tag',
 )
 
 
+class SimilarArtist(db.Model):
+    """Artiste de référence — liste gérée par l'admin, associée aux tracks par les beatmakers."""
+    __tablename__ = 'similar_artist'
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(64), unique=True, nullable=False)
+    scene      = db.Column(db.String(32), nullable=False, default='')
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def __repr__(self):
+        return f'<SimilarArtist {self.name}>'
+
+
+# Table association N:M entre Track et SimilarArtist
+track_similar_artist = db.Table('track_similar_artist',
+    db.Column('track_id',  db.Integer, db.ForeignKey('track.id',          ondelete='CASCADE'), primary_key=True),
+    db.Column('artist_id', db.Integer, db.ForeignKey('similar_artist.id', ondelete='CASCADE'), primary_key=True),
+)
+
+
 class Track(db.Model):
     """Modèle Track avec multi-formats et pourcentage SACEM"""
     __tablename__ = "track"
@@ -544,7 +563,8 @@ class Track(db.Model):
     exclusive_buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     # Relations
-    tags = db.relationship('Tag', secondary='track_tag', backref='tracks')
+    tags             = db.relationship('Tag',           secondary='track_tag',          backref='tracks')
+    similar_artists  = db.relationship('SimilarArtist', secondary='track_similar_artist', backref='tracks')
     toplines = db.relationship('Topline', backref='track', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='track', lazy=True)
     exclusive_buyer = db.relationship('User', foreign_keys=[exclusive_buyer_id])

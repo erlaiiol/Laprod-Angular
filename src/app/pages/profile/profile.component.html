@@ -135,6 +135,17 @@
                     </span>
                   }
                 </div>
+                @if (track.similar_artists?.length) {
+                  <div class="track-artists-mini">
+                    <i class="bi bi-person-circle"></i>
+                    @for (a of track.similar_artists!.slice(0, 3); track a.id) {
+                      <span class="artist-chip">{{ a.name }}</span>
+                    }
+                    @if (track.similar_artists!.length > 3) {
+                      <span class="artist-chip-more">+{{ track.similar_artists!.length - 3 }}</span>
+                    }
+                  </div>
+                }
               </div>
 
               <!-- Prix + action -->

@@ -179,6 +179,14 @@ export class AuthService {
 
       localStorage.setItem('user', JSON.stringify(res.data.user));
       this._currentUser.set(res.data.user);
+
+      // Si l'utilisateur avait sélectionné une catégorie en anonyme et que le serveur
+      // n'en a pas, on migre la préférence locale vers le serveur.
+      const localPref = this._localTagCategoryPref();
+      if (localPref && !res.data.user.preferred_tag_category) {
+        this.updateTagCategoryPreference(localPref);
+      }
+      this._localTagCategoryPref.set(null);
     }
 
     private failedAuth(_res: LoginError){ /* noop — error handled by component */ }
@@ -206,20 +214,29 @@ export class AuthService {
   updateTagCategoryPreference(category: string | null): void {
     const user = this._currentUser();
     if (!user) {
-      // Non connecté : préférence locale uniquement, pas d'appel API
       this._localTagCategoryPref.set(category);
       return;
     }
+    // Optimistic update — l'UI répond immédiatement, sans attendre l'API
+    const optimistic = { ...user, preferred_tag_category: category };
+    this._currentUser.set(optimistic);
+    localStorage.setItem('user', JSON.stringify(optimistic));
+
     this.http.patch<{ success: boolean; data: { preferred_tag_category: string | null } }>(
       '/api/main/users/preferences',
       { preferred_tag_category: category }
     ).subscribe({
       next: (res) => {
-        const updated = { ...user, preferred_tag_category: res.data.preferred_tag_category };
-        this._currentUser.set(updated);
-        localStorage.setItem('user', JSON.stringify(updated));
+        // Confirme avec la valeur serveur (au cas où le serveur a validé différemment)
+        const confirmed = { ...this._currentUser()!, preferred_tag_category: res.data.preferred_tag_category };
+        this._currentUser.set(confirmed);
+        localStorage.setItem('user', JSON.stringify(confirmed));
       },
-      error: () => {}  // silencieux : la préférence locale reste inchangée si API échoue
+      error: () => {
+        // Révoque la mise à jour optimiste si l'API échoue
+        this._currentUser.set(user);
+        localStorage.setItem('user', JSON.stringify(user));
+      },
     });
   }
 

@@ -48,6 +48,8 @@ def _compute_correlations(db, redis_client) -> None:
     user_tags: dict[int, set[str]] = defaultdict(set)
     user_styles: dict[int, set[str]] = defaultdict(set)
 
+    user_similar_artists: dict[int, set[str]] = defaultdict(set)
+
     for ev in events:
         track = ev.track
         if track is None:
@@ -59,10 +61,13 @@ def _compute_correlations(db, redis_client) -> None:
             user_styles[uid].add(track.style)
         for tag in track.tags:
             user_tags[uid].add(tag.name)
+        for artist in track.similar_artists:
+            user_similar_artists[uid].add(artist.name)
 
     _write_correlations(redis_client, user_keys, 'key', MIN_SUPPORT, TTL)
     _write_correlations(redis_client, user_tags, 'tag', MIN_SUPPORT, TTL)
     _write_correlations(redis_client, user_styles, 'style', MIN_SUPPORT, TTL)
+    _write_correlations(redis_client, user_similar_artists, 'similar_artist', MIN_SUPPORT, TTL)
 
 
 def _write_correlations(

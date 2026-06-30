@@ -105,6 +105,15 @@
   &--collapse { font-size: 0.8rem; }
 }
 
+.artist-ref-chip {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.68rem;
+  font-style: italic; color: v.$text-muted;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent; white-space: nowrap;
+  i { font-size: 0.65rem; }
+}
+
 .btn-price {
   flex-shrink: 0; white-space: nowrap; line-height: inherit;
   padding: 0.18rem 0.55rem; border-radius: 5px;
@@ -198,7 +207,15 @@
     .track-title { font-size: 0.87rem; }
   }
 
-  .track-artist { display: none; }
+  .track-artist {
+    display: block;
+    font-size: 0.72rem;
+    color: v.$text-muted;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.1rem;
+  }
 
   .track-footer {
     flex-wrap: wrap;

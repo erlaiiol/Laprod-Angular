@@ -1,9 +1,11 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminCategory } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { TagsService } from '../../../services/tags.service';
+
+interface ArtistScene { name: string; artists: { id: number; name: string }[] }
 
 @Component({
   selector: 'app-admin-categories',
@@ -20,18 +22,25 @@ export class AdminCategoriesComponent implements OnInit {
   newCatName  = signal('');
   newCatColor = signal('#6b7280');
 
-  // Édition inline d'une catégorie existante
   editingId    = signal<number | null>(null);
   editName     = signal('');
   editColor    = signal('#6b7280');
   editDesc     = signal<string>('');
 
-  // One tag-input field per category (keyed by category id)
   tagInputs: Record<number, string> = {};
+
+  // Similar artists section
+  artistScenes      = signal<ArtistScene[]>([]);
+  newArtistName     = signal('');
+  newArtistScene    = signal('');
+  artistsLoading    = signal(false);
 
   constructor(private adminSvc: AdminService, private toast: ToastService, private TagsService: TagsService) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.loadArtists();
+  }
 
   load(): void {
     this.loading.set(true);
@@ -52,13 +61,14 @@ export class AdminCategoriesComponent implements OnInit {
     if (!name) return;
     this.adminSvc.createCategory(name, this.newCatColor()).subscribe(({
       next: res => {
-        if (res.success) { 
-          this.newCatName.set(''); 
+        if (res.success) {
+          this.newCatName.set('');
           this.load();
-          this.TagsService.refreshTags(); }
+          this.TagsService.refreshTags();
+        }
       },
       error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
-    }));   // Force refresh du cache de tags pour que les nouvelles catégories soient prises en compte partout
+    }));
   }
 
   startEdit(cat: AdminCategory): void {
@@ -90,7 +100,6 @@ export class AdminCategoriesComponent implements OnInit {
   }
 
   tagInput(catId: number): string { return this.tagInputs[catId] ?? ''; }
-
   setTagInput(catId: number, val: string): void { this.tagInputs[catId] = val; }
 
   createTag(cat: AdminCategory): void {
@@ -107,6 +116,39 @@ export class AdminCategoriesComponent implements OnInit {
   deleteTag(tagId: number): void {
     this.adminSvc.deleteTag(tagId).subscribe({
       next: res => { if (res.success) this.load(); this.TagsService.refreshTags(); },
+      error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+    });
+  }
+
+  // ── Similar Artists ─────────────────────────────────────────────────────────
+
+  loadArtists(): void {
+    this.artistsLoading.set(true);
+    this.adminSvc.getSimilarArtists().subscribe({
+      next: res => {
+        this.artistsLoading.set(false);
+        if (res.success && res.data) this.artistScenes.set(res.data.scenes);
+      },
+      error: () => this.artistsLoading.set(false),
+    });
+  }
+
+  createArtist(): void {
+    const name  = this.newArtistName().trim();
+    const scene = this.newArtistScene().trim();
+    if (!name || !scene) return;
+    this.adminSvc.createSimilarArtist(name, scene).subscribe({
+      next: res => {
+        if (res.success) { this.newArtistName.set(''); this.loadArtists(); }
+      },
+      error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+    });
+  }
+
+  deleteArtist(id: number, name: string): void {
+    if (!confirm(`Supprimer "${name}" ?`)) return;
+    this.adminSvc.deleteSimilarArtist(id).subscribe({
+      next: res => { if (res.success) this.loadArtists(); },
       error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
     });
   }

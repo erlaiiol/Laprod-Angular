@@ -289,6 +289,22 @@
   border-radius: 3px;
 }
 
+.track-artists-mini {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem;
+  margin-top: 0.25rem; font-size: 0.7rem; color: v.$text-muted;
+  i { margin-right: 0.2rem; }
+}
+
+.artist-chip {
+  font-style: italic; color: v.$text-muted;
+  border: 1px solid v.$bg-border; background: v.$bg-surface;
+  padding: 0.08rem 0.35rem; border-radius: 10px; font-size: 0.7rem;
+}
+
+.artist-chip-more {
+  color: v.$text-muted; font-size: 0.7rem;
+}
+
 .track-right {
   flex-shrink: 0;
   display: flex;

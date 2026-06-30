@@ -60,7 +60,8 @@ export class HomeComponent implements OnInit {
       f.bpmMax !== null ||
       f.keys.length > 0 ||
       f.styles.length > 0 ||
-      f.tags.length > 0
+      f.tags.length > 0 ||
+      f.similarArtists.length > 0
     );
   });
 
@@ -144,13 +145,14 @@ export class HomeComponent implements OnInit {
 
   private toTrackFilters(f: ActiveFilters): TrackFilters {
     return {
-      search:       f.search   || undefined,
-      bpm_min:      f.bpmMin   ?? undefined,
-      bpm_max:      f.bpmMax   ?? undefined,
-      keys:         f.keys.length   ? f.keys.join(',')   : undefined,
-      styles:       f.styles.length ? f.styles.join(',') : undefined,
-      tags:         f.tags.length   ? f.tags.join(',')   : undefined,
-      tag_category: this.auth.preferredTagCategory() ?? undefined,
+      search:             f.search   || undefined,
+      bpm_min:            f.bpmMin   ?? undefined,
+      bpm_max:            f.bpmMax   ?? undefined,
+      keys:               f.keys.length           ? f.keys.join(',')           : undefined,
+      styles:             f.styles.length          ? f.styles.join(',')          : undefined,
+      tags:               f.tags.length            ? f.tags.join(',')            : undefined,
+      similar_artist_ids: f.similarArtists?.length ? f.similarArtists.join(',') : undefined,
+      tag_category:       this.auth.preferredTagCategory() ?? undefined,
     };
   }
 

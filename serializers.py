@@ -154,6 +154,14 @@ def tag(t) -> dict:
 
 
 # =============================================================================
+# SimilarArtist serializer
+# =============================================================================
+
+def similar_artist(a) -> dict:
+    return {'id': a.id, 'name': a.name, 'scene': a.scene}
+
+
+# =============================================================================
 # Track serializers
 # =============================================================================
 
@@ -183,6 +191,7 @@ def track_card(t, playlist_counts: dict | None = None, playlist_images: dict | N
         'created_at':  t.created_at.isoformat() if t.created_at else None,
         'composer_user': user_ref(t.composer_user),
         'tags':          [tag(tg) for tg in t.tags],
+        'similar_artists': [similar_artist(a) for a in (t.similar_artists or [])],
         # Données playlist (champ toujours présent, 0 / None si non renseigné)
         'playlist_count':       (playlist_counts or {}).get(t.id, 0),
         'first_playlist_image': (playlist_images or {}).get(t.id),

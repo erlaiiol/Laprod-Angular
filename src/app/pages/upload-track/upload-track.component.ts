@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
 import { Playlist, PlaylistService } from '../../services/playlist.service';
+import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 
 
 
@@ -57,6 +58,7 @@ export class UploadTrackComponent implements OnInit {
   showCustomPrices = signal(false);
   showPreview      = signal(false);
   showTags         = signal(false);
+  showArtists      = signal(false);
   showPlaylists    = signal(false);
 
   /* ── Playlists ──────────────────────────────────────────────────────────── */
@@ -163,10 +165,12 @@ export class UploadTrackComponent implements OnInit {
   fileImage = signal<File | null>(null);
 
   /* ── Options ────────────────────────────────────────────────────────────── */
-  readonly availableKeys = MUSICAL_KEYS;
-  availableStyles        = signal<string[]>([]);
-  availableTags          = signal<Tag[]>([]);
-  selectedTagIds         = signal<number[]>([]);
+  readonly availableKeys  = MUSICAL_KEYS;
+  availableStyles         = signal<string[]>([]);
+  availableTags           = signal<Tag[]>([]);
+  selectedTagIds          = signal<number[]>([]);
+  availableArtistScenes   = signal<SimilarArtistScene[]>([]);
+  selectedArtistIds       = signal<number[]>([]);
 
   /* ── Auto-suggestion IA ─────────────────────────────────────────────────── */
   autoBpm   = signal(false);
@@ -218,12 +222,13 @@ export class UploadTrackComponent implements OnInit {
   canSubmit = computed(() => this.submitErrors().length === 0 && !this.loading());
 
   constructor(
-    private tagsService:      TagsService,
-    private cudTrackService:  CudTrackService,
-    private router:           Router,
-    readonly auth:            AuthService,
-    private uploadStatusSvc:  UploadStatusService,
-    private playlistService:  PlaylistService,
+    private tagsService:           TagsService,
+    private cudTrackService:       CudTrackService,
+    private router:                Router,
+    readonly auth:                 AuthService,
+    private uploadStatusSvc:       UploadStatusService,
+    private playlistService:       PlaylistService,
+    private similarArtistsSvc:     SimilarArtistsService,
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
@@ -248,6 +253,11 @@ export class UploadTrackComponent implements OnInit {
         next: res => this.playlists.set(res.data ?? []),
       });
     }
+
+    this.similarArtistsSvc.getSimilarArtists().subscribe({
+      next: res => { if (res.success) this.availableArtistScenes.set(res.data.scenes); },
+      error: () => {},
+    });
   }
 
   onFileSelected(event: Event, field: 'mp3' | 'wav' | 'stems' | 'image'): void {
@@ -267,6 +277,16 @@ export class UploadTrackComponent implements OnInit {
 
   isTagSelected(id: number): boolean {
     return this.selectedTagIds().includes(id);
+  }
+
+  toggleArtist(id: number): void {
+    this.selectedArtistIds.update(arr =>
+      arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]
+    );
+  }
+
+  isArtistSelected(id: number): boolean {
+    return this.selectedArtistIds().includes(id);
   }
 
   togglePlaylist(id: number): void {
@@ -312,6 +332,7 @@ export class UploadTrackComponent implements OnInit {
       price_wav:                this.priceWav(),
       sacem_percentage_composer: this.sacemComposer(),
       tag_ids:                  this.selectedTagIds().join(','),
+      similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
       playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
       file_mp3:                 this.fileMp3()!,
       file_wav:                 this.fileWav() ?? undefined,

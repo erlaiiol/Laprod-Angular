@@ -23,7 +23,7 @@
       <!-- ── Banner protection ───────────────────────────────────────────── -->
       <div class="upload-protection-note">
         <i class="bi bi-shield-lock-fill"></i>
-        <span>LaProd insère automatiquement des tags sonores sur votre preview pour protéger votre beat. Durée limitée à 1:30 pour les non-abonnés — impossible à voler, impossible à récupérer sans achat.</span>
+        <span>LaProd insère automatiquement des tags "purchase your track" sur votre preview pour protéger votre beat. Durée limitée à 1:30 d'écoute pour les artistes (sauf en cas d'achat) — impossible à voler, impossible à récupérer sans achat.</span>
       </div>
 
       <!-- ── Informations ─────────────────────────────────────────────────── -->
@@ -452,6 +452,47 @@
           <p class="section-hint">
             <i class="bi bi-info-circle"></i>
             Ne les sous-estimez pas. C'est ce qui permet à un artiste cherchant « quelque chose de triste et expérimental avec de la guitare » de trouver votre beat. Par ailleurs, LaProd collabore avec un laboratoire de recherche scientifique en acoustique musicale — vos tags contribuent directement à cette recherche.
+          </p>
+        </div>
+      }
+
+      <!-- ── Artistes similaires ─────────────────────────────────────────── -->
+      @if (availableArtistScenes().length > 0) {
+        <div class="section-card section-card--tags">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-person-circle"></i> Artistes similaires <span class="optional">(optionnel)</span></h3>
+              @if (selectedArtistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedArtistIds().length }} sélectionné{{ selectedArtistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showArtists.set(!showArtists())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showArtists()" [class.bi-chevron-down]="!showArtists()"></i>
+            </button>
+          </div>
+          @if (showArtists()) {
+            @for (scene of availableArtistScenes(); track scene.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" style="color: var(--text-muted, #888);">{{ scene.name }}</span>
+                <div class="tag-pills">
+                  @for (a of scene.artists; track a.id) {
+                    <button
+                      type="button"
+                      class="tag-pill tag-pill--artist"
+                      [class.selected]="isArtistSelected(a.id)"
+                      (click)="toggleArtist(a.id)"
+                    >{{ a.name }}</button>
+                  }
+                </div>
+              </div>
+            }
+          }
+          <p class="section-hint">
+            <i class="bi bi-info-circle"></i>
+            Indiquez les artistes auxquels vous pensiez en créant ce beat. Cela aide les artistes à trouver votre son par référence.
           </p>
         </div>
       }

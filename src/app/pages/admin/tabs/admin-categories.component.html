@@ -60,3 +60,49 @@
     }
   </div>
 }
+
+<!-- ═══ ARTISTES SIMILAIRES ══════════════════════════════════════════════════ -->
+
+<div class="cat-create" style="margin-top: 2rem;">
+  <h3>Artistes similaires</h3>
+  <p style="font-size: 0.8rem; color: #888; margin-bottom: 0.75rem;">
+    Ces artistes sont proposés aux beatmakers lors de l'upload pour décrire leurs références.
+  </p>
+  <div class="inline-form">
+    <input placeholder="Nom de l'artiste"
+           [ngModel]="newArtistName()"
+           (ngModelChange)="newArtistName.set($event)"
+           (keyup.enter)="createArtist()">
+    <input placeholder="Scène (ex: Française, Américaine…)"
+           [ngModel]="newArtistScene()"
+           (ngModelChange)="newArtistScene.set($event)"
+           (keyup.enter)="createArtist()">
+    <button (click)="createArtist()" [disabled]="!newArtistName().trim() || !newArtistScene().trim()">
+      <i class="bi bi-plus-circle"></i> Ajouter
+    </button>
+  </div>
+</div>
+
+@if (artistsLoading()) {
+  <div class="loading-placeholder">Chargement…</div>
+} @else {
+  <div class="cat-list">
+    @for (scene of artistScenes(); track scene.name) {
+      <div class="cat-card">
+        <div class="cat-header">
+          <span class="cat-name" style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="bi bi-person-circle"></i> {{ scene.name }}
+          </span>
+        </div>
+        <div class="tag-list">
+          @for (a of scene.artists; track a.id) {
+            <span class="tag-chip" style="font-style: italic;">
+              {{ a.name }}
+              <button (click)="deleteArtist(a.id, a.name)" title="Supprimer">✕</button>
+            </span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

@@ -21,7 +21,7 @@ import config
 import uuid as _uuid
 
 from extensions import db, limiter, csrf, redis_client
-from models import Track, Tag, Category, User, Topline, TrackView
+from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist
 from helpers import generate_track_image
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
@@ -150,7 +150,11 @@ def get_tracks():
     user_id  = None
     is_admin = False
 
-    track_query = select(Track).options(selectinload(Track.tags), selectinload(Track.composer_user))
+    track_query = select(Track).options(
+        selectinload(Track.tags).selectinload(Tag.category_obj),
+        selectinload(Track.composer_user),
+        selectinload(Track.similar_artists),
+    )
 
     try:
         verify_jwt_in_request(optional=True)
@@ -181,12 +185,21 @@ def get_tracks():
         search = search.replace('%', '\\%').replace('_', '\\_')
 
         if search:
-            track_query = track_query.where(
-                or_(
-                    Track.title.ilike(f'%{search}%'),
-                    Track.composer_user.has(User.username.ilike(f'%{search}%'))
-                )
-            )
+            search_conditions = [
+                Track.title.ilike(f'%{search}%'),
+                Track.composer_user.has(User.username.ilike(f'%{search}%')),
+                Track.style.ilike(f'%{search}%'),
+                Track.key.ilike(f'%{search}%'),
+                Track.tags.any(Tag.name.ilike(f'%{search}%')),
+            ]
+            # BPM : si le terme est un entier dans la plage valide
+            try:
+                bpm_val = int(search.replace('\\%', '').replace('\\_', ''))
+                if 40 <= bpm_val <= 250:
+                    search_conditions.append(Track.bpm == bpm_val)
+            except ValueError:
+                pass
+            track_query = track_query.where(or_(*search_conditions))
 
         if bpm_min is not None:
             track_query = track_query.where(Track.bpm >= bpm_min)
@@ -216,6 +229,14 @@ def get_tracks():
                     Tag.category_obj.has(Category.name == tag_category)
                 )
             )
+
+        similar_artists_param = request.args.get('similar_artist_ids', '').strip()
+        if similar_artists_param:
+            artist_names = [n.strip() for n in similar_artists_param.split(',') if n.strip()]
+            if artist_names:
+                track_query = track_query.where(
+                    Track.similar_artists.any(SimilarArtist.name.in_(artist_names))
+                )
 
         sort = request.args.get('sort', 'recent')
 
@@ -444,6 +465,14 @@ def post_track(current_user):
             except Exception as e:
                 current_app.logger.warning(f'Erreur parsing tag_ids: {e}')
 
+        artist_ids_str = request.form.get('similar_artist_ids', '')
+        artist_ids = []
+        if artist_ids_str:
+            try:
+                artist_ids = [int(x) for x in artist_ids_str.split(',') if x.strip().isdigit()]
+            except Exception as e:
+                current_app.logger.warning(f'Erreur parsing similar_artist_ids: {e}')
+
         playlist_ids_str = request.form.get('playlist_ids', '')
         playlist_ids = []
         if playlist_ids_str:
@@ -475,6 +504,7 @@ def post_track(current_user):
             'image_filename':            image_filename if (file_image and file_image.filename != '') else None,
             'image_disk_path':           str(image_disk_path) if (file_image and file_image.filename != '') else None,
             'tag_ids':                   tag_ids,
+            'artist_ids':                artist_ids,
             'playlist_ids':              playlist_ids,
             **{field: request.form.get(field, type=int) for field in _CONTRACT_PRICE_FIELDS},
         }
@@ -490,19 +520,24 @@ def post_track(current_user):
 
         auto_flags = ('auto_bpm', 'auto_key', 'auto_style')
         if any(request.form.get(f, '0') == '1' for f in auto_flags):
-            q.enqueue(
-                'tasks.audio_analysis.analyze_track',
-                {
-                    'job_id':    job_id,
-                    'user_id':   current_user.id,
-                    'mp3_path':  str(mp3_disk_path),
-                    'auto_bpm':  request.form.get('auto_bpm',   '0') == '1',
-                    'auto_key':  request.form.get('auto_key',   '0') == '1',
-                    'auto_style': request.form.get('auto_style', '0') == '1',
-                },
-                job_timeout=300,
-                depends_on=process_job,
-            )
+            try:
+                q.enqueue(
+                    'tasks.audio_analysis.analyze_track',
+                    {
+                        'job_id':    job_id,
+                        'user_id':   current_user.id,
+                        'mp3_path':  str(mp3_disk_path),
+                        'auto_bpm':  request.form.get('auto_bpm',   '0') == '1',
+                        'auto_key':  request.form.get('auto_key',   '0') == '1',
+                        'auto_style': request.form.get('auto_style', '0') == '1',
+                    },
+                    job_timeout=300,
+                    depends_on=process_job,
+                )
+            except Exception as analysis_err:
+                # L'upload continue normalement — seule la détection auto est ignorée
+                current_app.logger.warning(f'Impossible d\'enqueuer l\'analyse audio (Redis corrompu ?): {analysis_err}')
+                redis_client.hset(f"job:{job_id}", mapping={'auto_analysis_failed': '1'})
 
         return ok({
             'job_id':    job_id,
@@ -601,6 +636,16 @@ def put_track(track_id, current_user):
             current_app.logger.warning(f'Erreur parsing tag_ids: {e}')
     else:
         track.tags = []
+
+    artist_ids_str = request.form.get('similar_artist_ids', '')
+    if artist_ids_str:
+        try:
+            artist_ids = [int(x) for x in artist_ids_str.split(',') if x.strip().isdigit()]
+            track.similar_artists = db.session.query(SimilarArtist).filter(SimilarArtist.id.in_(artist_ids)).all()
+        except Exception as e:
+            current_app.logger.warning(f'Erreur parsing similar_artist_ids: {e}')
+    else:
+        track.similar_artists = []
 
     track.title     = title
     track.bpm       = bpm

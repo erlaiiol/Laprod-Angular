@@ -21,21 +21,23 @@ import { Injectable, signal } from '@angular/core';
 // Représente l'état complet des filtres sélectionnés dans le popover.
 // Correspond aux champs que Flask attend dans get_tracks() (tracks_api.py).
 export interface ActiveFilters {
-  search:  string;
-  bpmMin:  number | null;
-  bpmMax:  number | null;
-  keys:    string[];   // ex : ['Am', 'Gm']
-  styles:  string[];   // ex : ['Trap', 'Drill']
-  tags:    string[];   // ex : ['dark', 'melodic']
+  search:         string;
+  bpmMin:         number | null;
+  bpmMax:         number | null;
+  keys:           string[];   // ex : ['Am', 'Gm']
+  styles:         string[];   // ex : ['Trap', 'Drill']
+  tags:           string[];   // ex : ['dark', 'melodic']
+  similarArtists: string[];   // ex : ['Drake', 'Travis Scott']
 }
 
 const EMPTY_FILTERS: ActiveFilters = {
-  search: '',
-  bpmMin: null,
-  bpmMax: null,
-  keys:   [],
-  styles: [],
-  tags:   [],
+  search:         '',
+  bpmMin:         null,
+  bpmMax:         null,
+  keys:           [],
+  styles:         [],
+  tags:           [],
+  similarArtists: [],
 };
 
 

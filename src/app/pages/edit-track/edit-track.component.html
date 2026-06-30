@@ -244,6 +244,44 @@
         <div class="card-divider"></div>
       }
 
+      <!-- ═══ ARTISTES SIMILAIRES ═════════════════════════════════════════════ -->
+      @if (availableArtistScenes().length > 0) {
+        <div class="card-section">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-person-circle"></i> Artistes similaires <span class="optional">(optionnel)</span></h3>
+              @if (selectedArtistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedArtistIds().length }} sélectionné{{ selectedArtistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showArtists.set(!showArtists())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showArtists()" [class.bi-chevron-down]="!showArtists()"></i>
+            </button>
+          </div>
+          @if (showArtists()) {
+            @for (scene of availableArtistScenes(); track scene.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" style="color: var(--text-muted, #888);">{{ scene.name }}</span>
+                <div class="tag-pills">
+                  @for (a of scene.artists; track a.id) {
+                    <button
+                      type="button"
+                      class="tag-pill tag-pill--artist"
+                      [class.selected]="isArtistSelected(a.id)"
+                      (click)="toggleArtist(a.id)"
+                    >{{ a.name }}</button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+        <div class="card-divider"></div>
+      }
+
       <!-- ═══ PLAYLISTS ═══════════════════════════════════════════════════════ -->
       @if (auth.isBeatmaker() && playlists().length > 0) {
         <div class="card-section">

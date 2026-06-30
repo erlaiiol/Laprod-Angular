@@ -228,6 +228,14 @@ def create_app(test_config=None):
                 app.logger.info(f"Contract builder : {n} clause(s) mises à jour avec des exemples.")
             app.logger.info("Contract builder seedé avec succès.")
 
+    @app.cli.command('seed-similar-artists')
+    def seed_similar_artists():
+        """Initialise (ou complète) la liste des artistes similaires."""
+        from utils.similar_artist_seed import run_seed
+        with app.app_context():
+            n = run_seed()
+            app.logger.info(f"Similar artists : {n} artiste(s) ajouté(s).")
+
     @app.cli.command('update-contract-examples')
     def update_contract_examples():
         """Patch example_text sur les clauses existantes qui n'en ont pas encore."""

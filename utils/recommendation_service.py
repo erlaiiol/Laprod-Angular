@@ -50,6 +50,7 @@ def build_user_vector(user_id: int) -> dict:
     keys: dict[str, float] = defaultdict(float)
     tags: dict[str, float] = defaultdict(float)
     styles: dict[str, float] = defaultdict(float)
+    similar_artists: dict[str, float] = defaultdict(float)
     bpm_weighted_sum = 0.0
     duration_weighted_sum = 0.0
     total_weight = 0.0
@@ -87,6 +88,8 @@ def build_user_vector(user_id: int) -> dict:
             styles[track.style] += w
         for tag in track.tags:
             tags[tag.name] += w
+        for artist in (track.similar_artists or []):
+            similar_artists[artist.name] += w
 
         abs_w = abs(w)
         if w > 0 and track.bpm:
@@ -108,11 +111,13 @@ def build_user_vector(user_id: int) -> dict:
     _apply_redis_correlations(keys, 'key', attenuation=0.4)
     _apply_redis_correlations(tags, 'tag', attenuation=0.4)
     _apply_redis_correlations(styles, 'style', attenuation=0.4)
+    _apply_redis_correlations(similar_artists, 'similar_artist', attenuation=0.4)
 
     return {
         'keys': dict(keys),
         'tags': dict(tags),
         'styles': dict(styles),
+        'similar_artists': dict(similar_artists),
         'preferred_bpm_center': preferred_bpm,
         'preferred_duration': preferred_duration,
         'avg_completion': avg_completion,
@@ -146,6 +151,9 @@ def score_track(track: Track, user_vector: dict) -> float:
 
     for tag in track.tags:
         score += user_vector['tags'].get(tag.name, 0) * 1.5
+
+    for artist in (track.similar_artists or []):
+        score += user_vector.get('similar_artists', {}).get(artist.name, 0) * 1.8
 
     score += user_vector['styles'].get(track.style or '', 0) * 1.2
 

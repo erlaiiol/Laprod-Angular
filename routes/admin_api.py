@@ -56,7 +56,7 @@ from utils.auth_helpers import require_admin
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
-    ListenEvent,
+    ListenEvent, SimilarArtist,
 )
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
@@ -1329,6 +1329,69 @@ def delete_tag(tag_id, current_user):
 
 
 # =============================================================================
+# SIMILAR ARTISTS — Admin CRUD
+# =============================================================================
+
+@admin_api_bp.route('/similar-artists', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_similar_artists(current_user):
+    artists = db.session.query(SimilarArtist).order_by(SimilarArtist.scene, SimilarArtist.name).all()
+    by_scene: dict[str, list] = {}
+    for a in artists:
+        by_scene.setdefault(a.scene, []).append({'id': a.id, 'name': a.name})
+    scenes = [{'name': s, 'artists': lst} for s, lst in sorted(by_scene.items())]
+    return ok({'scenes': scenes, 'total': len(artists)})
+
+
+@admin_api_bp.route('/similar-artists', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def create_similar_artist(current_user):
+    data = request.get_json(silent=True) or {}
+    name  = (data.get('name') or '').strip()
+    scene = (data.get('scene') or '').strip()
+    if not name or not scene:
+        return err('Le nom et la scène sont requis.')
+    if db.session.query(SimilarArtist).filter_by(name=name).first():
+        return err(f'L\'artiste "{name}" existe déjà.')
+    artist = SimilarArtist(name=name, scene=scene)
+    db.session.add(artist)
+    db.session.commit()
+    return ok({'id': artist.id, 'name': artist.name, 'scene': artist.scene},
+              message=f'Artiste "{name}" ajouté.')
+
+
+@admin_api_bp.route('/similar-artists/<int:artist_id>', methods=['PUT'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def update_similar_artist(artist_id, current_user):
+    artist = db.get_or_404(SimilarArtist, artist_id)
+    data   = request.get_json(silent=True) or {}
+    if 'name' in data:
+        artist.name  = (data['name'] or '').strip() or artist.name
+    if 'scene' in data:
+        artist.scene = (data['scene'] or '').strip() or artist.scene
+    db.session.commit()
+    return ok({'id': artist.id, 'name': artist.name, 'scene': artist.scene})
+
+
+@admin_api_bp.route('/similar-artists/<int:artist_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_similar_artist(artist_id, current_user):
+    artist = db.get_or_404(SimilarArtist, artist_id)
+    name   = artist.name
+    db.session.delete(artist)
+    db.session.commit()
+    return ok(message=f'Artiste "{name}" supprimé.', level='info')
+
+
+# =============================================================================
 # CONTRACT BUILDER — Admin CRUD (groupes et clauses)
 # =============================================================================
 
@@ -1612,7 +1675,7 @@ def get_recommendation_stats(current_user):
     top_keys = sorted(key_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     top_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
 
-    # Top corrélations depuis Redis
+    # Top corrélations clés depuis Redis
     top_correlations = []
     if redis_client:
         try:
@@ -1630,12 +1693,40 @@ def get_recommendation_stats(current_user):
     top_correlations.sort(key=lambda x: x['probability'], reverse=True)
     top_correlations = top_correlations[:20]
 
+    # Top artistes similaires (par écoutes positives)
+    artist_counts: dict[str, int] = defaultdict(int)
+    for ev in db.session.query(ListenEvent).filter(ListenEvent.completion_ratio >= 0.30).all():
+        if ev.track:
+            for a in ev.track.similar_artists:
+                artist_counts[a.name] += 1
+    top_artists = sorted(artist_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Corrélations artiste→artiste depuis Redis
+    artist_correlations = []
+    if redis_client:
+        try:
+            for redis_key in redis_client.scan_iter('laprod:reco:similar_artist_corr:*'):
+                parts = redis_key.split(':', maxsplit=5)
+                if len(parts) == 6:
+                    prob = float(redis_client.get(redis_key) or 0)
+                    artist_correlations.append({
+                        'from': parts[4],
+                        'to': parts[5],
+                        'probability': round(prob, 3),
+                    })
+        except Exception:
+            pass
+    artist_correlations.sort(key=lambda x: x['probability'], reverse=True)
+    artist_correlations = artist_correlations[:20]
+
     return ok({
         'total_listen_events': total_events,
         'active_users_last_7d': active_users,
         'top_keys': top_keys,
         'top_tags': top_tags,
         'top_correlations': top_correlations,
+        'top_artists': top_artists,
+        'artist_correlations': artist_correlations,
     })
 
 

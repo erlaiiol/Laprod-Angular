@@ -77,6 +77,42 @@ import { AdminService, RecommendationStats } from '../../../services/admin.servi
           <p class="empty-note">Aucune corrélation calculée. Le job nightly n'a pas encore tourné.</p>
         }
       </div>
+
+      @if (s.top_artists && s.top_artists.length > 0) {
+        <div class="panel">
+          <h3>Top artistes similaires écoutés</h3>
+          @for (item of s.top_artists; track item[0]) {
+            <div class="bar-row">
+              <span class="bar-label" style="width:140px; font-style:italic;">{{ item[0] }}</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="background:#a78bfa"
+                     [style.width.%]="barPct(item[1], s.top_artists!)"></div>
+              </div>
+              <span class="bar-count">{{ item[1] }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (s.artist_correlations && s.artist_correlations.length > 0) {
+        <div class="panel">
+          <h3>Corrélations artistes similaires (top 20)</h3>
+          <table class="corr-table">
+            <thead>
+              <tr><th>Si écoute référencé par</th><th>Écoute aussi référencé par</th><th>Probabilité</th></tr>
+            </thead>
+            <tbody>
+              @for (c of s.artist_correlations; track c.from + c.to) {
+                <tr>
+                  <td style="font-style:italic;">{{ c.from }}</td>
+                  <td style="font-style:italic;">{{ c.to }}</td>
+                  <td>{{ (c.probability * 100) | number:'1.0-0' }}%</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     }
     @if (error()) {
       <div class="state-error">{{ error() }}</div>

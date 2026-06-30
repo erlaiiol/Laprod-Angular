@@ -14,6 +14,7 @@ export interface TrackData {
   price_stems?: number;
   sacem_percentage_composer?: number;
   tag_ids?: string;
+  similar_artist_ids?: string;
   playlist_ids?: string;
   file_mp3?: File;
   file_wav?: File;
@@ -79,6 +80,9 @@ export class CudTrackService {
     if (trackData.tag_ids) {
       formData.append('tag_ids', trackData.tag_ids);
     }
+    if (trackData.similar_artist_ids) {
+      formData.append('similar_artist_ids', trackData.similar_artist_ids);
+    }
 
     if (trackData.playlist_ids) {
       formData.append('playlist_ids', trackData.playlist_ids);
@@ -137,6 +141,9 @@ export class CudTrackService {
 
     if (trackData.tag_ids) {
       formData.append('tag_ids', trackData.tag_ids);
+    }
+    if (trackData.similar_artist_ids !== undefined) {
+      formData.append('similar_artist_ids', trackData.similar_artist_ids);
     }
 
     const contractFields: (keyof TrackData)[] = [

@@ -5,7 +5,7 @@ API JSON pour la gestion des tags et catégories (CRUD)
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
 from extensions import db, csrf
-from models import Tag, Category
+from models import Tag, Category, SimilarArtist
 from serializers import ok, err
 from utils.auth_helpers import require_admin
 from utils.crud_helpers import commit_or_rollback
@@ -65,6 +65,17 @@ def get_all_tags():
     except Exception as e:
         current_app.logger.warning(f'Erreur API get_all_tags(): {e}')
         return err('Erreur lors du chargement des filtres', status=500)
+
+
+@tags_filters_api_bp.route('/similar-artists', methods=['GET'])
+def get_similar_artists_public():
+    """Liste publique des artistes similaires, groupée par scène."""
+    artists = db.session.query(SimilarArtist).order_by(SimilarArtist.scene, SimilarArtist.name).all()
+    by_scene: dict[str, list] = {}
+    for a in artists:
+        by_scene.setdefault(a.scene, []).append({'id': a.id, 'name': a.name, 'scene': a.scene})
+    scenes = [{'name': s, 'artists': lst} for s, lst in sorted(by_scene.items())]
+    return ok({'scenes': scenes})
 
 
 @tags_filters_api_bp.route('/tag/<int:tag_id>', methods=['GET'])

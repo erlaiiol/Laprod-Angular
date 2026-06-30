@@ -84,6 +84,16 @@
             </span>
           }
         </div>
+        @if (track()!.similar_artists?.length) {
+          <div class="similar-artists-row">
+            <span class="similar-artists-label">
+              <i class="bi bi-person-circle"></i> Inspiré de
+            </span>
+            @for (a of track()!.similar_artists!; track a.id) {
+              <span class="artist-chip">{{ a.name }}</span>
+            }
+          </div>
+        }
       </div>
     </section>
 

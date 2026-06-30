@@ -8,6 +8,7 @@ import { Tag, TagsService } from '../../services/tags.service';
 import { Playlist, PlaylistService } from '../../services/playlist.service';
 import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
+import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 
 interface TagGroup {
   name:  string;
@@ -72,6 +73,7 @@ export class EditTrackComponent implements OnInit {
 
   showCustomPrices = signal(false);
   showTags         = signal(false);
+  showArtists      = signal(false);
   showPlaylists    = signal(false);
 
   hasCustomPrices = computed(() => {
@@ -126,12 +128,21 @@ export class EditTrackComponent implements OnInit {
   selectedPlaylistIds = signal<number[]>([]);
   initialPlaylistIds  = signal<number[]>([]);
 
-  private playlistService = inject(PlaylistService);
-  readonly auth           = inject(AuthService);
+  private playlistService    = inject(PlaylistService);
+  private similarArtistsSvc  = inject(SimilarArtistsService);
+  readonly auth              = inject(AuthService);
+
+  availableArtistScenes = signal<SimilarArtistScene[]>([]);
+  selectedArtistIds     = signal<number[]>([]);
 
   ngOnInit() : void {
 
     this.tagsService.loadTags();
+
+    this.similarArtistsSvc.getSimilarArtists().subscribe({
+      next: res => { if (res.success) this.availableArtistScenes.set(res.data.scenes); },
+      error: () => {},
+    });
 
     this.trackId = Number(this.route.snapshot.paramMap.get('id'));
 
@@ -153,6 +164,7 @@ export class EditTrackComponent implements OnInit {
         this.priceWav.set(track.price_wav ?? 0);
         this.priceStems.set(track.price_stems ?? 0);
         this.selectedTagIds.set(track.tags.map(tag => tag.id));
+        this.selectedArtistIds.set((track.similar_artists ?? []).map(a => a.id));
         this.track.set(track);
 
         if (track.contract_prices) {
@@ -210,6 +222,16 @@ export class EditTrackComponent implements OnInit {
     return this.selectedTagIds().includes(id);
   }
 
+  toggleArtist(id: number): void {
+    this.selectedArtistIds.update(arr =>
+      arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]
+    );
+  }
+
+  isArtistSelected(id: number): boolean {
+    return this.selectedArtistIds().includes(id);
+  }
+
   togglePlaylist(id: number): void {
     const current = this.selectedPlaylistIds();
     this.selectedPlaylistIds.set(
@@ -247,8 +269,9 @@ export class EditTrackComponent implements OnInit {
       price_mp3:    this.priceMp3(),
       price_wav:    this.priceWav() ?? 0,
       price_stems:  this.priceStems() ?? 0,
-      tag_ids:      this.selectedTagIds().join(','),
-      file_mp3:     this.fileMp3()   ?? undefined,
+      tag_ids:              this.selectedTagIds().join(','),
+      similar_artist_ids:   this.selectedArtistIds().join(','),
+      file_mp3:             this.fileMp3()   ?? undefined,
       file_image:   this.fileImage() ?? undefined,
       file_wav:     this.fileWav()   ?? undefined,
       file_stems:   this.fileStems() ?? undefined,

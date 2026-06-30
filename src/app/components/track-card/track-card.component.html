@@ -72,6 +72,11 @@
             ↑
           </button>
         }
+        @if (track.similar_artists?.length) {
+          <span class="artist-ref-chip">
+            <i class="bi bi-person-circle"></i>{{ track.similar_artists![0].name }}
+          </span>
+        }
       </div>
       <button class="btn-price" type="button"
               (click)="$event.stopPropagation()"

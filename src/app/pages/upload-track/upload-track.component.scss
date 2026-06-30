@@ -230,6 +230,22 @@
   }
 }
 
+/* ── Artistes similaires ─────────────────────────────────────────────────── */
+
+.tag-pill--artist {
+  font-style: italic;
+  border-color: v.$bg-border;
+
+  &:hover { border-color: rgba(255, 255, 255, 0.3); color: v.$off-white; font-style: normal; }
+
+  &.selected {
+    border-color: v.$text-secondary;
+    color: v.$off-white;
+    background: rgba(255, 255, 255, 0.08);
+    font-style: normal;
+  }
+}
+
 /* ── Fichiers ─────────────────────────────────────────────────────────────── */
 
 .file-field {

@@ -132,6 +132,37 @@
   font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
 }
 
+/* ── Artistes similaires — groupés par scène ────────────────────────────── */
+
+.filter-scene-group {
+  display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.4rem;
+}
+
+.filter-scene-label {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: v.$text-muted;
+}
+
+.filter-tag--artist {
+  --tag-color: unset;
+  color: v.$text-secondary;
+  border-color: rgba(255, 255, 255, 0.12);
+  font-style: italic;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: v.$off-white;
+  }
+
+  &.selected {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(255, 255, 255, 0.9);
+    color: v.$bg-base;
+    font-style: normal;
+  }
+}
+
 .no-tags { color: v.$text-muted; font-size: 0.8rem; }
 
 .filters-footer {
