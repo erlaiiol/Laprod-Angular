@@ -173,11 +173,11 @@ export class MixmasterOrderComponent implements OnInit {
     fd.append('stems_file', stems);
     if (this.referenceFile()) fd.append('reference_file', this.referenceFile()!);
     fd.append('title',               this.title().trim());
-    fd.append('service_cleaning',    String(this.serviceCleaning()));
-    fd.append('service_effects',     String(this.serviceEffects()));
-    fd.append('service_artistic',    String(this.serviceArtistic()));
-    fd.append('service_mastering',   String(this.serviceMastering()));
-    fd.append('has_separated_stems', String(this.hasSeparatedStems()));
+    fd.append('service_cleaning',    this.serviceCleaning()   ? '1' : '0');
+    fd.append('service_effects',     this.serviceEffects()    ? '1' : '0');
+    fd.append('service_artistic',    this.serviceArtistic()   ? '1' : '0');
+    fd.append('service_mastering',   this.serviceMastering()  ? '1' : '0');
+    fd.append('has_separated_stems', this.hasSeparatedStems() ? '1' : '0');
     fd.append('artist_message',      this.artistMessage());
     fd.append('brief_vocals',        this.briefVocals());
     fd.append('brief_backing_vocals', this.briefBackingVocals());

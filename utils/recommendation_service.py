@@ -258,10 +258,12 @@ def record_playlist_browse(user_id: int, beatmaker_id: int, tracks: list) -> Non
     for track in tracks:
         if track.id in existing_ids:
             continue
+        track_dur = float(getattr(track, 'duration', 120))
         new_events.append(ListenEvent(
             user_id=user_id,
             track_id=track.id,
-            track_duration=float(getattr(track, 'duration', 120)),
+            duration_listened=track_dur * 0.2,
+            track_duration=track_dur,
             completion_ratio=0.2,
         ))
     if new_events:
