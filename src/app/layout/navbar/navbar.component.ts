@@ -124,6 +124,14 @@ export class NavbarComponent implements OnInit {
     return this.selectedSimilarArtists().includes(name);
   }
 
+  artistCountInScene(scene: SimilarArtistScene): number {
+    return scene.artists.filter(a => this.selectedSimilarArtists().includes(a.name)).length;
+  }
+
+  tagCountInGroup(group: { name: string; color: string; tags: Tag[] }): number {
+    return group.tags.filter(t => this.selectedTags().includes(t.name)).length;
+  }
+
   applyFilters(): void {
     this.filterStateService.apply({
       search:         this.search(),

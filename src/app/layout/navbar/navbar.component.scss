@@ -71,6 +71,7 @@
 .filter-section { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .filter-label {
+  display: flex; align-items: center; gap: 0.4rem;
   color: v.$text-secondary; font-size: 0.8rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
@@ -126,22 +127,48 @@
   }
 }
 
-.tag-group { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.4rem; }
+// ── Accordéon (artistes + tags) ──────────────────────────────────────────────
 
-.tag-group-label {
-  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+.filter-accordion {
+  border: 1px solid v.$bg-border;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-/* ── Artistes similaires — groupés par scène ────────────────────────────── */
+.filter-accordion-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 0.65rem; cursor: pointer; user-select: none;
+  font-size: 0.78rem; font-weight: 500; color: v.$text-secondary;
+  background: v.$bg-elevated; list-style: none;
 
-.filter-scene-group {
-  display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.4rem;
+  &::-webkit-details-marker { display: none; }
+  &::marker { display: none; }
+
+  > span:first-child { flex: 1; }
+
+  .filter-accordion-arrow {
+    color: v.$text-muted; font-size: 0.65rem;
+    transition: transform 0.2s ease; flex-shrink: 0;
+  }
 }
 
-.filter-scene-label {
-  font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.06em; color: v.$text-muted;
+details.filter-accordion[open] .filter-accordion-arrow {
+  transform: rotate(-180deg);
 }
+
+.filter-accordion-body {
+  padding: 0.5rem 0.65rem 0.6rem;
+  border-top: 1px solid v.$bg-border;
+  background: v.$bg-base;
+}
+
+.filter-active-count {
+  background: v.$primary; color: #fff; border-radius: 10px;
+  padding: 0.05rem 0.42rem; font-size: 0.64rem; font-weight: 700;
+  line-height: 1.5; flex-shrink: 0;
+}
+
+// ── Artistes similaires ───────────────────────────────────────────────────────
 
 .filter-tag--artist {
   --tag-color: unset;

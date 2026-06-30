@@ -230,11 +230,22 @@
 
     @if (artistScenes().length > 0) {
       <div class="filter-section">
-        <label class="filter-label">Artistes similaires</label>
+        <label class="filter-label">
+          Artistes similaires
+          @if (selectedSimilarArtists().length > 0) {
+            <span class="filter-active-count">{{ selectedSimilarArtists().length }}</span>
+          }
+        </label>
         @for (scene of artistScenes(); track scene.name) {
-          <div class="filter-scene-group">
-            <span class="filter-scene-label">{{ scene.name }}</span>
-            <div class="filter-tags-container">
+          <details class="filter-accordion">
+            <summary class="filter-accordion-header">
+              <span>{{ scene.name }}</span>
+              @if (artistCountInScene(scene) > 0) {
+                <span class="filter-active-count">{{ artistCountInScene(scene) }}</span>
+              }
+              <i class="bi bi-chevron-down filter-accordion-arrow"></i>
+            </summary>
+            <div class="filter-tags-container filter-accordion-body">
               @for (a of scene.artists; track a.id) {
                 <span class="filter-tag filter-tag--artist"
                       [class.selected]="isArtistFilterActive(a.name)"
@@ -243,7 +254,7 @@
                 </span>
               }
             </div>
-          </div>
+          </details>
         }
       </div>
     }
@@ -296,14 +307,25 @@
     </div>
 
     <div class="filter-section">
-      <label class="filter-label">Tags</label>
+      <label class="filter-label">
+        Tags
+        @if (selectedTags().length > 0) {
+          <span class="filter-active-count">{{ selectedTags().length }}</span>
+        }
+      </label>
       @if (tagGroups().length === 0 && !loading()) {
         <span class="no-tags">Aucun tag disponible</span>
       }
       @for (group of tagGroups(); track group.name) {
-        <div class="tag-group">
-          <span class="tag-group-label" [style.color]="group.color">{{ group.name }}</span>
-          <div class="filter-tags-container">
+        <details class="filter-accordion">
+          <summary class="filter-accordion-header">
+            <span [style.color]="group.color">{{ group.name }}</span>
+            @if (tagCountInGroup(group) > 0) {
+              <span class="filter-active-count">{{ tagCountInGroup(group) }}</span>
+            }
+            <i class="bi bi-chevron-down filter-accordion-arrow"></i>
+          </summary>
+          <div class="filter-tags-container filter-accordion-body">
             @for (tag of group.tags; track tag.name) {
               <span class="filter-tag"
                     [style.--tag-color]="tag.category.color"
@@ -313,7 +335,7 @@
               </span>
             }
           </div>
-        </div>
+        </details>
       }
     </div>
 

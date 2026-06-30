@@ -1,4 +1,4 @@
-"""Seed pour les artistes similaires — ~62 artistes issus de 4 scènes."""
+"""Seed pour les artistes similaires — ~80 artistes issus de 5 scènes."""
 
 ARTISTS: dict[str, list[str]] = {
     "Française": [
@@ -21,6 +21,12 @@ ARTISTS: dict[str, list[str]] = {
         "Stormzy", "Dave", "Central Cee", "AJ Tracey", "Skepta",
         "Little Simz", "Headie One", "Aitch", "Digga D", "Unknown T",
         "Ghetts", "J Hus", "Giggs", "Jorja Smith", "Kano",
+    ],
+    "Africaine": [
+        "Burna Boy", "Wizkid", "Davido", "Rema", "Asake",
+        "Tems", "CKay", "Ayra Starr", "Fireboy DML", "BNXN",
+        "Omah Lay", "Ruger", "Kizz Daniel", "Joeboy", "Oxlade",
+        "Diamond Platnumz", "Innoss'B", "Fally Ipupa", "Harmonize", "Zuchu",
     ],
 }
 
