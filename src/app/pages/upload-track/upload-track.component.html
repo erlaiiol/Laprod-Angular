@@ -20,17 +20,18 @@
         <div class="form-error">{{ error() }}</div>
       }
 
+      <!-- ── Banner protection ───────────────────────────────────────────── -->
+      <div class="upload-protection-note">
+        <i class="bi bi-shield-lock-fill"></i>
+        <span>LaProd insère automatiquement des tags sonores sur votre preview pour protéger votre beat. Durée limitée à 1:30 pour les non-abonnés — impossible à voler, impossible à récupérer sans achat.</span>
+      </div>
+
       <!-- ── Informations ─────────────────────────────────────────────────── -->
-      <div class="section-card">
+      <div class="section-card section-card--info">
         <h3 class="section-title">Informations</h3>
 
         <div class="field">
-          <label for="title">
-            Titre *
-            <span class="tooltip-icon" title="Inutile d'ajouter des tags dans le titre comme 'purchase your track today' — LaProd les insère automatiquement sur la preview pour protéger votre beat contre le vol.">
-              <i class="bi bi-info-circle"></i>
-            </span>
-          </label>
+          <label for="title">Titre *</label>
           <input
             type="text" id="title"
             placeholder="Nom de votre beat"
@@ -40,43 +41,84 @@
 
         <div class="row-2">
           <div class="field">
-            <label for="bpm">BPM *</label>
-            <input
-              type="number" id="bpm" min="60" max="220"
-              placeholder="ex. 140"
-              [ngModel]="bpm()" (ngModelChange)="bpm.set($event ? +$event : null)"
-            />
+            <div class="field-label-row">
+              <label for="bpm">BPM {{ autoBpm() ? '' : '*' }}</label>
+              <button type="button" class="btn-auto-detect"
+                      [class.btn-auto-detect--active]="autoBpm()"
+                      (click)="autoBpm.set(!autoBpm())">
+                <i class="bi bi-magic"></i>
+                {{ autoBpm() ? 'Manuel' : 'Détecter auto' }}
+              </button>
+            </div>
+            @if (autoBpm()) {
+              <div class="auto-pending-badge"><i class="bi bi-cpu"></i> IA détectera après upload</div>
+            } @else {
+              <input
+                type="number" id="bpm" min="60" max="220"
+                placeholder="ex. 140"
+                [ngModel]="bpm()" (ngModelChange)="bpm.set($event ? +$event : null)"
+              />
+            }
           </div>
 
           <div class="field">
-            <label for="key">Gamme *</label>
-            <select id="key" [ngModel]="key()" (ngModelChange)="key.set($event)">
-              <option value="">Choisir une gamme</option>
-              @for (k of availableKeys; track k) {
-                <option [value]="k">{{ k }}</option>
-              }
-            </select>
+            <div class="field-label-row">
+              <label for="key">Gamme {{ autoKey() ? '' : '*' }}</label>
+              <button type="button" class="btn-auto-detect"
+                      [class.btn-auto-detect--active]="autoKey()"
+                      (click)="autoKey.set(!autoKey())">
+                <i class="bi bi-magic"></i>
+                {{ autoKey() ? 'Manuel' : 'Détecter auto' }}
+              </button>
+            </div>
+            @if (autoKey()) {
+              <div class="auto-pending-badge"><i class="bi bi-cpu"></i> IA détectera après upload</div>
+            } @else {
+              <select id="key" [ngModel]="key()" (ngModelChange)="key.set($event)">
+                <option value="">Choisir une gamme</option>
+                @for (k of availableKeys; track k) {
+                  <option [value]="k">{{ k }}</option>
+                }
+              </select>
+            }
           </div>
         </div>
 
         <div class="field">
-          <label for="style">Style *</label>
-          <input id="style"
-                 type="text"
-                 list="style-suggestions"
-                 placeholder="Ex: Trap, R&B, Afrobeats…"
-                 [ngModel]="style()"
-                 (ngModelChange)="style.set($event)">
-          <datalist id="style-suggestions">
-            @for (s of availableStyles(); track s) {
-              <option [value]="s"></option>
-            }
-          </datalist>
+          <div class="field-label-row">
+            <label for="style">Style {{ autoStyle() ? '' : '*' }}</label>
+            <button type="button" class="btn-auto-detect"
+                    [class.btn-auto-detect--active]="autoStyle()"
+                    (click)="autoStyle.set(!autoStyle())">
+              <i class="bi bi-magic"></i>
+              {{ autoStyle() ? 'Manuel' : 'Détecter auto' }}
+            </button>
+          </div>
+          @if (autoStyle()) {
+            <div class="auto-pending-badge"><i class="bi bi-cpu"></i> Suggéré depuis votre catalogue après upload</div>
+          } @else {
+            <input id="style"
+                   type="text"
+                   list="style-suggestions"
+                   placeholder="Ex: Trap, R&B, Afrobeats…"
+                   [ngModel]="style()"
+                   (ngModelChange)="style.set($event)">
+            <datalist id="style-suggestions">
+              @for (s of availableStyles(); track s) {
+                <option [value]="s"></option>
+              }
+            </datalist>
+          }
         </div>
+
+        <p class="section-hint">
+          <i class="bi bi-info-circle"></i>
+          Les métadonnées clés de votre production. BPM, gamme et style permettent à notre algorithme de la positionner précisément dans les résultats de recherche.
+        </p>
       </div>
 
       <!-- ── Prix & SACEM ─────────────────────────────────────────────────── -->
-      <div class="section-card">
+      <div class="section-card section-card--price">
         <h3 class="section-title">Prix & SACEM</h3>
 
         <div class="row-3">
@@ -120,6 +162,11 @@
           />
           <span class="field-hint">Maximum 85 % — le reste revient à l'acheteur</span>
         </div>
+
+        <p class="section-hint">
+          <i class="bi bi-info-circle"></i>
+          Fixez le prix de votre production et votre part SACEM. Si vous ne savez pas, laissez 50% — c'est le taux standard. Il varie généralement entre 15 et 50% selon votre notoriété et le nombre de collaborateurs.
+        </p>
       </div>
 
       <!-- ── Prix des droits de licence ──────────────────────────────────── -->
@@ -369,7 +416,7 @@
 
       <!-- ── Tags ─────────────────────────────────────────────────────────── -->
       @if (tagGroups().length > 0) {
-        <div class="section-card">
+        <div class="section-card section-card--tags">
           <div class="license-price-header">
             <div class="license-price-left">
               <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
@@ -402,6 +449,10 @@
               </div>
             }
           }
+          <p class="section-hint">
+            <i class="bi bi-info-circle"></i>
+            Ne les sous-estimez pas. C'est ce qui permet à un artiste cherchant « quelque chose de triste et expérimental avec de la guitare » de trouver votre beat. Par ailleurs, LaProd collabore avec un laboratoire de recherche scientifique en acoustique musicale — vos tags contribuent directement à cette recherche.
+          </p>
         </div>
       }
 

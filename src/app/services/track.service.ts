@@ -40,7 +40,8 @@ export interface Track {
   style:         string;
   price_mp3:     number;
   tags:            { id: number, name: string; category: string; color: string }[];  // tableau d'objets
-  is_approved:     boolean;
+  is_approved:      boolean;
+  is_ai_suggested?: boolean;
   full_stream_url: string | null;
   // Données playlist (toujours présentes dans les listings, 0 / null si absent)
   playlist_count:       number;

@@ -29,6 +29,10 @@ export interface TrackData {
   contract_price_arrangement?:     number | null;
   contract_price_territory_eu?:    number | null;
   contract_price_territory_world?: number | null;
+  // Analyse audio IA
+  auto_bpm?:   boolean;
+  auto_key?:   boolean;
+  auto_style?: boolean;
 }
 
 export interface UploadResponse {
@@ -110,6 +114,10 @@ export class CudTrackService {
       formData.append('file_stems', trackData.file_stems);
     }
 
+    formData.append('auto_bpm',   trackData.auto_bpm   ? '1' : '0');
+    formData.append('auto_key',   trackData.auto_key   ? '1' : '0');
+    formData.append('auto_style', trackData.auto_style ? '1' : '0');
+
     return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData);
   }
 
@@ -164,6 +172,10 @@ export class CudTrackService {
   }
 
 
+
+  validateAiSuggestion(trackId: number): Observable<{ success: boolean }> {
+    return this.http.patch<{ success: boolean }>(`${this.apiUrl}/api/tracks/${trackId}/validate-suggestion`, {});
+  }
 
   /**
    * Récupère les options disponibles pour l'upload (clés, styles, tags)

@@ -8,6 +8,7 @@ import {
   DashboardService, BeatmakerDashboard, BeatmakerTrack, SaleRecord,
 } from '../../../services/dashboard.service';
 import { TrackService } from '../../../services/track.service';
+import { CudTrackService } from '../../../services/cud-track.service';
 import { ToastService } from '../../../services/toast.service';
 import { PlaylistService, Playlist } from '../../../services/playlist.service';
 import { environment } from '../../../../environments/environment';
@@ -56,6 +57,7 @@ export class DashboardBeatmakerComponent implements OnInit {
   readonly auth        = inject(AuthService);
   private dashboardSvc = inject(DashboardService);
   private trackSvc     = inject(TrackService);
+  private cudTrackSvc  = inject(CudTrackService);
   private router       = inject(Router);
   private toast        = inject(ToastService);
   private playlistSvc  = inject(PlaylistService);
@@ -82,6 +84,19 @@ export class DashboardBeatmakerComponent implements OnInit {
     this.trackSvc.getViewStats().subscribe({
       next: res => { this.viewStats.set(res.data?.stats ?? []); this.viewStatsLoading.set(false); },
       error: () => this.viewStatsLoading.set(false),
+    });
+  }
+
+  validateSuggestion(trackId: number): void {
+    this.cudTrackSvc.validateAiSuggestion(trackId).subscribe({
+      next: () => {
+        this.data.update(d => d ? {
+          ...d,
+          tracks: d.tracks.map(t => t.id === trackId ? { ...t, is_ai_suggested: false } : t),
+        } : d);
+        this.toast.showToast({ level: 'success', message: 'Suggestions validées.' });
+      },
+      error: () => this.toast.showToast({ level: 'error', message: 'Erreur lors de la validation.' }),
     });
   }
 

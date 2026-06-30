@@ -624,6 +624,25 @@ def edit_track(track_id, current_user):
 
 # ── Users (CUD) ───────────────────────────────────────────────────────────────
 
+@admin_api_bp.route('/users/<int:user_id>/resend-verification', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_resend_verification(user_id, current_user):
+    """Admin renvoie l'email de vérification à un utilisateur non vérifié."""
+    user = db.get_or_404(User, user_id)
+    if user.email_verified:
+        return ser_err('Cet utilisateur a déjà vérifié son email.')
+    if not user.email:
+        return ser_err('Cet utilisateur n\'a pas d\'adresse email.')
+    try:
+        email_service.send_verification_email(user)
+    except Exception as e:
+        current_app.logger.error(f'Admin resend verification user #{user_id}: {e}', exc_info=True)
+        return ser_err('Erreur lors de l\'envoi de l\'email.', status=500)
+    return ok(message=f'Email de vérification renvoyé à {user.email}.', level='info')
+
+
 @admin_api_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @jwt_required()
 @csrf.exempt
@@ -677,6 +696,13 @@ def toggle_user_role(user_id, role, current_user):
         return ser_err('Rôle invalide.')
 
     db.session.commit()
+
+    try:
+        notification_service.notify_role_changed(user, role, granted=(msg.find('activé') != -1 or msg.find('accordée') != -1))
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif toggle_user_role: {e}')
+
     return ok(message=msg, level='info')
 
 
@@ -697,6 +723,12 @@ def add_track_tokens(user_id, current_user):
         db.session.commit()
     except Exception as e:
         return ser_err(str(e), status=500)
+
+    try:
+        notification_service.notify_tokens_added(user, 'track', tokens)
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif add_track_tokens: {e}')
 
     return ok({'upload_track_tokens': user.upload_track_tokens},
               message=f"{tokens} token(s) d'upload ajouté(s) à {user.username}.", level='info')
@@ -720,6 +752,12 @@ def add_topline_tokens(user_id, current_user):
     except Exception as e:
         return ser_err(str(e), status=500)
 
+    try:
+        notification_service.notify_tokens_added(user, 'topline', tokens)
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif add_topline_tokens: {e}')
+
     return ok({'topline_tokens': user.topline_tokens},
               message=f"{tokens} token(s) de topline ajouté(s) à {user.username}.", level='info')
 
@@ -732,17 +770,41 @@ def toggle_premium(user_id, current_user):
     """Toggle rapide free ↔ amateur (comportement admin existant conservé)."""
     user = db.get_or_404(User, user_id)
 
+    old_plan = user.subscription_plan
+
     if not user.is_premium_active:
         user.subscription_plan  = 'amateur'
         user.premium_since      = datetime.now()
         user.premium_expires_at = datetime.now() + timedelta(days=30)
+        new_plan = 'amateur'
         msg = f'Plan Amateur activé pour {user.username} (30 jours).'
     else:
         user.subscription_plan  = 'free'
         user.premium_expires_at = datetime.now()
+        new_plan = 'free'
         msg = f'Abonnement désactivé pour {user.username}.'
 
     db.session.commit()
+
+    try:
+        notification_service.notify_plan_changed(
+            user, new_plan, old_plan,
+            expires_at=user.premium_expires_at,
+            granted_by_admin=True,
+        )
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif toggle_premium: {e}')
+
+    try:
+        email_service.send_plan_changed_email(
+            user, new_plan,
+            expires_at=user.premium_expires_at if new_plan != 'free' else None,
+            granted_by_admin=True,
+        )
+    except Exception as e:
+        current_app.logger.warning(f'Email toggle_premium: {e}')
+
     return ok({'is_premium': user.is_premium, 'subscription_plan': user.subscription_plan}, message=msg, level='info')
 
 

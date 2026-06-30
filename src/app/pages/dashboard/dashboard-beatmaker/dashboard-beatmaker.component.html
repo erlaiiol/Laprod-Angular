@@ -103,6 +103,17 @@
                     <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
                   </span>
                 }
+                @if (track.is_ai_suggested) {
+                  <div class="ai-suggestion-row">
+                    <span class="ai-badge"><i class="bi bi-magic"></i> Suggestions IA</span>
+                    <button class="btn-validate-ai" (click)="validateSuggestion(track.id)">
+                      Valider
+                    </button>
+                    <a class="btn-edit-ai" [routerLink]="['/edit-track', track.id]">
+                      Modifier
+                    </a>
+                  </div>
+                }
               </div>
             </div>
           }

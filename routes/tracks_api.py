@@ -471,7 +471,23 @@ def post_track(current_user):
         redis_client.expire(f"job:{job_id}", 7200)
 
         q = Queue(connection=redis_client)
-        q.enqueue('tasks.track_processing.process_track_data', job_payload, job_timeout=720)
+        process_job = q.enqueue('tasks.track_processing.process_track_data', job_payload, job_timeout=720)
+
+        auto_flags = ('auto_bpm', 'auto_key', 'auto_style')
+        if any(request.form.get(f, '0') == '1' for f in auto_flags):
+            q.enqueue(
+                'tasks.audio_analysis.analyze_track',
+                {
+                    'job_id':    job_id,
+                    'user_id':   current_user.id,
+                    'mp3_path':  str(mp3_disk_path),
+                    'auto_bpm':  request.form.get('auto_bpm',   '0') == '1',
+                    'auto_key':  request.form.get('auto_key',   '0') == '1',
+                    'auto_style': request.form.get('auto_style', '0') == '1',
+                },
+                job_timeout=300,
+                depends_on=process_job,
+            )
 
         return ok({
             'job_id':    job_id,
@@ -655,6 +671,22 @@ def delete_track(track_id, current_user):
 
     current_app.logger.info(f'Track #{track_id} "{title}" supprimé par user #{current_user.id}')
     return ok(message=f'Track "{title}" supprimé avec succès', level='info')
+
+
+# ── Validation de suggestion IA ──────────────────────────────────────────────
+
+@tracks_api_bp.route('/<int:track_id>/validate-suggestion', methods=['PATCH'])
+@jwt_required()
+@csrf.exempt
+@handle_route_exceptions
+@require_user
+@commit_or_rollback
+def validate_ai_suggestion(track_id, current_user):
+    """Marque le track comme validé (is_ai_suggested = False)."""
+    track = get_or_404(Track, track_id, 'Track introuvable.')
+    require_ownership(track, 'composer_id', current_user)
+    track.is_ai_suggested = False
+    return ok({'id': track.id}, message='Suggestions validées.', level='info')
 
 
 # ── Enregistrement d'une vue ──────────────────────────────────────────────────

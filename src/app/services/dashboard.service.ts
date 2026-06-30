@@ -16,22 +16,23 @@ export interface BeatmakerStats {
 }
 
 export interface BeatmakerTrack {
-  id:          number;
-  title:       string;
-  image_file:  string | null;
-  is_approved: boolean;
-  created_at:  string;
-  bpm:         number | null;
-  key:         string | null;
-  style:       string | null;
-  price_mp3:   number | null;
-  price_wav:   number | null;
-  price_stems: number | null;
-  has_mp3:     boolean;
-  has_wav:     boolean;
-  has_stems:   boolean;
-  sales_count: number;
-  stream_url:  string;
+  id:              number;
+  title:           string;
+  image_file:      string | null;
+  is_approved:     boolean;
+  is_ai_suggested: boolean;
+  created_at:      string;
+  bpm:             number | null;
+  key:             string | null;
+  style:           string | null;
+  price_mp3:       number | null;
+  price_wav:       number | null;
+  price_stems:     number | null;
+  has_mp3:         boolean;
+  has_wav:         boolean;
+  has_stems:       boolean;
+  sales_count:     number;
+  stream_url:      string;
 }
 
 export interface SaleRecord {

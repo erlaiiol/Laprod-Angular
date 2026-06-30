@@ -487,3 +487,58 @@ def notify_plan_changed(user, new_plan, old_plan, expires_at=None, granted_by_ad
         message=message,
         link='/premium',
     )
+
+
+def notify_role_changed(user, role: str, granted: bool):
+    role_labels = {
+        'beatmaker': 'Beatmaker',
+        'artist': 'Artiste',
+        'engineer': 'Mix/Master Engineer',
+        'master': 'Certified Master Engineer',
+        'producer_arranger': 'Certified Producteur/Arrangeur',
+    }
+    label = role_labels.get(role, role)
+    if granted:
+        title   = f'Rôle {label} accordé'
+        message = f'L\'équipe LaProd vous a accordé le rôle {label}. Rendez-vous sur votre profil pour le configurer.'
+    else:
+        title   = f'Rôle {label} retiré'
+        message = f'Le rôle {label} a été retiré de votre compte par l\'équipe LaProd.'
+
+    create_notification(
+        user_id=user.id,
+        notif_type='role_changed',
+        title=title,
+        message=message,
+        link='/profile/' + user.username,
+    )
+
+
+def notify_audio_analysis_done(user, track, suggestions: dict):
+    parts = []
+    if 'bpm' in suggestions:
+        parts.append(f"BPM : {suggestions['bpm']}")
+    if 'key' in suggestions:
+        parts.append(f"Gamme : {suggestions['key']}")
+    if 'style' in suggestions:
+        parts.append(f"Style : {suggestions['style']}")
+
+    summary = ' · '.join(parts)
+    create_notification(
+        user_id=user.id,
+        notif_type='audio_analysis',
+        title='Analyse audio terminée',
+        message=f"Suggestions pour « {track.title} » — {summary}. Validez ou modifiez depuis votre tableau de bord.",
+        link='/dashboard',
+    )
+
+
+def notify_tokens_added(user, token_type: str, amount: int):
+    label = 'upload' if token_type == 'track' else 'topline'
+    create_notification(
+        user_id=user.id,
+        notif_type='tokens_added',
+        title=f'{amount} token(s) {label} ajouté(s)',
+        message=f'L\'équipe LaProd vous a crédité {amount} token(s) d\'upload {label}.',
+        link='/dashboard',
+    )

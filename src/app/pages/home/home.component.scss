@@ -129,12 +129,61 @@
   @media (max-width: 600px) { font-size: 2rem; }
 }
 
+.lp-landing__tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.lp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: v.$text-secondary;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+
+  &:hover { background: rgba(255, 255, 255, 0.1); color: v.$off-white; }
+
+  &.lp-tab--active {
+    background: v.$primary;
+    border-color: v.$primary;
+    color: v.$white;
+  }
+}
+
 .lp-landing__sub {
   font-size: 1rem;
   color: v.$text-secondary;
   margin: 0;
   line-height: 1.65;
   max-width: 500px;
+}
+
+.lp-landing__bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.88rem;
+  color: v.$text-secondary;
+  text-align: left;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  i { color: v.$tag-green; font-size: 0.85rem; }
 }
 
 .lp-landing__actions {

@@ -38,6 +38,7 @@ export class HomeComponent implements OnInit {
   isPersonalized  = signal(false);
   showOnboarding  = signal(false);
   showHero        = signal(false);
+  heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur'>('artiste');
   displayMode     = signal<'list' | 'gallery'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'gallery'
   );
@@ -107,7 +108,10 @@ export class HomeComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const useRecommendations = this.auth.isLoggedIn() && !this.hasActiveFilters();
+    // Catégorie sélectionnée → toujours paginé, jamais reco (évite les pages vides)
+    const useRecommendations = this.auth.isLoggedIn()
+      && !this.hasActiveFilters()
+      && !this.auth.preferredTagCategory();
 
     if (useRecommendations) {
       // Les recommandations sont déjà un set curé — pas de pagination
@@ -121,6 +125,11 @@ export class HomeComponent implements OnInit {
       ).subscribe({
         next: (response) => {
           if (response.success) {
+            // Moins de 10 reco → catalogue régulier (évite l'impression de "moins de beats")
+            if (response.data.tracks.length < 10) {
+              this._loadRegularTracks(page);
+              return;
+            }
             this.tracks.set(response.data.tracks);
             this.isPersonalized.set(response.data.is_personalized);
           } else {

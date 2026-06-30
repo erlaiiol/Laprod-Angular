@@ -535,6 +535,9 @@ class Track(db.Model):
     contract_price_territory_eu   = db.Column(db.Integer, nullable=True)  # défaut: 5
     contract_price_territory_world = db.Column(db.Integer, nullable=True) # défaut: 10
 
+    # Analyse IA — BPM/gamme/style détectés automatiquement, en attente de validation
+    is_ai_suggested = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+
     # Exclusivité vendue
     is_exclusive_sold  = db.Column(db.Boolean, default=False, nullable=False)
     exclusive_sold_at  = db.Column(db.DateTime, nullable=True)

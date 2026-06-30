@@ -15,7 +15,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container-fluid">
 
-    <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']">
+    <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']" (click)="resetFilters()">
       <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
            onerror="this.onerror=null; this.style.display='none'">
       <span>LaProd</span>
@@ -44,12 +44,13 @@
         }
       </div>
 
-      <button class="btn btn-outline-light btn-sm flex-shrink-0"
+      <button class="btn btn-outline-light btn-sm flex-shrink-0 btn-filter-toggle"
               (click)="toggleFilters()"
-              title="Filtres avancés">
-        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              title="Filtres avancés (BPM, gamme, style, tags)">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
         </svg>
+        <span class="d-none d-lg-inline ms-1">Filtrer les tracks</span>
       </button>
     </div>
 
@@ -63,7 +64,7 @@
       <ul class="navbar-nav ms-auto">
 
         <li class="nav-item">
-          <a class="nav-link" [routerLink]="['/']"
+          <a class="nav-link" [routerLink]="['/']" (click)="resetFilters()"
              routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
             <i class="bi bi-music-note-list"></i> Beats
           </a>
@@ -218,7 +219,10 @@
 <div class="filters-popover" [class.open]="filtersOpen()">
 
   <div class="filters-header">
-    <h5>Filtres avancés</h5>
+    <div>
+      <h5>Filtres avancés</h5>
+      <p class="filters-subtitle">BPM, gamme, style, tags — distinct des catégories de tags affichées en bas de page</p>
+    </div>
     <button class="btn-close-popover" (click)="closeFilters()">&times;</button>
   </div>
 

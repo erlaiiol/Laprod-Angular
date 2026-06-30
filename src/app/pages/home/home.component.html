@@ -32,7 +32,50 @@
     <div class="lp-landing__header">
       <img src="/db_assets/main/logo.png" class="lp-landing__logo" alt="LaProd">
       <h1 class="lp-landing__title">Le marché musical<br><span>qui te respecte.</span></h1>
-      <p class="lp-landing__sub">Achète des beats, commande un mix professionnel, vends tes créations. Contrats clairs, paiements sécurisés, droits protégés.</p>
+
+      <!-- ── Onglets rôle ─────────────────────────────────────────────────── -->
+      <div class="lp-landing__tabs">
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'artiste'"
+                (click)="heroTab.set('artiste')">
+          <i class="bi bi-mic-fill"></i> Artiste
+        </button>
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'beatmaker'"
+                (click)="heroTab.set('beatmaker')">
+          <i class="bi bi-sliders"></i> Beatmaker
+        </button>
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'ingenieur'"
+                (click)="heroTab.set('ingenieur')">
+          <i class="bi bi-equalizer-fill"></i> Ingénieur
+        </button>
+      </div>
+
+      @switch (heroTab()) {
+        @case ('artiste') {
+          <p class="lp-landing__sub">Trouve le beat qui correspond à ton projet, signe un contrat clair, garde le contrôle sur tes droits. Achète uniquement ce dont tu as besoin — MP3, WAV ou Stems.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Beats triés par BPM, tonalité & style</span>
+            <span><i class="bi bi-check-circle-fill"></i> Contrats lisibles, droits expliqués</span>
+            <span><i class="bi bi-check-circle-fill"></i> Topline — chante avant d'acheter</span>
+          </div>
+        }
+        @case ('beatmaker') {
+          <p class="lp-landing__sub">Mets tes prods en vente au juste prix. Fixe tes tarifs, configure tes droits SACEM, touche directement sans intermédiaire. L'algorithme propulse tes beats là où ils seront entendus.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Contrats personnalisés par beat</span>
+            <span><i class="bi bi-check-circle-fill"></i> Paiements directs, droits conservés</span>
+            <span><i class="bi bi-check-circle-fill"></i> Preview protégée contre le vol</span>
+          </div>
+        }
+        @case ('ingenieur') {
+          <p class="lp-landing__sub">Reçois des commandes de mix/mastering depuis ta fiche certifiée. Acompte versé à la commande, solde à la livraison — ton travail est sécurisé avant même de commencer.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Profil certifié par LaProd</span>
+            <span><i class="bi bi-check-circle-fill"></i> Acompte protégé, paiement garanti</span>
+            <span><i class="bi bi-check-circle-fill"></i> Gestion des livraisons intégrée</span>
+          </div>
+        }
+      }
+
       <div class="lp-landing__actions">
         <a routerLink="/register" class="lp-btn-cta">
           <i class="bi bi-person-plus-fill"></i> S'inscrire gratuitement

@@ -405,3 +405,54 @@
 
 .spin { animation: spin-anim 0.8s linear infinite; }
 @keyframes spin-anim { to { transform: rotate(360deg); } }
+
+/* ── Suggestion IA ──────────────────────────────────────────────────────────── */
+
+.ai-suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(v.$tag-violet, 0.12);
+  border: 1px solid rgba(v.$tag-violet, 0.3);
+  border-radius: 10px;
+  color: v.$tag-violet-light;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.btn-validate-ai {
+  padding: 2px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(v.$tag-green, 0.4);
+  background: rgba(v.$tag-green, 0.1);
+  color: v.$tag-green;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(v.$tag-green, 0.2); }
+}
+
+.btn-edit-ai {
+  padding: 2px 10px;
+  border-radius: 10px;
+  border: 1px solid v.$bg-border;
+  background: none;
+  color: v.$text-muted;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover { color: v.$text-primary; }
+}

@@ -168,6 +168,20 @@ export class UploadTrackComponent implements OnInit {
   availableTags          = signal<Tag[]>([]);
   selectedTagIds         = signal<number[]>([]);
 
+  /* ── Auto-suggestion IA ─────────────────────────────────────────────────── */
+  autoBpm   = signal(false);
+  autoKey   = signal(false);
+  autoStyle = signal(false);
+
+  private _randomBpm(): number {
+    const values = Array.from({ length: 17 }, (_, i) => 80 + i * 5); // 80..160 step 5
+    return values[Math.floor(Math.random() * values.length)];
+  }
+
+  private _randomKey(): string {
+    return MUSICAL_KEYS[Math.floor(Math.random() * MUSICAL_KEYS.length)];
+  }
+
   tagGroups = computed<TagGroup[]>(() => {
     const map    = new Map<string, TagGroup>();
     const groups: TagGroup[] = [];
@@ -189,12 +203,15 @@ export class UploadTrackComponent implements OnInit {
 
   submitErrors = computed(() => {
     const errs: string[] = [];
-    if (!this.title().trim())                          errs.push('Titre manquant');
-    if (!this.bpm())                                   errs.push('BPM manquant');
-    else if (this.bpm()! < 60 || this.bpm()! > 220)   errs.push('BPM invalide (60–220)');
-    if (!this.key())                                   errs.push('Tonalité non sélectionnée');
-    if (!this.style())                                 errs.push('Style non sélectionné');
-    if (!this.fileMp3())                               errs.push('Fichier MP3 obligatoire');
+    if (!this.title().trim()) errs.push('Titre manquant');
+
+    if (!this.autoBpm()) {
+      if (!this.bpm())                                 errs.push('BPM manquant');
+      else if (this.bpm()! < 60 || this.bpm()! > 220) errs.push('BPM invalide (60–220)');
+    }
+    if (!this.autoKey()   && !this.key())   errs.push('Tonalité non sélectionnée');
+    if (!this.autoStyle() && !this.style()) errs.push('Style non sélectionné');
+    if (!this.fileMp3())                    errs.push('Fichier MP3 obligatoire');
     return errs;
   });
 
@@ -264,6 +281,13 @@ export class UploadTrackComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    // Pré-remplissage placeholder pour que la DB ne soit pas en attente
+    if (this.autoBpm() && !this.bpm()) this.bpm.set(this._randomBpm());
+    if (this.autoKey() && !this.key()) this.key.set(this._randomKey());
+    if (this.autoStyle() && !this.style() && this.availableStyles().length > 0) {
+      this.style.set(this.availableStyles()[0]);
+    }
+
     const premiumFields = this.auth.isPremium() ? {
       price_stems:                    this.priceStems(),
       file_stems:                     this.fileStems() ?? undefined,
@@ -292,6 +316,9 @@ export class UploadTrackComponent implements OnInit {
       file_mp3:                 this.fileMp3()!,
       file_wav:                 this.fileWav() ?? undefined,
       file_image:               this.fileImage() ?? undefined,
+      auto_bpm:                 this.autoBpm(),
+      auto_key:                 this.autoKey(),
+      auto_style:               this.autoStyle(),
       ...premiumFields,
     }).subscribe({
       next: res => {

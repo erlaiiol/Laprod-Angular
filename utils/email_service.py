@@ -1025,3 +1025,33 @@ L'équipe LaProd
         text_body=text_body,
         html_body=html_body,
     )
+
+
+def send_audio_analysis_email(user, track, suggestions: dict):
+    parts = []
+    if 'bpm' in suggestions:
+        parts.append(f"BPM détecté : {suggestions['bpm']}")
+    if 'key' in suggestions:
+        parts.append(f"Gamme détectée : {suggestions['key']}")
+    if 'style' in suggestions:
+        parts.append(f"Style suggéré : {suggestions['style']}")
+
+    summary = '\n'.join(f'  • {p}' for p in parts)
+    subject   = f'Analyse audio terminée — {track.title}'
+    text_body = f"""Bonjour {user.username},
+
+L'analyse audio de votre beat « {track.title} » est terminée.
+
+Suggestions :
+{summary}
+
+Connectez-vous à votre tableau de bord pour valider ou modifier ces valeurs.
+
+---
+L'équipe LaProd
+"""
+    return send_email(
+        subject=subject,
+        recipients=[user.email],
+        text_body=text_body,
+    )

@@ -47,11 +47,12 @@ def get_beatmaker_dashboard(current_user):
 
     tracks_data = [
         {
-            'id':           t.id,
-            'title':        t.title,
-            'image_file':   t.image_file,
-            'is_approved':  t.is_approved,
-            'created_at':   t.created_at.isoformat(),
+            'id':              t.id,
+            'title':           t.title,
+            'image_file':      t.image_file,
+            'is_approved':     t.is_approved,
+            'is_ai_suggested': getattr(t, 'is_ai_suggested', False),
+            'created_at':      t.created_at.isoformat(),
             'bpm':          t.bpm,
             'key':          t.key,
             'style':        t.style,
