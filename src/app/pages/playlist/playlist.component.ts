@@ -6,6 +6,7 @@ import { switchMap, of } from 'rxjs';
 
 import { PlaylistService, PlaylistDetail } from '../../services/playlist.service';
 import { Track } from '../../services/track.service';
+import { UserService, UserTrack } from '../../services/user.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
@@ -33,6 +34,15 @@ export class PlaylistComponent implements OnInit {
   metaSaving       = signal(false);
   removingIds      = signal<Set<number>>(new Set());
 
+  // ── Beat picker ─────────────────────────────────────────────────────────────
+  ownerTracks   = signal<UserTrack[]>([]);
+  tracksLoading = signal(false);
+  addingIds     = signal<Set<number>>(new Set());
+
+  playlistTrackIds = computed(() =>
+    new Set((this.playlist()?.tracks ?? []).map((t: Track) => t.id))
+  );
+
   isOwner = computed(() => {
     const u = this.auth.currentUser();
     const p = this.playlist();
@@ -41,6 +51,7 @@ export class PlaylistComponent implements OnInit {
 
   private route       = inject(ActivatedRoute);
   private playlistSvc = inject(PlaylistService);
+  private userSvc     = inject(UserService);
   private favSvc      = inject(FavoritesService);
   readonly auth       = inject(AuthService);
   private toast       = inject(ToastService);
@@ -90,6 +101,16 @@ export class PlaylistComponent implements OnInit {
   enterEditMode(): void {
     this.editTitle = this.playlist()!.title;
     this.editMode.set(true);
+    if (this.ownerTracks().length === 0) {
+      this.tracksLoading.set(true);
+      this.userSvc.getProfile(this.playlist()!.beatmaker_username).subscribe({
+        next: res => {
+          this.ownerTracks.set(res.data?.user.tracks ?? []);
+          this.tracksLoading.set(false);
+        },
+        error: () => this.tracksLoading.set(false),
+      });
+    }
   }
 
   cancelEdit(): void {
@@ -127,6 +148,29 @@ export class PlaylistComponent implements OnInit {
       error: () => {
         this.metaSaving.set(false);
         this.toast.showToast({ level: 'error', message: 'Erreur lors de la sauvegarde.' });
+      },
+    });
+  }
+
+  addTrack(trackId: number): void {
+    const pl = this.playlist();
+    if (!pl || this.addingIds().has(trackId) || this.playlistTrackIds().has(trackId)) return;
+    this.addingIds.update(s => new Set([...s, trackId]));
+    this.playlistSvc.addTrack(pl.id, trackId).subscribe({
+      next: () => {
+        this.playlistSvc.getPlaylist(pl.id).subscribe({
+          next: res => {
+            if (res.success && res.data) this.playlist.set(res.data);
+            this.addingIds.update(s => { const n = new Set(s); n.delete(trackId); return n; });
+          },
+          error: () => {
+            this.addingIds.update(s => { const n = new Set(s); n.delete(trackId); return n; });
+          },
+        });
+      },
+      error: () => {
+        this.addingIds.update(s => { const n = new Set(s); n.delete(trackId); return n; });
+        this.toast.showToast({ level: 'error', message: 'Erreur lors de l\'ajout du beat.' });
       },
     });
   }

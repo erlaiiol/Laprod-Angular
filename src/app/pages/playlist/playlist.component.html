@@ -67,7 +67,52 @@
     @if (editMode()) {
       <div class="edit-mode-banner">
         <i class="bi bi-pencil-fill"></i>
-        Mode édition — cliquez sur <i class="bi bi-x-circle-fill"></i> pour retirer un track de la playlist.
+        Mode édition — ajoutez des beats ci-dessous ou cliquez sur <i class="bi bi-x-circle-fill"></i> pour en retirer.
+      </div>
+
+      <!-- ── Beat picker ───────────────────────────────────────────────────── -->
+      <div class="beat-picker">
+        <h3 class="beat-picker__title">
+          <i class="bi bi-plus-circle-fill"></i>
+          Ajouter des beats à la playlist
+        </h3>
+        @if (tracksLoading()) {
+          <div class="beat-picker__loading">
+            <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+          </div>
+        } @else if (ownerTracks().length === 0) {
+          <p class="beat-picker__empty">Aucun beat publié.</p>
+        } @else {
+          <div class="beat-picker__grid">
+            @for (t of ownerTracks(); track t.id) {
+              @let inPlaylist = playlistTrackIds().has(t.id);
+              @let pending    = addingIds().has(t.id);
+              <div class="beat-mini-card"
+                   [class.beat-mini-card--in]="inPlaylist || pending"
+                   (click)="!inPlaylist && !pending && addTrack(t.id)">
+                <div class="beat-mini-card__img-wrap">
+                  <img class="beat-mini-card__img"
+                       [src]="coverUrl(t.image_file)"
+                       onerror="this.src='assets/placeholders/placeholder-track.png'"
+                       [alt]="t.title">
+                  <div class="beat-mini-card__overlay">
+                    @if (pending) {
+                      <i class="bi bi-arrow-repeat spin"></i>
+                    } @else if (inPlaylist) {
+                      <i class="bi bi-check-lg"></i>
+                    } @else {
+                      <i class="bi bi-plus-lg"></i>
+                    }
+                  </div>
+                </div>
+                <span class="beat-mini-card__title" [title]="t.title">{{ t.title }}</span>
+                @if (t.style) {
+                  <span class="beat-mini-card__style">{{ t.style }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
       </div>
     }
 
