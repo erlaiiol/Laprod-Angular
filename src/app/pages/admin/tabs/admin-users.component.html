@@ -79,7 +79,7 @@
             <button class="btn-icon btn-icon--plan" title="Gérer l'abonnement" (click)="openPlanModal(u)">
               <i class="bi bi-patch-check"></i>
             </button>
-            @if (!u.email_verified) {
+            @if (!u.email_verified && u.auth_method === 'local') {
               <button class="btn-icon btn-icon--warn"
                       [disabled]="resendingId() === u.id"
                       title="Renvoyer l'email de vérification"
