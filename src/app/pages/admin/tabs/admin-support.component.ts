@@ -98,14 +98,6 @@ https://laprod.net`,
       <h3 class="support-section-title"><i class="bi bi-person-lines-fill"></i> Destinataire</h3>
 
       <div class="recipient-search-wrap">
-        <input
-          class="support-input"
-          type="text"
-          placeholder="Rechercher un utilisateur (username)…"
-          [(ngModel)]="searchQuery"
-          (ngModelChange)="onSearch($event)"
-          [disabled]="!!recipient()" />
-
         @if (recipient()) {
           <div class="recipient-pill">
             <i class="bi bi-person-circle"></i>
@@ -114,29 +106,30 @@ https://laprod.net`,
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
-        }
+        } @else {
+          <input
+            class="support-input"
+            type="text"
+            placeholder="Rechercher un utilisateur ou saisir un email directement…"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearch($event)" />
 
-        @if (!recipient() && searchResults().length > 0) {
-          <div class="search-dropdown">
-            @for (u of searchResults(); track u.id) {
-              <button class="search-result-item" (click)="selectUser(u)">
-                <i class="bi bi-person"></i>
-                <span class="search-username">{{ u.username }}</span>
-                <span class="search-email">{{ u.email }}</span>
-              </button>
-            }
-          </div>
-        }
+          @if (searchResults().length > 0) {
+            <div class="search-dropdown">
+              @for (u of searchResults(); track u.id) {
+                <button class="search-result-item" (click)="selectUser(u)">
+                  <i class="bi bi-person"></i>
+                  <span class="search-username">{{ u.username }}</span>
+                  <span class="search-email">{{ u.email }}</span>
+                </button>
+              }
+            </div>
+          }
 
-        @if (!recipient()) {
-          <div class="manual-email-row">
-            <span class="or-divider">ou email manuel</span>
-            <input
-              class="support-input support-input--inline"
-              type="email"
-              placeholder="exemple@email.com"
-              [(ngModel)]="manualEmail" />
-          </div>
+          <p class="support-hint" style="margin-top:0.35rem">
+            <i class="bi bi-info-circle"></i>
+            Sélectionnez un utilisateur dans la liste, ou saisissez directement une adresse email et cliquez sur Envoyer.
+          </p>
         }
       </div>
     </section>
@@ -227,11 +220,10 @@ export class AdminSupportComponent {
 
   readonly templates = TEMPLATES;
 
-  // Recherche utilisateur
+  // Recherche utilisateur / email direct
   searchQuery   = '';
   searchResults = signal<UserSearchResult[]>([]);
   recipient     = signal<UserSearchResult | null>(null);
-  manualEmail   = '';
 
   // Composition
   selectedTemplateId = signal<string>('tokens');
@@ -266,8 +258,8 @@ export class AdminSupportComponent {
 
   clearRecipient(): void {
     this.recipient.set(null);
-    this.manualEmail = '';
     this.searchQuery = '';
+    this.searchResults.set([]);
   }
 
   selectTemplate(t: SupportTemplate): void {
@@ -282,14 +274,14 @@ export class AdminSupportComponent {
   }
 
   canSend = computed(() => {
-    const hasRecipient = !!this.recipient() || (this.manualEmail.trim().includes('@'));
+    const hasRecipient = !!this.recipient() || this.searchQuery.trim().includes('@');
     return hasRecipient && !!this.subject.trim() && !!this.body.trim() && !this.sending();
   });
 
   previewTo = computed(() => {
     const r = this.recipient();
     if (r) return `${r.username} <${r.email}>`;
-    return this.manualEmail.trim() || '—';
+    return this.searchQuery.trim() || '—';
   });
 
   previewBody = computed(() => {
@@ -299,7 +291,7 @@ export class AdminSupportComponent {
 
   send(): void {
     const r = this.recipient();
-    const email = r?.email ?? this.manualEmail.trim();
+    const email = r?.email ?? this.searchQuery.trim();
     const name  = r?.username ?? email;
     if (!email || !this.subject.trim() || !this.body.trim()) return;
 

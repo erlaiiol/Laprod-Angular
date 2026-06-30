@@ -35,7 +35,8 @@ export class TrackCardComponent {
   private authService   = inject(AuthService);
   private router        = inject(Router);
 
-  showAllTags = signal(false);
+  showAllTags     = signal(false);
+  showAllArtists  = signal(false);
 
   showArtists = computed(() => this.authService.preferredCardInfoMode() === 'artists');
 
@@ -63,6 +64,11 @@ export class TrackCardComponent {
   toggleTags(event: MouseEvent): void {
     event.stopPropagation();
     this.showAllTags.update(v => !v);
+  }
+
+  toggleArtists(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showAllArtists.update(v => !v);
   }
 
   getImageUrl(): string {

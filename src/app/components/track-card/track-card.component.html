@@ -51,13 +51,23 @@
           <span class="style-chip">{{ track.style }}</span>
         }
         @if (showArtists() && track.similar_artists?.length) {
-          @for (a of track.similar_artists!.slice(0, 2); track a.id) {
+          @for (a of (showAllArtists() ? track.similar_artists! : track.similar_artists!.slice(0, 2)); track a.id) {
             <span class="artist-ref-chip">
-              <i class="bi bi-person-circle"></i>{{ a.name }}
+              {{ a.name }}
             </span>
           }
-          @if (track.similar_artists!.length > 2) {
-            <span class="tag-more-btn">+{{ track.similar_artists!.length - 2 }}</span>
+          @if (!showAllArtists() && track.similar_artists!.length > 2) {
+            <button class="tag-more-btn"
+                    (click)="toggleArtists($event)"
+                    [title]="'Voir ' + (track.similar_artists!.length - 2) + ' artiste(s) de plus'">
+              +{{ track.similar_artists!.length - 2 }}
+            </button>
+          } @else if (showAllArtists() && track.similar_artists!.length > 2) {
+            <button class="tag-more-btn tag-more-btn--collapse"
+                    (click)="toggleArtists($event)"
+                    title="Réduire">
+              ↑
+            </button>
           }
         } @else {
           @for (tag of visibleTags(); track tag.name) {

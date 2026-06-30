@@ -437,7 +437,7 @@ def search_users(current_user):
 
     users = db.session.scalars(
         select(User)
-        .where(User.username.ilike(f'%{q}%'), User.account_status == 'active')
+        .where(User.username.ilike(f'%{q}%'))
         .limit(10)
     ).all()
 
