@@ -353,6 +353,8 @@ def verify_email():
         return ok(message='Email déjà vérifié. Vous pouvez vous connecter.', level='info', code='ALREADY_VERIFIED')
 
     user.email_verified = True
+    if user.account_status == 'pending_completion':
+        user.account_status = 'active'
     db.session.commit()
 
     return ok(message='Email vérifié ! Vous pouvez maintenant vous connecter.')

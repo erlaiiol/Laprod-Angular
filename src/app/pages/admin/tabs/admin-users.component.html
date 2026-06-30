@@ -87,11 +87,13 @@
                 <i class="bi" [class.bi-envelope-arrow-up]="resendingId() !== u.id"
                               [class.bi-hourglass-split]="resendingId() === u.id"></i>
               </button>
+            }
+            @if (!u.email_verified || u.account_status === 'pending_completion') {
               <button class="btn-icon btn-icon--ok"
                       [disabled]="forcingVerifId() === u.id"
-                      title="Forcer la vérification email (sans envoyer d'email)"
+                      [title]="!u.email_verified ? 'Forcer la vérification email' : 'Activer le compte (email déjà vérifié)'"
                       (click)="forceVerifyEmail(u)">
-                <i class="bi" [class.bi-envelope-check]="forcingVerifId() !== u.id"
+                <i class="bi" [class.bi-person-check-fill]="forcingVerifId() !== u.id"
                               [class.bi-hourglass-split]="forcingVerifId() === u.id"></i>
               </button>
             }

@@ -649,14 +649,22 @@ def admin_resend_verification(user_id, current_user):
 @csrf.exempt
 @require_admin
 def admin_force_verify_email(user_id, current_user):
-    """Admin force la vérification email d'un utilisateur sans envoyer d'email."""
+    """Admin active manuellement le compte : email vérifié + statut actif."""
     user = db.get_or_404(User, user_id)
-    if user.email_verified:
-        return ok(message='Email déjà vérifié.', level='info')
-    user.email_verified = True
+    changes = []
+    if not user.email_verified:
+        user.email_verified = True
+        changes.append('email vérifié')
+    if user.account_status == 'pending_completion':
+        user.account_status = 'active'
+        changes.append('compte activé')
+    if not changes:
+        return ok(message='Compte déjà actif.', level='info')
     db.session.commit()
-    current_app.logger.info(f'Admin #{current_user.id} a forcé la vérification email de user #{user_id}')
-    return ok(message=f'Email de {user.username} marqué comme vérifié.')
+    current_app.logger.info(
+        f'Admin #{current_user.id} a forcé l\'activation de user #{user_id}: {", ".join(changes)}'
+    )
+    return ok(message=f'{", ".join(changes).capitalize()} pour {user.username}.')
 
 
 @admin_api_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])

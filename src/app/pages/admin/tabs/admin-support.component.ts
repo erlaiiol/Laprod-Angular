@@ -177,7 +177,7 @@ https://laprod.net`,
       </textarea>
       <p class="support-hint">
         <i class="bi bi-info-circle"></i>
-        Utilisez <code>{username}</code> pour insérer le nom d'utilisateur du destinataire.
+        Utilisez <code>&#123;username&#125;</code> pour insérer le nom d'utilisateur du destinataire.
       </p>
     </section>
 
