@@ -82,8 +82,8 @@
 
 .style-chip {
   padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.72rem;
-  background: rgba(v.$text-muted, 0.12); border: 1px solid rgba(v.$text-muted, 0.25);
-  color: v.$text-secondary; letter-spacing: 0.02em; white-space: nowrap;
+  background: v.$black; border: 1px solid v.$off-white;
+  color: v.$off-white; letter-spacing: 0.02em; white-space: nowrap;
 }
 
 .tag {
@@ -105,10 +105,18 @@
   &--collapse { font-size: 0.8rem; }
 }
 
-.track-price {
-  flex-shrink: 0; white-space: nowrap;
-  font-size: 0.85rem; font-weight: 600;
-  color: v.$off-white;
+.btn-price {
+  flex-shrink: 0; white-space: nowrap; line-height: inherit;
+  padding: 0.18rem 0.55rem; border-radius: 5px;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  font-size: 0.8rem; font-weight: 700; color: v.$off-white;
+  cursor: pointer; transition: background 0.18s, border-color 0.18s, color 0.18s;
+
+  &:hover {
+    background: v.$primary;
+    border-color: v.$primary;
+    color: #fff;
+  }
 }
 
 // ── Actions (favoris, playlists) ──────────────────────────────────────────────
@@ -139,14 +147,25 @@
   font-size: 0.85rem; line-height: 1; transition: all 0.2s ease;
 
   &:hover {
-    border-color: rgba(v.$off-white, 0.4);
-    color: v.$off-white;
     transform: scale(1.08);
   }
 
-  &--rec:hover {
-    border-color: rgba(v.$primary, 0.5);
+  &--dl {
+    color: v.$tag-green;
+    border-color: rgba(v.$tag-green, 0.4);
+    &:hover {
+      background: rgba(v.$tag-green, 0.1);
+      border-color: v.$tag-green;
+    }
+  }
+
+  &--rec {
     color: v.$primary;
+    border-color: rgba(v.$primary, 0.4);
+    &:hover {
+      background: rgba(v.$primary, 0.1);
+      border-color: v.$primary;
+    }
   }
 }
 
@@ -187,7 +206,7 @@
     gap: 0.3rem;
   }
 
-  .track-price { font-size: 0.82rem; }
+  .btn-price { font-size: 0.76rem; padding: 0.14rem 0.45rem; }
 
   .track-actions {
     padding: 0 0.65rem 0.55rem;

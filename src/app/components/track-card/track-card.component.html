@@ -73,13 +73,17 @@
           </button>
         }
       </div>
-      <span class="track-price">{{ formatPrice(track.price_mp3) }}</span>
+      <button class="btn-price" type="button"
+              (click)="$event.stopPropagation()"
+              [routerLink]="['/track', track.id]">
+        à partir de {{ formatPrice(track.price_mp3) }}
+      </button>
     </div>
   </div>
 
   <!-- Boutons actions -->
   <div class="track-actions">
-    <button class="btn-quick-action"
+    <button class="btn-quick-action btn-quick-action--dl"
             (click)="onDownloadPreviewClick($event)"
             title="Télécharger l'extrait gratuit">
       <i class="bi bi-download"></i>

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,12 +7,15 @@ import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 
+type Mode = 'quick' | 'advanced';
+
 @Component({
   selector: 'app-mixmaster-order',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, MixmasterGuideComponent],
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MixmasterOrderComponent implements OnInit {
 
@@ -20,6 +23,7 @@ export class MixmasterOrderComponent implements OnInit {
   submitting  = signal(false);
   error       = signal<string | null>(null);
   engineer    = signal<MixEngineerPublic | null>(null);
+  mode        = signal<Mode>('quick');
 
   // ── Services ─────────────────────────────────────────────────────────────
   serviceCleaning  = signal(false);
@@ -104,6 +108,7 @@ export class MixmasterOrderComponent implements OnInit {
   private router  = inject(Router);
   private mixSvc  = inject(MixmasterService);
   private toast   = inject(ToastService);
+  private cdr     = inject(ChangeDetectorRef);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -122,12 +127,28 @@ export class MixmasterOrderComponent implements OnInit {
           this.error.set(res.feedback?.message ?? 'Ingénieur introuvable.');
         }
         this.loading.set(false);
+        this.cdr.markForCheck();
       },
       error: () => {
         this.error.set('Impossible de charger les informations de l\'ingénieur.');
         this.loading.set(false);
+        this.cdr.markForCheck();
       },
     });
+  }
+
+  setMode(m: Mode): void {
+    this.mode.set(m);
+    if (m === 'quick') {
+      // Revenir aux seuls services obligatoires, supprimer les extras
+      const mandatory = this.mandatoryServices();
+      this.serviceCleaning.set(mandatory.has('cleaning'));
+      this.serviceEffects.set(mandatory.has('effects'));
+      this.serviceMastering.set(mandatory.has('mastering'));
+      this.serviceArtistic.set(mandatory.has('artistic'));
+      this.hasSeparatedStems.set(false);
+    }
+    this.cdr.markForCheck();
   }
 
   onStemsChange(ev: Event): void {

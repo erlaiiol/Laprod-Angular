@@ -13,51 +13,49 @@ type Format      = 'mp3' | 'wav' | 'stems';
 type Territory   = 'France' | 'Europe' | 'Monde entier';
 type DurationKey = 'stream' | '3' | '5' | '10' | 'lifetime';
 type PresetKey   = 'starter' | 'standard' | 'integral';
+type Mode        = 'quick' | 'advanced';
 
-// Seuils globaux d'auto-inclusion (non modifiables par le beatmaker)
 const MECHANICAL_THRESHOLD  = 199.99;
 const PUBLIC_SHOW_THRESHOLD = 74.99;
 
 interface LicensePreset {
-  key:        PresetKey;
-  name:       string;
-  tagline:    string;
-  icon:       string;
-  duration:   DurationKey;
-  isLifetime: boolean;
-  territory:  Territory;
-  mechanical: boolean;
-  publicShow: boolean;
+  key:         PresetKey;
+  name:        string;
+  tagline:     string;
+  icon:        string;
+  duration:    DurationKey;
+  isLifetime:  boolean;
+  territory:   Territory;
+  mechanical:  boolean;
+  publicShow:  boolean;
   arrangement: boolean;
-  popular?:   boolean;
+  popular?:    boolean;
 }
 
-
 @Component({
-  selector: 'app-contract-config',
+  selector: 'app-track-contract-config',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
-  templateUrl: './contract-config.component.html',
-  styleUrls: ['./contract-config.component.scss'],
+  templateUrl: './track-contract-config.component.html',
+  styleUrls: ['./track-contract-config.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContractConfigComponent implements OnInit {
+export class TrackContractConfigComponent implements OnInit {
 
   track    = signal<TrackDetail | null>(null);
   loading  = signal(true);
   error    = signal<string | null>(null);
   paying   = signal(false);
   format   = signal<Format>('mp3');
+  mode     = signal<Mode>('quick');
 
-  duration   = signal<DurationKey>('stream');
-  territory  = signal<Territory>('Monde entier');
-  isLifetime = signal(false);
-
+  duration         = signal<DurationKey>('stream');
+  territory        = signal<Territory>('France');
+  isLifetime       = signal(false);
   rightMechanical  = signal(false);
   rightPublicShow  = signal(false);
   rightArrangement = signal(false);
-
-  buyerAddress = signal('');
+  buyerAddress     = signal('');
 
   private route      = inject(ActivatedRoute);
   private trackSvc   = inject(TrackService);
@@ -65,7 +63,6 @@ export class ContractConfigComponent implements OnInit {
   readonly auth      = inject(AuthService);
   private cdr        = inject(ChangeDetectorRef);
 
-  // Prix résolus : valeur du track si définie, sinon défaut plateforme
   prices = computed(() => {
     const cp = this.track()?.contract_prices;
     return {
@@ -86,8 +83,8 @@ export class ContractConfigComponent implements OnInit {
          : (t.price_stems ?? 0);
   });
 
-  durationFee  = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
-  territoryFee = computed(() => this.prices().territory[this.territory()]);
+  durationFee    = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
+  territoryFee   = computed(() => this.prices().territory[this.territory()]);
   arrangementFee = computed(() => this.rightArrangement() ? this.prices().arrangement : 0);
 
   subtotal = computed(() =>
@@ -108,54 +105,31 @@ export class ContractConfigComponent implements OnInit {
     this.subtotal() + this.mechanicalFee() + this.publicShowFee()
   );
 
-  composerEarnings = computed(() => Math.round(this.totalPrice() * 0.9 * 100) / 100);
-  sacemComposer    = computed(() => (this.track() as any)?.sacem_percentage_composer ?? 50);
-  sacemBuyer       = computed(() => 100 - this.sacemComposer());
+  sacemComposer = computed(() => (this.track() as any)?.sacem_percentage_composer ?? 50);
+  sacemBuyer    = computed(() => 100 - this.sacemComposer());
 
   formatLabel = computed(() => ({ mp3: 'MP3 320kbps', wav: 'WAV 24-bit', stems: 'STEMS' }[this.format()]));
 
   durationLabel = computed(() =>
     this.isLifetime() ? 'À vie + 70 ans'
-    : ({ 'stream': 'Stream uniquement', '3': '3 ans', '5': '5 ans', '10': '10 ans', 'lifetime': 'À vie' } as Record<DurationKey, string>)[this.duration()]
+    : ({ stream: 'Streaming seul · à vie', '3': '3 ans', '5': '5 ans', '10': '10 ans', lifetime: 'À vie' } as Record<DurationKey, string>)[this.duration()]
   );
 
   readonly presets: readonly LicensePreset[] = [
     {
-      key:         'starter',
-      name:        'Starter',
-      tagline:     'Streaming & réseaux sociaux',
-      icon:        'bi-music-note-beamed',
-      duration:    'stream',
-      isLifetime:  false,
-      territory:   'France',
-      mechanical:  false,
-      publicShow:  false,
-      arrangement: false,
+      key: 'starter', name: 'Starter', tagline: 'Streaming & réseaux sociaux',
+      icon: 'bi-music-note-beamed', duration: 'stream', isLifetime: false,
+      territory: 'France', mechanical: false, publicShow: false, arrangement: false,
     },
     {
-      key:         'standard',
-      name:        'Standard',
-      tagline:     'Sorties officielles + concerts',
-      icon:        'bi-vinyl-fill',
-      duration:    '5',
-      isLifetime:  false,
-      territory:   'Europe',
-      mechanical:  true,
-      publicShow:  true,
-      arrangement: false,
-      popular:     true,
+      key: 'standard', name: 'Standard', tagline: 'Sorties officielles + concerts',
+      icon: 'bi-vinyl-fill', duration: '5', isLifetime: false,
+      territory: 'Europe', mechanical: true, publicShow: true, arrangement: false, popular: true,
     },
     {
-      key:         'integral',
-      name:        'Liberté totale',
-      tagline:     'Tous droits · monde entier · à vie',
-      icon:        'bi-globe2',
-      duration:    'stream',
-      isLifetime:  true,
-      territory:   'Monde entier',
-      mechanical:  true,
-      publicShow:  true,
-      arrangement: true,
+      key: 'integral', name: 'Liberté totale', tagline: 'Tous droits · monde entier · à vie',
+      icon: 'bi-globe2', duration: 'stream', isLifetime: true,
+      territory: 'Monde entier', mechanical: true, publicShow: true, arrangement: true,
     },
   ];
 
@@ -164,11 +138,11 @@ export class ContractConfigComponent implements OnInit {
     const showEffective = this.publicShowAutoIncluded() || this.rightPublicShow();
     for (const p of this.presets) {
       if (
-        this.isLifetime()     === p.isLifetime &&
-        (p.isLifetime || this.duration()   === p.duration) &&
-        this.territory()      === p.territory &&
-        mechEffective         === p.mechanical &&
-        showEffective         === p.publicShow &&
+        this.isLifetime()       === p.isLifetime &&
+        (p.isLifetime || this.duration() === p.duration) &&
+        this.territory()        === p.territory &&
+        mechEffective           === p.mechanical &&
+        showEffective           === p.publicShow &&
         this.rightArrangement() === p.arrangement
       ) return p.key;
     }
@@ -176,8 +150,6 @@ export class ContractConfigComponent implements OnInit {
   });
 
   constructor() {
-    // Quand un droit devient auto-inclus, on efface la sélection manuelle
-    // pour éviter un double-comptage si le seuil repasse en dessous.
     effect(() => { if (this.mechanicalAutoIncluded()) this.rightMechanical.set(false); });
     effect(() => { if (this.publicShowAutoIncluded())  this.rightPublicShow.set(false); });
   }
@@ -186,6 +158,9 @@ export class ContractConfigComponent implements OnInit {
     const trackId = Number(this.route.snapshot.paramMap.get('trackId'));
     const fmt     = this.route.snapshot.paramMap.get('format') as Format;
     if (fmt && ['mp3', 'wav', 'stems'].includes(fmt)) this.format.set(fmt);
+
+    // Quick mode default: apply cheapest (starter) preset upfront
+    this.applyPreset(this.presets[0]);
 
     this.trackSvc.getTrackDetail(trackId).subscribe({
       next: (res) => {
@@ -200,6 +175,14 @@ export class ContractConfigComponent implements OnInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  setMode(m: Mode): void {
+    this.mode.set(m);
+    if (m === 'quick') {
+      this.applyPreset(this.presets[0]); // reset to starter
+    }
+    this.cdr.markForCheck();
   }
 
   applyPreset(p: LicensePreset): void {

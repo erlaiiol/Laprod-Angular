@@ -39,7 +39,7 @@ export class HomeComponent implements OnInit {
   showOnboarding  = signal(false);
   showHero        = signal(false);
   displayMode     = signal<'list' | 'gallery'>(
-    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'list'
+    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'gallery'
   );
 
   // Pagination

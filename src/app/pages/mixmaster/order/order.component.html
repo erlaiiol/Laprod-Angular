@@ -42,14 +42,13 @@
           </div>
           <p class="price-note">
             Le montant total est <strong>débité immédiatement</strong> et conservé sur la plateforme.
+            <br><br>
+            • Livraison initiale → <strong>30%</strong> reversés à l'ingénieur<br>
+            • Chaque révision demandée → <strong>+10%</strong> supplémentaires reversés<br>
+            • Validation finale → solde reversé (70%, 60% ou 50% selon révisions)<br>
             <br>
-            <br>• Livraison initiale → <strong>30%</strong> reversés à l'ingénieur
-            <br>• Chaque révision demandée → <strong>+10%</strong> supplémentaires reversés
-            <br>• Validation finale → solde reversé (70%, 60% ou 50% selon révisions)
-            <br>
-            <br><em>Refus de <b>l'ingénieur</b> avant révision = remboursement intégral.</em>
-            <br>
-            <br><em>Refus de <b>votre part</b> = remboursement du solde restant.</em>
+            <em>Refus de <b>l'ingénieur</b> avant révision = remboursement intégral.</em><br>
+            <em>Refus de <b>votre part</b> = remboursement du solde restant.</em>
           </p>
         </div>
       </aside>
@@ -62,78 +61,205 @@
         <!-- Guide mixage -->
         <app-mixmaster-guide></app-mixmaster-guide>
 
-        <!-- Titre -->
+        <!-- ── Mode Toggle ──────────────────────────────────────────────── -->
+        <div class="mode-bar">
+          <div class="mode-toggle" [class.mode-toggle--advanced]="mode() === 'advanced'">
+            <div class="mode-toggle__indicator"></div>
+            <button type="button" class="mode-btn" [class.active]="mode() === 'quick'"
+                    (click)="setMode('quick')">
+              <i class="bi bi-lightning-charge-fill"></i> Rapide
+            </button>
+            <button type="button" class="mode-btn" [class.active]="mode() === 'advanced'"
+                    (click)="setMode('advanced')">
+              <i class="bi bi-sliders"></i> Avancé
+            </button>
+          </div>
+          <p class="mode-tagline">
+            @if (mode() === 'quick') {
+              Commande simplifiée · l'ingénieur gère le reste
+            } @else {
+              Choisissez vos services et détaillez votre brief
+            }
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             MODE RAPIDE — résumé des services inclus
+             ═══════════════════════════════════════════════════════════════ -->
+        @if (mode() === 'quick') {
+          <div class="quick-summary">
+            <div class="qs-header">
+              <i class="bi bi-lightning-charge-fill qs-header__icon"></i>
+              <div>
+                <strong>Mode Rapide activé</strong>
+                <span>L'ingénieur prend en main toutes les décisions techniques. Tu peux lui envoyer un message pour orienter le travail.</span>
+              </div>
+            </div>
+
+            @if (mandatoryServices().size > 0) {
+              <p class="qs-services-label">Services inclus (tarif minimum de l'ingénieur) :</p>
+              <ul class="qs-list">
+
+                @if (mandatoryServices().has('cleaning')) {
+                  <li class="qs-item qs-item--ok">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div class="qs-item__body">
+                      <strong>Nettoyage & équilibre · +{{ (ref() * 0.35).toFixed(2) }}€</strong>
+                      <span>Suppression des bruits parasites, équilibre des fréquences et correction de dynamique sur chaque piste.</span>
+                    </div>
+                    <span class="has-tip" tabindex="0">
+                      <i class="bi bi-info-circle"></i>
+                      <div class="tip tip--left">
+                        Le nettoyage consiste à <strong>supprimer les bruits parasites</strong> (souffle, claquements, hum…), <strong>équilibrer les fréquences</strong> de chaque piste et <strong>corriger la dynamique</strong>. C'est la base absolue de tout bon mix — il garantit que chaque instrument est propre, présent et lisible dans le spectre audio global.
+                      </div>
+                    </span>
+                  </li>
+                }
+
+                @if (mandatoryServices().has('effects')) {
+                  <li class="qs-item qs-item--ok">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div class="qs-item__body">
+                      <strong>Mixage avec effets · +{{ (ref() * 0.45).toFixed(2) }}€</strong>
+                      <span>Reverbs, delays, compression créative, filtres — pour donner profondeur et caractère au morceau.</span>
+                    </div>
+                    <span class="has-tip" tabindex="0">
+                      <i class="bi bi-info-circle"></i>
+                      <div class="tip tip--left">
+                        L'ingénieur ajoute des <strong>effets créatifs</strong> : réverbes pour simuler des espaces acoustiques, delays pour la profondeur et le groove, chorus, saturation légère, automation de volume… C'est ce qui transforme des pistes brutes en une production <strong>cohérente, immersive et identifiable</strong>. C'est là où s'exprime véritablement l'oreille artistique de l'ingénieur.
+                      </div>
+                    </span>
+                  </li>
+                }
+
+                @if (mandatoryServices().has('mastering')) {
+                  <li class="qs-item qs-item--ok">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div class="qs-item__body">
+                      <strong>Mastering final · +{{ (ref() * 0.20).toFixed(2) }}€</strong>
+                      <span>Optimisation du volume global et de la cohérence tonale pour toutes les plateformes.</span>
+                    </div>
+                    <span class="has-tip" tabindex="0">
+                      <i class="bi bi-info-circle"></i>
+                      <div class="tip tip--left">
+                        Le mastering est la <strong>dernière étape de post-production</strong> : il optimise le volume global (loudness normalization LUFS), l'équilibre tonal final et la cohérence stéréo pour que ton morceau sonne <strong>parfaitement sur toutes les enceintes</strong> (écouteurs, voiture, home cinema, enceintes club) et respecte les normes des plateformes (Spotify, Apple Music, SoundCloud…). Seul un ingénieur certifié peut proposer ce service.
+                      </div>
+                    </span>
+                  </li>
+                }
+
+                @if (mandatoryServices().has('artistic')) {
+                  <li class="qs-item qs-item--ok">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div class="qs-item__body">
+                      <strong>Intervention artistique · +{{ (ref() * 0.60).toFixed(2) }}€</strong>
+                      <span>L'ingénieur intervient créativement sur la production : ré-arrangement partiel, ajout d'éléments musicaux.</span>
+                    </div>
+                    <span class="has-tip" tabindex="0">
+                      <i class="bi bi-info-circle"></i>
+                      <div class="tip tip--left">
+                        L'ingénieur <strong>intervient artistiquement</strong> sur ta production : réécriture partielle de certains éléments instrumentaux, ajout de synthés, de cordes ou de percussions, re-arrangement de sections. C'est une <strong>véritable collaboration créative</strong> qui va bien au-delà du simple mix — réservée aux ingénieurs certifiés Producteur/Arrangeur.
+                      </div>
+                    </span>
+                  </li>
+                }
+
+              </ul>
+            } @else {
+              <div class="qs-no-mandatory">
+                <i class="bi bi-info-circle"></i>
+                <span>
+                  Cet ingénieur n'impose aucun service minimum — le tarif plancher
+                  <strong>{{ engineer()!.mixmaster_price_min?.toFixed(2) ?? '—' }}€</strong>
+                  s'applique automatiquement.
+                  Passe en <strong>Avancé</strong> pour choisir tes services manuellement.
+                </span>
+              </div>
+            }
+
+            <p class="qs-footer">
+              <i class="bi bi-arrow-right-circle"></i>
+              Passe en <strong>Avancé</strong> pour ajouter des services, un briefing détaillé par élément ou une piste de référence.
+            </p>
+          </div>
+        }
+
+        <!-- ── Titre (always shown) ─────────────────────────────────────── -->
         <div class="field-group">
           <label>Titre du projet <span class="req">*</span></label>
           <input type="text" [ngModel]="title()" (ngModelChange)="title.set($event)"
                  name="title" placeholder="Nom de votre projet" maxlength="50">
         </div>
 
-        <!-- Services -->
-        <div class="field-group">
-          <label>Services souhaités <span class="req">*</span></label>
-          @if (mandatoryServices().size > 0) {
-            <p class="mandatory-notice">
-              <i class="bi bi-lock-fill"></i>
-              Les services marqués <strong>inclus</strong> sont imposés par le tarif minimum de cet ingénieur et ne peuvent pas être décochés.
-            </p>
-          }
-          <div class="checkboxes">
-            <label class="chk-row" [class.chk-locked]="mandatoryServices().has('cleaning')">
-              <input type="checkbox"
-                     [checked]="serviceCleaning()"
-                     [disabled]="mandatoryServices().has('cleaning')"
-                     (change)="!mandatoryServices().has('cleaning') && serviceCleaning.set(!serviceCleaning())">
-              Nettoyage &amp; équilibre
-              @if (mandatoryServices().has('cleaning')) { <span class="chk-mandatory">inclus</span> }
-              <span class="chk-price">+{{ (ref() * 0.35).toFixed(2) }}€</span>
-            </label>
-            <label class="chk-row" [class.chk-locked]="mandatoryServices().has('effects')">
-              <input type="checkbox"
-                     [checked]="serviceEffects()"
-                     [disabled]="mandatoryServices().has('effects')"
-                     (change)="!mandatoryServices().has('effects') && serviceEffects.set(!serviceEffects())">
-              Mixage avec effets
-              @if (mandatoryServices().has('effects')) { <span class="chk-mandatory">inclus</span> }
-              <span class="chk-price">+{{ (ref() * 0.45).toFixed(2) }}€</span>
-            </label>
-            @if (engineer()!.is_certified_master_engineer || engineer()!.subscription_plan === 'pro') {
-              <label class="chk-row" [class.chk-locked]="mandatoryServices().has('mastering')">
+        <!-- ═══════════════════════════════════════════════════════════════
+             MODE AVANCÉ uniquement — services
+             ═══════════════════════════════════════════════════════════════ -->
+        @if (mode() === 'advanced') {
+          <div class="field-group">
+            <label>Services souhaités <span class="req">*</span></label>
+            @if (mandatoryServices().size > 0) {
+              <p class="mandatory-notice">
+                <i class="bi bi-lock-fill"></i>
+                Les services marqués <strong>inclus</strong> sont imposés par le tarif minimum de cet ingénieur et ne peuvent pas être décochés.
+              </p>
+            }
+            <div class="checkboxes">
+              <label class="chk-row" [class.chk-locked]="mandatoryServices().has('cleaning')">
                 <input type="checkbox"
-                       [checked]="serviceMastering()"
-                       [disabled]="mandatoryServices().has('mastering')"
-                       (change)="!mandatoryServices().has('mastering') && serviceMastering.set(!serviceMastering())">
-                Mastering final
-                @if (engineer()!.is_certified_master_engineer) {
-                  <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
-                } @else {
-                  <span class="chk-badge-pro"><i class="bi bi-star-fill"></i> Pro</span>
-                }
-                @if (mandatoryServices().has('mastering')) { <span class="chk-mandatory">inclus</span> }
+                       [checked]="serviceCleaning()"
+                       [disabled]="mandatoryServices().has('cleaning')"
+                       (change)="!mandatoryServices().has('cleaning') && serviceCleaning.set(!serviceCleaning())">
+                Nettoyage &amp; équilibre
+                @if (mandatoryServices().has('cleaning')) { <span class="chk-mandatory">inclus</span> }
+                <span class="chk-price">+{{ (ref() * 0.35).toFixed(2) }}€</span>
+              </label>
+              <label class="chk-row" [class.chk-locked]="mandatoryServices().has('effects')">
+                <input type="checkbox"
+                       [checked]="serviceEffects()"
+                       [disabled]="mandatoryServices().has('effects')"
+                       (change)="!mandatoryServices().has('effects') && serviceEffects.set(!serviceEffects())">
+                Mixage avec effets
+                @if (mandatoryServices().has('effects')) { <span class="chk-mandatory">inclus</span> }
+                <span class="chk-price">+{{ (ref() * 0.45).toFixed(2) }}€</span>
+              </label>
+              @if (engineer()!.is_certified_master_engineer || engineer()!.subscription_plan === 'pro') {
+                <label class="chk-row" [class.chk-locked]="mandatoryServices().has('mastering')">
+                  <input type="checkbox"
+                         [checked]="serviceMastering()"
+                         [disabled]="mandatoryServices().has('mastering')"
+                         (change)="!mandatoryServices().has('mastering') && serviceMastering.set(!serviceMastering())">
+                  Mastering final
+                  @if (engineer()!.is_certified_master_engineer) {
+                    <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
+                  } @else {
+                    <span class="chk-badge-pro"><i class="bi bi-star-fill"></i> Pro</span>
+                  }
+                  @if (mandatoryServices().has('mastering')) { <span class="chk-mandatory">inclus</span> }
+                  <span class="chk-price">+{{ (ref() * 0.20).toFixed(2) }}€</span>
+                </label>
+              }
+              @if (engineer()!.is_certified_producer_arranger) {
+                <label class="chk-row chk-artistic" [class.chk-locked]="mandatoryServices().has('artistic')">
+                  <input type="checkbox"
+                         [checked]="serviceArtistic()"
+                         [disabled]="mandatoryServices().has('artistic')"
+                         (change)="!mandatoryServices().has('artistic') && serviceArtistic.set(!serviceArtistic())">
+                  Intervention artistique
+                  <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Producteur</span>
+                  @if (mandatoryServices().has('artistic')) { <span class="chk-mandatory">inclus</span> }
+                  <span class="chk-price">+{{ (ref() * 0.60).toFixed(2) }}€</span>
+                </label>
+              }
+              <label class="chk-row">
+                <input type="checkbox" [checked]="hasSeparatedStems()" (change)="hasSeparatedStems.set(!hasSeparatedStems())">
+                Stems (pistes) de la composition / beat séparées
                 <span class="chk-price">+{{ (ref() * 0.20).toFixed(2) }}€</span>
               </label>
-            }
-            @if (engineer()!.is_certified_producer_arranger) {
-              <label class="chk-row chk-artistic" [class.chk-locked]="mandatoryServices().has('artistic')">
-                <input type="checkbox"
-                       [checked]="serviceArtistic()"
-                       [disabled]="mandatoryServices().has('artistic')"
-                       (change)="!mandatoryServices().has('artistic') && serviceArtistic.set(!serviceArtistic())">
-                Intervention artistique
-                <span class="chk-badge-certif"><i class="bi bi-patch-check-fill"></i> Certifié Producteur</span>
-                @if (mandatoryServices().has('artistic')) { <span class="chk-mandatory">inclus</span> }
-                <span class="chk-price">+{{ (ref() * 0.60).toFixed(2) }}€</span>
-              </label>
-            }
-            <label class="chk-row">
-              <input type="checkbox" [checked]="hasSeparatedStems()" (change)="hasSeparatedStems.set(!hasSeparatedStems())">
-              Stems (pistes) de la composition / beat séparées
-              <span class="chk-price">+{{ (ref() * 0.20).toFixed(2) }}€</span>
-            </label>
+            </div>
           </div>
-        </div>
+        }
 
-        <!-- Fichier stems -->
+        <!-- ── Fichier stems (always shown) ────────────────────────────── -->
         <div class="field-group">
           <label>Archive stems (ZIP ou RAR) <span class="req">*</span></label>
           <label class="file-drop" [class.has-file]="stemsFile()">
@@ -150,120 +276,137 @@
           </label>
         </div>
 
-        <!-- Fichier référence -->
+        <!-- ═══════════════════════════════════════════════════════════════
+             MODE AVANCÉ uniquement — référence + briefing détaillé
+             ═══════════════════════════════════════════════════════════════ -->
+        @if (mode() === 'advanced') {
+          <div class="field-group">
+            <label>Piste de référence (MP3/WAV — optionnel)</label>
+            <label class="file-drop" [class.has-file]="referenceFile()">
+              <input type="file" accept=".mp3,.wav" (change)="onReferenceChange($event)" hidden>
+              @if (referenceFile()) {
+                <i class="bi bi-file-earmark-music"></i>
+                <span class="file-drop-name">{{ referenceFile()!.name }}</span>
+                <span class="file-drop-change">Changer de fichier</span>
+              } @else {
+                <i class="bi bi-music-note-beamed"></i>
+                <span class="file-drop-hint">Cliquez pour ajouter une piste de référence</span>
+                <span class="file-drop-sub">.mp3 ou .wav — un morceau dont vous aimez le mix</span>
+              }
+            </label>
+          </div>
+        }
+
+        <!-- ── Message artiste (always shown, label adapté au mode) ─────── -->
         <div class="field-group">
-          <label>Piste de référence (MP3/WAV — optionnel)</label>
-          <label class="file-drop" [class.has-file]="referenceFile()">
-            <input type="file" accept=".mp3,.wav" (change)="onReferenceChange($event)" hidden>
-            @if (referenceFile()) {
-              <i class="bi bi-file-earmark-music"></i>
-              <span class="file-drop-name">{{ referenceFile()!.name }}</span>
-              <span class="file-drop-change">Changer de fichier</span>
+          <label>
+            @if (mode() === 'quick') {
+              Message pour l'ingénieur (optionnel)
             } @else {
-              <i class="bi bi-music-note-beamed"></i>
-              <span class="file-drop-hint">Cliquez pour ajouter une piste de référence</span>
-              <span class="file-drop-sub">.mp3 ou .wav — un morceau dont vous aimez le mix</span>
+              Message général pour l'ingénieur
             }
           </label>
-        </div>
-
-        <!-- Message artiste -->
-        <div class="field-group">
-          <label>Message général pour l'ingénieur</label>
           <textarea rows="5" maxlength="2000"
                     [ngModel]="artistMessage()" (ngModelChange)="artistMessage.set($event)"
                     name="artistMessage"
-                    placeholder="Présentez votre projet : genre musical, ambiance souhaitée, contraintes particulières, deadline... Plus vous donnez de contexte, meilleur sera le résultat."></textarea>
+                    [placeholder]="mode() === 'quick'
+                      ? 'Décrivez en quelques mots l\'ambiance souhaitée, votre genre musical, ou toute contrainte particulière…'
+                      : 'Présentez votre projet : genre musical, ambiance souhaitée, contraintes particulières, deadline… Plus vous donnez de contexte, meilleur sera le résultat.'">
+          </textarea>
         </div>
 
-        <!-- Briefing accordéon -->
-        <details class="briefing-accordion">
-          <summary><i class="bi bi-sliders"></i> Briefing détaillé par élément (optionnel)</summary>
-          <p class="briefing-intro">Décrivez précisément ce que vous attendez pour chaque élément. L'ingénieur s'appuiera sur ces indications pour affiner le mix.</p>
-          <div class="briefing-grid">
-            <div class="field-group">
-              <label>Voix principale</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefVocals()" (ngModelChange)="briefVocals.set($event)" name="briefVocals"
-                        placeholder="ex : voix claire et présente, légèrement autotuned, réverbe courte discrète..."></textarea>
+        <!-- ═══════════════════════════════════════════════════════════════
+             MODE AVANCÉ uniquement — briefing détaillé par élément
+             ═══════════════════════════════════════════════════════════════ -->
+        @if (mode() === 'advanced') {
+          <details class="briefing-accordion">
+            <summary><i class="bi bi-sliders"></i> Briefing détaillé par élément (optionnel)</summary>
+            <p class="briefing-intro">Décrivez précisément ce que vous attendez pour chaque élément. L'ingénieur s'appuiera sur ces indications pour affiner le mix.</p>
+            <div class="briefing-grid">
+              <div class="field-group">
+                <label>Voix principale</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefVocals()" (ngModelChange)="briefVocals.set($event)" name="briefVocals"
+                          placeholder="ex : voix claire et présente, légèrement autotuned, réverbe courte discrète..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Chœurs / Backing vocals</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefBackingVocals()" (ngModelChange)="briefBackingVocals.set($event)" name="briefBackingVocals"
+                          placeholder="ex : harmonies larges en stéréo, effet de doublage, légère saturation..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Ambiance générale</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefAmbiance()" (ngModelChange)="briefAmbiance.set($event)" name="briefAmbiance"
+                          placeholder="ex : atmosphère sombre et intimiste, grande réverbe, son large et aéré..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Basse / Sub-basses</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefBass()" (ngModelChange)="briefBass.set($event)" name="briefBass"
+                          placeholder="ex : basse punchue et bien définie, sub profond mais pas envahissant, 808 dominant..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Style / Énergie</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefEnergyStyle()" (ngModelChange)="briefEnergyStyle.set($event)" name="briefEnergyStyle"
+                          placeholder="ex : mix dynamique et percutant, son radio-ready, trap mélodique moderne..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Références artistiques</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefReferences()" (ngModelChange)="briefReferences.set($event)" name="briefReferences"
+                          placeholder="ex : mix proche de Drake - CLB, même traitement que Central Cee..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Instruments</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefInstruments()" (ngModelChange)="briefInstruments.set($event)" name="briefInstruments"
+                          placeholder="ex : piano mis en avant, guitares larges en fond, cordes légèrement réverbées..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Percussions / Drums</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefPercussion()" (ngModelChange)="briefPercussion.set($event)" name="briefPercussion"
+                          placeholder="ex : kick très présent et court, snare claquante avec reverb, hi-hats discrets..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Effets &amp; traitement</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefEffects()" (ngModelChange)="briefEffects.set($event)" name="briefEffects"
+                          placeholder="ex : delay ping-pong sur la voix, flanger sur les synthés, distorsion légère sur le 808..."></textarea>
+              </div>
+              <div class="field-group">
+                <label>Structure du morceau</label>
+                <textarea rows="3" maxlength="500"
+                          [ngModel]="briefStructure()" (ngModelChange)="briefStructure.set($event)" name="briefStructure"
+                          placeholder="ex : refrain plus large et ouvert, couplets plus proches et intimes, break dépouillé vers 2:10..."></textarea>
+              </div>
             </div>
-            <div class="field-group">
-              <label>Chœurs / Backing vocals</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefBackingVocals()" (ngModelChange)="briefBackingVocals.set($event)" name="briefBackingVocals"
-                        placeholder="ex : harmonies larges en stéréo, effet de doublage, légère saturation..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Ambiance générale</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefAmbiance()" (ngModelChange)="briefAmbiance.set($event)" name="briefAmbiance"
-                        placeholder="ex : atmosphère sombre et intimiste, grande réverbe, son large et aéré..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Basse / Sub-basses</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefBass()" (ngModelChange)="briefBass.set($event)" name="briefBass"
-                        placeholder="ex : basse punchue et bien définie, sub profond mais pas envahissant, 808 dominant..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Style / Énergie</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefEnergyStyle()" (ngModelChange)="briefEnergyStyle.set($event)" name="briefEnergyStyle"
-                        placeholder="ex : mix dynamique et percutant, son radio-ready, trap mélodique moderne..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Références artistiques</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefReferences()" (ngModelChange)="briefReferences.set($event)" name="briefReferences"
-                        placeholder="ex : mix proche de Drake - CLB, même traitement que Central Cee..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Instruments</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefInstruments()" (ngModelChange)="briefInstruments.set($event)" name="briefInstruments"
-                        placeholder="ex : piano mis en avant, guitares larges en fond, cordes légèrement réverbées..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Percussions / Drums</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefPercussion()" (ngModelChange)="briefPercussion.set($event)" name="briefPercussion"
-                        placeholder="ex : kick très présent et court, snare claquante avec reverb, hi-hats discrets..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Effets &amp; traitement</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefEffects()" (ngModelChange)="briefEffects.set($event)" name="briefEffects"
-                        placeholder="ex : delay ping-pong sur la voix, flanger sur les synthés, distorsion légère sur le 808..."></textarea>
-            </div>
-            <div class="field-group">
-              <label>Structure du morceau</label>
-              <textarea rows="3" maxlength="500"
-                        [ngModel]="briefStructure()" (ngModelChange)="briefStructure.set($event)" name="briefStructure"
-                        placeholder="ex : refrain plus large et ouvert, couplets plus proches et intimes, break dépouillé vers 2:10..."></textarea>
-            </div>
+          </details>
+
+          <div class="stems-naming-tip">
+            <i class="bi bi-info-circle-fill"></i>
+            <p>
+              <strong>Nommez soigneusement vos pistes.</strong>
+              L'ingénieur du son se base sur les noms de vos fichiers pour organiser et travailler le mix.
+              Un nommage confus ou générique (<em>track1, piste, final_v3…</em>) représente un travail supplémentaire
+              important — il peut entraîner un refus de la commande.
+            </p>
           </div>
-        </details>
+        }
 
-        <!-- Tooltip nommage pistes -->
-        <div class="stems-naming-tip">
-          <i class="bi bi-info-circle-fill"></i>
-          <p>
-            <strong>Nommez soigneusement vos pistes.</strong>
-            L'ingénieur du son se base sur les noms de vos fichiers pour organiser et travailler le mix.
-            Un nommage confus ou générique (<em>track1, piste, final_v3…</em>) représente un travail supplémentaire
-            important — il peut entraîner un refus de la commande.
-          </p>
-        </div>
-
-        <button type="submit" class="btn-submit" [disabled]="submitting()">
+        <button type="submit" class="btn-submit"
+                [class.btn-submit--quick]="mode() === 'quick'"
+                [disabled]="submitting()">
           @if (submitting()) {
             <span class="spinner-sm"></span> Redirection vers Stripe...
           } @else {
-            <i class="bi bi-credit-card"></i> Payer {{ estimatedPrice().toFixed(2) }}€ maintenant via Stripe
+            <i class="bi bi-credit-card"></i>
+            Payer {{ estimatedPrice().toFixed(2) }}€ maintenant via Stripe
           }
         </button>
-
-
 
       </form>
     </div>

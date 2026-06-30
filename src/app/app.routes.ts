@@ -7,7 +7,7 @@ import { HomeComponent }           from './pages/home/home.component';
 import { UploadTrackComponent }         from './pages/upload-track/upload-track.component';
 import { LoginComponent }          from './pages/auth/login/login.component';
 import { TrackDetailComponent }    from './pages/track-detail/track-detail.component';
-import { ContractConfigComponent } from './pages/contract-config/contract-config.component';
+import { TrackContractConfigComponent } from './pages/track-contract-config/track-contract-config.component';
 import { WalletComponent }         from './pages/wallet/wallet.component';
 import { RegisterComponent }        from './pages/auth/register/register.component';
 import { VerifyEmailComponent }     from './pages/auth/verify-email/verify-email.component';
@@ -55,7 +55,7 @@ export const routes: Routes = [
   { path: 'track/:id',                     component: TrackDetailComponent },
   { path: 'playlist/:id',                  component: PlaylistComponent },
   { path: 'edit-track/:id',                component: EditTrackComponent,               canActivate: [authGuard] },
-  { path: 'contract/:trackId/:format',     component: ContractConfigComponent,          canActivate: [authGuard] },
+  { path: 'contract/:trackId/:format',     component: TrackContractConfigComponent,     canActivate: [authGuard] },
   { path: 'wallet',                        component: WalletComponent,                  canActivate: [authGuard] },
   { path: 'submit-sample',                 component: SubmitMixmasterSampleComponent,   canActivate: [authGuard] },
   { path: 'profile/edit',                  component: EditProfileComponent,             canActivate: [authGuard] },

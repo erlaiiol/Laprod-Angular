@@ -7,14 +7,23 @@
 #   - Lancer ng build avant le premier déploiement (ou laisser Dockerfile.frontend le faire)
 #
 # Premier démarrage :
-#   docker compose up -d --build
+#   docker compose -f docker-compose.yml up -d --build
 #
-# Mise à jour du code :
-#   git pull && docker compose up -d --build
+# Mise à jour complète (backend + frontend) :
+#   git pull && docker compose -f docker-compose.yml up -d --build
+#
+# Mise à jour frontend UNIQUEMENT (sans toucher au backend) :
+#   git pull && ./scripts/deploy-frontend.sh
+#   OU manuellement :
+#   docker compose -f docker-compose.yml build frontend
+#   docker compose -f docker-compose.yml up -d --no-deps --force-recreate frontend
 #
 # Logs :
 #   docker compose logs -f
 #   docker compose logs -f web
+#
+# IMPORTANT : toujours utiliser -f docker-compose.yml sur le serveur pour
+# ignorer docker-compose.override.yml (réservé au développement local).
 # =============================================================================
 
 services:
@@ -33,6 +42,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - laprod
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -52,6 +63,8 @@ services:
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - laprod
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -82,6 +95,8 @@ services:
     volumes:
       - ./db_assets:/usr/src/app/db_assets    # uploads persistants
       - ./logs:/usr/src/app/logs
+    networks:
+      - laprod
     expose:
       - "5000"
     depends_on:
@@ -123,6 +138,8 @@ services:
     volumes:
       - ./db_assets:/usr/src/app/db_assets
       - ./logs:/usr/src/app/logs
+    networks:
+      - laprod
     depends_on:
       db:
         condition: service_healthy
@@ -147,6 +164,8 @@ services:
       - ./db_assets:/usr/src/app/db_assets:ro  # fichiers statiques Flask (images, audio)
       - certbot_www:/var/www/certbot:ro        # challenge Let's Encrypt
       - certbot_conf:/etc/letsencrypt:ro       # certificats SSL
+    networks:
+      - laprod
     depends_on:
       web:
         condition: service_healthy
@@ -158,20 +177,22 @@ services:
   # Certbot — Let's Encrypt (déclenché manuellement)
   #
   # Premier certificat :
-  #   docker compose run --rm certbot certonly --webroot \
+  #   docker compose -f docker-compose.yml run --rm certbot certonly --webroot \
   #     --webroot-path=/var/www/certbot \
   #     -d laprod.net -d www.laprod.net \
   #     --email contact@laprod.net --agree-tos --no-eff-email
   #
   # Renouvellement (cron Ubuntu) :
-  #   0 3 * * 1 docker compose run --rm certbot renew \
-  #             && docker compose exec frontend nginx -s reload
+  #   0 3 * * 1 docker compose -f docker-compose.yml run --rm certbot renew \
+  #             && docker compose -f docker-compose.yml exec frontend nginx -s reload
   # ---------------------------------------------------------------------------
   certbot:
     image: certbot/certbot
     volumes:
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
+    networks:
+      - laprod
     profiles:
       - certbot
 
@@ -183,3 +204,14 @@ volumes:
   redis_data:
   certbot_www:
   certbot_conf:
+
+# -----------------------------------------------------------------------------
+# Réseau nommé explicite
+# Sans ce réseau nommé, Docker Compose utilise {projet}_default et peut le
+# recréer lors de rebuilds partiels (--build frontend), ce qui déconnecte tous
+# les services pendant quelques secondes.
+# Un réseau nommé persist indépendamment du cycle de vie des containers.
+# -----------------------------------------------------------------------------
+networks:
+  laprod:
+    driver: bridge

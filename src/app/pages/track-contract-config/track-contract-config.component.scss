@@ -1,5 +1,7 @@
 @use 'variables' as v;
 
+// ── Layout ────────────────────────────────────────────────────────────────────
+
 .contract-page {
   display:   grid;
   grid-template-columns: 260px 1fr;
@@ -12,6 +14,8 @@
   @media (max-width: 700px) { grid-template-columns: 1fr; }
 }
 
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
 .contract-sidebar {
   background:    v.$bg-surface;
   border:        1px solid v.$bg-border;
@@ -23,9 +27,9 @@
   top:           1rem;
 }
 
-.sidebar-cover     { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; }
-.sidebar-title     { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
-.sidebar-artist    { font-size: 0.82rem; color: v.$text-secondary; margin: 0 0 0.75rem; }
+.sidebar-cover  { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; }
+.sidebar-title  { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
+.sidebar-artist { font-size: 0.82rem; color: v.$text-secondary; margin: 0 0 0.75rem; }
 
 .format-badge {
   display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px;
@@ -46,19 +50,203 @@
   background: v.$bg-elevated; border: 1px solid v.$bg-border-subtle;
   border-radius: 10px; padding: 1rem; margin-top: 0.5rem;
 }
-.price-box-total    { font-size: 2rem;   font-weight: 800; color: v.$accent; }
-.price-box-label    { font-size: 0.75rem; color: v.$text-muted;      margin-top: 0.1rem; }
-.price-box-composer { font-size: 0.75rem; color: v.$text-secondary; margin-top: 0.35rem; }
+.price-box-total { font-size: 2rem;    font-weight: 800; color: v.$accent; }
+.price-box-label { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.1rem; }
 
-// ── Quick-start presets ────────────────────────────────────────────────────────
+// ── Mode Toggle ───────────────────────────────────────────────────────────────
+
+.mode-bar {
+  display:     flex;
+  align-items: center;
+  gap:         1rem;
+  flex-wrap:   wrap;
+  margin-bottom: 1.25rem;
+}
+
+.mode-toggle {
+  position: relative;
+  display:  inline-flex;
+  background: v.$bg-elevated;
+  border:     1px solid v.$bg-border;
+  border-radius: 10px;
+  padding: 4px;
+  gap:     4px;
+  flex-shrink: 0;
+
+  // Sliding indicator
+  .mode-toggle__indicator {
+    position: absolute;
+    left: 4px; top: 4px;
+    width:  calc(50% - 6px);
+    height: calc(100% - 8px);
+    background:    v.$bg-border-subtle;
+    border-radius: 7px;
+    transition: left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  &.mode-toggle--advanced .mode-toggle__indicator {
+    left: calc(50% + 2px);
+  }
+}
+
+.mode-btn {
+  position: relative;
+  z-index:  1;
+  flex: 1;
+  min-width: 88px;
+  display:        flex;
+  align-items:    center;
+  justify-content: center;
+  gap:     0.35rem;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border:     none;
+  border-radius: 7px;
+  font-size:  0.84rem;
+  font-weight: 600;
+  color:  v.$text-muted;
+  cursor: pointer;
+  transition: color 0.22s;
+  white-space: nowrap;
+
+  i { font-size: 0.85rem; }
+
+  &.active { color: v.$text-primary; }
+}
+
+.mode-tagline {
+  font-size:  0.76rem;
+  color:      v.$text-muted;
+  margin:     0;
+  font-style: italic;
+}
+
+// ── Quick Summary card ────────────────────────────────────────────────────────
+
+.quick-summary {
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border;
+  border-left:   3px solid v.$tag-green;
+  border-radius: 10px;
+  padding:       1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.qs-header {
+  display:     flex;
+  align-items: flex-start;
+  gap:         0.75rem;
+  margin-bottom: 1rem;
+
+  &__icon {
+    font-size:   1.2rem;
+    color:       v.$tag-green;
+    flex-shrink: 0;
+    margin-top:  0.1rem;
+  }
+
+  strong { display: block; font-size: 0.92rem; margin-bottom: 0.25rem; }
+  span   { font-size: 0.78rem; color: v.$text-secondary; line-height: 1.5; }
+}
+
+.qs-list {
+  list-style: none;
+  margin:  0 0 0.9rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.qs-item {
+  display:     flex;
+  align-items: flex-start;
+  gap:         0.65rem;
+  padding:     0.5rem 0;
+
+  & + & { border-top: 1px solid v.$bg-border; }
+
+  // Leading status icon
+  > i.bi-check-circle-fill,
+  > i.bi-x-circle { font-size: 0.9rem; flex-shrink: 0; margin-top: 0.15rem; }
+
+  &--ok  > i.bi-check-circle-fill { color: v.$tag-green; }
+  &--off > i.bi-x-circle          { color: v.$text-muted; }
+}
+
+.qs-item__body {
+  flex: 1;
+  strong { display: block; font-size: 0.84rem; font-weight: 600; margin-bottom: 0.1rem; }
+  span   { font-size: 0.74rem; color: v.$text-muted; line-height: 1.4; }
+}
+
+.qs-footer {
+  font-size:  0.78rem;
+  color:      v.$text-secondary;
+  margin:     0;
+  padding-top: 0.75rem;
+  border-top: 1px solid v.$bg-border;
+  line-height: 1.5;
+
+  i        { margin-right: 0.3rem; color: v.$text-muted; }
+  strong   { color: v.$text-primary; }
+}
+
+// ── CSS-only Tooltip ──────────────────────────────────────────────────────────
+
+.has-tip {
+  position:      relative;
+  display:       inline-flex;
+  align-items:   center;
+  cursor:        help;
+  color:         v.$text-muted;
+  flex-shrink:   0;
+  margin-top:    0.1rem;
+
+  > i { font-size: 0.85rem; transition: color 0.15s; }
+
+  &:hover > i,
+  &:focus-within > i { color: v.$tag-blue; }
+
+  .tip {
+    display:  none;
+    position: absolute;
+    z-index:  300;
+    top: calc(100% + 6px);
+    background:    v.$bg-surface;
+    border:        1px solid v.$bg-border-subtle;
+    border-radius: 8px;
+    padding:       0.7rem 0.9rem;
+    font-size:     0.78rem;
+    line-height:   1.55;
+    color:         v.$text-secondary;
+    width:         260px;
+    box-shadow:    0 4px 16px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+
+    strong { color: v.$text-primary; }
+    em     { font-style: normal; color: v.$text-muted; }
+
+    &.tip--left  { left: 0; }
+    &.tip--right { right: 0; }
+  }
+
+  &:hover .tip,
+  &:focus-within .tip { display: block; }
+}
+
+// ── Advanced: Quick-start presets strip ───────────────────────────────────────
 
 .qs-strip {
-  background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: 1rem;
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border;
+  border-radius: 10px;
+  padding:       1.1rem 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .qs-label {
-  font-size: 0.75rem; font-weight: 600; color: v.$text-secondary;
+  font-size:  0.75rem; font-weight: 600; color: v.$text-secondary;
   text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 0.75rem;
   i { color: v.$accent; margin-right: 0.3rem; }
 }
@@ -82,7 +270,7 @@
   &.qs-card--popular { border-color: rgba(167, 139, 250, 0.45); }
 
   &.qs-card--active {
-    border-color: v.$accent; background: rgba(167, 139, 250, 0.1);
+    border-color: v.$accent; background: rgba(213, 36, 36, 0.08);
     i { color: v.$accent; }
     .qs-name { color: v.$accent; }
   }
@@ -101,6 +289,8 @@
   font-size: 0.74rem; color: v.$text-muted; margin: 0.65rem 0 0; text-align: center;
 }
 
+// ── Form sections ─────────────────────────────────────────────────────────────
+
 .contract-form h1 {
   font-size: 1.35rem; font-weight: 700; margin-bottom: 1.5rem;
   i { margin-right: 0.4rem; color: v.$accent; }
@@ -116,13 +306,17 @@
 }
 
 .info-box {
-  background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25);
+  background: rgba(213, 36, 36, 0.06); border: 1px solid rgba(213, 36, 36, 0.2);
   border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.8rem;
   color: v.$text-secondary; margin-bottom: 1rem;
   i { margin-right: 0.4rem; color: v.$accent; }
 }
-.info-warning { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.25); i { color: v.$gold; } }
-.info-info    { background: rgba(v.$tag-blue, 0.08); border-color: rgba(v.$tag-blue, 0.25); display: flex; align-items: flex-start; gap: 0.5rem; i { color: v.$tag-blue; margin: 0; flex-shrink: 0; margin-top: 0.1rem; } span { line-height: 1.5; } }
+.info-info {
+  background: rgba(v.$tag-blue, 0.08); border-color: rgba(v.$tag-blue, 0.25);
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  i { color: v.$tag-blue; margin: 0; flex-shrink: 0; margin-top: 0.1rem; }
+  span { line-height: 1.5; }
+}
 
 .parties-row   { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .parties-label { display: block; font-size: 0.75rem; color: v.$text-muted; margin-bottom: 0.2rem; }
@@ -161,12 +355,13 @@
   border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
   color: v.$text-primary; transition: border-color 0.15s, background 0.15s;
   .btn-fee { font-size: 0.72rem; color: v.$text-muted; margin-top: 0.15rem; }
-  &.selected { border-color: v.$accent; background: rgba(167,139,250,0.1); .btn-fee { color: v.$accent; } }
+  &.selected { border-color: v.$accent; background: rgba(213, 36, 36, 0.08); .btn-fee { color: v.$accent; } }
 }
 
-.stream-btn { border-color: v.$tag-green; color: v.$tag-green;
+.stream-btn {
+  border-color: v.$tag-green; color: v.$tag-green;
   .btn-fee { color: v.$tag-green; }
-  &.selected { background: rgba(16,185,129,0.1); border-color: v.$tag-green; }
+  &.selected { background: rgba(16, 185, 129, 0.1); border-color: v.$tag-green; }
 }
 
 .duration-selected { font-size: 0.8rem; color: v.$text-secondary; margin: 0.25rem 0 0; }
@@ -182,9 +377,11 @@
   background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 8px;
   cursor: pointer; font-size: 0.85rem; transition: border-color 0.15s, background 0.15s;
   input[type="radio"] { accent-color: v.$accent; flex-shrink: 0; }
-  &.selected { border-color: v.$accent; background: rgba(167,139,250,0.08); }
+  &.selected { border-color: v.$accent; background: rgba(213, 36, 36, 0.08); }
   .btn-fee { font-size: 0.75rem; color: v.$text-muted; margin-left: 0.3rem; }
 }
+
+// ── Billing ───────────────────────────────────────────────────────────────────
 
 .billing-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
@@ -200,6 +397,8 @@
     &[readonly] { opacity: 0.65; cursor: default; }
   }
 }
+
+// ── Price Breakdown ───────────────────────────────────────────────────────────
 
 .price-breakdown {
   background: v.$bg-surface; border: 1px solid v.$bg-border;
@@ -220,21 +419,26 @@
   display: flex; justify-content: space-between; align-items: center;
   font-size: 1rem; font-weight: 600;
 }
-.total-price    { font-size: 1.4rem; font-weight: 800; color: v.$accent; }
-.composer-line  { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.5rem; }
+.total-price { font-size: 1.4rem; font-weight: 800; color: v.$accent; }
+
+// ── SACEM notice ──────────────────────────────────────────────────────────────
 
 .sacem-notice {
-  background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+  background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.2);
   border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem;
   color: v.$text-secondary; margin-bottom: 1rem;
   i { color: v.$gold; margin-right: 0.4rem; }
   a { color: v.$gold; }
 }
 
+// ── Form error ────────────────────────────────────────────────────────────────
+
 .form-error {
-  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; color: v.$tag-red-light; margin-bottom: 1rem;
 }
+
+// ── Actions ───────────────────────────────────────────────────────────────────
 
 .form-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 
@@ -250,10 +454,20 @@
   flex: 1; padding: 0.75rem 1.5rem; background: v.$accent-dark; color: #fff;
   border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
   cursor: pointer; transition: background 0.15s;
+  i { margin-right: 0.4rem; }
+
   &:hover:not(:disabled) { background: v.$accent-darker; }
   &:disabled             { opacity: 0.6; cursor: not-allowed; }
-  i { margin-right: 0.4rem; }
+
+  // Quick mode: slightly larger, cleaner CTA emphasis
+  &--quick {
+    padding:     0.85rem 1.75rem;
+    font-size:   1.05rem;
+    letter-spacing: 0.01em;
+  }
 }
+
+// ── States ────────────────────────────────────────────────────────────────────
 
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
 .state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
