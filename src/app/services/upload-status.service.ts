@@ -83,16 +83,33 @@ export class UploadStatusService {
   // Séparé de startPolling pour pouvoir être appelé depuis le constructeur
   // sans re-écrire dans localStorage (les valeurs y sont déjà).
   private _startTimer(jobId: string): void {
+    // 200 ticks × 3 s = 10 minutes max. Au-delà, le worker est probablement
+    // indisponible (Redis down, container crashé) — on informe l'utilisateur.
+    const MAX_POLLS = 200;
+    let pollCount   = 0;
+
     this.pollingSub = timer(0, 3000)
       .pipe(
-        switchMap(() =>
-          this.http.get<JobStatusResponse>(`${this.jobApiUrl}/${jobId}`).pipe(
+        switchMap(() => {
+          pollCount++;
+          if (pollCount > MAX_POLLS) {
+            return of({
+              success: true,
+              data: {
+                status: 'error' as const,
+                error_message: 'timeout',
+                track_id: null,
+                topline_id: null,
+              },
+            } satisfies JobStatusResponse);
+          }
+          return this.http.get<JobStatusResponse>(`${this.jobApiUrl}/${jobId}`).pipe(
             catchError(() => {
               this.toastSvc.showToast({ level: 'warning', message: 'Erreur réseau, nouvelle tentative...' });
               return of(null);
             })
-          )
-        ),
+          );
+        }),
         takeWhile(
           response => response !== null &&
             response.data.status !== 'done' &&
@@ -108,6 +125,15 @@ export class UploadStatusService {
       )
       .subscribe(response => {
         if (!response) return;  // null injecté par catchError → tick ignoré
+        if (response.data.error_message === 'timeout') {
+          this._status.set('error');
+          this._errorMessage.set(
+            'Le traitement prend trop de temps (serveur indisponible ?). ' +
+            'Votre beat sera peut-être traité automatiquement dans quelques minutes. ' +
+            'Vérifiez votre tableau de bord ou contactez le support si le problème persiste.'
+          );
+          return;
+        }
         this._status.set(response.data.status);
         this._errorMessage.set(response.data.error_message ?? null);
         this._trackId.set(response.data.track_id);
