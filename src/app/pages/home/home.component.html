@@ -6,7 +6,25 @@
   <app-onboarding-modal (closed)="showOnboarding.set(false)" />
 }
 
-<app-tag-category-filter />
+<div class="tracks-toolbar">
+  <app-tag-category-filter />
+  <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
+    <button
+      class="layout-btn"
+      [class.layout-btn--active]="displayMode() === 'list'"
+      (click)="setDisplayMode('list')"
+      title="Vue liste">
+      <i class="bi bi-list-ul"></i>
+    </button>
+    <button
+      class="layout-btn"
+      [class.layout-btn--active]="displayMode() === 'gallery'"
+      (click)="setDisplayMode('gallery')"
+      title="Vue galerie">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
+    </button>
+  </div>
+</div>
 
 @if (!auth.isLoggedIn() && showHero()) {
   <section class="lp-landing">
@@ -63,7 +81,7 @@
   </section>
 }
 
-<div id="tracks-container">
+<div id="tracks-container" [class.tracks-gallery]="displayMode() === 'gallery'">
 
   @if (loading()) {
     <div class="state-loading">
@@ -89,7 +107,7 @@
   }
 
   @for (track of tracks(); track track.id) {
-    <app-track-card [track]="track" />
+    <app-track-card [track]="track" [galleryMode]="displayMode() === 'gallery'" />
   }
 
 </div>

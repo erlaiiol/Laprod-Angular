@@ -36,6 +36,9 @@ export class HomeComponent implements OnInit {
   isPersonalized  = signal(false);
   showOnboarding  = signal(false);
   showHero        = signal(false);
+  displayMode     = signal<'list' | 'gallery'>(
+    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'list'
+  );
 
   private trackService       = inject(TrackService);
   private recoService        = inject(RecommendationService);
@@ -84,6 +87,11 @@ export class HomeComponent implements OnInit {
 
   dismissHero(): void {
     this.showHero.set(false);
+  }
+
+  setDisplayMode(mode: 'list' | 'gallery'): void {
+    this.displayMode.set(mode);
+    localStorage.setItem('laprod_display_mode', mode);
   }
 
   loadTracks(): void {

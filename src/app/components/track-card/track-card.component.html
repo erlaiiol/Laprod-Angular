@@ -1,8 +1,11 @@
 <!-- COMPOSANT TRACK-CARD
      Clic sur la carte  → /track/:id  (routerLink)
      Clic sur l'image   → joue/pause  (stopPropagation)
+     galleryMode=true   → layout colonne, compact (3-4 colonnes)
 -->
-<div class="track-card" [routerLink]="['/track', track.id]">
+<div class="track-card"
+     [class.track-card--gallery]="galleryMode"
+     [routerLink]="['/track', track.id]">
 
   <!-- Image + overlay play/pause -->
   <div class="image-wrapper"
@@ -15,13 +18,11 @@
       onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
     <div class="play-overlay">
       @if (isThisTrackPlaying()) {
-        <!-- Pause icon -->
         <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
           <rect x="6" y="4" width="4" height="16"/>
           <rect x="14" y="4" width="4" height="16"/>
         </svg>
       } @else {
-        <!-- Play icon -->
         <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
           <polygon points="5,3 19,12 5,21"/>
         </svg>
@@ -43,26 +44,51 @@
       </a>
     </small>
 
-    <em class="track-meta">
-      {{ track.style || 'Inconnu' }} | {{ track.bpm }} BPM | {{ track.key }}
-    </em>
-
-    <div class="track-tags">
-      <span
-        *ngFor="let tag of visibleTags()"
-        class="tag"
-        [attr.data-category]="tag.category"
-        [style.background-color]="tagBgColor(tag.color)"
-        [style.border-color]="tagBorderColor(tag.color)">
-        #{{ tag.name }}
-      </span>
-      <span class="no-tags" *ngIf="visibleTags().length === 0">Pas de tags</span>
+    <!-- Ligne bas : style + tags + prix -->
+    <div class="track-footer">
+      <div class="track-tags">
+        @if (track.style) {
+          <span class="style-chip">{{ track.style }}</span>
+        }
+        @for (tag of visibleTags(); track tag.name) {
+          <span
+            class="tag"
+            [attr.data-category]="tag.category"
+            [style.background-color]="tagBgColor(tag.color)"
+            [style.border-color]="tagBorderColor(tag.color)">
+            #{{ tag.name }}
+          </span>
+        }
+        @if (hiddenTagCount() > 0) {
+          <button class="tag-more-btn"
+                  (click)="toggleTags($event)"
+                  [title]="'Voir ' + hiddenTagCount() + ' tag(s) de plus'">
+            +{{ hiddenTagCount() }}
+          </button>
+        } @else if (canCollapseTags()) {
+          <button class="tag-more-btn tag-more-btn--collapse"
+                  (click)="toggleTags($event)"
+                  title="Réduire">
+            ↑
+          </button>
+        }
+      </div>
+      <span class="track-price">{{ formatPrice(track.price_mp3) }}</span>
     </div>
-
   </div>
 
   <!-- Boutons actions -->
   <div class="track-actions">
+    <button class="btn-quick-action"
+            (click)="onDownloadPreviewClick($event)"
+            title="Télécharger l'extrait gratuit">
+      <i class="bi bi-download"></i>
+    </button>
+    <button class="btn-quick-action btn-quick-action--rec"
+            (click)="onToplineClick($event)"
+            title="Poser une topline">
+      <i class="bi bi-mic-fill"></i>
+    </button>
     <app-favorite-button [trackId]="track.id"></app-favorite-button>
     <div class="track-playlist-wrap">
       <span class="track-playlist-label">playlists</span>

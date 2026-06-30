@@ -1,19 +1,17 @@
-/* Styles du composant TrackCard uniquement */
 @use 'variables' as v;
 
 :host {
   display: block;
-  margin-bottom: 0.75rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
+
+// ── Layout de base : flex-row (mode liste) ────────────────────────────────────
 
 .track-card {
   display: flex; flex-direction: row; align-items: center; gap: 1rem;
   padding: 0.75rem; background: v.$bg-surface; border: 1px solid v.$bg-border;
   border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease; cursor: pointer; text-decoration: none; color: inherit;
+  margin-bottom: 0.75rem;
 
   &:hover {
     transform: translateY(-2px);
@@ -21,6 +19,8 @@
     border-color: rgba(255, 255, 255, 0.5);
   }
 }
+
+// ── Image ─────────────────────────────────────────────────────────────────────
 
 .image-wrapper {
   position: relative; width: 90px; height: 90px;
@@ -37,6 +37,8 @@
 
 .image-wrapper:hover .play-overlay,
 .image-wrapper.is-playing .play-overlay { opacity: 1; }
+
+// ── Infos texte ───────────────────────────────────────────────────────────────
 
 .track-info { flex: 1; min-width: 0; }
 
@@ -58,25 +60,58 @@
 }
 
 .track-artist {
-  display: block; margin-bottom: 0.15rem;
+  display: block; margin-bottom: 0.3rem;
   a {
     color: v.$text-muted; text-decoration: none; font-size: 0.82rem;
     &:hover { color: v.$off-white; text-decoration: underline; }
   }
 }
 
-.track-meta { display: block; color: v.$text-muted; font-size: 0.75rem; margin-bottom: 0.2rem; }
+// ── Footer : tags + prix ──────────────────────────────────────────────────────
 
-.track-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.track-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.track-tags {
+  display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1; min-width: 0;
+}
+
+.style-chip {
+  padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.72rem;
+  background: rgba(v.$text-muted, 0.12); border: 1px solid rgba(v.$text-muted, 0.25);
+  color: v.$text-secondary; letter-spacing: 0.02em; white-space: nowrap;
+}
 
 .tag {
-  /* background-color, border-color, color : injectés dynamiquement
-     via [style.*] dans le template → darkenColor() de TrackService */
-  padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.75rem;
+  padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem;
   border: 1px solid; color: v.$off-white;
 }
 
-.no-tags { color: v.$text-muted; font-size: 0.8rem; }
+.tag-more-btn {
+  padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.72rem;
+  background: rgba(v.$text-muted, 0.1); border: 1px solid rgba(v.$text-muted, 0.2);
+  color: v.$text-muted; cursor: pointer; transition: all 0.15s ease;
+  line-height: inherit;
+
+  &:hover {
+    background: rgba(v.$text-muted, 0.2);
+    color: v.$off-white;
+  }
+
+  &--collapse { font-size: 0.8rem; }
+}
+
+.track-price {
+  flex-shrink: 0; white-space: nowrap;
+  font-size: 0.85rem; font-weight: 600;
+  color: v.$off-white;
+}
+
+// ── Actions (favoris, playlists) ──────────────────────────────────────────────
 
 .track-actions {
   flex-shrink: 0; display: flex; flex-direction: row; align-items: center; gap: 0.35rem;
@@ -87,12 +122,8 @@
 }
 
 .track-playlist-label {
-  font-size: 0.6rem;
-  color: v.$text-muted;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
-  line-height: 1;
-  pointer-events: none;
+  font-size: 0.6rem; color: v.$text-muted; letter-spacing: 0.04em;
+  text-transform: lowercase; line-height: 1; pointer-events: none;
 }
 
 .btn-favorite {
@@ -100,4 +131,66 @@
   font-size: 1.4rem; cursor: pointer; padding: 0.25rem; transition: all 0.3s ease;
 
   &:hover { color: v.$tag-red; transform: scale(1.15); }
+}
+
+.btn-quick-action {
+  background: none; border: 1px solid rgba(v.$text-muted, 0.25); border-radius: 5px;
+  color: v.$text-muted; cursor: pointer; padding: 0.25rem 0.4rem;
+  font-size: 0.85rem; line-height: 1; transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba(v.$off-white, 0.4);
+    color: v.$off-white;
+    transform: scale(1.08);
+  }
+
+  &--rec:hover {
+    border-color: rgba(v.$primary, 0.5);
+    color: v.$primary;
+  }
+}
+
+// ── Mode galerie : layout colonne ─────────────────────────────────────────────
+
+.track-card--gallery {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  margin-bottom: 0;
+
+  &:hover { transform: translateY(-3px); }
+
+  .image-wrapper {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .track-info {
+    padding: 0.55rem 0.65rem 0.3rem;
+    flex: 1;
+  }
+
+  .track-info h6 {
+    width: 100%;
+    box-sizing: border-box;
+    .track-title { font-size: 0.87rem; }
+  }
+
+  .track-artist { display: none; }
+
+  .track-footer {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .track-price { font-size: 0.82rem; }
+
+  .track-actions {
+    padding: 0 0.65rem 0.55rem;
+    justify-content: flex-end;
+  }
 }
