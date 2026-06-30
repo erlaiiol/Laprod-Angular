@@ -111,3 +111,8 @@
   }
 
 </div>
+
+<app-pagination
+  [currentPage]="page()"
+  [totalPages]="totalPages()"
+  (pageChange)="goToPage($event)" />

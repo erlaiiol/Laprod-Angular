@@ -37,7 +37,7 @@
       </div>
     } @else {
       <div class="engineers-grid">
-        @for (eng of engineers(); track eng.id) {
+        @for (eng of pagedEngineers(); track eng.id) {
           <div class="engineer-card">
 
             <!-- Avatar + nom -->
@@ -116,6 +116,11 @@
         }
       </div>
     }
+
+    <app-pagination
+      [currentPage]="page()"
+      [totalPages]="totalPages()"
+      (pageChange)="goToPage($event)" />
   }
 
 </div>

@@ -15,16 +15,18 @@ import { RecommendationService } from '../../services/recommendation.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
 import { OnboardingModalComponent } from '../../components/onboarding-modal/onboarding-modal.component';
+import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
 
+const PER_PAGE = 20;
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent],
+  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss']
 })
@@ -39,6 +41,10 @@ export class HomeComponent implements OnInit {
   displayMode     = signal<'list' | 'gallery'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'list'
   );
+
+  // Pagination
+  page       = signal(1);
+  totalPages = signal(1);
 
   private trackService       = inject(TrackService);
   private recoService        = inject(RecommendationService);
@@ -60,23 +66,20 @@ export class HomeComponent implements OnInit {
   });
 
   constructor() {
+    // Filtre ou catégorie changent → toujours revenir à la page 1
     effect(() => {
-      this.filterStateService.applied();    // filtre navbar → recharge
-      this.auth.preferredTagCategory();     // préférence catégorie → recharge
-      this.loadTracks();
+      this.filterStateService.applied();
+      this.auth.preferredTagCategory();
+      this.loadTracks(1);
     }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
-    // Hero de présentation : seulement visiteur anonyme + première visite (localStorage)
     if (!this.auth.isLoggedIn() && !localStorage.getItem('laprod_visited')) {
       this.showHero.set(true);
       localStorage.setItem('laprod_visited', '1');
     }
 
-    // Modale d'onboarding : uniquement si connecté, rôles définis, et jamais vue.
-    // La clé est posée immédiatement pour éviter la ré-apparition si l'utilisateur
-    // navigue ou ferme l'onglet sans interagir avec la modale.
     const user = this.auth.currentUser();
     const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
     if (hasRole && OnboardingModalComponent.shouldShow()) {
@@ -94,20 +97,26 @@ export class HomeComponent implements OnInit {
     localStorage.setItem('laprod_display_mode', mode);
   }
 
-  loadTracks(): void {
+  goToPage(p: number): void {
+    this.loadTracks(p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  loadTracks(page = 1): void {
+    this.page.set(page);
     this.loading.set(true);
     this.error.set(null);
 
     const useRecommendations = this.auth.isLoggedIn() && !this.hasActiveFilters();
 
     if (useRecommendations) {
+      // Les recommandations sont déjà un set curé — pas de pagination
+      this.totalPages.set(1);
       this.recoService.getTracks(this.auth.preferredTagCategory()).pipe(
         switchMap(response => {
           if (!response.success) return of(response);
           const ids = response.data.tracks.map(t => t.id);
-          return this.favSvc.prefetch(ids).pipe(
-            switchMap(() => of(response)),
-          );
+          return this.favSvc.prefetch(ids).pipe(switchMap(() => of(response)));
         })
       ).subscribe({
         next: (response) => {
@@ -119,32 +128,32 @@ export class HomeComponent implements OnInit {
           }
           this.loading.set(false);
         },
-        error: () => {
-          // Fallback silencieux vers les tracks normaux en cas d'erreur reco
-          this._loadRegularTracks();
-        }
+        error: () => this._loadRegularTracks(page),
       });
     } else {
       this.isPersonalized.set(false);
-      this._loadRegularTracks();
+      this._loadRegularTracks(page);
     }
   }
 
-  private _loadRegularTracks(): void {
-    const apiFilters = this.toTrackFilters(this.filterStateService.filters());
+  private _loadRegularTracks(page: number): void {
+    const apiFilters: TrackFilters = {
+      ...this.toTrackFilters(this.filterStateService.filters()),
+      page,
+      per_page: PER_PAGE,
+    };
 
     this.trackService.getTracks(apiFilters).pipe(
       switchMap(response => {
         if (!response.success || !this.auth.isLoggedIn()) return of(response);
         const ids = (response.data.tracks as Track[]).map(t => t.id);
-        return this.favSvc.prefetch(ids).pipe(
-          switchMap(() => of(response)),
-        );
+        return this.favSvc.prefetch(ids).pipe(switchMap(() => of(response)));
       })
     ).subscribe({
       next: (response) => {
         if (response.success) {
           this.tracks.set(response.data.tracks);
+          this.totalPages.set(response.data.pagination.pages);
         } else {
           this.error.set('Le serveur a répondu mais signale une erreur.');
         }
@@ -160,7 +169,6 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  // ── Conversion de format ──────────────────────────────────────────────────
   private toTrackFilters(f: ActiveFilters): TrackFilters {
     return {
       search:       f.search   || undefined,

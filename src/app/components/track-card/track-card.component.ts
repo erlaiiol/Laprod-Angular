@@ -98,8 +98,10 @@ export class TrackCardComponent {
       this.router.navigate(['/login']);
       return;
     }
-    this.playerService.play(this.track);
-    setTimeout(() => this.playerService.recRequested.update(n => n + 1), 150);
+    // track-detail a un effect() qui surveille recRequested() + track() :
+    // dès que les deux sont vrais il pause le player et ouvre la modale.
+    this.playerService.recRequested.update(n => n + 1);
+    this.router.navigate(['/track', this.track.id]);
   }
 
   isThisTrackPlaying(): boolean {

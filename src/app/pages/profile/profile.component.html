@@ -110,7 +110,7 @@
         <p class="empty-state">{{ p.username }} n'a pas encore publié de compositions.</p>
       } @else {
         <div class="tracks-list">
-          @for (track of p.tracks; track track.id) {
+          @for (track of pagedTracks(); track track.id) {
             <div class="track-row">
               <!-- Pochette -->
               <div class="track-cover" (click)="playTrack(track)">
@@ -153,6 +153,10 @@
             </div>
           }
         </div>
+        <app-pagination
+          [currentPage]="trackPage()"
+          [totalPages]="tracksTotalPages()"
+          (pageChange)="goToTrackPage($event)" />
       }
     </div>
 
@@ -163,7 +167,7 @@
           Playlists de {{ profile()!.username }}
         </h2>
         <div class="playlists-grid">
-          @for (pl of playlists(); track pl.id) {
+          @for (pl of pagedPlaylists(); track pl.id) {
             <div class="pl-card-wrap">
               <a class="pl-card" [routerLink]="['/playlist', pl.id]">
                 <div class="pl-card-img-wrap">
@@ -191,6 +195,10 @@
             </div>
           }
         </div>
+        <app-pagination
+          [currentPage]="playlistPage()"
+          [totalPages]="playlistsTotalPages()"
+          (pageChange)="goToPlaylistPage($event)" />
       </div>
     }
 
