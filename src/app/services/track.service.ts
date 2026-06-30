@@ -110,6 +110,7 @@ export interface TrackFilters {
   tag_category?: string;
   page?:         number;
   per_page?:     number;
+  sort?:         'recent' | 'recommended';
 }
 
 

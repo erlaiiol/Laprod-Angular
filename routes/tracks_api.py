@@ -217,14 +217,29 @@ def get_tracks():
                 )
             )
 
-        tracks = db.session.execute(
-            track_query.order_by(Track.created_at.desc())
-            .offset((page - 1) * per_page)
-            .limit(per_page)
-        ).scalars().all()
+        sort = request.args.get('sort', 'recent')
 
-        count_query = track_query.with_only_columns(func.count()).order_by(None)
-        total = db.session.execute(count_query).scalar()
+        if sort == 'recommended' and user_id:
+            from utils.recommendation_service import build_user_vector, score_track as _score
+            all_matching = db.session.execute(
+                track_query.order_by(Track.created_at.desc()).limit(2000)
+            ).scalars().all()
+            total = len(all_matching)
+            try:
+                vec = build_user_vector(user_id)
+                all_matching.sort(key=lambda t: _score(t, vec), reverse=True)
+            except Exception as exc:
+                current_app.logger.warning(f'reco sort fallback: {exc}')
+            start  = (page - 1) * per_page
+            tracks = all_matching[start:start + per_page]
+        else:
+            tracks = db.session.execute(
+                track_query.order_by(Track.created_at.desc())
+                .offset((page - 1) * per_page)
+                .limit(per_page)
+            ).scalars().all()
+            count_query = track_query.with_only_columns(func.count()).order_by(None)
+            total = db.session.execute(count_query).scalar()
 
         pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
         return ok({

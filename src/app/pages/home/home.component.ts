@@ -11,7 +11,6 @@ import { RouterModule } from '@angular/router';
 import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
-import { RecommendationService } from '../../services/recommendation.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
 import { OnboardingModalComponent } from '../../components/onboarding-modal/onboarding-modal.component';
@@ -35,7 +34,7 @@ export class HomeComponent implements OnInit {
   tracks          = signal<Track[]>([]);
   loading         = signal(true);
   error           = signal<string | null>(null);
-  isPersonalized  = signal(false);
+
   showOnboarding  = signal(false);
   showHero        = signal(false);
   heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
@@ -48,7 +47,6 @@ export class HomeComponent implements OnInit {
   totalPages = signal(1);
 
   private trackService       = inject(TrackService);
-  private recoService        = inject(RecommendationService);
   private filterStateService = inject(FilterStateService);
   private toast              = inject(ToastService);
   private favSvc             = inject(FavoritesService);
@@ -107,42 +105,7 @@ export class HomeComponent implements OnInit {
     this.page.set(page);
     this.loading.set(true);
     this.error.set(null);
-
-    // Catégorie sélectionnée → toujours paginé, jamais reco (évite les pages vides)
-    const useRecommendations = this.auth.isLoggedIn()
-      && !this.hasActiveFilters()
-      && !this.auth.preferredTagCategory();
-
-    if (useRecommendations) {
-      // Les recommandations sont déjà un set curé — pas de pagination
-      this.totalPages.set(1);
-      this.recoService.getTracks(this.auth.preferredTagCategory()).pipe(
-        switchMap(response => {
-          if (!response.success) return of(response);
-          const ids = response.data.tracks.map(t => t.id);
-          return this.favSvc.prefetch(ids).pipe(switchMap(() => of(response)));
-        })
-      ).subscribe({
-        next: (response) => {
-          if (response.success) {
-            // Moins d'une page complète → catalogue régulier (parité avec mode déconnecté)
-            if (response.data.tracks.length < PER_PAGE) {
-              this._loadRegularTracks(page);
-              return;
-            }
-            this.tracks.set(response.data.tracks);
-            this.isPersonalized.set(response.data.is_personalized);
-          } else {
-            this.error.set('Le serveur a répondu mais signale une erreur.');
-          }
-          this.loading.set(false);
-        },
-        error: () => this._loadRegularTracks(page),
-      });
-    } else {
-      this.isPersonalized.set(false);
-      this._loadRegularTracks(page);
-    }
+    this._loadRegularTracks(page);
   }
 
   private _loadRegularTracks(page: number): void {
@@ -150,6 +113,7 @@ export class HomeComponent implements OnInit {
       ...this.toTrackFilters(this.filterStateService.filters()),
       page,
       per_page: PER_PAGE,
+      sort: this.auth.isLoggedIn() ? 'recommended' : undefined,
     };
 
     this.trackService.getTracks(apiFilters).pipe(
