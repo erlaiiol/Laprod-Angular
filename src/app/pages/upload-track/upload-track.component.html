@@ -535,7 +535,7 @@
         <h3 class="section-title">Fichiers audio</h3>
         <p class="section-hint">
           <i class="bi bi-info-circle"></i>
-          Au moins un fichier requis : MP3, WAV ou archive stems. Les stems FL Studio sont supportés — le fichier <em>_current</em> (ou <em>_master</em>) est automatiquement extrait comme fichier de vente.
+          Au moins un fichier requis : MP3, WAV ou archive stems. Les stems FL Studio sont supportés — le fichier <b>"_current"</b> (ou <b>"_master"</b>) est automatiquement extrait comme fichier de vente pour le format wav.
         </p>
 
         <div class="file-field">
@@ -557,7 +557,7 @@
           <label class="file-label">
             <i class="bi bi-file-earmark-music"></i>
             <span>
-              <strong>Fichier WAV</strong> <em class="opt">optionnel — suffisant sans MP3</em>
+              <strong>Fichier WAV</strong> <em class="opt">optionnel — suffisant sans MP3 (plus long à àjouter)</em>
               @if (fileWav()) {
                 <em class="file-name">{{ fileWav()!.name }}</em>
               } @else {
@@ -573,7 +573,7 @@
             <label class="file-label">
               <i class="bi bi-file-earmark-zip"></i>
               <span>
-                <strong>Archive stems</strong> <em class="opt">optionnel — suffisant sans MP3/WAV</em>
+                <strong>Archive stems</strong> <em class="opt">optionnel — suffisant sans MP3/WAV(très long à ajouter)</em>
                 @if (fileStems()) {
                   <em class="file-name">{{ fileStems()!.name }}</em>
                 } @else {
