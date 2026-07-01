@@ -217,7 +217,11 @@ export class AuthService {
   }
 
   private _clearAuth(): void {
-    localStorage.clear();
+    // Ne pas effacer tout le localStorage — les préférences UI (onboarding_done,
+    // card_info_mode, display_mode…) doivent persister entre les sessions.
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
     this._currentUser.set(null);
     this.router.navigate(['/login']);
   }

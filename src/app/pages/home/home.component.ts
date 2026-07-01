@@ -52,19 +52,6 @@ export class HomeComponent implements OnInit {
   private favSvc             = inject(FavoritesService);
   readonly auth              = inject(AuthService);
 
-  private hasActiveFilters = computed(() => {
-    const f = this.filterStateService.filters();
-    return !!(
-      f.search ||
-      f.bpmMin !== null ||
-      f.bpmMax !== null ||
-      f.keys.length > 0 ||
-      f.styles.length > 0 ||
-      f.tags.length > 0 ||
-      f.similarArtists.length > 0
-    );
-  });
-
   constructor() {
     // Filtre ou catégorie changent → toujours revenir à la page 1
     effect(() => {
@@ -82,7 +69,10 @@ export class HomeComponent implements OnInit {
 
     const user = this.auth.currentUser();
     const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
-    if (hasRole && OnboardingModalComponent.shouldShow()) {
+    // Ne pas redemander si l'utilisateur a déjà une préférence (backend ou mode artistes local)
+    const alreadyHasPref = !!user?.preferred_tag_category
+      || localStorage.getItem('card_info_mode') === 'artists';
+    if (hasRole && !alreadyHasPref && OnboardingModalComponent.shouldShow()) {
       localStorage.setItem('laprod_onboarding_done', '1');
       this.showOnboarding.set(true);
     }

@@ -11,14 +11,14 @@
     </div>
 
     <div class="ob-categories">
-      @for (cat of categories(); track cat.name) {
+      @for (cat of options(); track cat.name) {
         <button
           class="ob-cat-card"
           [class.ob-cat-card--selected]="selected() === cat.name"
           [style.--cat-color]="cat.color"
           (click)="select(cat.name)">
           <span class="ob-cat-dot" [style.background]="cat.color"></span>
-          <span class="ob-cat-name">{{ cat.name }}</span>
+          <span class="ob-cat-name">{{ cat.label }}</span>
           @if (cat.description) {
             <span class="ob-cat-desc">{{ cat.description }}</span>
           }
