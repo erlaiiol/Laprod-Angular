@@ -5,7 +5,7 @@
 // Communique vers la page parente via @Output().
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, Input, inject, computed, signal } from '@angular/core';
+import { Component, Input, inject, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 
@@ -24,7 +24,8 @@ const MAX_TAGS = 2;
   standalone: true,
   imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent, ShareButtonComponent],
   templateUrl: './track-card.component.html',
-  styleUrls:   ['./track-card.component.scss']
+  styleUrls:   ['./track-card.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TrackCardComponent {
 

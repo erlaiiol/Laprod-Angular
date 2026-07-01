@@ -5,10 +5,9 @@
 // Si l'utilisateur est connecté et n'a pas de filtres actifs → recommandations.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, OnInit, signal, computed, effect, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { switchMap, of } from 'rxjs';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
@@ -27,7 +26,8 @@ const PER_PAGE = 20;
   standalone: true,
   imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent],
   templateUrl: './home.component.html',
-  styleUrls:   ['./home.component.scss']
+  styleUrls:   ['./home.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent implements OnInit {
 
@@ -117,21 +117,20 @@ export class HomeComponent implements OnInit {
       sort: this.auth.isLoggedIn() ? 'recommended' : undefined,
     };
 
-    this.trackService.getTracks(apiFilters).pipe(
-      switchMap(response => {
-        if (!response.success || !this.auth.isLoggedIn()) return of(response);
-        const ids = (response.data.tracks as Track[]).map(t => t.id);
-        return this.favSvc.prefetch(ids).pipe(switchMap(() => of(response)));
-      })
-    ).subscribe({
+    this.trackService.getTracks(apiFilters).subscribe({
       next: (response) => {
         if (response.success) {
           this.tracks.set(response.data.tracks);
           this.totalPages.set(response.data.pagination.pages);
+          this.loading.set(false);
+          if (this.auth.isLoggedIn()) {
+            const ids = (response.data.tracks as Track[]).map((t: Track) => t.id);
+            this.favSvc.prefetch(ids).subscribe();
+          }
         } else {
           this.error.set('Le serveur a répondu mais signale une erreur.');
+          this.loading.set(false);
         }
-        this.loading.set(false);
       },
       error: (err) => {
         if (!err?.error?.feedback) {

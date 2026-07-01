@@ -8,11 +8,24 @@ Flux :
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from sqlalchemy.orm import selectinload
+
 from extensions import db, redis_client
 from models import Favorite, ListenEvent, Purchase, Track
+
+VECTOR_CACHE_TTL = 600  # 10 minutes
+
+
+def invalidate_user_vector_cache(user_id: int) -> None:
+    if redis_client:
+        try:
+            redis_client.delete(f'laprod:reco:vector:{user_id}')
+        except Exception:
+            pass
 
 
 # ── Poids d'écoute ────────────────────────────────────────────────────────────
@@ -39,8 +52,23 @@ def _recency_bonus(created_at: datetime) -> float:
 # ── Vecteur de préférences utilisateur ────────────────────────────────────────
 
 def build_user_vector(user_id: int) -> dict:
+    cache_key = f'laprod:reco:vector:{user_id}'
+    if redis_client:
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                data = json.loads(cached)
+                data['favorite_beatmakers'] = {int(k): v for k, v in data.get('favorite_beatmakers', {}).items()}
+                return data
+        except Exception:
+            pass
+
     events = (
         db.session.query(ListenEvent)
+        .options(
+            selectinload(ListenEvent.track).selectinload(Track.tags),
+            selectinload(ListenEvent.track).selectinload(Track.similar_artists),
+        )
         .filter_by(user_id=user_id)
         .order_by(ListenEvent.created_at.desc())
         .limit(90)
@@ -113,7 +141,7 @@ def build_user_vector(user_id: int) -> dict:
     _apply_redis_correlations(styles, 'style', attenuation=0.4)
     _apply_redis_correlations(similar_artists, 'similar_artist', attenuation=0.4)
 
-    return {
+    result = {
         'keys': dict(keys),
         'tags': dict(tags),
         'styles': dict(styles),
@@ -121,8 +149,17 @@ def build_user_vector(user_id: int) -> dict:
         'preferred_bpm_center': preferred_bpm,
         'preferred_duration': preferred_duration,
         'avg_completion': avg_completion,
-        'favorite_beatmakers': dict(beatmaker_scores),
+        'favorite_beatmakers': {str(k): v for k, v in beatmaker_scores.items()},
     }
+
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, VECTOR_CACHE_TTL, json.dumps(result))
+        except Exception:
+            pass
+
+    result['favorite_beatmakers'] = {int(k): v for k, v in result['favorite_beatmakers'].items()}
+    return result
 
 
 def _apply_redis_correlations(scores: dict[str, float], kind: str, attenuation: float) -> None:

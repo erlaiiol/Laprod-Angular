@@ -243,7 +243,7 @@ def get_tracks():
         if sort == 'recommended' and user_id:
             from utils.recommendation_service import build_user_vector, score_track as _score
             all_matching = db.session.execute(
-                track_query.order_by(Track.created_at.desc()).limit(2000)
+                track_query.order_by(Track.created_at.desc()).limit(300)
             ).scalars().all()
             total = len(all_matching)
             try:

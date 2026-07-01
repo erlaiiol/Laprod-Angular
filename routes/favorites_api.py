@@ -9,6 +9,7 @@ from models import Favorite, ListenEvent, ListeningHistory, Track
 from serializers import ok, err
 from datetime import datetime
 from utils.auth_helpers import require_user
+from utils.recommendation_service import invalidate_user_vector_cache
 
 favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorites')
 
@@ -28,10 +29,12 @@ def toggle_favorite(track_id, current_user):
     if existing:
         db.session.delete(existing)
         db.session.commit()
+        invalidate_user_vector_cache(current_user.id)
         return ok({'action': 'removed', 'is_favorite': False})
     else:
         db.session.add(Favorite(user_id=current_user.id, track_id=track_id))
         db.session.commit()
+        invalidate_user_vector_cache(current_user.id)
         return ok({'action': 'added', 'is_favorite': True})
 
 
@@ -137,6 +140,7 @@ def add_listening_history(track_id, current_user):
             completion_ratio=ratio,
             source=source,
         ))
+        invalidate_user_vector_cache(current_user.id)
 
     db.session.commit()
     return ok()
