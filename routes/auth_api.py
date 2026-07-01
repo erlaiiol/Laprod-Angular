@@ -111,7 +111,7 @@ def ping():
 
 
 @auth_api_bp.route('/login', methods=['POST'])
-@limiter.limit('5 per minute')
+@limiter.limit('25 per minute')
 @csrf.exempt
 def login():
 
@@ -225,7 +225,7 @@ def logout():
 
 
 @auth_api_bp.route('/register', methods=['POST'])
-@limiter.limit('5 per hour')
+@limiter.limit('25 per hour')
 @csrf.exempt
 def register_user():
 
@@ -362,7 +362,7 @@ def verify_email():
 
 @auth_api_bp.route('/resend-verification', methods=['POST'])
 @csrf.exempt
-@limiter.limit('3 per hour')
+@limiter.limit('25 per hour')
 def resend_verification():
     """Renvoie l'email de vérification pour un compte non vérifié.
     Accepte 'identifier' (username ou email) ou 'email' pour la rétrocompatibilité.
