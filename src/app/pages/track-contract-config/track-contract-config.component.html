@@ -321,13 +321,13 @@
               Streaming seul · à vie
               <span class="btn-fee">+0€</span>
             </button>
-            @for (opt of [['3','3 ans','5'],['5','5 ans','10'],['10','10 ans','15']]; track opt[0]) {
+            @for (opt of [['3','3 ans'],['5','5 ans'],['10','10 ans']]; track opt[0]) {
               <button type="button"
                       class="duration-btn"
                       [class.selected]="!isLifetime() && duration() === opt[0]"
                       (click)="setDuration($any(opt[0]))">
                 {{ opt[1] }}
-                <span class="btn-fee">+{{ opt[2] }}€</span>
+                <span class="btn-fee">+{{ $any(prices().duration)[opt[0]] }}€</span>
               </button>
             }
             <button type="button"
@@ -335,7 +335,7 @@
                     [class.selected]="isLifetime()"
                     (click)="toggleLifetime()">
               À vie + 70 ans
-              <span class="btn-fee">+50€</span>
+              <span class="btn-fee">+{{ prices().duration.lifetime }}€</span>
             </button>
           </div>
           <p class="duration-selected">
@@ -348,12 +348,12 @@
         <section class="form-section">
           <h3>Territoire d'exploitation</h3>
           <div class="radio-group">
-            @for (opt of [['France','France','0'],['Europe','Europe','5'],['Monde entier','Monde entier','10']]; track opt[0]) {
+            @for (opt of [['France','France'],['Europe','Europe'],['Monde entier','Monde entier']]; track opt[0]) {
               <label class="radio-item" [class.selected]="territory() === opt[0]">
                 <input type="radio" name="territory" [value]="opt[0]"
                        [ngModel]="territory()" (ngModelChange)="territory.set($any($event))">
                 {{ opt[1] }}
-                <span class="btn-fee">+{{ opt[2] }}€</span>
+                <span class="btn-fee">+{{ $any(prices().territory)[opt[0]] }}€</span>
               </label>
             }
           </div>

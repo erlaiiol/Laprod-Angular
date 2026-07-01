@@ -236,18 +236,12 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    // full_stream_url = accès acheteur uniquement.
-    // En contexte catalogue (viewingTrack === null), on utilise toujours la preview
-    // pour éviter un 401 (le beatmaker owner ne passe pas par le même endpoint).
-    const isDetailContext = this.viewingTrack() !== null;
-    const url = (isDetailContext && this.auth.isLoggedIn() && track.full_stream_url)
-      ? track.full_stream_url
-      : track.stream_url;
+    // Toujours utiliser stream_url (preview) : l'élément <audio> ne peut pas
+    // envoyer de header Authorization, donc full_stream_url (JWT requis) retourne
+    // un 401 silencieux → WaveSurfer 'ready' ne fire jamais → le track ne joue pas.
+    const url = track.stream_url;
     if (!url) return '';
-    // Blob URLs (createObjectURL) et URLs absolues passent tels quels
-    if (url.startsWith('blob:') || url.startsWith('http')) {
-      return url;
-    }
+    if (url.startsWith('blob:') || url.startsWith('http')) return url;
     return `${environment.apiUrl}${url}`;
   }
 

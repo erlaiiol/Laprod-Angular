@@ -43,13 +43,9 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   /** Whether the player is showing a mix order reference/preview. */
   isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
 
-  /** True when the player streams a preview (not the full track).
-   *  Mirrors buildAudioUrl(): full stream only in detail context + logged in + full_stream_url. */
-  isPreview = computed(() => {
-    const track = this.player.currentTrack();
-    if (!track) return false;
-    return !(this.isDetailContext() && this.auth.isLoggedIn() && !!track.full_stream_url);
-  });
+  /** Always true: buildAudioUrl() only ever uses stream_url (preview).
+   *  full_stream_url requires an Authorization header that <audio> cannot send. */
+  isPreview = computed(() => !!this.player.currentTrack());
 
   /** True when the currently playing track IS the viewing track → actions work directly. */
   isViewingTrackLoaded = computed(() => {
