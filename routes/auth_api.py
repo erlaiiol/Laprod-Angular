@@ -157,7 +157,11 @@ def login():
         return err('Veuillez vérifier votre email avant de vous connecter.', level='warning',
                    code='SHOW_EMAIL_CONFIRMATION_LINK', data={'confirmation_email': user.email}, status=403)
 
-    # Compte supprimé ou banni (jamais pending_completion ici : déjà géré ci-dessus)
+    # Compte en cours de suppression RGPD ou déjà supprimé
+    if user.account_status == 'pending_deletion':
+        return err('Ce compte est en cours de suppression. Contactez le support si vous pensez qu\'il s\'agit d\'une erreur.', status=403)
+
+    # Compte désactivé / banni (jamais pending_completion ici : déjà géré ci-dessus)
     if user.account_status not in ('active', 'pending_completion'):
         current_app.logger.debug('utilisateur supprimé ou désactivé')
         return err('Compte désactivé ou suspendu.', status=403)

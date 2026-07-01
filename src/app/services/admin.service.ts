@@ -75,6 +75,7 @@ export interface AdminUser {
   upload_track_tokens: number;
   topline_tokens:      number;
   created_at:          string | null;
+  deleted_at:          string | null;
   tracks_count:    number;
   contracts_count: number;
   mm_count:        number;
@@ -282,6 +283,10 @@ export class AdminService {
 
   deleteUser(userId: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/users/${userId}`, { headers: this.headers });
+  }
+
+  purgeUserNow(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/purge-now`, {}, { headers: this.headers });
   }
 
   // ── Engineers CUD ──────────────────────────────────────────────────────────

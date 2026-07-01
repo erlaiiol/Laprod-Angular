@@ -41,7 +41,7 @@ DELETE /api/admin/tags/<id>                     → supprimer tag
 """
 from flask import Blueprint, request, current_app, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import html as html_lib
@@ -686,6 +686,67 @@ def toggle_user_status(user_id, current_user):
 
     db.session.commit()
     return ok({'account_status': user.account_status}, message=msg, level='info')
+
+
+# ── RGPD — suppression en deux temps ─────────────────────────────────────────
+
+@admin_api_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_user(user_id, current_user):
+    """
+    Marque le compte pour suppression RGPD.
+    Le compte est immédiatement bloqué (pending_deletion).
+    Les données PII sont anonymisées après 30 jours par le job nuit.
+    """
+    if current_user.id == user_id:
+        return ser_err('Vous ne pouvez pas supprimer votre propre compte.')
+
+    user = db.get_or_404(User, user_id)
+
+    if user.account_status == 'pending_deletion':
+        return ser_err('Ce compte est déjà en attente de suppression.')
+
+    user.account_status = 'pending_deletion'
+    user.deleted_at     = datetime.now(timezone.utc)
+    db.session.commit()
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} a demandé la suppression RGPD du compte #{user_id} ({user.username}).'
+    )
+    return ok(
+        {'account_status': user.account_status},
+        message=f'Compte de {user.username} marqué pour suppression. Les données seront anonymisées dans 30 jours.',
+        level='info',
+    )
+
+
+@admin_api_bp.route('/users/<int:user_id>/purge-now', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def purge_user_now(user_id, current_user):
+    """
+    Anonymise immédiatement le compte sans attendre le délai de 30 jours.
+    Réservé aux admins — utile pour les tests et les demandes urgentes (CNIL).
+    """
+    if current_user.id == user_id:
+        return ser_err('Vous ne pouvez pas purger votre propre compte.')
+
+    user = db.get_or_404(User, user_id)
+
+    if user.account_status not in ('pending_deletion', 'deleted', 'active'):
+        return ser_err('Statut incompatible avec une purge immédiate.')
+
+    from utils.gdpr_purge import anonymize_user
+    username_snapshot = user.username
+    anonymize_user(user, db)
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} a purgé immédiatement le compte #{user_id} ({username_snapshot}).'
+    )
+    return ok(message=f'Compte de {username_snapshot} anonymisé immédiatement.')
 
 
 @admin_api_bp.route('/users/<int:user_id>/toggle-role/<string:role>', methods=['POST'])

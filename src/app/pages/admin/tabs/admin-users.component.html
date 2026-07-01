@@ -132,25 +132,53 @@
   <div class="modal-backdrop" (click)="deleteTarget.set(null)">
     <div class="modal modal--danger" (click)="$event.stopPropagation()">
       <div class="plan-modal-header">
-        <h3><i class="bi bi-exclamation-triangle-fill"></i> Supprimer le compte</h3>
+        <h3><i class="bi bi-exclamation-triangle-fill"></i>
+          @if (deleteTarget()!.account_status === 'pending_deletion') { Compte en attente de purge }
+          @else { Supprimer le compte }
+        </h3>
         <button class="btn-icon-close" (click)="deleteTarget.set(null)"><i class="bi bi-x-lg"></i></button>
       </div>
-      <p class="modal-sub">
-        Tu es sur le point de supprimer définitivement le compte de
-        <strong>{{ deleteTarget()!.username }}</strong>
-        ({{ deleteTarget()!.email }}).
-      </p>
-      <div class="delete-warning">
-        <i class="bi bi-exclamation-diamond-fill"></i>
-        Cette action est irréversible. Tous les tracks, contrats et données liés à ce compte seront supprimés.
-      </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" (click)="deleteTarget.set(null)">Annuler</button>
-        <button class="btn-danger" [disabled]="deleteSubmitting()" (click)="confirmDelete()">
-          @if (deleteSubmitting()) { <span class="btn-spinner"></span> Suppression… }
-          @else { Supprimer définitivement }
-        </button>
-      </div>
+
+      @if (deleteTarget()!.account_status === 'pending_deletion') {
+        <!-- Compte déjà marqué → afficher le délai restant + purge immédiate -->
+        <p class="modal-sub">
+          Le compte de <strong>{{ deleteTarget()!.username }}</strong> est en attente d'anonymisation RGPD.
+        </p>
+        <div class="delete-warning">
+          <i class="bi bi-clock-history"></i>
+          @if (daysUntilPurge(deleteTarget()!.deleted_at) === 0) {
+            Purge automatique prévue cette nuit.
+          } @else {
+            Purge automatique dans environ <strong>{{ daysUntilPurge(deleteTarget()!.deleted_at) }} jour(s)</strong>.
+          }
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="deleteTarget.set(null)">Fermer</button>
+          <button class="btn-danger" [disabled]="purgeSubmitting()" (click)="purgeNow()" title="Anonymiser immédiatement sans attendre 30 jours">
+            @if (purgeSubmitting()) { <span class="btn-spinner"></span> Purge… }
+            @else { <i class="bi bi-lightning-fill"></i> Purger maintenant (test) }
+          </button>
+        </div>
+      } @else {
+        <!-- Compte actif → demander confirmation de suppression RGPD -->
+        <p class="modal-sub">
+          Tu es sur le point de demander la suppression RGPD du compte de
+          <strong>{{ deleteTarget()!.username }}</strong>
+          ({{ deleteTarget()!.email }}).
+        </p>
+        <div class="delete-warning">
+          <i class="bi bi-shield-lock-fill"></i>
+          Le compte sera immédiatement bloqué. Les données personnelles seront anonymisées
+          automatiquement dans <strong>30 jours</strong> (conformité RGPD).
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="deleteTarget.set(null)">Annuler</button>
+          <button class="btn-danger" [disabled]="deleteSubmitting()" (click)="confirmDelete()">
+            @if (deleteSubmitting()) { <span class="btn-spinner"></span> Traitement… }
+            @else { <i class="bi bi-trash3"></i> Demander la suppression }
+          </button>
+        </div>
+      }
     </div>
   </div>
 }

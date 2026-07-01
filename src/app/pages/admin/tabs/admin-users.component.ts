@@ -27,9 +27,10 @@ export class AdminUsersComponent implements OnInit {
   tokenType   = signal<'track' | 'topline'>('track');
   tokenAmount = signal(1);
 
-  // Delete modal
-  deleteTarget    = signal<AdminUser | null>(null);
+  // Delete / purge modal
+  deleteTarget     = signal<AdminUser | null>(null);
   deleteSubmitting = signal(false);
+  purgeSubmitting  = signal(false);
 
   // Resend email
   resendingId    = signal<number | null>(null);
@@ -184,6 +185,32 @@ export class AdminUsersComponent implements OnInit {
         if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la suppression.' });
       },
     });
+  }
+
+  purgeNow(): void {
+    const user = this.deleteTarget();
+    if (!user) return;
+    this.purgeSubmitting.set(true);
+    this.adminSvc.purgeUserNow(user.id).subscribe({
+      next: res => {
+        this.purgeSubmitting.set(false);
+        if (res.success) {
+          this.deleteTarget.set(null);
+          this.toast.showToast({ level: 'success', message: `Compte de ${user.username} anonymisé immédiatement.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.purgeSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la purge.' });
+      },
+    });
+  }
+
+  daysUntilPurge(deletedAt: string | null): number | null {
+    if (!deletedAt) return null;
+    const purgeDate = new Date(deletedAt).getTime() + 30 * 86_400_000;
+    return Math.max(0, Math.ceil((purgeDate - Date.now()) / 86_400_000));
   }
 
   daysRemaining(expiresAt: string | null): number | null {

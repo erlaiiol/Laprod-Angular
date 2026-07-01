@@ -298,5 +298,16 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque nuit à 4h : purge RGPD des comptes en attente de suppression (>30j)
+        from utils.gdpr_purge import run_gdpr_purge_job
+        scheduler.add_job(
+            func=run_gdpr_purge_job,
+            trigger='cron',
+            hour=4,
+            minute=0,
+            id='gdpr_purge',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
         app.logger.info("  OK APScheduler (jobs wallet + recommandations)")
