@@ -46,10 +46,8 @@ export class LoginComponent {
       .subscribe({
         next: (res) => {
           if (res.success) {
-            if (res.code === 'SHOW_SELECT_ROLE') return; // géré par AuthService via tap()
-            // Filet de sécurité : si le backend oublie d'envoyer SHOW_SELECT_ROLE
             const user = this.authService.currentUser();
-            if (user && !user.user_type_selected) {
+            if (res.code === 'SHOW_SELECT_ROLE' || (user && !user.user_type_selected)) {
               this.router.navigate(['/select-role']);
             } else {
               this.router.navigate(['/']);

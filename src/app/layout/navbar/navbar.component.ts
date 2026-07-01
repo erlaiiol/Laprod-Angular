@@ -71,13 +71,12 @@ export class NavbarComponent implements OnInit {
 
   logout() {
     this.authService.logout().subscribe({
-      next:  () => console.log('déconnexion réussie'),
-      error: (err) => console.error('erreur logout', err),
+      next:  () => {},
+      error: () => {},
     });
   }
 
   clearLocalStorage() {
-    console.log(localStorage);
     localStorage.clear();
   }
 
