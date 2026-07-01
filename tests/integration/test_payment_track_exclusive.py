@@ -1,9 +1,10 @@
 """
-Tests d'intégration — exclusivité track (routes/payment_track_api.py)
+Tests d'intégration — exclusivité track (routes/payment_track_api.py + admin_api.py)
 
 Couvre :
   - Blocage du checkout si is_exclusive_sold=True  → 410
   - Marquage du track après un achat exclusif
+  - API admin : filtre status='exclusive', exclusive_count, sérialisation track_admin
 """
 import json
 import uuid
@@ -302,3 +303,134 @@ class TestExclusiveRaceCondition:
         if existing:
             db.session.delete(existing)
         db.session.commit()
+
+
+# ── Admin API — tracks exclusifs ──────────────────────────────────────────────
+
+class TestAdminExclusiveTracks:
+    """
+    Vérifie que l'API admin expose correctement les tracks vendus en exclusivité.
+    """
+
+    def _admin_headers(self, app, db):
+        from models import User
+        from flask_jwt_extended import create_access_token
+        uid = uuid.uuid4().hex[:8]
+        u = User(
+            email=f'admin_excl_{uid}@test.laprod.fr',
+            username=f'admin_excl_{uid}',
+            email_verified=True,
+            account_status='active',
+            user_type_selected=True,
+            is_admin=True,
+        )
+        u.set_password('Pass123!')
+        db.session.add(u)
+        db.session.commit()
+        with app.app_context():
+            token = create_access_token(identity=str(u.id))
+        return {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}, u
+
+    def test_exclusive_filter_returns_only_exclusive_tracks(
+        self, client, app, db, track_exclusive_sold
+    ):
+        """status='exclusive' ne retourne que les tracks is_exclusive_sold=True."""
+        headers, admin = self._admin_headers(app, db)
+        try:
+            resp = client.get('/api/admin/tracks?status=exclusive', headers=headers)
+            assert resp.status_code == 200
+            body = resp.json
+            assert body['success'] is True
+            ids = [t['id'] for t in body['data']['tracks']]
+            assert track_exclusive_sold.id in ids
+        finally:
+            db.session.rollback()
+            from models import User
+            existing = db.session.get(User, admin.id)
+            if existing:
+                db.session.delete(existing)
+            db.session.commit()
+
+    def test_exclusive_filter_excludes_non_exclusive_tracks(
+        self, client, app, db, track_default_prices
+    ):
+        """status='exclusive' n'inclut pas les tracks non exclusivement vendus."""
+        headers, admin = self._admin_headers(app, db)
+        try:
+            resp = client.get('/api/admin/tracks?status=exclusive', headers=headers)
+            assert resp.status_code == 200
+            ids = [t['id'] for t in resp.json['data']['tracks']]
+            assert track_default_prices.id not in ids
+        finally:
+            db.session.rollback()
+            from models import User
+            existing = db.session.get(User, admin.id)
+            if existing:
+                db.session.delete(existing)
+            db.session.commit()
+
+    def test_response_includes_exclusive_count(self, client, app, db, track_exclusive_sold):
+        """La réponse admin tracks inclut toujours exclusive_count."""
+        headers, admin = self._admin_headers(app, db)
+        try:
+            resp = client.get('/api/admin/tracks?status=pending', headers=headers)
+            assert resp.status_code == 200
+            assert 'exclusive_count' in resp.json['data']
+            assert resp.json['data']['exclusive_count'] >= 1
+        finally:
+            db.session.rollback()
+            from models import User
+            existing = db.session.get(User, admin.id)
+            if existing:
+                db.session.delete(existing)
+            db.session.commit()
+
+    def test_track_admin_serializer_includes_exclusive_fields(
+        self, client, app, db, track_exclusive_sold
+    ):
+        """track_admin() expose is_exclusive_sold, exclusive_sold_at, exclusive_buyer."""
+        headers, admin = self._admin_headers(app, db)
+        try:
+            resp = client.get('/api/admin/tracks?status=exclusive', headers=headers)
+            assert resp.status_code == 200
+            tracks = resp.json['data']['tracks']
+            t = next((x for x in tracks if x['id'] == track_exclusive_sold.id), None)
+            assert t is not None
+            assert t['is_exclusive_sold'] is True
+            assert 'exclusive_sold_at' in t
+            assert 'exclusive_buyer' in t
+        finally:
+            db.session.rollback()
+            from models import User
+            existing = db.session.get(User, admin.id)
+            if existing:
+                db.session.delete(existing)
+            db.session.commit()
+
+    def test_non_admin_cannot_access_admin_tracks(self, client, app, db):
+        """Un utilisateur non admin ne peut pas accéder à /api/admin/tracks."""
+        from models import User
+        from flask_jwt_extended import create_access_token
+        uid = uuid.uuid4().hex[:8]
+        u = User(
+            email=f'nonadmin_{uid}@test.laprod.fr',
+            username=f'nonadmin_{uid}',
+            email_verified=True,
+            account_status='active',
+            user_type_selected=True,
+        )
+        u.set_password('Pass123!')
+        db.session.add(u)
+        db.session.commit()
+        with app.app_context():
+            token = create_access_token(identity=str(u.id))
+        headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+        try:
+            resp = client.get('/api/admin/tracks?status=exclusive', headers=headers)
+            assert resp.status_code == 403
+        finally:
+            db.session.rollback()
+            existing = db.session.get(User, u.id)
+            if existing:
+                db.session.delete(existing)
+            db.session.commit()

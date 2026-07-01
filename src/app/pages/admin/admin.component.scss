@@ -41,6 +41,23 @@
   }
 }
 
+// ── Exclusive tracks ──────────────────────────────────────────────────────────
+
+.btn-exclusive-tab {
+  border-color: rgba(234, 179, 8, 0.35) !important;
+  color: v.$gold !important;
+  &.active { background: rgba(234, 179, 8, 0.12) !important; border-color: v.$gold !important; }
+}
+
+.exclusive-tag {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  font-size: 0.68rem; font-weight: 700; color: v.$gold;
+  background: rgba(234, 179, 8, 0.12); border-radius: 4px; padding: 0.1rem 0.35rem;
+  margin-left: 0.35rem;
+}
+
+.exclusive-row td { background: rgba(234, 179, 8, 0.04); }
+
 // ── Loading bar ────────────────────────────────────────────────────────────────
 
 .loading-bar {

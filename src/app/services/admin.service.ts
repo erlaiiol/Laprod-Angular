@@ -31,22 +31,25 @@ export interface AdminUserSummary {
 }
 
 export interface AdminTrack {
-  id:             number;
-  title:          string;
-  bpm:            number;
-  key:            string;
-  style:          string | null;
-  image_file:     string;
-  stream_url:     string;
-  price_mp3:      number | null;
-  price_wav:      number | null;
-  price_stems:    number | null;
-  is_approved:    boolean;
-  purchase_count: number;
-  created_at:     string | null;
-  approved_at:    string | null;
-  composer:       { id: number; username: string; profile_image: string } | null;
-  tags:           { id: number; name: string; category: string | null }[];
+  id:               number;
+  title:            string;
+  bpm:              number;
+  key:              string;
+  style:            string | null;
+  image_file:       string;
+  stream_url:       string;
+  price_mp3:        number | null;
+  price_wav:        number | null;
+  price_stems:      number | null;
+  is_approved:      boolean;
+  is_exclusive_sold: boolean;
+  exclusive_sold_at: string | null;
+  exclusive_buyer:  { id: number; username: string; profile_image: string } | null;
+  purchase_count:   number;
+  created_at:       string | null;
+  approved_at:      string | null;
+  composer:         { id: number; username: string; profile_image: string } | null;
+  tags:             { id: number; name: string; category: string | null }[];
 }
 
 export interface AdminUser {
@@ -247,7 +250,7 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/stats`, { headers: this.headers });
   }
 
-  getTracks(status: 'pending' | 'approved' | 'all' = 'pending'): Observable<ApiResponse<{ tracks: AdminTrack[]; pending_count: number; approved_count: number }>> {
+  getTracks(status: 'pending' | 'approved' | 'all' | 'exclusive' = 'pending'): Observable<ApiResponse<{ tracks: AdminTrack[]; pending_count: number; approved_count: number; exclusive_count: number }>> {
     return this.http.get<any>(`${this.base}/tracks`, { headers: this.headers, params: { status } });
   }
 

@@ -17,12 +17,13 @@ export class AdminTracksComponent implements OnInit {
 
   staticBase = `/db_assets/`;
 
-  loading      = signal(false);
-  tracks       = signal<AdminTrack[]>([]);
-  trackStatus  = signal<'pending' | 'approved' | 'all'>('pending');
-  pendingCount = signal(0);
-  approvedCount = signal(0);
-  editingTrack = signal<AdminTrack | null>(null);
+  loading        = signal(false);
+  tracks         = signal<AdminTrack[]>([]);
+  trackStatus    = signal<'pending' | 'approved' | 'all' | 'exclusive'>('pending');
+  pendingCount   = signal(0);
+  approvedCount  = signal(0);
+  exclusiveCount = signal(0);
+  editingTrack   = signal<AdminTrack | null>(null);
 
   constructor(private adminSvc: AdminService, private toast: ToastService) {}
 
@@ -37,6 +38,7 @@ export class AdminTracksComponent implements OnInit {
           this.tracks.set(res.data.tracks);
           this.pendingCount.set(res.data.pending_count);
           this.approvedCount.set(res.data.approved_count);
+          this.exclusiveCount.set(res.data.exclusive_count ?? 0);
           this.pendingCountChange.emit(res.data.pending_count);
         }
       },
@@ -47,7 +49,7 @@ export class AdminTracksComponent implements OnInit {
     });
   }
 
-  setStatus(status: 'pending' | 'approved' | 'all'): void {
+  setStatus(status: 'pending' | 'approved' | 'all' | 'exclusive'): void {
     this.trackStatus.set(status);
     this.load();
   }

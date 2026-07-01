@@ -160,15 +160,19 @@ def get_tracks(current_user):
         query = query.where(Track.is_approved == False)
     elif status == 'approved':
         query = query.where(Track.is_approved == True)
+    elif status == 'exclusive':
+        query = query.where(Track.is_exclusive_sold == True)
 
-    tracks         = db.session.scalars(query).all()
-    pending_count  = db.session.query(Track).filter_by(is_approved=False).count()
-    approved_count = db.session.query(Track).filter_by(is_approved=True).count()
+    tracks          = db.session.scalars(query).all()
+    pending_count   = db.session.query(Track).filter_by(is_approved=False).count()
+    approved_count  = db.session.query(Track).filter_by(is_approved=True).count()
+    exclusive_count = db.session.query(Track).filter_by(is_exclusive_sold=True).count()
 
     return ok({
-        'tracks':        [track_admin(t) for t in tracks],
-        'pending_count':  pending_count,
-        'approved_count': approved_count,
+        'tracks':          [track_admin(t) for t in tracks],
+        'pending_count':    pending_count,
+        'approved_count':   approved_count,
+        'exclusive_count':  exclusive_count,
     })
 
 
