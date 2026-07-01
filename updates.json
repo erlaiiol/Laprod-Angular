@@ -2,6 +2,16 @@
   "_doc": "Mises à jour LaProd destinées aux emails utilisateurs. Ce fichier est la source de vérité du module Support dans l'admin. Mettre à jour à chaque déploiement affectant l'expérience utilisateur. Chaque entrée doit être compréhensible par un utilisateur non technique. `sent_at` est null tant que la communication n'a pas été envoyée.",
   "updates": [
     {
+      "id": "2026-07-01-media-session",
+      "date": "2026-07-01",
+      "category": "feature",
+      "title": "Le player s'affiche maintenant dans vos notifications",
+      "short": "Contrôlez la musique depuis l'écran verrouillé de votre téléphone.",
+      "detail": "Quand vous écoutez un beat sur LaProd depuis votre téléphone, le titre du beat et le nom du beatmaker s'affichent directement dans le player de vos notifications et sur votre écran verrouillé. Vous pouvez mettre en pause, reprendre ou passer au beat suivant sans revenir dans l'application.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
       "id": "2026-07-01-share-buttons",
       "date": "2026-07-01",
       "category": "feature",

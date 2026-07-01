@@ -1,9 +1,21 @@
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { debounceTime, distinctUntilChanged, Subject, switchMap, of } from 'rxjs';
 import { AdminService, UserSearchResult } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
+
+interface UpdateEntry {
+  id:        string;
+  date:      string;
+  category:  'feature' | 'improvement' | 'fix' | 'behavior';
+  title:     string;
+  short:     string;
+  detail:    string;
+  audience:  'all' | 'artists' | 'beatmakers';
+  sent_at:   string | null;
+}
 
 interface SupportTemplate {
   id:      string;
@@ -122,6 +134,58 @@ https://laprod.net`,
         </button>
       </div>
     </section>
+
+    <!-- ── Nouveautés disponibles ─────────────────────────────────── -->
+    @if (updates().length > 0) {
+      <section class="support-section">
+        <h3 class="support-section-title">
+          <i class="bi bi-stars"></i> Nouveautés disponibles
+          <span class="update-count-badge">{{ updates().length }}</span>
+        </h3>
+        <p class="support-hint" style="margin-bottom:0.6rem">
+          <i class="bi bi-info-circle"></i>
+          Cliquez sur une nouveauté pour l'ajouter au corps du mail. Sélectionnez-en plusieurs pour les combiner.
+        </p>
+        <div class="updates-list">
+          @for (u of updates(); track u.id) {
+            <button
+              class="update-card"
+              [class.update-card--selected]="isUpdateSelected(u.id)"
+              [class.update-card--sent]="!!u.sent_at"
+              (click)="toggleUpdate(u)">
+              <div class="update-card-header">
+                <span class="update-cat-badge update-cat-badge--{{ u.category }}">
+                  {{ categoryLabel(u.category) }}
+                </span>
+                <span class="update-audience-badge">{{ audienceLabel(u.audience) }}</span>
+                <span class="update-date">{{ u.date }}</span>
+                @if (u.sent_at) {
+                  <span class="update-sent-chip"><i class="bi bi-check2-circle"></i> Envoyé</span>
+                }
+                @if (isUpdateSelected(u.id)) {
+                  <i class="bi bi-check-circle-fill update-selected-icon"></i>
+                }
+              </div>
+              <p class="update-card-title">{{ u.title }}</p>
+              <p class="update-card-short">{{ u.short }}</p>
+            </button>
+          }
+        </div>
+        @if (selectedUpdates().length > 0) {
+          <div class="updates-actions-bar">
+            <span class="updates-selected-label">
+              {{ selectedUpdates().length }} nouveauté(s) sélectionnée(s)
+            </span>
+            <button class="btn-insert-updates" (click)="insertUpdatesIntoBody()">
+              <i class="bi bi-pencil-square"></i> Insérer dans le corps
+            </button>
+            <button class="btn-clear-selection" (click)="clearUpdateSelection()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        }
+      </section>
+    }
 
     <!-- Destinataire (mode individuel) -->
     @if (mode() === 'individual') {
@@ -298,6 +362,7 @@ export class AdminSupportComponent implements OnInit {
 
   private adminSvc = inject(AdminService);
   private toast    = inject(ToastService);
+  private http     = inject(HttpClient);
 
   readonly templates = TEMPLATES;
 
@@ -321,10 +386,70 @@ export class AdminSupportComponent implements OnInit {
   // État
   sending = signal(false);
 
+  // Nouveautés (updates.json)
+  updates         = signal<UpdateEntry[]>([]);
+  selectedUpdates = signal<UpdateEntry[]>([]);
+
   private search$ = new Subject<string>();
 
   ngOnInit(): void {
     this.loadBroadcastCount();
+    this.loadUpdates();
+  }
+
+  private loadUpdates(): void {
+    this.http.get<{ updates: UpdateEntry[] }>('/updates.json').subscribe({
+      next: res => this.updates.set(res.updates ?? []),
+    });
+  }
+
+  isUpdateSelected(id: string): boolean {
+    return this.selectedUpdates().some(u => u.id === id);
+  }
+
+  toggleUpdate(u: UpdateEntry): void {
+    const current = this.selectedUpdates();
+    if (this.isUpdateSelected(u.id)) {
+      this.selectedUpdates.set(current.filter(x => x.id !== u.id));
+    } else {
+      this.selectedUpdates.set([...current, u]);
+    }
+  }
+
+  clearUpdateSelection(): void {
+    this.selectedUpdates.set([]);
+  }
+
+  insertUpdatesIntoBody(): void {
+    const entries = this.selectedUpdates();
+    if (!entries.length) return;
+
+    const blocks = entries.map(u =>
+      `✅ ${u.title}\n${u.detail}`
+    ).join('\n\n');
+
+    const intro = this.body.trim()
+      ? this.body.trimEnd() + '\n\n'
+      : `Bonjour {username},\n\nVoici les dernières nouveautés sur LaProd :\n\n`;
+
+    this.body = intro + blocks + '\n\nBonne création !\n\nL\'équipe LaProd\nhttps://laprod.net';
+
+    if (!this.subject.trim()) {
+      this.subject = entries.length === 1
+        ? entries[0].title
+        : '🎉 Nouveautés sur LaProd !';
+    }
+
+    this.selectedTemplateId.set('custom');
+    this.selectedUpdates.set([]);
+  }
+
+  categoryLabel(cat: UpdateEntry['category']): string {
+    return { feature: '✨ Nouveauté', improvement: '⚡ Amélioration', fix: '🔧 Correction', behavior: '🔄 Comportement' }[cat] ?? cat;
+  }
+
+  audienceLabel(aud: UpdateEntry['audience']): string {
+    return { all: 'Tous', artists: 'Artistes', beatmakers: 'Beatmakers' }[aud] ?? aud;
   }
 
   constructor() {

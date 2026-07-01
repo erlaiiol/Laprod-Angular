@@ -28,6 +28,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "updates.json",
+                "input": ".",
+                "output": "/"
               }
             ],
             "stylePreprocessorOptions": {
