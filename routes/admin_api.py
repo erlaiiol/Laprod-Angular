@@ -1811,6 +1811,99 @@ def admin_send_support_email(current_user):
     return ok(message=f'Email envoyé à {to_email}.', level='info')
 
 
+# ── Broadcast email (admin → tous les utilisateurs actifs vérifiés) ──────────
+
+def _broadcast_recipients():
+    """Retourne les users actifs avec email vérifié (excl. admins si souhaité)."""
+    return (
+        User.query
+        .filter(
+            User.account_status.in_(['active', 'pending_completion']),
+            User.email_verified == True,  # noqa: E712
+        )
+        .all()
+    )
+
+
+@admin_api_bp.route('/broadcast-preview', methods=['GET'])
+@jwt_required()
+@require_admin
+def admin_broadcast_preview(current_user):
+    """Retourne le nombre de destinataires éligibles pour un broadcast."""
+    count = (
+        User.query
+        .filter(
+            User.account_status.in_(['active', 'pending_completion']),
+            User.email_verified == True,  # noqa: E712
+        )
+        .count()
+    )
+    return ok(data={'count': count})
+
+
+@admin_api_bp.route('/broadcast-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_broadcast_email(current_user):
+    """
+    Envoie un email à tous les utilisateurs actifs avec email vérifié.
+    {username} dans subject/body est substitué par le vrai username de chaque destinataire.
+    """
+    data    = request.get_json(silent=True) or {}
+    subject = (data.get('subject') or '').strip()
+    body    = (data.get('body')    or '').strip()
+
+    if not subject or not body:
+        return ser_err('Sujet et corps requis.')
+
+    recipients = _broadcast_recipients()
+    if not recipients:
+        return ser_err('Aucun destinataire éligible.', status=404)
+
+    sent   = 0
+    errors = 0
+
+    for user in recipients:
+        personal_body    = body.replace('{username}', user.username)
+        personal_subject = subject.replace('{username}', user.username)
+        safe_body  = html_lib.escape(personal_body).replace('\n', '<br>')
+        html_body  = (
+            f'<div style="font-family:sans-serif;line-height:1.6;color:#1a1a1a">'
+            f'{safe_body}'
+            f'</div>'
+        )
+        try:
+            ok_sent = email_service.send_email(
+                subject=personal_subject,
+                recipients=[user.email],
+                text_body=personal_body,
+                html_body=html_body,
+            )
+            if ok_sent:
+                sent += 1
+            else:
+                errors += 1
+        except Exception as e:
+            current_app.logger.warning(
+                f'Broadcast: échec envoi à {user.email}: {e}'
+            )
+            errors += 1
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} ({current_user.username}) a broadcasté "{subject}" '
+        f'→ {sent} envoyés, {errors} erreurs.'
+    )
+
+    if sent == 0:
+        return ser_err(f'Aucun email envoyé ({errors} erreurs).', status=500)
+
+    msg = f'{sent} email(s) envoyé(s).'
+    if errors:
+        msg += f' {errors} échec(s).'
+    return ok(message=msg, data={'sent': sent, 'errors': errors})
+
+
 # ── Toplines (admin) ──────────────────────────────────────────────────────────
 
 @admin_api_bp.route('/toplines', methods=['GET'])

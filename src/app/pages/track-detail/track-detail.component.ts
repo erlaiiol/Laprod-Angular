@@ -13,13 +13,14 @@ import { ToplineService } from '../../services/topline.service';
 import { ToplineRecorderComponent } from '../../components/topline-recorder/topline-recorder.component';
 import { FavoriteButtonComponent } from '../../components/favorite-button/favorite-button.component';
 import { AddToPlaylistModalComponent } from '../../components/add-to-playlist-modal/add-to-playlist-modal.component';
+import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { FavoritesService } from '../../services/favorites.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent],
+  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

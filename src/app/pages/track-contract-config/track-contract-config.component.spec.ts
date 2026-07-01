@@ -74,7 +74,7 @@ function makeTrack(mp3: number): any {
 describe('TrackContractConfigComponent — logique de prix', () => {
 
   let component: TrackContractConfigComponent;
-  let paymentSvc: { createCheckout: ReturnType<typeof vi.fn> };
+  let paymentSvc: { createCheckout: ReturnType<typeof vi.fn>; redirectToCheckout: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     const trackSvc = {
@@ -82,7 +82,8 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       getStaticFileUrl: vi.fn().mockReturnValue(''),
     };
     paymentSvc = {
-      createCheckout: vi.fn().mockReturnValue(of({ success: true, data: { checkout_url: 'https://stripe.test', total: 9.99 } })),
+      createCheckout:      vi.fn().mockReturnValue(of({ success: true, data: { checkout_url: 'https://stripe.test', total: 9.99 } })),
+      redirectToCheckout:  vi.fn(),
     };
     const authSvc = {
       isLoggedIn:   vi.fn().mockReturnValue(true),

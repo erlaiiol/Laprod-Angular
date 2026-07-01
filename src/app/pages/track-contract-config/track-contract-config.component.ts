@@ -3,7 +3,7 @@ import {
   inject, ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TrackService, TrackDetail } from '../../services/track.service';
 import { PaymentService } from '../../services/payment.service';
@@ -58,6 +58,7 @@ export class TrackContractConfigComponent implements OnInit {
   buyerAddress     = signal('');
 
   private route      = inject(ActivatedRoute);
+  private router     = inject(Router);
   private trackSvc   = inject(TrackService);
   private paymentSvc = inject(PaymentService);
   readonly auth      = inject(AuthService);
@@ -233,6 +234,10 @@ export class TrackContractConfigComponent implements OnInit {
   }
 
   onConfirm(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
     if (this.paying()) return;
     this.paying.set(true);
     this.error.set(null);

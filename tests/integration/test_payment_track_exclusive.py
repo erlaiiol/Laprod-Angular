@@ -11,79 +11,12 @@ import pytest
 from unittest.mock import MagicMock, patch
 from decimal import Decimal
 
-
-# ── Fixtures ──────────────────────────────────────────────────────────────────
-
-@pytest.fixture()
-def composer(db):
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'composer_excl_{uid}@test.laprod.fr',
-        username=f'composer_excl_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
+from tests.factories import bound_factories  # noqa: F401
+from tests.scenarios.users import user_free  # noqa: F401
+from tests.scenarios.tracks import track_default_prices, track_exclusive_sold  # noqa: F401
 
 
-@pytest.fixture()
-def available_track(db, composer):
-    from models import Track
-    t = Track(
-        title='Available Beat',
-        composer_id=composer.id,
-        file_hash=str(uuid.uuid4()),
-        audio_file='avail_preview.mp3',
-        bpm=140,
-        key='D minor',
-        is_approved=True,
-        is_exclusive_sold=False,
-        price_mp3=Decimal('9.99'),
-    )
-    db.session.add(t)
-    db.session.commit()
-    yield t
-    db.session.rollback()
-    from models import Purchase
-    db.session.query(Purchase).filter_by(track_id=t.id).delete()
-    existing = db.session.get(Track, t.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def exclusive_sold_track(db, composer):
-    from models import Track
-    t = Track(
-        title='Sold Exclusive Beat',
-        composer_id=composer.id,
-        file_hash=str(uuid.uuid4()),
-        audio_file='sold_preview.mp3',
-        bpm=140,
-        key='D minor',
-        is_approved=True,
-        is_exclusive_sold=True,
-        price_mp3=Decimal('9.99'),
-    )
-    db.session.add(t)
-    db.session.commit()
-    yield t
-    existing = db.session.get(Track, t.id)
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-
+# ── Fixtures locales ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
 def buyer_headers(app, db):
@@ -116,10 +49,10 @@ def buyer_headers(app, db):
 
 class TestCheckoutBlockedOnExclusiveSold:
 
-    def test_returns_410_for_exclusive_sold_track(self, client, exclusive_sold_track, buyer_headers):
+    def test_returns_410_for_track_exclusive_sold(self, client, track_exclusive_sold, buyer_headers):
         headers, _buyer = buyer_headers
         resp = client.post(
-            f'/api/track-payment/track/{exclusive_sold_track.id}/mp3/checkout',
+            f'/api/track-payment/track/{track_exclusive_sold.id}/mp3/checkout',
             data=json.dumps({'total_price': 9.99}),
             headers=headers,
         )
@@ -127,12 +60,12 @@ class TestCheckoutBlockedOnExclusiveSold:
         body = resp.json
         assert body['code'] == 'TRACK_EXCLUSIVE_SOLD'
 
-    def test_available_track_checkout_not_blocked(self, client, available_track, buyer_headers):
+    def test_track_default_prices_checkout_not_blocked(self, client, track_default_prices, buyer_headers):
         """Un track non exclusif ne retourne pas 410 (même si Stripe échoue)."""
         headers, _buyer = buyer_headers
         with patch('stripe.checkout.Session.create', side_effect=Exception('stripe mock')):
             resp = client.post(
-                f'/api/track-payment/track/{available_track.id}/mp3/checkout',
+                f'/api/track-payment/track/{track_default_prices.id}/mp3/checkout',
                 data=json.dumps({'total_price': 9.99}),
                 headers=headers,
             )
@@ -177,12 +110,12 @@ class TestExclusivePurchaseMarksTrack:
         return session, intent
 
     def test_exclusive_purchase_sets_is_exclusive_sold(
-        self, client, db, app, available_track, buyer_headers
+        self, client, db, app, track_default_prices, buyer_headers
     ):
         headers, buyer = buyer_headers
         pi_id = f'pi_test_{uuid.uuid4().hex[:12]}'
         session, intent = self._build_fake_session(
-            available_track, buyer, is_exclusive=True, payment_intent_id=pi_id
+            track_default_prices, buyer, is_exclusive=True, payment_intent_id=pi_id
         )
 
         _route = 'routes.payment_track_api'
@@ -205,19 +138,19 @@ class TestExclusivePurchaseMarksTrack:
         assert resp.status_code == 200
 
         from models import Track
-        db.session.expire(available_track)
-        refreshed = db.session.get(Track, available_track.id)
+        db.session.expire(track_default_prices)
+        refreshed = db.session.get(Track, track_default_prices.id)
         assert refreshed.is_exclusive_sold is True
         assert refreshed.exclusive_buyer_id == buyer.id
         assert refreshed.exclusive_sold_at is not None
 
     def test_non_exclusive_purchase_does_not_mark_track(
-        self, client, db, app, available_track, buyer_headers
+        self, client, db, app, track_default_prices, buyer_headers
     ):
         headers, buyer = buyer_headers
         pi_id = f'pi_test_{uuid.uuid4().hex[:12]}'
         session, intent = self._build_fake_session(
-            available_track, buyer, is_exclusive=False, payment_intent_id=pi_id
+            track_default_prices, buyer, is_exclusive=False, payment_intent_id=pi_id
         )
 
         _route = 'routes.payment_track_api'
@@ -238,8 +171,8 @@ class TestExclusivePurchaseMarksTrack:
         assert resp.status_code == 200
 
         from models import Track
-        db.session.expire(available_track)
-        refreshed = db.session.get(Track, available_track.id)
+        db.session.expire(track_default_prices)
+        refreshed = db.session.get(Track, track_default_prices.id)
         assert refreshed.is_exclusive_sold is False
 
 
@@ -285,7 +218,7 @@ class TestExclusiveRaceCondition:
         return session, intent
 
     def test_second_exclusive_verify_returns_409(
-        self, client, db, app, available_track, buyer_headers
+        self, client, db, app, track_default_prices, buyer_headers
     ):
         """
         Buyer A et Buyer B ont tous les deux obtenu une session Stripe exclusive.
@@ -316,8 +249,8 @@ class TestExclusiveRaceCondition:
         pi_a = f'pi_excl_a_{uuid.uuid4().hex[:8]}'
         pi_b = f'pi_excl_b_{uuid.uuid4().hex[:8]}'
 
-        session_a, intent_a = self._build_session(available_track, buyer_a, pi_a)
-        session_b, intent_b = self._build_session(available_track, buyer_b, pi_b)
+        session_a, intent_a = self._build_session(track_default_prices, buyer_a, pi_a)
+        session_b, intent_b = self._build_session(track_default_prices, buyer_b, pi_b)
 
         _route = 'routes.payment_track_api'
 
@@ -359,7 +292,7 @@ class TestExclusiveRaceCondition:
 
         # Aucun Purchase pour Buyer B ne doit exister
         count_b = db.session.query(Purchase).filter_by(
-            buyer_id=buyer_b.id, track_id=available_track.id
+            buyer_id=buyer_b.id, track_id=track_default_prices.id
         ).count()
         assert count_b == 0, "Un Purchase ne doit pas être créé pour le second acheteur exclusif"
 

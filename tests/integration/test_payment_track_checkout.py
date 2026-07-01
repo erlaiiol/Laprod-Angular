@@ -20,63 +20,20 @@ import pytest
 from unittest.mock import MagicMock, patch
 from decimal import Decimal
 
+from tests.factories import bound_factories  # noqa: F401
+from tests.scenarios.users import user_free  # noqa: F401
+from tests.scenarios.tracks import track_default_prices  # noqa: F401
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture()
-def composer(db):
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'composer_chk_{uid}@test.laprod.fr',
-        username=f'composer_chk_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
+# ── Fixtures locales ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
-def track_standard(db, composer):
-    """Track standard : price_mp3=9.99, prix de droits = défauts plateforme."""
-    from models import Track
-    t = Track(
-        title='Checkout Test Beat',
-        composer_id=composer.id,
-        file_hash=str(uuid.uuid4()),
-        audio_file='checkout_preview.mp3',
-        bpm=140,
-        key='C minor',
-        is_approved=True,
-        is_exclusive_sold=False,
-        price_mp3=Decimal('9.99'),
-    )
-    db.session.add(t)
-    db.session.commit()
-    yield t
-    db.session.rollback()
-    existing = db.session.get(Track, t.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def track_with_custom_prices(db, composer):
+def track_with_custom_prices(db, user_free):
     """Track avec prix de droits personnalisés : exclusive=500, territory_eu=20."""
     from models import Track
     t = Track(
         title='Custom Price Beat',
-        composer_id=composer.id,
+        composer_id=user_free.id,
         file_hash=str(uuid.uuid4()),
         audio_file='custom_preview.mp3',
         bpm=140,
@@ -147,7 +104,7 @@ class TestTrackCheckoutUnitAmount:
             headers=headers,
         )
 
-    def test_base_price_with_3y_duration(self, client, track_standard, buyer_headers):
+    def test_base_price_with_3y_duration(self, client, track_default_prices, buyer_headers):
         """
         MP3 (9.99) + durée 3 ans (CONTRACT_DURATIONS['3']=5) + France (0) = 14.99€.
         unit_amount attendu : 1499 centimes.
@@ -157,12 +114,12 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 1499
 
-    def test_exclusive_adds_config_price(self, client, track_standard, buyer_headers):
+    def test_exclusive_adds_config_price(self, client, track_default_prices, buyer_headers):
         """
         is_exclusive=True → +CONTRACT_EXCLUSIVE_PRICE (150).
         9.99 + 150 + 5 (3y) = 164.99€ → unit_amount=16499.
@@ -177,7 +134,7 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 16499
@@ -202,7 +159,7 @@ class TestTrackCheckoutUnitAmount:
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 51499
 
-    def test_territory_world_adds_fee(self, client, track_standard, buyer_headers):
+    def test_territory_world_adds_fee(self, client, track_default_prices, buyer_headers):
         """
         territory='Monde entier' → +CONTRACT_TERRITORY_WORLD (10).
         9.99 + 5 (3y) + 10 = 24.99€ → unit_amount=2499.
@@ -212,12 +169,12 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 2499
 
-    def test_territory_europe_adds_fee(self, client, track_standard, buyer_headers):
+    def test_territory_europe_adds_fee(self, client, track_default_prices, buyer_headers):
         """
         territory='Europe' → +CONTRACT_TERRITORY_EUROPE (5).
         9.99 + 5 (3y) + 5 = 19.99€ → unit_amount=1999.
@@ -227,7 +184,7 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 1999
@@ -247,7 +204,7 @@ class TestTrackCheckoutUnitAmount:
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 3499
 
-    def test_arrangement_adds_fee(self, client, track_standard, buyer_headers):
+    def test_arrangement_adds_fee(self, client, track_default_prices, buyer_headers):
         """
         arrangement=True → +CONTRACT_ARRANGEMENT_PRICE (10).
         9.99 + 5 (3y) + 10 = 24.99€ → unit_amount=2499.
@@ -262,12 +219,12 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 2499
 
-    def test_mechanical_added_below_threshold(self, client, track_standard, buyer_headers):
+    def test_mechanical_added_below_threshold(self, client, track_default_prices, buyer_headers):
         """
         mechanical_reproduction=True et intermediate < 199.99 → +CONTRACT_MECHANICAL_PRICE (30).
         intermediate = 9.99 + 5 (3y) = 14.99 < 199.99 → mécanique ajouté.
@@ -283,7 +240,7 @@ class TestTrackCheckoutUnitAmount:
 
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test')
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 4499
@@ -310,7 +267,7 @@ class TestTrackCheckoutUnitAmount:
         assert resp.status_code == 200
         assert _unit_amount(mock_create) == 51499
 
-    def test_price_tampered_returns_403(self, client, track_standard, buyer_headers):
+    def test_price_tampered_returns_403(self, client, track_default_prices, buyer_headers):
         """
         Client envoie total_price=1.00 alors que le serveur calcule 14.99€ (9.99 + 5).
         Écart > 0.01€ → 403 PRICE_TAMPERED, Stripe n'est pas appelé.
@@ -323,7 +280,7 @@ class TestTrackCheckoutUnitAmount:
         }
 
         with patch('stripe.checkout.Session.create') as mock_create:
-            resp = self._post(client, track_standard.id, headers, payload)
+            resp = self._post(client, track_default_prices.id, headers, payload)
 
         assert resp.status_code == 403
         assert resp.json['code'] == 'PRICE_TAMPERED'

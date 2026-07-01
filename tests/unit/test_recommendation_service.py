@@ -32,6 +32,7 @@ def _make_track(key='', style='', bpm=100, tags=None, composer_id=1, created_at=
         style=style,
         bpm=bpm,
         tags=tag_ns,
+        similar_artists=[],
         composer_id=composer_id,
         created_at=created_at or datetime(2000, 1, 1),
     )
@@ -58,7 +59,7 @@ def _make_listen_event(track_id, completion_ratio, key='A minor', bpm=90,
                        style='trap', tags=None, composer_id=1, track_duration=180.0):
     """Événement d'écoute simulé pour build_user_vector()."""
     tag_ns = [SimpleNamespace(name=t) for t in (tags or [])]
-    track = SimpleNamespace(key=key, style=style, bpm=bpm, tags=tag_ns, composer_id=composer_id)
+    track = SimpleNamespace(key=key, style=style, bpm=bpm, tags=tag_ns, similar_artists=[], composer_id=composer_id)
     ev = MagicMock()
     ev.track_id = track_id
     ev.completion_ratio = completion_ratio

@@ -152,7 +152,9 @@ export class HomeComponent implements OnInit {
       styles:             f.styles.length          ? f.styles.join(',')          : undefined,
       tags:               f.tags.length            ? f.tags.join(',')            : undefined,
       similar_artist_ids: f.similarArtists?.length ? f.similarArtists.join(',') : undefined,
-      tag_category:       this.auth.preferredTagCategory() ?? undefined,
+      // tag_category N'EST PAS envoyé comme filtre : la catégorie préférée informe
+      // uniquement l'algorithme de recommandation (persistée via AuthService),
+      // elle ne doit jamais exclure des tracks de la liste visible.
     };
   }
 

@@ -386,6 +386,14 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/send-support-email`, payload, { headers: this.headers });
   }
 
+  getBroadcastPreview(): Observable<ApiResponse<{ count: number }>> {
+    return this.http.get<any>(`${this.base}/broadcast-preview`, { headers: this.headers });
+  }
+
+  broadcastEmail(payload: { subject: string; body: string }): Observable<ApiResponse<{ sent: number; errors: number }>> {
+    return this.http.post<any>(`${this.base}/broadcast-email`, payload, { headers: this.headers });
+  }
+
   // ── Manual contract ────────────────────────────────────────────────────────
 
   createContract(payload: {

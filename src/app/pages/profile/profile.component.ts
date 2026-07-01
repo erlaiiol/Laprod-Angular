@@ -8,6 +8,7 @@ import { TrackService } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
 import { PlaylistService, Playlist } from '../../services/playlist.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
+import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { environment } from '../../../environments/environment';
 
 const TRACKS_PER_PAGE    = 12;
@@ -16,7 +17,7 @@ const PLAYLISTS_PER_PAGE = 8;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, PaginationComponent],
+  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent],
   templateUrl: './profile.component.html',
   styleUrl:    './profile.component.scss',
 })

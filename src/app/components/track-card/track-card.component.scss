@@ -178,6 +178,59 @@
   }
 }
 
+// ── Mode liste : responsive mobile ────────────────────────────────────────────
+
+@media (max-width: 560px) {
+  .track-card:not(.track-card--gallery) {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    padding: 0.6rem;
+
+    .image-wrapper {
+      width: 70px;
+      height: 70px;
+    }
+
+    .track-info {
+      // Prend le reste de la largeur, sur la même ligne que l'image
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-info h6 { width: 100%; }
+
+    .track-footer {
+      // Tags + prix empilés : prix sur sa propre ligne
+      flex-wrap: wrap;
+      gap: 0.3rem;
+
+      .btn-price {
+        // Occupe toute la largeur → plus visible, pas coincé dans les tags
+        order: -1;
+        align-self: flex-start;
+      }
+    }
+
+    .track-actions {
+      // Passe en dessous de l'image+info, aligné à droite
+      width: 100%;
+      justify-content: flex-end;
+      padding-top: 0.3rem;
+      border-top: 1px solid rgba(v.$bg-border, 0.5);
+    }
+
+    .track-playlist-label { display: none; }
+  }
+}
+
+@media (max-width: 400px) {
+  .track-card:not(.track-card--gallery) {
+    .track-info h6 .track-title { font-size: 0.87rem; }
+
+    .track-footer .btn-price { font-size: 0.76rem; }
+  }
+}
+
 // ── Mode galerie : layout colonne ─────────────────────────────────────────────
 
 .track-card--gallery {

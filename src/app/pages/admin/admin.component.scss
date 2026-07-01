@@ -688,6 +688,62 @@
   i { margin-right: 0.25rem; }
 }
 
+.mode-toggle-wrap {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.mode-toggle-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem; border-radius: 20px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; cursor: pointer; font-size: 0.83rem;
+  transition: all 0.15s;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+  &.active {
+    background: rgba(v.$primary, 0.15); border-color: v.$primary;
+    color: v.$primary; font-weight: 600;
+  }
+}
+
+.broadcast-info {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.65rem 1rem; border-radius: 6px;
+  background: rgba(v.$primary, 0.08); border: 1px solid rgba(v.$primary, 0.3);
+  color: v.$text-primary; font-size: 0.87rem;
+  i { color: v.$primary; flex-shrink: 0; }
+  strong { color: v.$primary; }
+}
+
+.broadcast-confirm {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem; border-radius: 6px;
+  background: rgba(v.$tag-red, 0.08); border: 1px solid rgba(v.$tag-red, 0.35);
+  color: v.$text-primary; font-size: 0.87rem; margin-bottom: 1rem;
+  i { color: v.$tag-red; flex-shrink: 0; font-size: 1.1rem; }
+  strong { color: v.$tag-red; }
+}
+
+.broadcast-confirm-actions {
+  display: flex; gap: 0.5rem; margin-left: auto;
+}
+
+.btn-confirm-cancel {
+  padding: 0.35rem 0.85rem; border-radius: 6px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; cursor: pointer; font-size: 0.83rem;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+}
+
+.btn-confirm-send {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 1rem; border-radius: 6px;
+  background: v.$tag-red; border: 1px solid v.$tag-red;
+  color: #fff; cursor: pointer; font-size: 0.83rem; font-weight: 600;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
 .recipient-search-wrap { position: relative; display: flex; flex-direction: column; gap: 0.5rem; }
 
 .recipient-pill {

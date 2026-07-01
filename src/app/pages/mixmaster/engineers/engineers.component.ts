@@ -7,13 +7,14 @@ import { PlayerService } from '../../../services/player.service';
 import { Track } from '../../../services/track.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 import { PaginationComponent } from '../../../components/pagination/pagination.component';
+import { ShareButtonComponent } from '../../../components/share-button/share-button.component';
 
 const PER_PAGE = 9;
 
 @Component({
   selector: 'app-mixmaster-engineers',
   standalone: true,
-  imports: [CommonModule, RouterModule, MixmasterGuideComponent, PaginationComponent],
+  imports: [CommonModule, RouterModule, MixmasterGuideComponent, PaginationComponent, ShareButtonComponent],
   templateUrl: './engineers.component.html',
   styleUrls: ['./engineers.component.scss'],
 })

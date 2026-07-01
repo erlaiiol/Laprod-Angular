@@ -111,7 +111,6 @@ export class MixmasterOrderComponent implements OnInit {
   private cdr     = inject(ChangeDetectorRef);
 
   ngOnInit(): void {
-    if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     const id = Number(this.route.snapshot.paramMap.get('engineerId'));
     this.mixSvc.getEngineer(id).subscribe({
       next: (res) => {
@@ -162,6 +161,10 @@ export class MixmasterOrderComponent implements OnInit {
   }
 
   submit(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
     if (this.submitting()) return;
     const stems = this.stemsFile();
     if (!stems) { this.toast.showToast({ level: 'warning', message: 'Veuillez uploader votre archive (ZIP/RAR).' }); return; }

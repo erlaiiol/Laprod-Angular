@@ -14,6 +14,7 @@ import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { FavoriteButtonComponent } from '../favorite-button/favorite-button.component';
 import { PlaylistButtonComponent } from '../playlist-button/playlist-button.component';
+import { ShareButtonComponent } from '../share-button/share-button.component';
 import { environment } from '../../../environments/environment';
 
 const MAX_TAGS = 2;
@@ -21,7 +22,7 @@ const MAX_TAGS = 2;
 @Component({
   selector: 'app-track-card',
   standalone: true,
-  imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent],
+  imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent, ShareButtonComponent],
   templateUrl: './track-card.component.html',
   styleUrls:   ['./track-card.component.scss']
 })

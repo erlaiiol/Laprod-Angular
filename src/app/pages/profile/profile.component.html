@@ -88,6 +88,8 @@
           <span>composition{{ p.tracks.length > 1 ? 's' : '' }}</span>
         </div>
 
+        <app-share-button [url]="'/profile/' + p.username" [title]="p.username"></app-share-button>
+
         @if (isOwnProfile()) {
           <a [routerLink]="['/profile/edit']" class="btn-action">
             <i class="bi bi-pencil"></i> Modifier le profil

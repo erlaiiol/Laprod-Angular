@@ -101,15 +101,12 @@
                 <span class="btn-order btn-full">Complet</span>
               } @else if (!eng.stripe_ready) {
                 <span class="btn-order btn-full">Indisponible</span>
-              } @else if (auth.isLoggedIn()) {
+              } @else {
                 <a class="btn-order" [routerLink]="['/mix/order', eng.id]">
                   Commander <i class="bi bi-arrow-right"></i>
                 </a>
-              } @else {
-                <a class="btn-order btn-login" [routerLink]="['/login']">
-                  Se connecter pour commander
-                </a>
               }
+              <app-share-button [url]="'/mix/order/' + eng.id" [title]="eng.username"></app-share-button>
             </div>
 
           </div>

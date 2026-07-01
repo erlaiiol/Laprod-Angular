@@ -17,42 +17,18 @@ import pytest
 from unittest.mock import MagicMock, patch
 from decimal import Decimal
 
+from tests.factories import bound_factories  # noqa: F401
+from tests.scenarios.users import user_free  # noqa: F401
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture()
-def composer(db):
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'composer_vrf_{uid}@test.laprod.fr',
-        username=f'composer_vrf_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
+# ── Fixtures locales ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
-def track(db, composer):
+def track(db, user_free):
     from models import Track
     t = Track(
         title='Verify Test Beat',
-        composer_id=composer.id,
+        composer_id=user_free.id,
         file_hash=str(uuid.uuid4()),
         audio_file='verify_preview.mp3',
         bpm=140,
@@ -408,12 +384,12 @@ class TestCheckoutGuards:
         assert resp.status_code == 403
         assert json.loads(resp.data)['code'] == 'OWN_TRACK'
 
-    def test_unapproved_track_returns_403(self, client, db, buyer_data, composer):
+    def test_unapproved_track_returns_403(self, client, db, buyer_data, user_free):
         """Un track non approuvé ne peut pas être acheté → 403."""
         from models import Track
         t = Track(
             title='Unapproved',
-            composer_id=composer.id,
+            composer_id=user_free.id,
             file_hash=str(uuid.uuid4()),
             audio_file='unap.mp3',
             bpm=140,

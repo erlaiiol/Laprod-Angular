@@ -12,114 +12,26 @@ Chaîne de calcul (MixMasterRequestPriceCalculator) :
   unit_amount = int(total * 100)
 """
 import io
-import uuid
 import tempfile
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from tests.factories import bound_factories  # noqa: F401
+from tests.scenarios.users import (  # noqa: F401
+    user_mix_engineer_low_min,
+    user_mix_engineer_high_min,
+    user_artist,
+)
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture()
-def engineer(db):
-    """Ingénieur certifié : ref=100€, min=10€ — pas d'auto-sélection de services."""
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'engineer_{uid}@test.laprod.fr',
-        username=f'engineer_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-        is_mixmaster_engineer=True,
-        is_certified_master_engineer=True,   # requis pour service_mastering
-        mixmaster_reference_price=100,
-        mixmaster_price_min=10,
-        is_certified_producer_arranger=False,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
+# ── Fixtures locales ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
-def engineer_high_min(db):
-    """Ingénieur avec prix minimum élevé : ref=100€, min=30€ — teste le plancher de prix."""
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'eng_hm_{uid}@test.laprod.fr',
-        username=f'eng_hm_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-        is_mixmaster_engineer=True,
-        is_certified_master_engineer=True,   # requis pour service_mastering
-        mixmaster_reference_price=100,
-        mixmaster_price_min=30,
-        is_certified_producer_arranger=False,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def artist(db):
-    """Artiste qui commande le mix/master."""
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'artist_{uid}@test.laprod.fr',
-        username=f'artist_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def artist_headers(app, artist):
+def artist_headers(app, user_artist):
     from flask_jwt_extended import create_access_token
     with app.app_context():
-        token = create_access_token(identity=str(artist.id))
+        token = create_access_token(identity=str(user_artist.id))
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -193,57 +105,57 @@ class TestMixMasterCheckoutUnitAmount:
     min_pct=(10/100)*100=10 < 35 → aucun service n'est auto-forcé.
     """
 
-    def test_cleaning_only_unit_amount(self, client, engineer, artist_headers):
+    def test_cleaning_only_unit_amount(self, client, user_mix_engineer_low_min, artist_headers):
         """
         service_cleaning=True → base = 100 × 35% = 35.00€.
         unit_amount attendu : 3500 centimes.
         """
         resp, unit_amt = _post_order(
-            client, engineer.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': True},
         )
         assert resp.status_code == 200, resp.data
         assert unit_amt == 3500
 
-    def test_mastering_only_unit_amount(self, client, engineer, artist_headers):
+    def test_mastering_only_unit_amount(self, client, user_mix_engineer_low_min, artist_headers):
         """
         service_mastering=True → base = 100 × 20% = 20.00€.
         unit_amount attendu : 2000 centimes.
         """
         resp, unit_amt = _post_order(
-            client, engineer.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_mastering': True},
         )
         assert resp.status_code == 200, resp.data
         assert unit_amt == 2000
 
-    def test_cleaning_effects_mastering_unit_amount(self, client, engineer, artist_headers):
+    def test_cleaning_effects_mastering_unit_amount(self, client, user_mix_engineer_low_min, artist_headers):
         """
         cleaning+effects+mastering → base = 100 × (35+45+20)% = 100.00€.
         unit_amount attendu : 10000 centimes.
         """
         resp, unit_amt = _post_order(
-            client, engineer.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': True, 'service_effects': True, 'service_mastering': True},
         )
         assert resp.status_code == 200, resp.data
         assert unit_amt == 10000
 
-    def test_stems_bonus_adds_20_percent(self, client, engineer, artist_headers):
+    def test_stems_bonus_adds_20_percent(self, client, user_mix_engineer_low_min, artist_headers):
         """
         cleaning + has_separated_stems=True.
         base = 100 × 35% = 35€, stems_bonus = 100 × 20% = 20€.
         total = 55.00€ → unit_amount=5500.
         """
         resp, unit_amt = _post_order(
-            client, engineer.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': True},
             has_stems=True,
         )
         assert resp.status_code == 200, resp.data
         assert unit_amt == 5500
 
-    def test_minimum_price_floor_applied(self, client, engineer_high_min, artist_headers):
+    def test_minimum_price_floor_applied(self, client, user_mix_engineer_high_min, artist_headers):
         """
         Ingénieur avec price_min=30€.
         mastering seul → base=20€ < min=30€ → total=30.00€.
@@ -252,20 +164,20 @@ class TestMixMasterCheckoutUnitAmount:
         Note : min_pct=(30/100)*100=30 < 35 → aucun service auto-forcé.
         """
         resp, unit_amt = _post_order(
-            client, engineer_high_min.id, artist_headers,
+            client, user_mix_engineer_high_min.id, artist_headers,
             {'service_mastering': True},
         )
         assert resp.status_code == 200, resp.data
         assert unit_amt == 3000
 
-    def test_minimum_not_applied_when_above(self, client, engineer, artist_headers):
+    def test_minimum_not_applied_when_above(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Ingénieur avec price_min=10€.
         cleaning seul → base=35€ > min=10€ → min non appliqué, total=35.00€.
         unit_amount attendu : 3500 centimes (idem test_cleaning_only).
         """
         resp, unit_amt = _post_order(
-            client, engineer.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': True},
         )
         assert resp.status_code == 200, resp.data

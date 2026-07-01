@@ -30,11 +30,17 @@ Couvre quatre contrats critiques :
 """
 
 import io
-import uuid
 import tempfile
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+from tests.factories import bound_factories  # noqa: F401
+from tests.scenarios.users import (  # noqa: F401
+    user_mix_engineer_low_min,
+    user_mix_engineer_autoforce,
+    user_artist,
+)
 
 
 # ── Clés metadata attendues dans un appel Stripe mixmaster ────────────────────
@@ -51,115 +57,13 @@ _REQUIRED_METADATA_KEYS = {
 }
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# ── Fixtures locales ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
-def engineer_low_min(db):
-    """
-    Ingénieur sans auto-forçage de services : ref=100€, min=10€.
-    min_pct = 10 < 35 → aucun service n'est imposé automatiquement.
-    Permet de tester le parsing '1'/'0' sans interférence du palier minimum.
-    """
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'eng_low_{uid}@test.laprod.fr',
-        username=f'eng_low_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-        is_mixmaster_engineer=True,
-        is_certified_master_engineer=True,
-        mixmaster_reference_price=100,
-        mixmaster_price_min=10,
-        is_certified_producer_arranger=False,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def engineer_high_min(db):
-    """
-    Ingénieur avec palier min=35€ : min_pct=35 → service_cleaning auto-forcé.
-    Simule le mode Rapide : l'artiste envoie tous les services à '0' mais
-    service_cleaning doit quand même être True côté serveur.
-    """
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'eng_hm_{uid}@test.laprod.fr',
-        username=f'eng_hm_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-        is_mixmaster_engineer=True,
-        is_certified_master_engineer=True,
-        mixmaster_reference_price=100,
-        mixmaster_price_min=35,
-        is_certified_producer_arranger=False,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def artist(db):
-    """Artiste qui passe la commande."""
-    from models import User
-    uid = uuid.uuid4().hex[:8]
-    u = User(
-        email=f'artist_{uid}@test.laprod.fr',
-        username=f'artist_{uid}',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-    )
-    u.set_password('Pass123!')
-    db.session.add(u)
-    db.session.commit()
-    yield u
-    db.session.rollback()
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    existing = db.session.get(User, u.id)
-    if existing:
-        db.session.delete(existing)
-    db.session.commit()
-
-
-@pytest.fixture()
-def artist_headers(app, artist):
+def artist_headers(app, user_artist):
     from flask_jwt_extended import create_access_token
     with app.app_context():
-        token = create_access_token(identity=str(artist.id))
+        token = create_access_token(identity=str(user_artist.id))
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -256,41 +160,41 @@ class TestFormDataBooleanParsing:
     False, et le backend retournerait "Sélectionnez au moins un service."
     """
 
-    def test_service_cleaning_one_is_parsed_as_true(self, client, engineer_low_min, artist_headers):
+    def test_service_cleaning_one_is_parsed_as_true(self, client, user_mix_engineer_low_min, artist_headers):
         """'1' pour service_cleaning → le prix doit inclure les 35% de cleaning."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
         # cleaning seul → 100 × 35% = 35€ → 3500 centimes
         assert _unit_amount(kw) == 3500
 
-    def test_service_mastering_one_is_parsed_as_true(self, client, engineer_low_min, artist_headers):
+    def test_service_mastering_one_is_parsed_as_true(self, client, user_mix_engineer_low_min, artist_headers):
         """'1' pour service_mastering → 100 × 20% = 20€ → 2000 centimes."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_mastering': '1'},
         )
         assert resp.status_code == 200, resp.data
         assert _unit_amount(kw) == 2000
 
-    def test_service_effects_one_is_parsed_as_true(self, client, engineer_low_min, artist_headers):
+    def test_service_effects_one_is_parsed_as_true(self, client, user_mix_engineer_low_min, artist_headers):
         """'1' pour service_effects → 100 × 45% = 45€ → 4500 centimes."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_effects': '1'},
         )
         assert resp.status_code == 200, resp.data
         assert _unit_amount(kw) == 4500
 
-    def test_all_services_zero_rejected(self, client, engineer_low_min, artist_headers):
+    def test_all_services_zero_rejected(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Tous les services à '0' doit retourner 400 : au moins un service requis.
         Vérifie que '0' est bien parsé comme False (et non True).
         """
         resp, _ = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '0', 'service_effects': '0',
              'service_mastering': '0', 'service_artistic': '0'},
         )
@@ -298,10 +202,10 @@ class TestFormDataBooleanParsing:
             "Envoyer '0' pour tous les services devrait être rejeté"
         )
 
-    def test_has_separated_stems_one_adds_bonus(self, client, engineer_low_min, artist_headers):
+    def test_has_separated_stems_one_adds_bonus(self, client, user_mix_engineer_low_min, artist_headers):
         """'1' pour has_separated_stems → +20% sur le total (bonus stems)."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
             has_stems=True,
         )
@@ -309,10 +213,10 @@ class TestFormDataBooleanParsing:
         # cleaning(35) + stems(20) = 55€ → 5500 centimes
         assert _unit_amount(kw) == 5500
 
-    def test_has_separated_stems_zero_no_bonus(self, client, engineer_low_min, artist_headers):
+    def test_has_separated_stems_zero_no_bonus(self, client, user_mix_engineer_low_min, artist_headers):
         """'0' pour has_separated_stems → pas de bonus stems."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
             has_stems=False,
         )
@@ -330,14 +234,14 @@ class TestQuickModeMandatoryServices:
     """
 
     def test_mandatory_cleaning_forced_even_when_form_sends_zero(
-            self, client, engineer_high_min, artist_headers):
+            self, client, user_mix_engineer_autoforce, artist_headers):
         """
-        engineer_high_min : min_pct=35 → service_cleaning auto-forcé côté serveur.
+        user_mix_engineer_autoforce : min_pct=35 → service_cleaning auto-forcé côté serveur.
         Le mode Rapide peut envoyer '0' pour tous les services : cleaning sera quand
         même facturé (unit_amount ≥ 3500 centimes).
         """
         resp, kw = _post_order(
-            client, engineer_high_min.id, artist_headers,
+            client, user_mix_engineer_autoforce.id, artist_headers,
             {'service_cleaning': '0', 'service_effects': '0',
              'service_mastering': '0', 'service_artistic': '0'},
         )
@@ -346,14 +250,14 @@ class TestQuickModeMandatoryServices:
         assert _unit_amount(kw) == 3500
 
     def test_metadata_service_cleaning_true_when_forced(
-            self, client, engineer_high_min, artist_headers):
+            self, client, user_mix_engineer_autoforce, artist_headers):
         """
         Quand cleaning est auto-forcé, la metadata Stripe doit refléter 'True'
         pour que verify_payment() crée correctement le MixMasterRequest.
         (verify_payment lit: meta.get('service_cleaning') == 'True')
         """
         resp, kw = _post_order(
-            client, engineer_high_min.id, artist_headers,
+            client, user_mix_engineer_autoforce.id, artist_headers,
             {'service_cleaning': '0', 'service_effects': '0',
              'service_mastering': '0', 'service_artistic': '0'},
         )
@@ -373,9 +277,9 @@ class TestStripeMetadataMixmaster:
     verify_payment() lit: meta.get('service_cleaning') == 'True' — les majuscules importent.
     """
 
-    def test_all_required_metadata_keys_present(self, client, engineer_low_min, artist_headers):
+    def test_all_required_metadata_keys_present(self, client, user_mix_engineer_low_min, artist_headers):
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
@@ -383,13 +287,13 @@ class TestStripeMetadataMixmaster:
         missing = _REQUIRED_METADATA_KEYS - set(meta.keys())
         assert not missing, f"Clés manquantes dans metadata Stripe : {missing}"
 
-    def test_all_metadata_values_are_strings(self, client, engineer_low_min, artist_headers):
+    def test_all_metadata_values_are_strings(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Stripe lève une StripeInvalidRequestError si une valeur n'est pas une str.
         Ce test protège contre les refactorisations qui passeraient un bool/int.
         """
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
@@ -398,26 +302,26 @@ class TestStripeMetadataMixmaster:
         assert not non_strings, f"Valeurs non-str dans metadata : {non_strings}"
 
     def test_service_cleaning_true_serialized_as_python_true_string(
-            self, client, engineer_low_min, artist_headers):
+            self, client, user_mix_engineer_low_min, artist_headers):
         """
         str(True) = 'True' (T majuscule).
         verify_payment() compare == 'True', donc la casse est critique.
         """
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         meta = _metadata(kw)
         assert meta['service_cleaning'] == 'True'
 
     def test_service_cleaning_false_serialized_as_python_false_string(
-            self, client, engineer_high_min, artist_headers):
+            self, client, user_mix_engineer_autoforce, artist_headers):
         """
         Quand service_cleaning reste False (min_pct < 35 et form='0'),
         metadata['service_cleaning'] doit valoir 'False'.
         """
         resp, kw = _post_order(
-            client, engineer_high_min.id, artist_headers,
+            client, user_mix_engineer_autoforce.id, artist_headers,
             # service_cleaning auto-forcé par min_pct=35 → True dans ce cas
             # On teste effects qui n'est pas forcé
             {'service_cleaning': '1', 'service_effects': '0'},
@@ -426,36 +330,36 @@ class TestStripeMetadataMixmaster:
         meta = _metadata(kw)
         assert meta['service_effects'] == 'False'
 
-    def test_metadata_type_field_is_mixmaster(self, client, engineer_low_min, artist_headers):
+    def test_metadata_type_field_is_mixmaster(self, client, user_mix_engineer_low_min, artist_headers):
         """Le champ 'type' permet à verify_payment() d'identifier le flux."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert _metadata(kw)['type'] == 'mixmaster'
 
-    def test_artist_id_matches_jwt_user(self, client, engineer_low_min, artist, artist_headers):
+    def test_artist_id_matches_jwt_user(self, client, user_mix_engineer_low_min, user_artist, artist_headers):
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
-        assert _metadata(kw)['artist_id'] == str(artist.id)
+        assert _metadata(kw)['artist_id'] == str(user_artist.id)
 
-    def test_engineer_id_in_metadata(self, client, engineer_low_min, artist_headers):
+    def test_engineer_id_in_metadata(self, client, user_mix_engineer_low_min, artist_headers):
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
-        assert _metadata(kw)['engineer_id'] == str(engineer_low_min.id)
+        assert _metadata(kw)['engineer_id'] == str(user_mix_engineer_low_min.id)
 
-    def test_briefing_fields_stored_in_metadata(self, client, engineer_low_min, artist_headers):
+    def test_briefing_fields_stored_in_metadata(self, client, user_mix_engineer_low_min, artist_headers):
         """Les champs de briefing avancés sont stockés dans metadata (tronqués à 500 chars)."""
         briefing = {
             'brief_vocals': 'Voix claire et présente avec légère réverbe',
             'brief_ambiance': 'Atmosphère sombre et intimiste',
         }
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
             briefing=briefing,
         )
@@ -464,13 +368,13 @@ class TestStripeMetadataMixmaster:
         assert meta['brief_vocals'] == briefing['brief_vocals']
         assert meta['brief_ambiance'] == briefing['brief_ambiance']
 
-    def test_briefing_fields_empty_in_quick_mode(self, client, engineer_low_min, artist_headers):
+    def test_briefing_fields_empty_in_quick_mode(self, client, user_mix_engineer_low_min, artist_headers):
         """
         En mode Rapide, les champs de briefing ne sont pas remplis.
         Ils doivent être présents dans metadata mais vides (chaîne vide).
         """
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
@@ -487,55 +391,55 @@ class TestStripeSessionParameters:
     currency, mode, capture, URLs, customer_email, réponse JSON.
     """
 
-    def test_currency_is_eur(self, client, engineer_low_min, artist_headers):
+    def test_currency_is_eur(self, client, user_mix_engineer_low_min, artist_headers):
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
         assert kw['line_items'][0]['price_data']['currency'] == 'eur'
 
-    def test_mode_is_payment(self, client, engineer_low_min, artist_headers):
+    def test_mode_is_payment(self, client, user_mix_engineer_low_min, artist_headers):
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert kw['mode'] == 'payment'
 
-    def test_capture_method_is_automatic(self, client, engineer_low_min, artist_headers):
+    def test_capture_method_is_automatic(self, client, user_mix_engineer_low_min, artist_headers):
         """
         capture_method='automatic' : les fonds sont prélevés immédiatement.
         verify_payment() crée le MixMasterRequest avec stripe_payment_status='captured'.
         """
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert kw['payment_intent_data']['capture_method'] == 'automatic'
 
-    def test_unit_amount_is_strict_integer(self, client, engineer_low_min, artist_headers):
+    def test_unit_amount_is_strict_integer(self, client, user_mix_engineer_low_min, artist_headers):
         """Stripe refuse les floats dans unit_amount."""
         resp, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert isinstance(_unit_amount(kw), int)
 
-    def test_quantity_is_1(self, client, engineer_low_min, artist_headers):
+    def test_quantity_is_1(self, client, user_mix_engineer_low_min, artist_headers):
         _, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert kw['line_items'][0]['quantity'] == 1
 
-    def test_success_url_contains_session_id_placeholder(self, client, engineer_low_min, artist_headers):
+    def test_success_url_contains_session_id_placeholder(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Stripe substitue {CHECKOUT_SESSION_ID} dans success_url pour que
         verify_payment() puisse récupérer la session depuis l'URL de retour.
         """
         success_url = 'http://localhost:4200/mix/payment-success'
         _, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
             success_url=success_url,
         )
@@ -543,34 +447,34 @@ class TestStripeSessionParameters:
             f"Le placeholder Stripe est absent de success_url : {kw['success_url']!r}"
         )
 
-    def test_cancel_url_is_forwarded_from_form(self, client, engineer_low_min, artist_headers):
+    def test_cancel_url_is_forwarded_from_form(self, client, user_mix_engineer_low_min, artist_headers):
         """
         cancel_url est envoyé par Angular (window.location.origin + path).
         Il doit être passé tel quel à Stripe.
         """
         cancel_url = 'http://localhost:4200/mix/cancel-from-test'
         _, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
             cancel_url=cancel_url,
         )
         assert kw['cancel_url'] == cancel_url
 
-    def test_customer_email_is_artist_email(self, client, engineer_low_min, artist, artist_headers):
+    def test_customer_email_is_artist_email(self, client, user_mix_engineer_low_min, user_artist, artist_headers):
         """Stripe affiche l'email de l'artiste sur la page de paiement."""
         _, kw = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
-        assert kw['customer_email'] == artist.email
+        assert kw['customer_email'] == user_artist.email
 
-    def test_response_has_checkout_url_string(self, client, engineer_low_min, artist_headers):
+    def test_response_has_checkout_url_string(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Angular redirige le navigateur via window.location.href = checkout_url.
         La clé doit être 'checkout_url' (pas 'url') et sa valeur une str HTTPS.
         """
         resp, _ = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         assert resp.status_code == 200, resp.data
@@ -580,14 +484,14 @@ class TestStripeSessionParameters:
         assert isinstance(json_data['data']['checkout_url'], str)
         assert json_data['data']['checkout_url'].startswith('https://')
 
-    def test_response_has_no_total_field(self, client, engineer_low_min, artist_headers):
+    def test_response_has_no_total_field(self, client, user_mix_engineer_low_min, artist_headers):
         """
         Contrairement au checkout track (qui renvoie data.total),
         le checkout mixmaster ne renvoie QUE checkout_url.
         Vérification du contrat de réponse entre Flask et MixmasterService.
         """
         resp, _ = _post_order(
-            client, engineer_low_min.id, artist_headers,
+            client, user_mix_engineer_low_min.id, artist_headers,
             {'service_cleaning': '1'},
         )
         json_data = resp.get_json()
