@@ -312,9 +312,7 @@ export class UploadTrackComponent implements OnInit {
       this.style.set(this.availableStyles()[0]);
     }
 
-    const premiumFields = this.auth.isPremium() ? {
-      price_stems:                    this.priceStems(),
-      file_stems:                     this.fileStems() ?? undefined,
+    const contractPrices = this.auth.isPremium() ? {
       contract_price_exclusive:       this.cpExclusive(),
       contract_price_duration_3y:     this.cpDuration3y(),
       contract_price_duration_5y:     this.cpDuration5y(),
@@ -334,17 +332,19 @@ export class UploadTrackComponent implements OnInit {
       style:                    this.style(),
       price_mp3:                this.priceMp3(),
       price_wav:                this.priceWav(),
+      price_stems:              this.priceStems(),
       sacem_percentage_composer: this.sacemComposer(),
       tag_ids:                  this.selectedTagIds().join(','),
       similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
       playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
       file_mp3:                 this.fileMp3() ?? undefined,
       file_wav:                 this.fileWav() ?? undefined,
+      file_stems:               this.fileStems() ?? undefined,
       file_image:               this.fileImage() ?? undefined,
       auto_bpm:                 this.autoBpm(),
       auto_key:                 this.autoKey(),
       auto_style:               this.autoStyle(),
-      ...premiumFields,
+      ...contractPrices,
     }).subscribe({
       next: res => {
         this.loading.set(false);

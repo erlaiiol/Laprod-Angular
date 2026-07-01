@@ -408,8 +408,27 @@
 
 .right-badge {
   font-size: 0.7rem; font-weight: 600; border-radius: 4px; padding: 0.2rem 0.5rem; white-space: nowrap;
-  &.included { background: v.$tag-green-dark; color: v.$tag-green-light; }
-  &.optional { background: v.$gold-dark;      color: v.$gold-light; }
+  &.included       { background: v.$tag-green-dark; color: v.$tag-green-light; }
+  &.optional       { background: v.$gold-dark;      color: v.$gold-light; }
+  &.exclusive-badge { background: rgba(234, 179, 8, 0.15); color: v.$gold; border: 1px solid rgba(234, 179, 8, 0.35); }
+}
+
+.exclusive-section {
+  border-color: rgba(234, 179, 8, 0.35);
+  h3 { color: v.$gold; i { color: v.$gold; margin-right: 0.4rem; } }
+}
+
+.info-exclusive {
+  background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.25);
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  i { color: v.$gold; margin: 0; flex-shrink: 0; margin-top: 0.1rem; }
+  span { line-height: 1.5; }
+}
+
+.breakdown-row--exclusive {
+  color: v.$gold;
+  i { margin-right: 0.3rem; }
+  strong { color: v.$gold; font-weight: 700; }
 }
 
 .rights-hint {

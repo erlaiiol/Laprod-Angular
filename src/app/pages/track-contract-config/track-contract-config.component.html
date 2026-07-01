@@ -361,6 +361,30 @@
 
       }
 
+      <!-- ── Licence exclusive (always shown when available) ──────────── -->
+      @if (!track()?.is_exclusive_sold) {
+        <section class="form-section exclusive-section">
+          <h3><i class="bi bi-star-fill"></i> Licence exclusive</h3>
+          <div class="info-box info-exclusive">
+            <i class="bi bi-info-circle"></i>
+            <span>
+              En achetant l'exclusivité, vous devenez le <strong>seul et unique acquéreur</strong>
+              de ce beat. Il sera immédiatement retiré de la vente pour tous les autres acheteurs.
+            </span>
+          </div>
+          <label class="right-item">
+            <input type="checkbox"
+                   [checked]="rightExclusive()"
+                   (change)="rightExclusive.set($any($event.target).checked)">
+            <div>
+              <span class="right-name">Achat exclusif</span>
+              <span class="right-desc">Droits exclusifs · beat retiré de la vente après achat</span>
+            </div>
+            <span class="right-badge exclusive-badge">+{{ prices().exclusive }}€</span>
+          </label>
+        </section>
+      }
+
       <!-- ── Informations de facturation (always shown) ─────────────── -->
       <section class="form-section">
         <h3>Informations de facturation</h3>
@@ -386,6 +410,12 @@
           <span>Prix de base ({{ formatLabel() }})</span>
           <strong>{{ basePrice().toFixed(2) }}€</strong>
         </div>
+        @if (exclusiveFee() > 0) {
+          <div class="breakdown-row breakdown-row--exclusive">
+            <span><i class="bi bi-star-fill"></i> Licence exclusive</span>
+            <strong>+{{ prices().exclusive }}€</strong>
+          </div>
+        }
         <div class="breakdown-row">
           <span>Durée : {{ durationLabel() }}</span>
           <strong>+{{ durationFee() }}€</strong>

@@ -16,8 +16,9 @@ import { AdminContractBuilderComponent }    from './tabs/admin-contract-builder.
 import { AdminRecommendationsComponent }   from './tabs/admin-recommendations.component';
 import { AdminSupportComponent }           from './tabs/admin-support.component';
 import { AdminToplineComponent }           from './tabs/admin-toplines.component';
+import { AdminInvoicesComponent }          from './tabs/admin-invoices.component';
 
-export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categories' | 'contracts' | 'transactions' | 'contract-builder' | 'recommendations' | 'support' | 'toplines';
+export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categories' | 'contracts' | 'transactions' | 'contract-builder' | 'recommendations' | 'support' | 'toplines' | 'invoices';
 
 @Component({
   selector: 'app-admin',
@@ -35,6 +36,7 @@ export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categor
     AdminRecommendationsComponent,
     AdminSupportComponent,
     AdminToplineComponent,
+    AdminInvoicesComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',

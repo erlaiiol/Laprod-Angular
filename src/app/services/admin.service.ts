@@ -182,6 +182,44 @@ export interface RecommendationStats {
   artist_correlations?: { from: string; to: string; probability: number }[];
 }
 
+export interface AdminPurchaseInvoice {
+  id:            number;
+  type:          'purchase';
+  created_at:    string;
+  buyer:         string;
+  buyer_email:   string;
+  composer:      string;
+  track_title:   string;
+  format:        string;
+  amount:        number;
+  invoice_url:   string;
+  statement_url: string;
+}
+
+export interface AdminMixmasterInvoice {
+  id:           number;
+  type:         'mixmaster';
+  created_at:   string;
+  artist:       string;
+  engineer:     string;
+  title:        string;
+  status:       string;
+  amount:       number;
+  invoice_url:  string;
+  earnings_urls: { deposit: string; revision1: string; revision2: string; final: string };
+}
+
+export interface AdminInvoicesData {
+  purchases:   AdminPurchaseInvoice[];
+  mm_requests: AdminMixmasterInvoice[];
+  totals: {
+    purchases_count:   number;
+    mm_count:          number;
+    purchases_revenue: number;
+    mm_revenue:        number;
+  };
+}
+
 export type ApiFeedback = { level: 'info' | 'warning' | 'error'; message: string };
 
 type ApiResponse<T = void> = {
@@ -452,5 +490,20 @@ export class AdminService {
 
   deleteSimilarArtist(id: number): Observable<any> {
     return this.http.delete<any>(`${this.base}/similar-artists/${id}`, { headers: this.headers });
+  }
+
+  // ── Invoices ───────────────────────────────────────────────────────────────
+
+  getAdminInvoices(): Observable<ApiResponse<AdminInvoicesData>> {
+    return this.http.get<any>('/api/admin/invoices', { headers: this.headers });
+  }
+
+  getAdminInvoiceUrl(type: 'purchase' | 'purchase-statement' | 'mixmaster' | 'mm-earnings',
+                     id: number, stage?: string): string {
+    const base = '/api/admin/invoices';
+    if (type === 'purchase')           return `${base}/purchase/${id}`;
+    if (type === 'purchase-statement') return `${base}/purchase/${id}/statement`;
+    if (type === 'mixmaster')          return `${base}/mixmaster/${id}`;
+    return `${base}/mixmaster/${id}/earnings/${stage}`;
   }
 }

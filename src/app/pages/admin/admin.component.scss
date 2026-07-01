@@ -955,3 +955,64 @@
   &--active { background: v.$primary; border-color: v.$primary; color: #fff; font-weight: 600; }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
+
+// ── Invoices tab ───────────────────────────────────────────────────────────────
+
+.stat-sub { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.1rem; }
+
+.stat-card--total { border-color: v.$accent; }
+
+.section-toggle {
+  display: flex; gap: 0.5rem; margin-bottom: 1rem;
+  button {
+    padding: 0.4rem 1rem; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    border-radius: 6px; color: v.$text-secondary; cursor: pointer; font-size: 0.84rem;
+    transition: all 0.15s;
+    &:hover { border-color: v.$accent; color: v.$text-primary; }
+    &.active { background: rgba(v.$accent, 0.1); border-color: v.$accent; color: v.$accent; font-weight: 600; }
+  }
+}
+
+.table-wrapper { overflow-x: auto; }
+
+.id-cell     { font-size: 0.78rem; color: v.$text-muted; }
+.track-title { font-weight: 600; font-size: 0.84rem; }
+.amount      { font-weight: 700; color: v.$tag-green; white-space: nowrap; }
+
+.user-name  { display: block; font-weight: 600; font-size: 0.84rem; }
+.user-email { display: block; font-size: 0.72rem; color: v.$text-muted; }
+
+.format-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px;
+  text-transform: uppercase;
+  &.mp3   { background: v.$format-mp3-bg;   color: v.$format-mp3-color; }
+  &.wav   { background: v.$format-wav-bg;   color: v.$format-wav-color; }
+  &.stems { background: v.$format-stems-bg; color: v.$format-stems-color; }
+}
+
+.status-badge {
+  font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 10px;
+  &.status-accepted  { background: rgba(v.$tag-blue, 0.15);   color: v.$tag-blue; }
+  &.status-processing { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &.status-delivered { background: rgba(v.$tag-violet, 0.15); color: v.$tag-violet; }
+  &.status-revision1,
+  &.status-revision2 { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &.status-completed { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green; }
+}
+
+.actions-cell { white-space: nowrap; }
+.actions-cell--mm { min-width: 260px; }
+
+.btn-dl {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem;
+  border-radius: 5px; text-decoration: none; margin-right: 0.25rem;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.8; }
+  &--buyer    { background: rgba(v.$tag-blue, 0.15);   color: v.$tag-blue; }
+  &--composer { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green; }
+  &--rev      { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &--final    { background: rgba(v.$accent, 0.15);     color: v.$accent; }
+}
+
+.empty-state { color: v.$text-muted; font-size: 0.9rem; text-align: center; padding: 2rem 0; }

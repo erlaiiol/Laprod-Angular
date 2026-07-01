@@ -4,6 +4,20 @@ Scénarios utilisateurs nommés.
 Chaque fixture représente un profil métier distinct qui influence
 le comportement des serializers, des calculs de prix ou des contrôles d'accès.
 
+Catalogue :
+  user_free              → plan gratuit (upload=2/j, topline=5/sem)
+  user_amateur           → plan amateur (upload=15/j, topline=50/sem, is_premium_active=True)
+  user_pro               → plan pro (upload=30/j, topline=200/sem, is_premium_active=True)
+  user_premium_expired   → plan pro mais premium_expires_at dans le passé (is_premium_active=False)
+  user_artist            → artiste pur (is_artist=True, pas beatmaker)
+  user_pending           → onboarding OAuth incomplet (account_status='pending_completion')
+  user_admin             → administrateur plateforme
+  user_mix_engineer_*    → ingénieurs avec différents tarifs et certifications
+  user_stripe_ready      → ingénieur avec Stripe Connect complet
+
+NOTE : ne jamais passer is_premium=True à UserFactory — c'est un hybrid_property
+sans setter. Utiliser subscription_plan='pro'/'amateur' + premium_expires_at.
+
 Pour générer un JWT valide depuis un scénario :
     from flask_jwt_extended import create_access_token
 
@@ -14,6 +28,7 @@ Pour générer un JWT valide depuis un scénario :
         return {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 """
 
+from datetime import datetime, timedelta
 from decimal import Decimal
 import pytest
 from tests.scenarios import _teardown_user
@@ -22,7 +37,8 @@ from tests.scenarios import _teardown_user
 @pytest.fixture()
 def user_free(db, bound_factories):
     """Beatmaker sur plan gratuit, sans Stripe Connect.
-    Tokens: upload=2/jour, topline=5/semaine.
+    Tokens: upload=20 initiaux (défaut modèle), topline=5/semaine.
+    is_premium_active=False.
     Utilisé pour tester les limites de tokens et les accès plan-free."""
     from tests.factories.user_factory import UserFactory
     u = UserFactory(is_beatmaker=True, subscription_plan='free')
@@ -31,12 +47,54 @@ def user_free(db, bound_factories):
 
 
 @pytest.fixture()
-def user_pro(db, bound_factories):
-    """Beatmaker sur plan pro.
-    Tokens: upload=30/jour, topline=200/semaine.
-    Utilisé pour tester les fonctionnalités premium et les limites élevées."""
+def user_amateur(db, bound_factories):
+    """Beatmaker sur plan amateur (LaProd+ Amateur).
+    is_premium_active=True, tokens up=15/j, topline=50/sem.
+    Utilisé pour tester les fonctionnalités premium de base (pas les stems pro)."""
     from tests.factories.user_factory import UserFactory
-    u = UserFactory(is_beatmaker=True, subscription_plan='pro', is_premium=True)
+    u = UserFactory(
+        is_beatmaker=True,
+        subscription_plan='amateur',
+        premium_expires_at=None,  # valide indéfiniment
+        premium_source='stripe',
+        upload_track_tokens=15,
+        topline_tokens=50,
+    )
+    yield u
+    _teardown_user(db, u)
+
+
+@pytest.fixture()
+def user_pro(db, bound_factories):
+    """Beatmaker sur plan pro (LaProd+ Pro).
+    is_premium_active=True, tokens up=30/j, topline=200/sem.
+    Peut uploader des stems et activer les licences exclusives.
+    Utilisé pour tester les fonctionnalités premium élevées."""
+    from tests.factories.user_factory import UserFactory
+    u = UserFactory(
+        is_beatmaker=True,
+        subscription_plan='pro',
+        premium_expires_at=None,  # valide indéfiniment
+        premium_source='stripe',
+        upload_track_tokens=30,
+        topline_tokens=200,
+    )
+    yield u
+    _teardown_user(db, u)
+
+
+@pytest.fixture()
+def user_premium_expired(db, bound_factories):
+    """Beatmaker avec abonnement pro expiré (premium_expires_at dans le passé).
+    is_premium_active=False malgré subscription_plan='pro'.
+    Utilisé pour tester les gardes d'accès après expiration de l'abonnement."""
+    from tests.factories.user_factory import UserFactory
+    u = UserFactory(
+        is_beatmaker=True,
+        subscription_plan='pro',
+        premium_expires_at=datetime(2024, 1, 1),  # expiré
+        premium_source='stripe',
+    )
     yield u
     _teardown_user(db, u)
 

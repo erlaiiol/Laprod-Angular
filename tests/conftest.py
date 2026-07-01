@@ -36,6 +36,10 @@ os.environ.setdefault('REDIS_URL', 'memory://')
 
 import pytest
 
+# Expose bound_factories comme fixture globale pour tous les tests
+# (évite d'avoir à l'importer dans chaque fichier qui utilise les factories)
+from tests.factories import bound_factories  # noqa: F401
+
 # ── 2b. Patch config.py avant l'import de app.py ──────────────────────────────
 # app.py appelle create_app() au niveau module → il faut que config.py soit déjà
 # patché pour que les options de pool PostgreSQL ne soient pas passées à SQLite.
@@ -92,56 +96,40 @@ def db(app):
 
 # ── 4. Fixtures utilisateurs ───────────────────────────────────────────────────
 
+_CONFTEST_PASSWORD = 'TestPassword123!'
+
+
 @pytest.fixture()
-def user(db):
-    """Utilisateur standard actif (beatmaker, premium)."""
-    from models import User
-    u = User(
-        email='beatmaker@test.laprod.fr',
-        username='test_beatmaker',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
+def user(db, bound_factories):
+    """Utilisateur standard actif : beatmaker pro avec tokens élevés.
+    Mot de passe : 'TestPassword123!' (référencé dans les tests d'authentification).
+    Utilisé comme identité JWT par défaut dans auth_headers."""
+    from tests.factories.user_factory import UserFactory
+    from tests.scenarios import _teardown_user
+    u = UserFactory(
         is_beatmaker=True,
         subscription_plan='pro',
+        premium_expires_at=None,
+        upload_track_tokens=20,
     )
-    u.set_password('TestPassword123!')
-    db.session.add(u)
+    # Surcharge du mot de passe pour compatibilité avec les tests d'auth existants
+    u.set_password(_CONFTEST_PASSWORD)
     db.session.commit()
     yield u
-    # Supprimer le wallet en premier (pas de CASCADE FK → User dans le modèle)
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    db.session.delete(u)
-    db.session.commit()
+    _teardown_user(db, u)
 
 
 @pytest.fixture()
-def admin_user(db):
-    """Utilisateur administrateur."""
-    from models import User
-    u = User(
-        email='admin@test.laprod.fr',
-        username='test_admin',
-        email_verified=True,
-        account_status='active',
-        user_type_selected=True,
-        is_admin=True,
-    )
-    u.set_password('AdminPassword123!')
-    db.session.add(u)
+def admin_user(db, bound_factories):
+    """Administrateur plateforme.
+    Mot de passe : 'TestPassword123!'."""
+    from tests.factories.user_factory import UserFactory
+    from tests.scenarios import _teardown_user
+    u = UserFactory(is_admin=True)
+    u.set_password(_CONFTEST_PASSWORD)
     db.session.commit()
     yield u
-    from models import Wallet
-    wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
-    if wallet:
-        db.session.delete(wallet)
-        db.session.flush()
-    db.session.delete(u)
-    db.session.commit()
+    _teardown_user(db, u)
 
 
 # ── 5. Fixtures JWT ────────────────────────────────────────────────────────────

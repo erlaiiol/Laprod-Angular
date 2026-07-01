@@ -1,0 +1,151 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+}
+
+@if (!loading()) {
+
+  <!-- ── Totaux ───────────────────────────────────────────────────────────── -->
+  @if (totals()) {
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-label">Achats de tracks</span>
+        <span class="stat-value">{{ totals()!.purchases_count }}</span>
+        <span class="stat-sub">{{ fmtAmount(totals()!.purchases_revenue) }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Demandes MixMaster</span>
+        <span class="stat-value">{{ totals()!.mm_count }}</span>
+        <span class="stat-sub">{{ fmtAmount(totals()!.mm_revenue) }}</span>
+      </div>
+      <div class="stat-card stat-card--total">
+        <span class="stat-label">Volume total</span>
+        <span class="stat-value">{{ fmtAmount(totals()!.purchases_revenue + totals()!.mm_revenue) }}</span>
+      </div>
+    </div>
+  }
+
+  <!-- ── Section toggle ────────────────────────────────────────────────────── -->
+  <div class="section-toggle">
+    <button [class.active]="activeSection() === 'purchases'" (click)="activeSection.set('purchases')">
+      <i class="bi bi-music-note-beamed"></i> Achats tracks ({{ purchases().length }})
+    </button>
+    <button [class.active]="activeSection() === 'mixmaster'" (click)="activeSection.set('mixmaster')">
+      <i class="bi bi-headphones"></i> MixMaster ({{ mmRequests().length }})
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       ACHATS DE TRACKS
+       ══════════════════════════════════════════════════════════════════════ -->
+  @if (activeSection() === 'purchases') {
+    @if (purchases().length === 0) {
+      <p class="empty-state">Aucun achat enregistré.</p>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Acheteur</th>
+              <th>Compositeur</th>
+              <th>Track</th>
+              <th>Format</th>
+              <th>Montant</th>
+              <th>Factures</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of purchases(); track p.id) {
+              <tr>
+                <td class="id-cell">{{ p.id }}</td>
+                <td>{{ fmtDate(p.created_at) }}</td>
+                <td>
+                  <span class="user-name">{{ p.buyer }}</span>
+                  <span class="user-email">{{ p.buyer_email }}</span>
+                </td>
+                <td>{{ p.composer }}</td>
+                <td class="track-title">{{ p.track_title }}</td>
+                <td><span class="format-badge {{ p.format }}">{{ p.format.toUpperCase() }}</span></td>
+                <td class="amount">{{ fmtAmount(p.amount) }}</td>
+                <td class="actions-cell">
+                  <a [href]="downloadUrl(p.invoice_url)" target="_blank" class="btn-dl btn-dl--buyer" title="Facture acheteur">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Acheteur
+                  </a>
+                  <a [href]="downloadUrl(p.statement_url)" target="_blank" class="btn-dl btn-dl--composer" title="Relevé compositeur">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Compositeur
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       DEMANDES MIXMASTER
+       ══════════════════════════════════════════════════════════════════════ -->
+  @if (activeSection() === 'mixmaster') {
+    @if (mmRequests().length === 0) {
+      <p class="empty-state">Aucune demande MixMaster enregistrée.</p>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Artiste</th>
+              <th>Ingénieur</th>
+              <th>Titre</th>
+              <th>Statut</th>
+              <th>Montant</th>
+              <th>Factures</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (mm of mmRequests(); track mm.id) {
+              <tr>
+                <td class="id-cell">{{ mm.id }}</td>
+                <td>{{ fmtDate(mm.created_at) }}</td>
+                <td>{{ mm.artist }}</td>
+                <td>{{ mm.engineer }}</td>
+                <td class="track-title">{{ mm.title }}</td>
+                <td><span class="status-badge status-{{ mm.status }}">{{ mmStatusLabel(mm.status) }}</span></td>
+                <td class="amount">{{ fmtAmount(mm.amount) }}</td>
+                <td class="actions-cell actions-cell--mm">
+                  <a [href]="downloadUrl(mm.invoice_url)" target="_blank" class="btn-dl btn-dl--buyer" title="Facture artiste">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Artiste
+                  </a>
+                  <a [href]="downloadUrl(mm.earnings_urls.deposit)" target="_blank" class="btn-dl btn-dl--composer" title="Relevé acompte ingénieur">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Acompte
+                  </a>
+                  @if (mm.status === 'revision1' || mm.status === 'revision2' || mm.status === 'completed') {
+                    <a [href]="downloadUrl(mm.earnings_urls.revision1)" target="_blank" class="btn-dl btn-dl--rev" title="Relevé révision 1">
+                      <i class="bi bi-file-earmark-arrow-down"></i> Rev.1
+                    </a>
+                  }
+                  @if (mm.status === 'revision2' || mm.status === 'completed') {
+                    <a [href]="downloadUrl(mm.earnings_urls.revision2)" target="_blank" class="btn-dl btn-dl--rev" title="Relevé révision 2">
+                      <i class="bi bi-file-earmark-arrow-down"></i> Rev.2
+                    </a>
+                  }
+                  @if (mm.status === 'completed') {
+                    <a [href]="downloadUrl(mm.earnings_urls.final)" target="_blank" class="btn-dl btn-dl--final" title="Relevé solde final">
+                      <i class="bi bi-file-earmark-arrow-down"></i> Final
+                    </a>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+}

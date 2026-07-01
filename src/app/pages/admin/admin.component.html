@@ -40,6 +40,9 @@
     <button [class.active]="activeTab() === 'support'" (click)="setTab('support')">
       <i class="bi bi-envelope-heart"></i> Support
     </button>
+    <button [class.active]="activeTab() === 'invoices'" (click)="setTab('invoices')">
+      <i class="bi bi-receipt"></i> Factures
+    </button>
   </div>
 
   <div class="tab-content">
@@ -75,6 +78,9 @@
     }
     @if (activeTab() === 'support') {
       <app-admin-support />
+    }
+    @if (activeTab() === 'invoices') {
+      <app-admin-invoices />
     }
   </div>
 

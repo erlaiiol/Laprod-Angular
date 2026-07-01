@@ -5,21 +5,43 @@ Chaque fixture représente un cas métier stable et documenté. Ils dépendent
 de `bound_factories` (qui lie les factories à la session SQLAlchemy de test).
 
 Catalogue des scénarios disponibles :
-  users.py          → user_free, user_pro, user_artist, user_pending,
-                       user_admin, user_mix_engineer_low_min,
-                       user_mix_engineer_high_min, user_mix_engineer_mastering,
-                       user_mix_engineer_producer, user_stripe_ready
-  tracks.py         → track_default_prices, track_custom_exclusive,
-                       track_exclusive_sold, track_high_price_mp3
-  mixmaster_orders.py → order_awaiting, order_accepted, order_delivered,
-                         order_revision1, order_revision2, order_completed,
-                         order_completed_after_rev1, order_rejected,
-                         order_expired, order_all_services
+
+  users.py :
+    user_free              → plan gratuit, is_premium_active=False
+    user_amateur           → plan amateur, is_premium_active=True (tokens intermédiaires)
+    user_pro               → plan pro, is_premium_active=True (tokens max, stems, exclusives)
+    user_premium_expired   → plan pro mais expiré, is_premium_active=False
+    user_artist            → artiste pur (is_artist=True, pas beatmaker)
+    user_pending           → onboarding OAuth incomplet
+    user_admin             → administrateur plateforme
+    user_mix_engineer_low_min    → ingénieur ref=100€, min=10€ (pas d'auto-force)
+    user_mix_engineer_high_min   → ingénieur ref=100€, min=30€ (plancher élevé)
+    user_mix_engineer_autoforce  → ingénieur ref=100€, min=35€ (auto-force cleaning)
+    user_mix_engineer_mastering  → ingénieur certifié mastering, ref=150€
+    user_mix_engineer_producer   → ingénieur certifié artistique, ref=200€
+    user_stripe_ready            → ingénieur avec Stripe Connect complet
+
+  tracks.py :
+    track_default_prices   → approuvée, prix contrats = None (valeurs plateforme)
+    track_custom_exclusive → prix d'exclusivité custom à 500€
+    track_exclusive_sold   → is_exclusive_sold=True (410 GONE au checkout)
+    track_high_price_mp3   → MP3=50€, WAV=100€, stems=150€ (seuils public_show)
+    track_unapproved       → is_approved=False (masquée du catalogue public)
+    track_with_files       → file_mp3 + file_wav définis (prête au téléchargement)
+    track_sacem_min        → sacem_percentage_composer=0 (borne basse)
+    track_sacem_max        → sacem_percentage_composer=85 (borne haute)
+
+  mixmaster_orders.py :
+    order_awaiting, order_accepted, order_delivered,
+    order_revision1, order_revision2, order_completed,
+    order_completed_after_rev1, order_rejected,
+    order_expired, order_all_services
 
 Utilisation dans un test :
-    from tests.scenarios.users import user_mix_engineer_low_min
+    from tests.scenarios.users import user_pro
+    from tests.scenarios.tracks import track_unapproved
 
-    def test_pricing(client, user_mix_engineer_low_min, artist_headers):
+    def test_unapproved_hidden(client, user_pro, track_unapproved):
         ...
 """
 

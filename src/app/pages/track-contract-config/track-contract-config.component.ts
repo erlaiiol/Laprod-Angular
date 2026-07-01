@@ -52,6 +52,7 @@ export class TrackContractConfigComponent implements OnInit {
   duration         = signal<DurationKey>('stream');
   territory        = signal<Territory>('France');
   isLifetime       = signal(false);
+  rightExclusive   = signal(false);
   rightMechanical  = signal(false);
   rightPublicShow  = signal(false);
   rightArrangement = signal(false);
@@ -67,6 +68,7 @@ export class TrackContractConfigComponent implements OnInit {
   prices = computed(() => {
     const cp = this.track()?.contract_prices;
     return {
+      exclusive:   cp?.exclusive   ?? 150,
       duration:    { stream: 0, '3': cp?.duration_3y ?? 5, '5': cp?.duration_5y ?? 10, '10': cp?.duration_10y ?? 15, lifetime: cp?.lifetime ?? 50 } as Record<DurationKey, number>,
       territory:   { France: 0, Europe: cp?.territory_eu ?? 5, 'Monde entier': cp?.territory_world ?? 10 } as Record<Territory, number>,
       mechanical:  cp?.mechanical  ?? 30,
@@ -86,6 +88,7 @@ export class TrackContractConfigComponent implements OnInit {
 
   durationFee  = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
   territoryFee = computed(() => this.prices().territory[this.territory()]);
+  exclusiveFee = computed(() => this.rightExclusive() ? this.prices().exclusive : 0);
 
   // "Streaming seul" sans durée → aucun autre droit (mécanique, publique, arrangement) accordé
   streamOnly = computed(() => !this.isLifetime() && this.duration() === 'stream');
@@ -95,7 +98,7 @@ export class TrackContractConfigComponent implements OnInit {
   );
 
   subtotal = computed(() =>
-    this.basePrice() + this.durationFee() + this.territoryFee() + this.arrangementFee()
+    this.basePrice() + this.exclusiveFee() + this.durationFee() + this.territoryFee() + this.arrangementFee()
   );
 
   mechanicalAutoIncluded = computed(() => this.subtotal() >= MECHANICAL_THRESHOLD);
@@ -247,6 +250,7 @@ export class TrackContractConfigComponent implements OnInit {
     if (!track) { this.paying.set(false); return; }
 
     this.paymentSvc.createCheckout(track.id, this.format(), {
+      is_exclusive:            this.rightExclusive(),
       is_lifetime:             this.isLifetime(),
       duration_years:          this.isLifetime() ? 999 : this.duration() === 'stream' ? 0 : Number(this.duration()),
       territory:               this.territory(),

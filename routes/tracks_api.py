@@ -327,7 +327,7 @@ def post_track(current_user):
       - file_mp3   : fichier MP3  (optionnel — au moins un de mp3/wav/stems requis)
       - file_wav   : fichier WAV  (optionnel)
       - file_image : image de couverture (optionnel)
-      - file_stems : archive ZIP/RAR stems (optionnel, premium)
+      - file_stems : archive ZIP/RAR stems (optionnel)
                      Si stems sans mp3/wav : extrait automatiquement *_current.* (fallback *_master.*)
       - title, bpm, key, style, price_mp3, price_wav, price_stems
       - sacem_percentage_composer, tag_ids
@@ -381,7 +381,7 @@ def post_track(current_user):
         file_mp3   = request.files.get('file_mp3')
         file_wav   = request.files.get('file_wav')
         file_image = request.files.get('file_image')
-        file_stems = request.files.get('file_stems') if current_user.is_premium else None
+        file_stems = request.files.get('file_stems')
 
         has_mp3   = bool(file_mp3   and file_mp3.filename   != '')
         has_wav   = bool(file_wav   and file_wav.filename   != '')
