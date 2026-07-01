@@ -459,6 +459,46 @@
         Le contrat PDF sera automatiquement généré après le paiement.
       </div>
 
+      <!-- ── Mentions légales (obligation d'information précontractuelle) ── -->
+      <div class="legal-notice">
+        <h4 class="legal-notice__title">
+          <i class="bi bi-shield-check"></i> Conditions légales de la licence
+        </h4>
+        <ul class="legal-notice__list">
+          <li>
+            <strong>Droits moraux permanents (art. L.121-1 CPI) :</strong>
+            Le compositeur conserve ses droits moraux en permanence. Ces droits sont inaliénables et imprescriptibles.
+          </li>
+          <li>
+            <strong>Retour des droits à l'expiration :</strong>
+            À l'échéance de la durée choisie, les droits patrimoniaux concédés reviennent automatiquement au compositeur.
+            Aucun renouvellement tacite n'est prévu.
+          </li>
+          <li>
+            <strong>Liberté de re-licence du compositeur :</strong>
+            Le compositeur peut licencier de nouveau cette composition après expiration, sans délai, y compris exclusivement à un tiers.
+          </li>
+          <li>
+            <strong>Vos enregistrements restent valides :</strong>
+            Les œuvres que vous réalisez pendant la période de licence restent valides après expiration.
+            Vous ne pourrez pas créer de nouvelles exploitations commerciales de cette composition au-delà de la date d'expiration.
+          </li>
+          @if (rightExclusive()) {
+            <li class="legal-notice__exclusive">
+              <i class="bi bi-star-fill"></i>
+              <strong>Fin de l'exclusivité :</strong>
+              L'exclusivité prend fin à l'échéance indiquée. La composition redevient alors automatiquement disponible à la vente.
+            </li>
+          }
+        </ul>
+        <label class="legal-notice__accept">
+          <input type="checkbox"
+                 [checked]="legalAccepted()"
+                 (change)="legalAccepted.set($any($event.target).checked)">
+          <span>J'ai lu et j'accepte les conditions légales de cette licence</span>
+        </label>
+      </div>
+
       @if (error()) {
         <div class="form-error">{{ error() }}</div>
       }
@@ -472,7 +512,7 @@
                 [class.btn-confirm--quick]="mode() === 'quick'"
                 [class.btn-confirm--login]="!auth.isLoggedIn()"
                 (click)="onConfirm()"
-                [disabled]="paying()">
+                [disabled]="paying() || (!auth.isLoggedIn() ? false : !legalAccepted())">
           @if (paying()) {
             <span class="spinner-border spinner-border-sm me-2"></span> Redirection…
           } @else if (!auth.isLoggedIn()) {

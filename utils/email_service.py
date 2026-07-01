@@ -1054,3 +1054,131 @@ L'équipe LaProd
         recipients=[user.email],
         text_body=text_body,
     )
+
+
+# ============================================
+# EMAILS — CYCLE DE VIE DES LICENCES
+# ============================================
+
+def send_expiry_reminder_email(purchase, days_remaining: int):
+    """Rappel d'expiration de licence (90 / 30 / 7 / 1 jours avant)."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    if days_remaining <= 1:
+        urgency_line = "Votre licence expire demain !"
+        urgency_subject = "expire demain"
+    elif days_remaining <= 7:
+        urgency_line = f"Votre licence expire dans {days_remaining} jours !"
+        urgency_subject = f"expire dans {days_remaining} jours"
+    else:
+        urgency_line = f"Votre licence expire dans {days_remaining} jours."
+        urgency_subject = f"expire dans {days_remaining} jours"
+
+    expires_str = purchase.expires_at.strftime('%d/%m/%Y') if purchase.expires_at else '—'
+
+    text_body = f"""Bonjour {buyer.username},
+
+{urgency_line}
+
+Track      : {track_title}
+Format     : {purchase.format_purchased.upper() if purchase.format_purchased else '—'}
+Expiration : {expires_str}
+
+Pour conserver vos droits d'exploitation, renouvelez votre licence dès maintenant depuis votre espace :
+{_fe('/licenses')}
+
+Sans renouvellement, vos droits contractuels cesseront à la date d'expiration.
+Vos enregistrements réalisés pendant la période de licence restent valides.
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Votre licence {urgency_subject} — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+    )
+
+
+def send_sole_licensee_email(purchase):
+    """Notification mensuelle : l'artiste est l'unique licencié actif."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    text_body = f"""Bonjour {buyer.username},
+
+Ce mois-ci encore, vous êtes le seul titulaire d'une licence pour :
+
+Track : {track_title}
+
+Cette composition n'a pas été vendue à d'autres artistes. Vous bénéficiez d'une situation avantageuse — pensez à renouveler votre licence avant son expiration pour maintenir cet avantage.
+
+Retrouvez le détail de vos licences ici :
+{_fe('/licenses')}
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Vous êtes le seul licencié — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+    )
+
+
+def send_renewal_confirmation_email(purchase):
+    """Confirmation de renouvellement de licence (artiste)."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    expires_str = purchase.expires_at.strftime('%d/%m/%Y') if purchase.expires_at else 'à vie'
+    duration_line = f"Nouvelle échéance : {expires_str}"
+
+    text_body = f"""Bonjour {buyer.username},
+
+Votre licence a été renouvelée avec succès !
+
+Track    : {track_title}
+Format   : {purchase.format_purchased.upper() if purchase.format_purchased else '—'}
+{duration_line}
+
+Vos droits d'exploitation sont prolongés. Vous pouvez consulter et télécharger votre nouveau contrat depuis votre espace licences :
+{_fe('/licenses')}
+
+Merci pour votre confiance !
+
+---
+L'équipe LaProd
+"""
+
+    attachments = []
+    if purchase.contract_file:
+        try:
+            contract_path = purchase.contract_file
+            if not contract_path.startswith('/'):
+                contract_path = os.path.join(
+                    current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+                    contract_path,
+                )
+            if os.path.exists(contract_path):
+                with open(contract_path, 'rb') as f:
+                    attachments = [(
+                        f"contrat_renouvellement_{purchase.id}.pdf",
+                        'application/pdf',
+                        f.read(),
+                    )]
+        except Exception as e:
+            current_app.logger.error(f"Erreur attach contrat renouvellement #{purchase.id}: {e}")
+
+    return send_email(
+        subject=f'Licence renouvelée — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+        attachments=attachments,
+    )

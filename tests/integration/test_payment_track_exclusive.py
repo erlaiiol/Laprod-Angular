@@ -38,7 +38,10 @@ def buyer_headers(app, db):
         token = create_access_token(identity=str(u.id))
     yield {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}, u
     db.session.rollback()
-    from models import Purchase
+    from models import Purchase, Contract
+    buyer_purchases = db.session.query(Purchase).filter_by(buyer_id=u.id).all()
+    for bp in buyer_purchases:
+        db.session.query(Contract).filter_by(purchase_id=bp.id).delete()
     db.session.query(Purchase).filter_by(buyer_id=u.id).delete()
     existing = db.session.get(User, u.id)
     if existing:

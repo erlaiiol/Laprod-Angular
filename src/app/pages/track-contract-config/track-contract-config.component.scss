@@ -570,3 +570,74 @@
 
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
 .state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
+
+// ── Mentions légales ──────────────────────────────────────────────────────────
+
+.legal-notice {
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border;
+  border-radius: 10px;
+  padding:       1.25rem 1.5rem;
+  margin-top:    1.5rem;
+
+  &__title {
+    font-size:     0.9rem;
+    font-weight:   700;
+    color:         v.$text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.85rem;
+    display:       flex;
+    align-items:   center;
+    gap:           0.5rem;
+
+    i { color: v.$primary; }
+  }
+
+  &__list {
+    list-style:    none;
+    padding:       0;
+    margin:        0 0 1rem 0;
+    display:       flex;
+    flex-direction: column;
+    gap:           0.6rem;
+
+    li {
+      font-size:   0.82rem;
+      color:       v.$text-muted;
+      line-height: 1.5;
+      padding-left: 0.75rem;
+      border-left: 2px solid v.$bg-border;
+    }
+
+    strong { color: v.$text-secondary; }
+  }
+
+  &__exclusive {
+    border-left-color: #c9a227 !important;
+    color:             #c9a227 !important;
+    font-size:         0.82rem;
+
+    i { margin-right: 0.3rem; }
+    strong { color: inherit; }
+  }
+
+  &__accept {
+    display:     flex;
+    align-items: center;
+    gap:         0.6rem;
+    cursor:      pointer;
+    font-size:   0.88rem;
+    color:       v.$text-primary;
+    font-weight: 600;
+    margin-top:  0.5rem;
+
+    input[type="checkbox"] {
+      width:  16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: v.$primary;
+      flex-shrink: 0;
+    }
+  }
+}

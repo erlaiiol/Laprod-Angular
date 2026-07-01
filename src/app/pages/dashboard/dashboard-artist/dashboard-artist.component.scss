@@ -347,6 +347,46 @@
     background: v.$bg-elevated; border-color: v.$bg-border; color: v.$text-secondary;
     &:hover { border-color: v.$tag-pink; color: v.$tag-pink; }
   }
+  &.btn-renew {
+    background: v.$tag-orange-dark; border-color: v.$tag-orange; color: v.$tag-orange-light;
+    &:hover { background: v.$tag-orange; color: #000; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}
+
+// ── Licences ──────────────────────────────────────────────────────────────────
+
+.license-alert {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: v.$tag-orange-dark; border: 1px solid v.$tag-orange;
+  border-radius: 8px; padding: 0.75rem 1rem;
+  color: v.$tag-orange-light; font-size: 0.85rem; margin-bottom: 1rem;
+  i { font-size: 1rem; }
+}
+
+.licenses-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+
+.license-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 0.85rem 1rem;
+  transition: border-color 0.15s;
+
+  &:hover { border-color: v.$bg-border-subtle; }
+
+  &--urgent { border-color: rgba(v.$tag-red, 0.5); }
+  &--expired { opacity: 0.7; }
+}
+
+.license-territory {
+  font-size: 0.72rem; color: v.$text-secondary;
+  display: inline-flex; align-items: center; gap: 0.2rem;
+}
+
+.spinner-sm {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
 }
 
 .fmt-badge {

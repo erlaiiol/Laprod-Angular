@@ -11,6 +11,8 @@ import { TrackService } from '../../../services/track.service';
 import { CudTrackService } from '../../../services/cud-track.service';
 import { ToastService } from '../../../services/toast.service';
 import { PlaylistService, Playlist } from '../../../services/playlist.service';
+import { LicenseService, ComposerLicense, ComposerLicensesData } from '../../../services/license.service';
+import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
 import { environment } from '../../../../environments/environment';
 
 export interface TrackViewStat {
@@ -19,12 +21,12 @@ export interface TrackViewStat {
   unique_views: number;
 }
 
-type Tab = 'tracks' | 'sales' | 'playlists';
+type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses';
 
 @Component({
   selector: 'app-dashboard-beatmaker',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent],
   templateUrl: './dashboard-beatmaker.component.html',
   styleUrls: ['./dashboard-beatmaker.component.scss'],
 })
@@ -54,6 +56,10 @@ export class DashboardBeatmakerComponent implements OnInit {
   viewStats        = signal<TrackViewStat[]>([]);
   viewStatsLoading = signal(false);
 
+  soldLicenses        = signal<ComposerLicensesData | null>(null);
+  soldLicensesLoading = signal(false);
+  licenseFilter       = signal<'all' | 'active' | 'expired' | 'exclusive'>('all');
+
   readonly auth        = inject(AuthService);
   private dashboardSvc = inject(DashboardService);
   private trackSvc     = inject(TrackService);
@@ -61,6 +67,7 @@ export class DashboardBeatmakerComponent implements OnInit {
   private router       = inject(Router);
   private toast        = inject(ToastService);
   private playlistSvc  = inject(PlaylistService);
+  private licenseSvc   = inject(LicenseService);
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
@@ -109,6 +116,35 @@ export class DashboardBeatmakerComponent implements OnInit {
     this.activeTab.set(tab);
     if (tab === 'playlists' && this.playlists().length === 0) {
       this.loadPlaylists();
+    }
+    if (tab === 'licenses' && !this.soldLicenses()) {
+      this.loadSoldLicenses();
+    }
+  }
+
+  private loadSoldLicenses(): void {
+    this.soldLicensesLoading.set(true);
+    this.licenseSvc.getComposerLicenses().subscribe({
+      next: (res) => {
+        if (res.success) this.soldLicenses.set(res.data!);
+        this.soldLicensesLoading.set(false);
+      },
+      error: () => {
+        this.toast.showToast({ level: 'error', message: 'Impossible de charger vos licences vendues.' });
+        this.soldLicensesLoading.set(false);
+      },
+    });
+  }
+
+  filteredLicenses(): ComposerLicense[] {
+    const data = this.soldLicenses();
+    if (!data) return [];
+    const all = data.licenses;
+    switch (this.licenseFilter()) {
+      case 'active':    return all.filter(l => l.license_status === 'active');
+      case 'expired':   return all.filter(l => l.license_status === 'expired');
+      case 'exclusive': return all.filter(l => l.is_exclusive);
+      default:          return all;
     }
   }
 

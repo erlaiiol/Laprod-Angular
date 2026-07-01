@@ -46,3 +46,11 @@ class PurchaseFactory(SQLAlchemyModelFactory):
 
     # Contrat PDF — non généré par défaut
     contract_file = None
+
+    # Licence lifecycle
+    is_exclusive   = False
+    duration_years = None
+    is_lifetime    = False
+    territory      = None
+    expires_at     = None
+    license_status = 'active'

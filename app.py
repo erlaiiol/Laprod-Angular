@@ -309,6 +309,7 @@ def create_app(test_config=None):
         contract_analyzer_api_bp,
         playlist_bp,
         invoice_api_bp,
+        licenses_api_bp,
     )
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
@@ -341,6 +342,7 @@ def create_app(test_config=None):
     app.register_blueprint(invoice_api_bp)
     app.register_blueprint(recommendation_api_bp)
     app.register_blueprint(og_preview_bp)
+    app.register_blueprint(licenses_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

@@ -683,16 +683,34 @@ class Purchase(db.Model):
     # Stripe
     stripe_payment_intent_id = db.Column(db.String(200), unique=True, nullable=False)
     stripe_transfer_id = db.Column(db.String(200), nullable=True)  # ID du transfert au compositeur
-    
+
     # Contrat généré
     contract_file = db.Column(db.String(200), nullable=True)
-    
+
+    # ── LIFECYCLE DE LICENCE (ajouté v2) ────────────────────────────────────
+    is_exclusive   = db.Column(db.Boolean, default=False, nullable=False)
+    duration_years = db.Column(db.Integer, nullable=True)        # 3 | 5 | 10 | None (lifetime/streaming)
+    is_lifetime    = db.Column(db.Boolean, default=False, nullable=False)
+    territory      = db.Column(db.String(100), nullable=True)
+    expires_at     = db.Column(db.DateTime, nullable=True)       # None si lifetime ou streaming seul
+    license_status = db.Column(db.String(50), default='active', nullable=False)
+                     # 'active' | 'expired' | 'renewed' | 'cancelled'
+
+    # Auto-référence pour les renouvellements
+    renewed_from_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+    renewed_to_id   = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+
+    renewed_from = db.relationship('Purchase', foreign_keys=[renewed_from_id], remote_side='Purchase.id',
+                                   backref=db.backref('renewed_to_purchase', uselist=False))
+
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-        
+
     __table_args__ = (
-    CheckConstraint('price_paid >= 0', name='ck_purchase_price_positive'),
-    CheckConstraint('platform_fee >= 0', name='ck_purchase_fee_positive'),
-    CheckConstraint('composer_revenue >= 0', name='ck_purchase_revenue_positive'),
+        CheckConstraint('price_paid >= 0', name='ck_purchase_price_positive'),
+        CheckConstraint('platform_fee >= 0', name='ck_purchase_fee_positive'),
+        CheckConstraint('composer_revenue >= 0', name='ck_purchase_revenue_positive'),
+        db.Index('idx_purchase_license_status', 'license_status'),
+        db.Index('idx_purchase_buyer_track', 'buyer_id', 'track_id'),
     )
 
     def calculate_fees(self, total_amount, platform_commission=Decimal('0.10')):
@@ -740,22 +758,29 @@ class Contract(db.Model):
     sacem_percentage_buyer = db.Column(db.Integer, nullable=False)  # % acheteur/interprète
     
     price = db.Column(db.Integer, nullable=False)
-    percentage = db.Column(db.Integer, nullable=False)  # Ce champ existe déjà, peut-être redondant ?
-    
+    percentage = db.Column(db.Integer, nullable=False)
+
     signature_place = db.Column(db.String(200), nullable=True)
     signature_date = db.Column(db.String(200), nullable=True)
-    
+
     contract_file = db.Column(db.String(200), nullable=True)
+
+    # ── LIFECYCLE (ajouté v2) ────────────────────────────────────────────────
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+    status      = db.Column(db.String(50), default='active', nullable=False)
+                  # 'active' | 'expired' | 'renewed' | 'cancelled'
+
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
     # Relations
-    track = db.relationship('Track', foreign_keys=[track_id], backref='contracts')
+    track    = db.relationship('Track', foreign_keys=[track_id], backref='contracts')
     composer = db.relationship('User', foreign_keys=[composer_id], backref='signed_composer_contracts')
-    client = db.relationship('User', foreign_keys=[client_id], backref='signed_client_contracts')
+    client   = db.relationship('User', foreign_keys=[client_id], backref='signed_client_contracts')
+    purchase = db.relationship('Purchase', foreign_keys=[purchase_id], backref=db.backref('contract', uselist=False))
 
     __table_args__ = (
-    CheckConstraint('price >= 0', name='ck_contract_price_positive'),
-    CheckConstraint('percentage >= 0 AND percentage <= 85', name='ck_contract_percentage_valid'),
+        CheckConstraint('price >= 0', name='ck_contract_price_positive'),
+        CheckConstraint('percentage >= 0 AND percentage <= 85', name='ck_contract_percentage_valid'),
     )
 
 class MixMasterRequest(db.Model):
@@ -1432,3 +1457,34 @@ class UserContractValue(db.Model):
         db.UniqueConstraint('contract_id', 'clause_id', name='unique_contract_clause'),
         db.Index('idx_ucv_contract_id', 'contract_id'),
     )
+
+
+class LicenseNotificationLog(db.Model):
+    """Journal de déduplication des notifications planifiées de licences."""
+    __tablename__ = 'license_notification_log'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    purchase_id       = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
+    user_id           = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notification_type = db.Column(db.String(80), nullable=False)
+                        # 'sole_licensee_monthly' | 'expiry_90d' | 'expiry_30d' | 'expiry_7d' | 'expiry_1d'
+    period_key        = db.Column(db.String(30), nullable=False)
+                        # '2026-07' pour mensuel, '2026-07-01-90d' pour rappels d'expiration
+
+    sent_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    purchase = db.relationship('Purchase', foreign_keys=[purchase_id],
+                               backref=db.backref('notification_logs',
+                                                  lazy='dynamic',
+                                                  cascade='all, delete-orphan',
+                                                  passive_deletes=True))
+    user     = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('purchase_id', 'notification_type', 'period_key',
+                            name='uq_license_notif_dedup'),
+        db.Index('idx_license_notif_log', 'purchase_id', 'notification_type', 'period_key'),
+    )
+
+    def __repr__(self):
+        return f"<LicenseNotificationLog purchase={self.purchase_id} type={self.notification_type} period={self.period_key}>"

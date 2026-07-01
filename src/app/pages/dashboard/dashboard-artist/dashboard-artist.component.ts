@@ -9,14 +9,16 @@ import { MixmasterService } from '../../../services/mixmaster.service';
 import { PurchasesService, PurchasesData } from '../../../services/purchases.service';
 import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
+import { LicenseService, LicenseItem } from '../../../services/license.service';
+import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
 import { environment } from '../../../../environments/environment';
 
-type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases';
+type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases' | 'licenses';
 
 @Component({
   selector: 'app-dashboard-artist',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent],
   templateUrl: './dashboard-artist.component.html',
   styleUrls: ['./dashboard-artist.component.scss'],
 })
@@ -35,11 +37,16 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   purchases        = signal<PurchasesData | null>(null);
   purchasesLoading = signal(false);
 
+  licenses        = signal<LicenseItem[] | null>(null);
+  licensesLoading = signal(false);
+  renewingId      = signal<number | null>(null);
+
   readonly auth        = inject(AuthService);
   readonly player      = inject(PlayerService);
   private dashSvc      = inject(DashboardService);
   private mixSvc       = inject(MixmasterService);
   private purchasesSvc = inject(PurchasesService);
+  private licenseSvc   = inject(LicenseService);
   private router       = inject(Router);
   private toast        = inject(ToastService);
   private http         = inject(HttpClient);
@@ -90,6 +97,9 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     if (tab === 'purchases' && !this.purchases()) {
       this.loadPurchases();
     }
+    if (tab === 'licenses' && !this.licenses()) {
+      this.loadLicenses();
+    }
   }
 
   private loadPurchases(): void {
@@ -104,6 +114,62 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
         this.purchasesLoading.set(false);
       },
     });
+  }
+
+  private loadLicenses(): void {
+    this.licensesLoading.set(true);
+    this.licenseSvc.getLicenses().subscribe({
+      next: (res) => {
+        if (res.success) this.licenses.set(res.data?.licenses ?? []);
+        this.licensesLoading.set(false);
+      },
+      error: () => {
+        this.toast.showToast({ level: 'error', message: 'Impossible de charger vos licences.' });
+        this.licensesLoading.set(false);
+      },
+    });
+  }
+
+  activeLicenses(): LicenseItem[] {
+    return (this.licenses() ?? []).filter(l => l.license_status === 'active');
+  }
+
+  expiredLicenses(): LicenseItem[] {
+    return (this.licenses() ?? []).filter(l => l.license_status === 'expired');
+  }
+
+  licenseUrgency(l: LicenseItem): 'lifetime' | 'ok' | 'soon' | 'urgent' | 'expired' {
+    if (l.is_lifetime || !l.expires_at) return 'lifetime';
+    const days = this.licenseSvc.daysRemaining(l.expires_at);
+    return this.licenseSvc.urgency(days) as any;
+  }
+
+  renewLicense(l: LicenseItem): void {
+    if (!l.track?.id) return;
+    if (this.renewingId() !== null) return;
+    this.renewingId.set(l.id);
+    this.licenseSvc.initiateRenewal(l.track.id, l.id, {
+      duration_years: l.duration_years ?? undefined,
+      is_lifetime:    l.is_lifetime,
+      territory:      l.territory ?? undefined,
+    }).subscribe({
+      next: (res) => {
+        this.renewingId.set(null);
+        if (res.success && res.data?.checkout_url) {
+          window.location.href = res.data.checkout_url;
+        }
+      },
+      error: (err) => {
+        this.renewingId.set(null);
+        const msg = err?.error?.feedback?.message ?? 'Erreur lors du renouvellement.';
+        this.toast.showToast({ level: 'error', message: msg });
+      },
+    });
+  }
+
+  downloadLicenseContract(purchaseId: number, trackTitle: string): void {
+    const url = this.licenseSvc.downloadContract(purchaseId);
+    this._jwtDownload(url.replace(environment.apiUrl, ''), `contrat_${trackTitle}.pdf`, 'application/pdf');
   }
 
   imgUrl(path: string | null): string {

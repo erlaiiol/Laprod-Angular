@@ -542,3 +542,117 @@ def notify_tokens_added(user, token_type: str, amount: int):
         message=f'L\'équipe LaProd vous a crédité {amount} token(s) d\'upload {label}.',
         link='/dashboard',
     )
+
+
+# ============================================
+# NOTIFICATIONS — CYCLE DE VIE DES LICENCES
+# ============================================
+
+def notify_expiry_approaching(purchase, days: int):
+    """Rappel d'expiration pour l'artiste (90/30/7/1 jours avant)."""
+    track_title = purchase.track.title if purchase.track else f'Track #{purchase.track_id}'
+    if days <= 1:
+        urgency = 'demain !'
+    elif days <= 7:
+        urgency = f'dans {days} jour{"s" if days > 1 else ""} !'
+    elif days <= 30:
+        urgency = f'dans {days} jours'
+    else:
+        urgency = f'dans {days} jours'
+
+    create_notification(
+        user_id=purchase.buyer_id,
+        notif_type=f'license_expiry_{days}d',
+        title=f'Votre licence expire {urgency}',
+        message=(
+            f'Votre licence pour « {track_title} » expire {urgency}. '
+            f'Renouvelez-la pour conserver vos droits d\'exploitation.'
+        ),
+        link=f'/licenses',
+    )
+
+
+def notify_sole_licensee_monthly(purchase):
+    """Notification mensuelle : l'artiste est l'unique licencié actif."""
+    track_title = purchase.track.title if purchase.track else f'Track #{purchase.track_id}'
+    create_notification(
+        user_id=purchase.buyer_id,
+        notif_type='license_sole_monthly',
+        title='Vous êtes toujours le seul licencié',
+        message=(
+            f'Vous êtes toujours le seul titulaire d\'une licence pour « {track_title} ». '
+            f'Cette composition n\'a pas été vendue à d\'autres artistes ce mois-ci.'
+        ),
+        link=f'/licenses',
+    )
+
+
+def notify_renewal_confirmed(purchase):
+    """Confirmation de renouvellement — artiste et compositeur."""
+    track_title = purchase.track.title if purchase.track else f'Track #{purchase.track_id}'
+
+    # Artiste
+    create_notification(
+        user_id=purchase.buyer_id,
+        notif_type='license_renewed',
+        title='Licence renouvelée avec succès',
+        message=f'Votre licence pour « {track_title} » a été renouvelée. Vos droits sont prolongés.',
+        link=f'/licenses',
+    )
+
+    # Compositeur
+    if purchase.track and purchase.track.composer_id:
+        create_notification(
+            user_id=purchase.track.composer_id,
+            notif_type='license_renewed',
+            title='Un artiste a renouvelé sa licence',
+            message=f'La licence de « {track_title} » a été renouvelée par {purchase.buyer_name}.',
+            link='/dashboard/beatmaker',
+        )
+
+
+def notify_license_expired(purchase):
+    """Notification d'expiration définitive — artiste."""
+    track_title = purchase.track.title if purchase.track else f'Track #{purchase.track_id}'
+    create_notification(
+        user_id=purchase.buyer_id,
+        notif_type='license_expired',
+        title='Votre licence a expiré',
+        message=(
+            f'Votre licence pour « {track_title} » est expirée. '
+            f'Vous pouvez la renouveler depuis votre espace licences.'
+        ),
+        link=f'/licenses',
+    )
+
+
+def notify_exclusive_license_expired(track, purchase):
+    """Notification d'expiration d'une exclusivité — artiste + compositeur."""
+    track_title = track.title
+
+    # Artiste
+    create_notification(
+        user_id=purchase.buyer_id,
+        notif_type='license_expired',
+        title='Votre licence exclusive a expiré',
+        message=(
+            f'Votre licence exclusive pour « {track_title} » est expirée. '
+            f'Cette composition est de nouveau disponible à la vente. '
+            f'Vous pouvez renouveler votre licence depuis votre espace licences.'
+        ),
+        link=f'/licenses',
+    )
+
+    # Compositeur
+    if track.composer_id:
+        create_notification(
+            user_id=track.composer_id,
+            notif_type='track_exclusive_expired',
+            title='Licence exclusive expirée — track de nouveau disponible',
+            message=(
+                f'La licence exclusive de « {track_title} » accordée à {purchase.buyer_name} '
+                f'est expirée. Votre track est de nouveau disponible à la vente.'
+            ),
+            link='/dashboard/beatmaker',
+        )
+

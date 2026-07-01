@@ -454,6 +454,28 @@ def purchase(p) -> dict:
         'platform_fee':     float(p.platform_fee),
         'created_at':       p.created_at.isoformat() if p.created_at else None,
         'track': track_card(p.track) if p.track else None,
+        # Champs lifecycle licence
+        'is_exclusive':    getattr(p, 'is_exclusive', False),
+        'duration_years':  getattr(p, 'duration_years', None),
+        'is_lifetime':     getattr(p, 'is_lifetime', False),
+        'territory':       getattr(p, 'territory', None),
+        'expires_at':      p.expires_at.isoformat() if getattr(p, 'expires_at', None) else None,
+        'license_status':  getattr(p, 'license_status', 'active'),
+        'contract_url':    f'/api/licenses/{p.id}/contract' if getattr(p, 'contract_file', None) else None,
+    }
+
+
+def purchase_detail(p, include_sole: bool = False) -> dict:
+    """Détail complet d'une licence — vue artiste avec jours restants et sole licensee."""
+    from utils.license_service import compute_days_remaining, is_sole_licensee
+    days = compute_days_remaining(p)
+    sole = is_sole_licensee(p) if include_sole else False
+    return {
+        **purchase(p),
+        'days_remaining':  days,
+        'is_sole_licensee': sole,
+        'renewed_from_id': getattr(p, 'renewed_from_id', None),
+        'renewed_to_id':   getattr(p, 'renewed_to_id', None),
     }
 
 

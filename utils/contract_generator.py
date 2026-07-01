@@ -217,6 +217,61 @@ def generate_contract_pdf(output_path, contract_data):
             normal_style
         ))
     
+    # ============= 3-BIS. EXPIRATION, DROITS MORAUX ET RE-LICENCE =============
+    story.append(Paragraph("<b>3-bis. Expiration, droits moraux et re-licence</b>", section_style))
+
+    legal_expiry_style = ParagraphStyle(
+        'LegalExpiry',
+        parent=normal_style,
+        fontSize=9,
+        leftIndent=8,
+        spaceAfter=5,
+    )
+
+    story.append(Paragraph(
+        "<b>1. Droits moraux permanents (art. L.121-1 CPI) :</b> "
+        "Le Compositeur conserve ses droits moraux en permanence, quelles que soient les cessions de droits patrimoniaux "
+        "effectuées par le présent contrat. Ces droits sont inaliénables et imprescriptibles.",
+        legal_expiry_style
+    ))
+
+    story.append(Paragraph(
+        "<b>2. Retour automatique des droits patrimoniaux :</b> "
+        "À la date d'expiration indiquée à l'article 3, les droits patrimoniaux concédés reviennent "
+        "automatiquement au Compositeur, sans qu'aucune formalité supplémentaire ne soit requise. "
+        "L'Interprète n'est plus autorisé à créer de nouvelles exploitations commerciales de la composition après cette date.",
+        legal_expiry_style
+    ))
+
+    story.append(Paragraph(
+        "<b>3. Liberté de re-licence :</b> "
+        "À l'expiration du présent contrat, le Compositeur est libre de concéder une nouvelle licence "
+        "sur cette composition à tout tiers, y compris de manière exclusive, sans délai de carence et "
+        "sans obligation d'en informer l'Interprète au préalable.",
+        legal_expiry_style
+    ))
+
+    story.append(Paragraph(
+        "<b>4. Sort des œuvres créées pendant la période de licence :</b> "
+        "Les enregistrements et œuvres dérivées réalisés par l'Interprète <i>durant</i> la période de licence "
+        "restent valides et peuvent continuer à être exploités dans les limites des droits concédés "
+        "au moment de leur création. En revanche, l'Interprète ne pourra pas créer de nouvelles exploitations "
+        "commerciales de la composition au-delà de la date d'expiration.",
+        legal_expiry_style
+    ))
+
+    is_exclusive_contract = contract_data.get('is_exclusive', False)
+    if is_exclusive_contract:
+        story.append(Paragraph(
+            "<b>5. Fin de l'exclusivité :</b> "
+            "À l'échéance de la présente licence exclusive, la composition redevient automatiquement disponible "
+            "à la vente sur la plateforme LaProd et le Compositeur peut la licencier à de nouveaux acheteurs, "
+            "y compris exclusivement, sans notification préalable à l'Interprète.",
+            legal_expiry_style
+        ))
+
+    story.append(Spacer(1, 0.3*cm))
+
     # ============= 4. TERRITOIRE =============
     story.append(Paragraph("<b>4. Territoire</b>", section_style))
     story.append(Paragraph(

@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 
 from extensions import db, csrf
-from models import Track, User, Purchase
+from models import Track, User, Purchase, Contract
 from serializers import ok, err
 from utils.auth_helpers import require_user
 
@@ -25,6 +25,7 @@ from utils.payment_validator import TrackPriceCalculator
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
 from utils.email_service import send_purchase_confirmation_email, send_sale_notification_email
+from utils.license_service import compute_expires_at, build_duration_text
 
 payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api/track-payment')
 
@@ -159,7 +160,7 @@ def create_checkout(track_id, format_type, current_user):
         )
 
         return ok(
-            data={'checkout_url': checkout_session.url, 'total': server_total},
+            data={'checkout_url': checkout_session.url, 'total': float(server_total)},
             message='Session Stripe créée.',
         )
 
@@ -247,6 +248,15 @@ def verify_payment(current_user):
         platform_fee     = (total_price * Decimal('0.10')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         composer_revenue = (total_price - platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
+        # ── Données de licence extraites des métadonnées Stripe ─────────────
+        is_lifetime    = meta.get('is_lifetime') == 'True'
+        duration_years = int(meta.get('duration_years', 0)) if not is_lifetime else None
+        # duration_years == 0 signifie "streaming seul"
+        if duration_years == 0:
+            duration_years = None
+        territory      = meta.get('territory', 'Monde entier')
+        expires_at_val = compute_expires_at(is_lifetime, duration_years)
+
         purchase = Purchase(
             track_id=track_id,
             buyer_id=current_user.id,
@@ -258,9 +268,58 @@ def verify_payment(current_user):
             platform_fee=platform_fee,
             composer_revenue=composer_revenue,
             stripe_payment_intent_id=payment_intent_id,
+            # Champs lifecycle licence
+            is_exclusive=is_exclusive,
+            duration_years=duration_years,
+            is_lifetime=is_lifetime,
+            territory=territory,
+            expires_at=expires_at_val,
+            license_status='active',
         )
         db.session.add(purchase)
         db.session.flush()  # obtenir purchase.id
+
+        # ── Créer le Contract record lié au Purchase ─────────────────────────
+        try:
+            from datetime import date as _date
+            duration_text_val = build_duration_text(is_lifetime, duration_years)
+            start_date_str    = datetime.now().strftime('%d/%m/%Y')
+            end_date_str      = ('À vie' if is_lifetime or not duration_years
+                                 else f"31/12/{datetime.now().year + (duration_years or 0)}")
+
+            contract_record = Contract(
+                track_id=track_id,
+                composer_id=track.composer_id,
+                client_id=current_user.id,
+                purchase_id=purchase.id,
+                composer_address=getattr(track.composer_user, 'address', '') or '',
+                composer_email=track.composer_user.email,
+                composer_credit=f"Prod. par {track.composer_user.username}",
+                client_address=meta.get('buyer_address', ''),
+                client_email=meta.get('buyer_email', current_user.email),
+                is_exclusive=is_exclusive,
+                start_date=start_date_str,
+                end_date=end_date_str,
+                duration_text=duration_text_val,
+                territory=territory,
+                mechanical_reproduction=meta.get('mechanical_reproduction') == 'True',
+                public_show=meta.get('public_show') == 'True',
+                streaming=True,
+                arrangement=meta.get('arrangement') == 'True',
+                sacem_percentage_composer=getattr(track, 'sacem_percentage_composer', 50) or 50,
+                sacem_percentage_buyer=100 - (getattr(track, 'sacem_percentage_composer', 50) or 50),
+                price=int(total_price),
+                percentage=0,
+                signature_date=start_date_str,
+                status='active',
+            )
+            db.session.add(contract_record)
+        except Exception as contract_err:
+            current_app.logger.error(
+                f"Erreur création Contract record purchase #{purchase.id}: {contract_err}",
+                exc_info=True,
+            )
+            # Non bloquant
 
         # ── Marquer le track comme vendu en exclusivité ──────────────────────
         if is_exclusive:
@@ -286,19 +345,9 @@ def verify_payment(current_user):
             contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
             contracts_dir.mkdir(parents=True, exist_ok=True)
 
-            is_lifetime = meta.get('is_lifetime') == 'True'
-            duration_years = int(meta.get('duration_years', 3))
-            start_date = datetime.now().strftime('%d/%m/%Y')
-            if is_lifetime:
-                end_date = 'À vie'
-                duration_text = 'À vie'
-            elif duration_years == 0:
-                end_date = 'Illimité (streaming uniquement)'
-                duration_text = 'Streaming seul — perpétuel'
-            else:
-                end_year = datetime.now().year + duration_years
-                end_date = f"31/12/{end_year}"
-                duration_text = f"{duration_years} an{'s' if duration_years > 1 else ''}"
+            start_date    = datetime.now().strftime('%d/%m/%Y')
+            end_date      = end_date_str
+            duration_text = duration_text_val
 
             contract_filename = f"contract_{purchase.id}_{track_id}.pdf"
             contract_path = contracts_dir / contract_filename

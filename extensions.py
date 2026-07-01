@@ -309,5 +309,42 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # ── Jobs cycle de vie des licences ──────────────────────────────────
+        from utils.scheduled_tasks import (
+            run_contract_expiry_update,
+            run_expiry_notifications,
+            run_sole_licensee_notifications,
+        )
+        # Chaque nuit à 0h : expire les licences échues + libère les exclusivités
+        scheduler.add_job(
+            func=run_contract_expiry_update,
+            trigger='cron',
+            hour=0,
+            minute=5,
+            id='contract_expiry_update',
+            replace_existing=True,
+            args=[app]
+        )
+        # Chaque matin à 8h : rappels d'expiration (90/30/7/1 jours)
+        scheduler.add_job(
+            func=run_expiry_notifications,
+            trigger='cron',
+            hour=8,
+            minute=0,
+            id='expiry_notifications',
+            replace_existing=True,
+            args=[app]
+        )
+        # 1er de chaque mois à 9h : notification "unique licencié"
+        scheduler.add_job(
+            func=run_sole_licensee_notifications,
+            trigger='cron',
+            day=1,
+            hour=9,
+            minute=0,
+            id='sole_licensee_notifications',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences)")

@@ -41,7 +41,11 @@ def track(db, user_free):
     db.session.commit()
     yield t
     db.session.rollback()
-    from models import Purchase
+    from models import Purchase, Contract
+    track_purchases = db.session.query(Purchase).filter_by(track_id=t.id).all()
+    for tp in track_purchases:
+        db.session.query(Contract).filter_by(purchase_id=tp.id).delete()
+    db.session.query(Contract).filter_by(track_id=t.id).delete()
     db.session.query(Purchase).filter_by(track_id=t.id).delete()
     existing = db.session.get(Track, t.id)
     if existing:
@@ -70,7 +74,10 @@ def buyer_data(app, db):
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     yield headers, u
     db.session.rollback()
-    from models import Purchase, Wallet
+    from models import Purchase, Contract, Wallet
+    buyer_purchases = db.session.query(Purchase).filter_by(buyer_id=u.id).all()
+    for bp in buyer_purchases:
+        db.session.query(Contract).filter_by(purchase_id=bp.id).delete()
     db.session.query(Purchase).filter_by(buyer_id=u.id).delete()
     wallet = db.session.query(Wallet).filter_by(user_id=u.id).first()
     if wallet:

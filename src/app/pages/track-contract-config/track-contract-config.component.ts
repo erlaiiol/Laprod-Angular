@@ -57,6 +57,7 @@ export class TrackContractConfigComponent implements OnInit {
   rightPublicShow  = signal(false);
   rightArrangement = signal(false);
   buyerAddress     = signal('');
+  legalAccepted    = signal(false);
 
   private route      = inject(ActivatedRoute);
   private router     = inject(Router);
@@ -239,6 +240,11 @@ export class TrackContractConfigComponent implements OnInit {
   onConfirm(): void {
     if (!this.auth.isLoggedIn()) {
       this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
+    if (!this.legalAccepted()) {
+      this.error.set('Veuillez accepter les conditions légales de la licence avant de continuer.');
+      this.cdr.markForCheck();
       return;
     }
     if (this.paying()) return;

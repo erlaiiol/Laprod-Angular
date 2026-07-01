@@ -56,6 +56,12 @@
       <button class="tab-btn" [class.active]="activeTab() === 'playlists'" (click)="setTab('playlists')">
         <i class="bi bi-collection-play"></i> Playlists
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'licenses'" (click)="setTab('licenses')">
+        <i class="bi bi-file-earmark-lock2"></i> Licences vendues
+        @if (soldLicenses()) {
+          <span class="tab-count">{{ soldLicenses()!.licenses.length }}</span>
+        }
+      </button>
     </div>
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
@@ -263,6 +269,81 @@
         }
 
       </div>
+    }
+
+    <!-- ── Licences vendues ──────────────────────────────────────────────────── -->
+    @if (activeTab() === 'licenses') {
+      @if (soldLicensesLoading()) {
+        <div class="state-loading"><div class="spinner"></div></div>
+      } @else if (!soldLicenses()) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Cliquez sur l'onglet pour charger vos licences.</p>
+        </div>
+      } @else if (soldLicenses()!.licenses.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Aucune licence vendue pour l'instant.</p>
+        </div>
+      } @else {
+
+        <!-- Revenus totaux licences -->
+        <div class="license-revenue-banner">
+          <i class="bi bi-cash-stack"></i>
+          <span>Revenus licences totaux : <strong>{{ soldLicenses()!.total_revenue.toFixed(2) }}€</strong></span>
+          @if (soldLicenses()!.exclusive.length > 0) {
+            <span class="exclusive-count">
+              <i class="bi bi-star-fill"></i>
+              {{ soldLicenses()!.exclusive.length }} exclusive(s)
+            </span>
+          }
+        </div>
+
+        <!-- Filtres -->
+        <div class="license-filters">
+          <button class="filter-btn" [class.active]="licenseFilter() === 'all'" (click)="licenseFilter.set('all')">
+            Toutes ({{ soldLicenses()!.licenses.length }})
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'active'" (click)="licenseFilter.set('active')">
+            Actives
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'expired'" (click)="licenseFilter.set('expired')">
+            Expirées
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'exclusive'" (click)="licenseFilter.set('exclusive')">
+            <i class="bi bi-star-fill"></i> Exclusives
+          </button>
+        </div>
+
+        <!-- Liste -->
+        <div class="sold-licenses-list">
+          @for (l of filteredLicenses(); track l.id) {
+            <div class="sold-license-row">
+              <div class="sold-license-info">
+                <a [routerLink]="['/track', l.track_id]" class="sold-license-track">{{ l.track_title }}</a>
+                <span class="sold-license-buyer">
+                  <i class="bi bi-person"></i> {{ l.buyer_username }}
+                </span>
+              </div>
+              <div class="sold-license-meta">
+                <span class="fmt-badge fmt-{{ l.format }}">{{ formatLabel(l.format) }}</span>
+                @if (l.territory) {
+                  <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
+                }
+                <span class="sold-license-date">{{ formatDate(l.created_at) }}</span>
+              </div>
+              <app-license-badge
+                [licenseStatus]="l.license_status"
+                [isLifetime]="l.is_lifetime"
+                [expiresAt]="l.expires_at"
+                [isExclusive]="l.is_exclusive">
+              </app-license-badge>
+              <span class="sold-license-revenue">+{{ l.composer_revenue.toFixed(2) }}€</span>
+            </div>
+          }
+        </div>
+
+      }
     }
 
   </div>

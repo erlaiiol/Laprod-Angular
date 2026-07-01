@@ -456,3 +456,80 @@
 
   &:hover { color: v.$text-primary; }
 }
+
+// ── Licences vendues ──────────────────────────────────────────────────────────
+
+.license-revenue-banner {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: v.$tag-green-dark; border: 1px solid v.$tag-green;
+  border-radius: 8px; padding: 0.75rem 1rem;
+  color: v.$tag-green-light; font-size: 0.88rem;
+  margin-bottom: 1rem;
+  strong { color: #fff; }
+  i { font-size: 1rem; }
+}
+
+.exclusive-count {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  color: v.$gold; font-size: 0.8rem; font-weight: 600;
+  i { font-size: 0.8rem; }
+}
+
+.license-filters {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+
+.filter-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.75rem; border-radius: 6px;
+  border: 1px solid v.$bg-border; background: v.$bg-elevated;
+  color: v.$text-secondary; font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  &:hover, &.active {
+    border-color: v.$tag-pink; color: v.$tag-pink;
+    background: rgba(v.$tag-pink, 0.08);
+  }
+  i { color: v.$gold; }
+}
+
+.sold-licenses-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.sold-license-row {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 8px; padding: 0.75rem 1rem;
+  transition: border-color 0.15s;
+  &:hover { border-color: v.$bg-border-subtle; }
+}
+
+.sold-license-info {
+  display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1;
+}
+
+.sold-license-track {
+  font-weight: 600; font-size: 0.9rem; color: v.$text-primary;
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  &:hover { color: v.$tag-pink; }
+}
+
+.sold-license-buyer {
+  font-size: 0.75rem; color: v.$text-secondary;
+  display: flex; align-items: center; gap: 0.25rem;
+}
+
+.sold-license-meta {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.sold-license-date { font-size: 0.72rem; color: v.$text-muted; }
+
+.sold-license-revenue {
+  font-weight: 700; font-size: 0.88rem; color: v.$tag-green-light;
+  margin-left: auto; white-space: nowrap;
+}
+
+.license-territory {
+  font-size: 0.72rem; color: v.$text-secondary;
+  display: inline-flex; align-items: center; gap: 0.2rem;
+}

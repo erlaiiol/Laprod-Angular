@@ -110,6 +110,12 @@
           <span class="tab-count">{{ (purchases()!.purchases.length + purchases()!.mm_orders.length) }}</span>
         }
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'licenses'" (click)="setTab('licenses')">
+        <i class="bi bi-file-earmark-lock2"></i> Licences
+        @if (licenses()) {
+          <span class="tab-count">{{ licenses()!.length }}</span>
+        }
+      </button>
     </div>
 
     <!-- ── Toplines ───────────────────────────────────────────────────────── -->
@@ -413,6 +419,144 @@
                     <a [routerLink]="['/dashboard/artist']" [queryParams]="{ tab: 'mixmaster' }" class="btn-purchase btn-see-mm">
                       <i class="bi bi-arrow-right"></i> Voir le détail
                     </a>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+      }
+    }
+
+    <!-- ── Mes Licences ───────────────────────────────────────────────────── -->
+    @if (activeTab() === 'licenses') {
+      @if (licensesLoading()) {
+        <div class="state-loading"><div class="spinner"></div></div>
+      } @else if (!licenses()) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Cliquez sur l'onglet pour charger vos licences.</p>
+        </div>
+      } @else if (licenses()!.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Aucune licence active.</p>
+          <small><a routerLink="/">Parcourir les beats</a></small>
+        </div>
+      } @else {
+
+        <!-- Alerte licences expirant bientôt -->
+        @if (activeLicenses().some(l => licenseUrgency(l) === 'urgent' || licenseUrgency(l) === 'soon')) {
+          <div class="license-alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>Certaines de vos licences expirent bientôt. Renouvelez-les pour conserver vos droits.</span>
+          </div>
+        }
+
+        <!-- Licences actives -->
+        @if (activeLicenses().length > 0) {
+          <h2 class="purchases-section-title"><i class="bi bi-check-circle"></i> Licences actives</h2>
+          <div class="licenses-list">
+            @for (l of activeLicenses(); track l.id) {
+              <div class="license-card" [class.license-card--urgent]="licenseUrgency(l) === 'urgent'">
+                <a [routerLink]="['/track', l.track?.id]" class="purchase-cover-link">
+                  <img class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
+                </a>
+                <div class="purchase-info">
+                  <a [routerLink]="['/track', l.track?.id]" class="purchase-title">
+                    {{ l.track?.title ?? 'Beat supprimé' }}
+                  </a>
+                  @if (l.track?.composer_username) {
+                    <span class="purchase-composer"><i class="bi bi-person"></i> {{ l.track!.composer_username }}</span>
+                  }
+                  <div class="purchase-meta">
+                    <span class="fmt-badge fmt-{{ l.format }}">{{ formatLabel(l.format) }}</span>
+                    @if (l.territory) {
+                      <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
+                    }
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(l.created_at) }}</span>
+                  </div>
+                  <app-license-badge
+                    [licenseStatus]="l.license_status"
+                    [isLifetime]="l.is_lifetime"
+                    [expiresAt]="l.expires_at"
+                    [isExclusive]="l.is_exclusive">
+                  </app-license-badge>
+                </div>
+                <div class="purchase-right">
+                  <span class="purchase-price">{{ l.price_paid.toFixed(2) }}€</span>
+                  <div class="purchase-actions">
+                    @if (l.contract_url) {
+                      <button class="btn-purchase btn-contract"
+                              (click)="downloadLicenseContract(l.id, l.track?.title ?? 'beat')">
+                        <i class="bi bi-file-earmark-pdf"></i> Contrat
+                      </button>
+                    }
+                    @if (licenseUrgency(l) === 'urgent' || licenseUrgency(l) === 'soon') {
+                      <button class="btn-purchase btn-renew"
+                              [disabled]="renewingId() === l.id"
+                              (click)="renewLicense(l)">
+                        @if (renewingId() === l.id) {
+                          <span class="spinner-sm"></span>
+                        } @else {
+                          <i class="bi bi-arrow-clockwise"></i>
+                        }
+                        Renouveler
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Licences expirées -->
+        @if (expiredLicenses().length > 0) {
+          <h2 class="purchases-section-title purchases-section-title--mt">
+            <i class="bi bi-clock-history"></i> Licences expirées
+          </h2>
+          <div class="licenses-list">
+            @for (l of expiredLicenses(); track l.id) {
+              <div class="license-card license-card--expired">
+                <a [routerLink]="['/track', l.track?.id]" class="purchase-cover-link">
+                  <img class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
+                </a>
+                <div class="purchase-info">
+                  <a [routerLink]="['/track', l.track?.id]" class="purchase-title">
+                    {{ l.track?.title ?? 'Beat supprimé' }}
+                  </a>
+                  @if (l.track?.composer_username) {
+                    <span class="purchase-composer"><i class="bi bi-person"></i> {{ l.track!.composer_username }}</span>
+                  }
+                  <div class="purchase-meta">
+                    <span class="fmt-badge fmt-{{ l.format }}">{{ formatLabel(l.format) }}</span>
+                    @if (l.territory) {
+                      <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
+                    }
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(l.created_at) }}</span>
+                  </div>
+                  <app-license-badge
+                    [licenseStatus]="l.license_status"
+                    [isLifetime]="l.is_lifetime"
+                    [expiresAt]="l.expires_at"
+                    [isExclusive]="l.is_exclusive">
+                  </app-license-badge>
+                </div>
+                <div class="purchase-right">
+                  <span class="purchase-price">{{ l.price_paid.toFixed(2) }}€</span>
+                  <div class="purchase-actions">
+                    <button class="btn-purchase btn-renew"
+                            [disabled]="renewingId() === l.id"
+                            (click)="renewLicense(l)">
+                      @if (renewingId() === l.id) {
+                        <span class="spinner-sm"></span>
+                      } @else {
+                        <i class="bi bi-arrow-clockwise"></i>
+                      }
+                      Renouveler
+                    </button>
                   </div>
                 </div>
               </div>
