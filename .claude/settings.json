@@ -6,14 +6,9 @@
       "Read(//Users/eliott/.local/**)",
       "Read(//usr/local/bin/**)",
       "Read(//Users/eliott/**)",
-      "Bash(flask db *)",
-      "Bash(python -m flask db migrate -m \"license_lifecycle_and_notification_log\")",
-      "Bash(pip3 show *)",
-      "Bash(npx tsc *)",
-      "Bash(node_modules/.bin/tsc --noEmit --project tsconfig.app.json)",
-      "Bash(which node *)",
-      "Read(//opt/homebrew/bin/**)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(xargs ls -la)"
     ]
   }
 }

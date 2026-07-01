@@ -88,10 +88,14 @@ def client(app):
 
 @pytest.fixture()
 def db(app):
-    """Session DB avec rollback automatique après chaque test."""
+    """Session DB avec nettoyage complet après chaque test.
+
+    remove() vide l'identity map SQLAlchemy en plus du rollback, ce qui évite
+    les conflits d'id quand SQLite réutilise des rowids après suppression.
+    """
     from extensions import db as _db
     yield _db
-    _db.session.rollback()
+    _db.session.remove()
 
 
 # ── 4. Fixtures utilisateurs ───────────────────────────────────────────────────
