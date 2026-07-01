@@ -533,12 +533,16 @@
       <!-- ── Fichiers ──────────────────────────────────────────────────────── -->
       <div class="section-card">
         <h3 class="section-title">Fichiers audio</h3>
+        <p class="section-hint">
+          <i class="bi bi-info-circle"></i>
+          Au moins un fichier requis : MP3, WAV ou archive stems. Les stems FL Studio sont supportés — le fichier <em>_current</em> (ou <em>_master</em>) est automatiquement extrait comme fichier de vente.
+        </p>
 
         <div class="file-field">
           <label class="file-label">
             <i class="bi bi-file-earmark-music-fill"></i>
             <span>
-              <strong>Fichier MP3 *</strong>
+              <strong>Fichier MP3</strong> <em class="opt">recommandé</em>
               @if (fileMp3()) {
                 <em class="file-name">{{ fileMp3()!.name }}</em>
               } @else {
@@ -553,7 +557,7 @@
           <label class="file-label">
             <i class="bi bi-file-earmark-music"></i>
             <span>
-              <strong>Fichier WAV</strong> <em class="opt">optionnel</em>
+              <strong>Fichier WAV</strong> <em class="opt">optionnel — suffisant sans MP3</em>
               @if (fileWav()) {
                 <em class="file-name">{{ fileWav()!.name }}</em>
               } @else {
@@ -569,11 +573,11 @@
             <label class="file-label">
               <i class="bi bi-file-earmark-zip"></i>
               <span>
-                <strong>Archive stems</strong> <em class="opt">optionnel</em>
+                <strong>Archive stems</strong> <em class="opt">optionnel — suffisant sans MP3/WAV</em>
                 @if (fileStems()) {
                   <em class="file-name">{{ fileStems()!.name }}</em>
                 } @else {
-                  <em>Cliquer pour sélectionner (.zip/.rar)</em>
+                  <em>Cliquer pour sélectionner (.zip/.rar) — export FL Studio accepté</em>
                 }
               </span>
               <input type="file" accept=".zip,.rar" (change)="onFileSelected($event, 'stems')" />

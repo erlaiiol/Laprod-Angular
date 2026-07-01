@@ -47,6 +47,59 @@ except ImportError as e:
     logging.getLogger(__name__).critical(f'[tracks_api] file_validator indisponible — upload désactivé: {e}')
     VALIDATION_AVAILABLE = False
 
+
+def _extract_primary_from_stems(archive_path, target_dir, safe_title, unique_id):
+    """
+    Extrait *_current.* (fallback *_master.*) d'une archive de stems FL Studio.
+    Retourne (path_extrait, filename_extrait) ou (None, None) si introuvable.
+    """
+    import zipfile
+    import rarfile
+    import magic as _magic
+
+    archive_path = Path(archive_path)
+    with open(archive_path, 'rb') as fh:
+        header = fh.read(2048)
+    mime = _magic.from_buffer(header, mime=True)
+
+    def _pick_and_extract(archive):
+        names = archive.namelist()
+        audio_files = [
+            n for n in names
+            if not n.endswith('/') and not n.startswith('__MACOSX')
+        ]
+        # Recherche insensible à la casse sur le nom de fichier (pas le chemin)
+        current_files = [n for n in audio_files if '_current.' in Path(n).name.lower()]
+        master_files  = [n for n in audio_files if '_master.'  in Path(n).name.lower()]
+
+        chosen = None
+        if current_files:
+            chosen = current_files[0]
+        elif master_files:
+            chosen = master_files[0]
+
+        if not chosen:
+            return None, None
+
+        ext = Path(chosen).suffix.lower()  # .wav ou .mp3
+        out_name = f"{safe_title}_{unique_id}_primary{ext}"
+        out_path = Path(target_dir) / out_name
+        out_path.write_bytes(archive.read(chosen))
+        return out_path, out_name
+
+    try:
+        if 'zip' in mime:
+            with zipfile.ZipFile(archive_path) as arch:
+                return _pick_and_extract(arch)
+        elif 'rar' in mime:
+            with rarfile.RarFile(str(archive_path)) as arch:
+                return _pick_and_extract(arch)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f'Extraction stems échouée: {e}')
+
+    return None, None
+
 tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/api/tracks')
 
 _CONTRACT_PRICE_FIELDS = [
@@ -324,10 +377,11 @@ def post_track(current_user):
     Upload beat + traitement audio async (RQ worker).
 
     FormData :
-      - file_mp3   : fichier MP3 (obligatoire)
-      - file_wav   : fichier WAV (optionnel)
+      - file_mp3   : fichier MP3  (optionnel — au moins un de mp3/wav/stems requis)
+      - file_wav   : fichier WAV  (optionnel)
       - file_image : image de couverture (optionnel)
-      - file_stems : archive stems zip (optionnel, premium)
+      - file_stems : archive ZIP/RAR stems (optionnel, premium)
+                     Si stems sans mp3/wav : extrait automatiquement *_current.* (fallback *_master.*)
       - title, bpm, key, style, price_mp3, price_wav, price_stems
       - sacem_percentage_composer, tag_ids
     """
@@ -382,38 +436,63 @@ def post_track(current_user):
         file_image = request.files.get('file_image')
         file_stems = request.files.get('file_stems') if current_user.is_premium else None
 
-        if not file_mp3 or file_mp3.filename == '':
-            return err('Le fichier MP3 est obligatoire', level='warning')
+        has_mp3   = bool(file_mp3   and file_mp3.filename   != '')
+        has_wav   = bool(file_wav   and file_wav.filename   != '')
+        has_stems = bool(file_stems and file_stems.filename != '')
+
+        if not (has_mp3 or has_wav or has_stems):
+            return err('Au moins un fichier audio est requis (MP3, WAV ou archive stems)', level='warning')
 
         if not VALIDATION_AVAILABLE:
             return err('Service de validation non disponible', status=500)
 
-        is_valid, error_message = validate_specific_audio_format(file_mp3, 'mp3')
-        if not is_valid:
-            return err(f'MP3 invalide: {error_message}', status=400)
+        # ── Validation du fichier primaire et calcul du hash ──────────────────
+        file_hash = None
 
-        try:
-            file_hash = Track.compute_file_hash(file_mp3)
-            if Track.hash_exists(file_hash):
-                return err('Ce beat a déjà été uploadé', status=409)
-        except Exception as e:
-            current_app.logger.error(f'Erreur vérification doublon: {e}')
-            return err('Erreur de vérification du fichier', status=500)
+        if has_mp3:
+            is_valid, error_message = validate_specific_audio_format(file_mp3, 'mp3')
+            if not is_valid:
+                return err(f'MP3 invalide: {error_message}', status=400)
+            try:
+                file_hash = Track.compute_file_hash(file_mp3)
+                if Track.hash_exists(file_hash):
+                    return err('Ce beat a déjà été uploadé', status=409)
+            except Exception as e:
+                current_app.logger.error(f'Erreur vérification doublon: {e}')
+                return err('Erreur de vérification du fichier', status=500)
 
-        if file_wav and file_wav.filename != '':
+        if has_wav:
             is_valid, error_message = validate_specific_audio_format(file_wav, 'wav')
             if not is_valid:
                 return err(f'WAV invalide: {error_message}', status=400)
+            if not has_mp3:
+                # WAV est la source primaire — hash depuis le WAV
+                try:
+                    file_hash = Track.compute_file_hash(file_wav)
+                    if Track.hash_exists(file_hash):
+                        return err('Ce beat a déjà été uploadé', status=409)
+                except Exception as e:
+                    current_app.logger.error(f'Erreur vérification doublon: {e}')
+                    return err('Erreur de vérification du fichier', status=500)
+
+        if has_stems:
+            is_valid, error_message = validate_stems_archive(file_stems)
+            if not is_valid:
+                return err(f'Archive stems invalide: {error_message}', status=400)
+            if not has_mp3 and not has_wav:
+                # Stems seuls — hash depuis l'archive
+                try:
+                    file_hash = Track.compute_file_hash(file_stems)
+                    if Track.hash_exists(file_hash):
+                        return err('Ce beat a déjà été uploadé', status=409)
+                except Exception as e:
+                    current_app.logger.error(f'Erreur vérification doublon: {e}')
+                    return err('Erreur de vérification du fichier', status=500)
 
         if file_image and file_image.filename != '':
             is_valid, error_message = validate_image_file(file_image)
             if not is_valid:
                 return err(f'Image invalide: {error_message}', status=400)
-
-        if file_stems and file_stems.filename != '' and current_user.is_premium:
-            is_valid, error_message = validate_stems_archive(file_stems)
-            if not is_valid:
-                return err(f'Archive stems invalide: {error_message}', status=400)
 
         unique_id = str(_uuid.uuid4())[:8]
 
@@ -425,24 +504,59 @@ def post_track(current_user):
 
         config.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
-        mp3_filename  = f"{safe_title}_{unique_id}_full.mp3"
-        mp3_disk_path = config.UPLOAD_FOLDER / mp3_filename
-        file_mp3.save(mp3_disk_path)
-
         preview_filename  = f"{safe_title}_{unique_id}_preview.mp3"
         preview_disk_path = config.UPLOAD_FOLDER / preview_filename
 
+        # ── Sauvegarde MP3 ────────────────────────────────────────────────────
+        mp3_filename = None
+        mp3_disk_path = None
+        if has_mp3:
+            mp3_filename  = f"{safe_title}_{unique_id}_full.mp3"
+            mp3_disk_path = config.UPLOAD_FOLDER / mp3_filename
+            file_mp3.save(mp3_disk_path)
+
+        # ── Sauvegarde WAV ────────────────────────────────────────────────────
         wav_filename = None
-        if file_wav and file_wav.filename != '':
+        wav_disk_path = None
+        if has_wav:
             wav_filename  = f"{safe_title}_{unique_id}_full.wav"
             wav_disk_path = config.UPLOAD_FOLDER / wav_filename
             file_wav.save(wav_disk_path)
 
+        # ── Sauvegarde stems + extraction current/master si stems seuls ───────
         stems_filename = None
-        if file_stems and file_stems.filename != '':
+        if has_stems:
             stems_filename  = f"{safe_title}_{unique_id}_stems.zip"
             stems_disk_path = config.UPLOAD_FOLDER / stems_filename
             file_stems.save(stems_disk_path)
+
+            if not has_mp3 and not has_wav:
+                # Extraire *_current.* (fallback *_master.*) comme audio de vente
+                extracted_path, extracted_name = _extract_primary_from_stems(
+                    stems_disk_path, config.UPLOAD_FOLDER, safe_title, unique_id
+                )
+                if not extracted_path:
+                    return err(
+                        "L'archive ne contient pas de fichier '*_current.*' ou '*_master.*'. "
+                        "Ajoutez un fichier MP3 ou WAV séparément si votre export ne suit pas "
+                        "la convention FL Studio.",
+                        level='warning',
+                    )
+                ext = Path(extracted_name).suffix.lower()
+                if ext == '.mp3':
+                    mp3_filename  = extracted_name
+                    mp3_disk_path = extracted_path
+                else:
+                    wav_filename  = extracted_name
+                    wav_disk_path = extracted_path
+
+        # Audio source pour la génération du preview watermarqué
+        if mp3_disk_path:
+            primary_audio_path = str(mp3_disk_path)
+        elif wav_disk_path:
+            primary_audio_path = str(wav_disk_path)
+        else:
+            return err('Aucun fichier audio utilisable trouvé', status=500)
 
         if file_image and file_image.filename != '':
             original_filename = secure_filename(file_image.filename)
@@ -496,7 +610,7 @@ def post_track(current_user):
             'price_stems':               price_stems,
             'sacem_percentage_composer': sacem_percentage_composer,
             'file_hash':                 file_hash,
-            'mp3_disk_path':             str(mp3_disk_path),
+            'primary_audio_path':        primary_audio_path,
             'mp3_filename':              mp3_filename,
             'preview_disk_path':         str(preview_disk_path),
             'preview_filename':          preview_filename,
@@ -527,7 +641,7 @@ def post_track(current_user):
                     {
                         'job_id':    job_id,
                         'user_id':   current_user.id,
-                        'mp3_path':  str(mp3_disk_path),
+                        'mp3_path':  primary_audio_path,
                         'auto_bpm':  request.form.get('auto_bpm',   '0') == '1',
                         'auto_key':  request.form.get('auto_key',   '0') == '1',
                         'auto_style': request.form.get('auto_style', '0') == '1',

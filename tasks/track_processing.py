@@ -50,16 +50,16 @@ def process_track_data(job_payload : dict):
 
             if WATERMARK_AVAILABLE:
                 apply_watermark_and_trim(
-                    input_path=job_payload['mp3_disk_path'], 
+                    input_path=job_payload['primary_audio_path'],
                     output_path=job_payload['preview_disk_path'],
                     watermark_path=config.WATERMARK_AUDIO_PATH,
                     preview_duration=config.PREVIEW_DURATION,
                     watermark_positions=config.WATERMARK_INTERVALS)
 
             if not Path(job_payload['preview_disk_path']).exists():
-                logging.warning('preview absente après watermark. Copie du MP3 original.')
+                logging.warning('preview absente après watermark. Copie du fichier audio original.')
                 try:
-                    shutil.copy(job_payload['mp3_disk_path'], job_payload['preview_disk_path'])
+                    shutil.copy(job_payload['primary_audio_path'], job_payload['preview_disk_path'])
                 except Exception as e:
                     logging.error(f"Fallback watermark échoué: {e}", exc_info=True)
                     redis_client.hset(f"job:{job_payload['job_id']}", mapping={

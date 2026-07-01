@@ -72,7 +72,7 @@ def create_app(test_config=None):
     # Uploads
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['CONTRACTS_FOLDER'] = config.CONTRACTS_FOLDER
-    app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB (pour pistes mixmaster)
+    app.config['MAX_CONTENT_LENGTH'] = 900 * 1024 * 1024  # 900MB (archives stems jusqu'à 800 MB)
     
     # Stripe
     app.config['STRIPE_PUBLIC_KEY'] = config.STRIPE_PUBLIC_KEY

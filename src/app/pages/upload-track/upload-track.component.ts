@@ -215,7 +215,9 @@ export class UploadTrackComponent implements OnInit {
     }
     if (!this.autoKey()   && !this.key())   errs.push('Tonalité non sélectionnée');
     if (!this.autoStyle() && !this.style()) errs.push('Style non sélectionné');
-    if (!this.fileMp3())                    errs.push('Fichier MP3 obligatoire');
+    if (!this.fileMp3() && !this.fileWav() && !this.fileStems()) {
+      errs.push('Au moins un fichier audio requis (MP3, WAV ou archive stems)');
+    }
     return errs;
   });
 
@@ -334,7 +336,7 @@ export class UploadTrackComponent implements OnInit {
       tag_ids:                  this.selectedTagIds().join(','),
       similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
       playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
-      file_mp3:                 this.fileMp3()!,
+      file_mp3:                 this.fileMp3() ?? undefined,
       file_wav:                 this.fileWav() ?? undefined,
       file_image:               this.fileImage() ?? undefined,
       auto_bpm:                 this.autoBpm(),
