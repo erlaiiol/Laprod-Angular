@@ -281,6 +281,7 @@ def get_tracks():
 # ── GET /tracks/random ────────────────────────────────────────────────────────
 
 @tracks_api_bp.route('/random', methods=['GET'])
+@limiter.exempt
 def get_random_track():
     """
     Récupérer un track approuvé aléatoire (pour l'autoplay du player).
@@ -755,7 +756,7 @@ def validate_ai_suggestion(track_id, current_user):
 
 @tracks_api_bp.route('/track/<int:track_id>/view', methods=['POST'])
 @csrf.exempt
-@limiter.limit('60 per minute')
+@limiter.exempt
 def record_track_view(track_id):
     track = db.session.get(Track, track_id)
     if not track:

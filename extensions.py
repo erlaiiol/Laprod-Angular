@@ -33,11 +33,32 @@ jwt = JWTManager()
 
 _is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
 
+
+def _rate_limit_key():
+    """
+    Clé de rate-limiting :
+    - Utilisateur JWT connecté → clé = "user:<id>" (pas d'impact CG-NAT).
+    - Visiteur anonyme → clé = IP (comportement Flask-Limiter par défaut).
+    """
+    from flask import request as _req
+    try:
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        uid = get_jwt_identity()
+        if uid:
+            return f"user:{uid}"
+    except Exception:
+        pass
+    return get_remote_address()
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_rate_limit_key,
     # En développement : aucune limite globale (les @limiter.limit() par route restent actifs).
-    # En production : 300/jour et 50/heure par IP.
-    default_limits=[] if _is_dev else ["300 per day", "50 per hour"],
+    # En production :
+    #   • 2 000 requêtes/jour  (≈ 83/heure en usage continu — large pour une session active)
+    #   • 200 requêtes/heure   (CG-NAT : clé = user_id si connecté, IP sinon)
+    default_limits=[] if _is_dev else ["2000 per day", "200 per hour"],
     storage_uri=os.getenv("REDIS_URL", "redis://redis:6379"),
 )
 

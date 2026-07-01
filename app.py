@@ -311,6 +311,7 @@ def create_app(test_config=None):
     )
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
+    from routes.og_preview import og_preview_bp
 
     app.register_blueprint(premium_api_bp)
     app.register_blueprint(tracks_api_bp)
@@ -337,6 +338,7 @@ def create_app(test_config=None):
     app.register_blueprint(contract_analyzer_api_bp)
     app.register_blueprint(playlist_bp)
     app.register_blueprint(recommendation_api_bp)
+    app.register_blueprint(og_preview_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

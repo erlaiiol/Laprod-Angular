@@ -4,7 +4,7 @@ Favorites API — toggle, check, listening history (JWT)
 from flask import Blueprint, jsonify, request as flask_request
 from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from sqlalchemy import select
-from extensions import db, csrf
+from extensions import db, csrf, limiter
 from models import Favorite, ListenEvent, ListeningHistory, Track
 from serializers import ok, err
 from datetime import datetime
@@ -93,6 +93,7 @@ def check_favorite(track_id):
 @favorites_api_bp.route('/listening/<int:track_id>', methods=['POST'])
 @jwt_required()
 @csrf.exempt
+@limiter.exempt
 @require_user
 def add_listening_history(track_id, current_user):
     """Enregistre une écoute. Garde les 10 dernières entrées uniques."""
