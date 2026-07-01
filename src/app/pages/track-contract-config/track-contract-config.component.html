@@ -17,14 +17,18 @@
            [src]="getImageUrl(track()!.image_file)"
            [alt]="track()!.title"
            onerror="this.src='assets/placeholders/placeholder-track.png'">
-      <h2 class="sidebar-title">{{ track()!.title }}</h2>
-      <p class="sidebar-artist">{{ track()!.composer_user.username }}</p>
-      <div class="format-badge {{ format() }}">{{ formatLabel() }}</div>
 
-      <div class="sidebar-meta">
-        <span>{{ track()!.bpm }} BPM</span>
-        <span>{{ track()!.key }}</span>
-        <span>{{ track()!.style }}</span>
+      <!-- .sidebar-info wraps text so the mobile flex row works correctly -->
+      <div class="sidebar-info">
+        <h2 class="sidebar-title">{{ track()!.title }}</h2>
+        <p class="sidebar-artist">{{ track()!.composer_user.username }}</p>
+        <div class="format-badge {{ format() }}">{{ formatLabel() }}</div>
+
+        <div class="sidebar-meta">
+          <span>{{ track()!.bpm }} BPM</span>
+          <span>{{ track()!.key }}</span>
+          <span>{{ track()!.style }}</span>
+        </div>
       </div>
 
       <!-- Live price box -->

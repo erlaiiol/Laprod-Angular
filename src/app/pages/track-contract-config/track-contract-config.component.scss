@@ -11,7 +11,10 @@
   padding:   0 1rem;
   color:     v.$text-primary;
 
-  @media (max-width: 700px) { grid-template-columns: 1fr; }
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+    margin-top: 1rem;
+  }
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -25,11 +28,54 @@
   height:        fit-content;
   position:      sticky;
   top:           1rem;
+
+  @media (max-width: 700px) {
+    position:      static;         // plus de sticky en mobile : la sidebar flow normalement
+    padding:       0.75rem 1rem;
+    display:       flex;
+    align-items:   center;
+    gap:           0.85rem;
+    text-align:    left;
+    border-radius: 8px;
+  }
 }
 
-.sidebar-cover  { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; }
-.sidebar-title  { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
-.sidebar-artist { font-size: 0.82rem; color: v.$text-secondary; margin: 0 0 0.75rem; }
+.sidebar-cover {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;
+
+  @media (max-width: 700px) {
+    width:         52px;
+    height:        52px;
+    aspect-ratio:  1;
+    border-radius: 6px;
+    flex-shrink:   0;
+    margin-bottom: 0;
+  }
+}
+
+// Bloc texte wrappé sur mobile
+.sidebar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-title {
+  font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem;
+
+  @media (max-width: 700px) {
+    font-size:     0.88rem;
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.1rem;
+  }
+}
+
+.sidebar-artist {
+  font-size: 0.82rem; color: v.$text-secondary; margin: 0 0 0.75rem;
+
+  @media (max-width: 700px) { margin-bottom: 0; }
+}
 
 .format-badge {
   display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px;
@@ -38,20 +84,38 @@
   &.mp3   { background: v.$format-mp3-bg;   color: v.$format-mp3-color; }
   &.wav   { background: v.$format-wav-bg;   color: v.$format-wav-color; }
   &.stems { background: v.$format-stems-bg; color: v.$format-stems-color; }
+
+  @media (max-width: 700px) { margin-bottom: 0; font-size: 0.68rem; padding: 0.15rem 0.5rem; }
 }
 
-.sidebar-meta {
-  display: flex; flex-wrap: wrap; gap: 0.4rem;
-  justify-content: center; margin-bottom: 1rem;
+// Cachés sur mobile : pas de place dans la barre compacte
+.sidebar-meta  { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 1rem;
   span { background: v.$bg-elevated; border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.72rem; color: v.$text-secondary; }
+  @media (max-width: 700px) { display: none; }
 }
 
 .price-box {
   background: v.$bg-elevated; border: 1px solid v.$bg-border-subtle;
   border-radius: 10px; padding: 1rem; margin-top: 0.5rem;
+
+  @media (max-width: 700px) {
+    background:    none;
+    border:        none;
+    padding:       0;
+    margin:        0;
+    margin-left:   auto;
+    flex-shrink:   0;
+    text-align:    right;
+  }
 }
-.price-box-total { font-size: 2rem;    font-weight: 800; color: v.$accent; }
-.price-box-label { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.1rem; }
+.price-box-total {
+  font-size: 2rem; font-weight: 800; color: v.$accent;
+  @media (max-width: 700px) { font-size: 1.3rem; }
+}
+.price-box-label {
+  font-size: 0.75rem; color: v.$text-muted; margin-top: 0.1rem;
+  @media (max-width: 700px) { font-size: 0.65rem; }
+}
 
 // ── Mode Toggle ───────────────────────────────────────────────────────────────
 
