@@ -1,0 +1,55 @@
+{
+  "_doc": "Mises à jour LaProd destinées aux emails utilisateurs. Ce fichier est la source de vérité du module Support dans l'admin. Mettre à jour à chaque déploiement affectant l'expérience utilisateur. Chaque entrée doit être compréhensible par un utilisateur non technique. `sent_at` est null tant que la communication n'a pas été envoyée.",
+  "updates": [
+    {
+      "id": "2026-07-01-share-buttons",
+      "date": "2026-07-01",
+      "category": "feature",
+      "title": "Bouton Partager ajouté sur les beats, les ingénieurs et votre profil",
+      "short": "Partagez vos beats et profils en un clic.",
+      "detail": "Un bouton Partager est maintenant disponible sur chaque beat, sur les profils d'ingénieurs certifiés et sur votre propre profil. Partagez vos créations ou recommandez un ingénieur à un ami : le lien s'ouvre dans l'application de partage de votre téléphone, ou se copie directement dans votre presse-papiers si le partage natif n'est pas disponible.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-01-performance",
+      "date": "2026-07-01",
+      "category": "improvement",
+      "title": "La page des beats charge beaucoup plus vite",
+      "short": "Nous avons optimisé la vitesse de chargement de la page principale.",
+      "detail": "Les recommandations personnalisées et les images des beats se chargent maintenant significativement plus vite, en particulier pour les utilisateurs connectés. Vous devriez remarquer la différence dès votre prochaine visite.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-01-payment-gate",
+      "date": "2026-07-01",
+      "category": "behavior",
+      "title": "Pages d'achat accessibles sans connexion",
+      "short": "Vous pouvez désormais consulter les prix avant de vous connecter.",
+      "detail": "Vous pouvez maintenant parcourir toutes les pages d'achat de licences et de mixage, voir les prix et comprendre ce que vous achetez, sans être bloqué. La connexion est uniquement requise au moment de valider le paiement — vous savez exactement où vous allez avant de vous engager.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-01-topline-audio",
+      "date": "2026-07-01",
+      "category": "improvement",
+      "title": "Meilleure qualité audio pour les toplines",
+      "short": "Le rendu audio de vos enregistrements de toplines est maintenant plus propre.",
+      "detail": "Nous avons amélioré le traitement audio des toplines enregistrées directement depuis l'application. Le résultat est plus fidèle à votre enregistrement original, avec moins d'artefacts sonores.",
+      "audience": "artists",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-01-email-verification-fix",
+      "date": "2026-07-01",
+      "category": "fix",
+      "title": "Correction des emails de vérification de compte",
+      "short": "Le bug sur les emails de vérification est corrigé.",
+      "detail": "Un problème affectant l'envoi et la validation des emails de vérification de compte a été résolu. Si vous rencontriez des difficultés pour confirmer votre adresse email à l'inscription, ce problème n'existe plus.",
+      "audience": "all",
+      "sent_at": null
+    }
+  ]
+}

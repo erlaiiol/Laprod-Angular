@@ -58,10 +58,12 @@ export class PlayerService {
 
     this.audioEl.ondurationchange = () => {
       this.duration.set(this.audioEl.duration || 0);
+      this._updateMediaSessionPosition();
     };
 
     this.audioEl.onended = () => {
       this.isPlaying.set(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       // Envoyer l'event d'écoute pour les tracks normaux (pas MixMaster)
       const track = this.currentTrack();
       if (track && track.id > 0 && this._listenStartTime > 0) {
@@ -74,13 +76,21 @@ export class PlayerService {
       }
     };
 
-    this.audioEl.onpause = () => this.isPlaying.set(false);
-    this.audioEl.onplay  = () => this.isPlaying.set(true);
+    this.audioEl.onpause = () => {
+      this.isPlaying.set(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    };
+    this.audioEl.onplay  = () => {
+      this.isPlaying.set(true);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    };
 
     // Sync volume signal → audio element
     effect(() => {
       this.audioEl.volume = this.volume();
     });
+
+    this._initMediaSessionHandlers();
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -112,6 +122,7 @@ export class PlayerService {
     // play() in WaveSurfer's 'ready' callback will be allowed by the browser.
 
     this.currentTrack.set(track);
+    this._updateMediaSession(track);
     // Jouer un beat normal efface le contexte mix order (et inversement)
     this.viewingMixOrder.set(null);
     // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
@@ -181,6 +192,7 @@ export class PlayerService {
     };
     this.playOnReady = true;
     this.currentTrack.set(track);
+    this._updateMediaSession(track);
     this.viewingTrack.set(null);
     this.viewingMixOrder.set(ctx);
     // _listenStartTime reste à 0 : pas de timer pour les mix orders
@@ -259,6 +271,53 @@ export class PlayerService {
     }
     this._listenStartTime = 0;
     this._secondsListened = 0;
+  }
+
+  private _initMediaSessionHandlers(): void {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play',         () => this.resume());
+    navigator.mediaSession.setActionHandler('pause',        () => this.pause());
+    navigator.mediaSession.setActionHandler('stop',         () => this.close());
+    navigator.mediaSession.setActionHandler('nexttrack',    () => this.playNext());
+    navigator.mediaSession.setActionHandler('seekbackward', (d) => {
+      this.seek(Math.max(0, this.audioEl.currentTime - (d.seekOffset ?? 10)));
+    });
+    navigator.mediaSession.setActionHandler('seekforward', (d) => {
+      this.seek(Math.min(this.audioEl.duration || Infinity, this.audioEl.currentTime + (d.seekOffset ?? 10)));
+    });
+    navigator.mediaSession.setActionHandler('seekto', (d) => {
+      if (d.seekTime != null) this.seek(d.seekTime);
+    });
+  }
+
+  private _updateMediaSession(track: Track): void {
+    if (!('mediaSession' in navigator)) return;
+
+    const artworkUrl = track.image_file
+      ? `${environment.apiUrl}/db_assets/${track.image_file}`
+      : `${window.location.origin}/assets/placeholders/placeholder-track.png`;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  track.title,
+      artist: track.composer_user?.username ?? 'LaProd',
+      album:  'LaProd',
+      artwork: [
+        { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' },
+      ],
+    });
+  }
+
+  private _updateMediaSessionPosition(): void {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    const duration = this.audioEl.duration;
+    if (!duration || !isFinite(duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: this.audioEl.playbackRate,
+        position:     Math.min(this.audioEl.currentTime, duration),
+      });
+    } catch { /* ignore si l'API n'est pas disponible */ }
   }
 
   private _sendListenEvent(track: Track): void {

@@ -76,6 +76,86 @@ La sérialisation JSON des entités SQLAlchemy est centralisée dans `serializer
 
 Les opérations longues (traitement audio, envoi d'emails) se font via RQ Workers dans `tasks/`. Ne jamais bloquer une requête HTTP avec une opération longue.
 
+### Performance — eager loading et relations SQLAlchemy
+
+Ne jamais accéder à une relation SQLAlchemy dans une boucle sans l'avoir chargée en avance. Chaque accès lazy dans une boucle génère une requête SQL supplémentaire (N+1).
+
+```python
+# ❌ N+1 — chaque ev.track déclenche une SELECT
+events = db.session.query(ListenEvent).filter_by(user_id=user_id).all()
+for ev in events:
+    for tag in ev.track.tags:  # 2 lazy loads par itération
+        ...
+
+# ✅ 3 requêtes au total quelle que soit la taille de la liste
+from sqlalchemy.orm import selectinload
+
+events = (
+    db.session.query(ListenEvent)
+    .options(
+        selectinload(ListenEvent.track).selectinload(Track.tags),
+        selectinload(ListenEvent.track).selectinload(Track.similar_artists),
+    )
+    .filter_by(user_id=user_id)
+    .all()
+)
+```
+
+### Performance — cache Redis pour les calculs coûteux
+
+Les calculs dérivés d'une agrégation SQL (vecteur de préférences, scores de recommandation) doivent être mis en cache dans Redis avec un TTL court (5-10 min). Le pattern standard :
+
+```python
+CACHE_TTL = 600  # secondes
+
+def build_something(user_id: int) -> dict:
+    cache_key = f'laprod:mon_domaine:{user_id}'
+    if redis_client:
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception:
+            pass
+
+    result = _compute(user_id)  # logique lourde
+
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        except Exception:
+            pass
+
+    return result
+```
+
+**Attention aux types JSON :** `json.dumps` convertit les clés `int` en `str`. Reconvertir explicitement au chargement si nécessaire :
+
+```python
+data['my_int_key_dict'] = {int(k): v for k, v in data['my_int_key_dict'].items()}
+```
+
+**Invalidation :** toujours invalider le cache quand les données sources changent (toggle favori, nouvel événement d'écoute, achat). Exporter une fonction `invalidate_*_cache(user_id)` depuis le module qui détient la logique, et l'appeler dans les routes concernées.
+
+```python
+# Dans utils/mon_service.py
+def invalidate_my_cache(user_id: int) -> None:
+    if redis_client:
+        try:
+            redis_client.delete(f'laprod:mon_domaine:{user_id}')
+        except Exception:
+            pass
+
+# Dans routes/ma_route.py
+from utils.mon_service import invalidate_my_cache
+
+@bp.route('/action', methods=['POST'])
+def action():
+    # ... modifier les données ...
+    invalidate_my_cache(current_user.id)
+    return ok()
+```
+
 ---
 
 ## Frontend Angular
@@ -109,6 +189,47 @@ constructor(private auth: AuthService) {}
 - Chaque endpoint API a son service dédié
 - Les URLs d'API utilisent `environment.apiUrl`
 - Les erreurs HTTP sont gérées au niveau du composant (toast ou signal `error`)
+
+### Partage de contenu
+
+Tout partage de lien utilise le `ShareService` (`src/app/services/share.service.ts`) et le `ShareButtonComponent` (`src/app/components/share-button/`). Ne pas dupliquer la logique de partage dans les composants.
+
+**Comportement :** `navigator.share` si disponible (mobile natif), sinon `clipboard.writeText` avec toast de confirmation.
+
+```typescript
+// Utiliser le composant dans un template — passer un chemin relatif ou absolu
+<app-share-button [url]="'/track/' + track.id" [title]="track.title"></app-share-button>
+<app-share-button [url]="'/profile/' + username"></app-share-button>
+```
+
+Le `ShareButtonComponent` appelle `event.stopPropagation()` — utilisable à l'intérieur d'éléments cliquables (cartes avec `routerLink`).
+
+Pour ajouter un nouveau type de contenu partageable, passer simplement l'URL au composant. Ne pas injecter `ShareService` directement dans un composant parent sauf si le bouton ne peut pas être utilisé (cas rare).
+
+### Change Detection
+
+Tous les composants doivent utiliser `ChangeDetectionStrategy.OnPush`. Les composants avec des `signal()` et `computed()` sont entièrement compatibles : Angular marque la vue automatiquement à chaque mutation de signal.
+
+```typescript
+@Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  // ...
+})
+```
+
+Ne pas utiliser `ChangeDetectionStrategy.Default` sauf cas exceptionnel documenté.
+
+### Images
+
+Toujours ajouter `loading="lazy"` sur les images de listes (cards, grilles). Ne pas l'ajouter sur les images visibles immédiatement above-the-fold (ex : image hero d'une page de détail).
+
+```html
+<!-- ✅ Card de catalogue, liste paginée -->
+<img [src]="getImageUrl()" [alt]="track.title" loading="lazy">
+
+<!-- ✅ Image de détail visible immédiatement — pas de lazy -->
+<img [src]="getImageUrl(track.image_file)" [alt]="track.title">
+```
 
 ---
 
@@ -190,6 +311,40 @@ Quand un bouton doit être rempli par défaut (pas ghost), override le fond apr�
   &:hover { background: v.$primary-dark; border-color: v.$primary-dark; }
 }
 ```
+
+---
+
+## Communication utilisateurs — `updates.json`
+
+Le fichier `updates.json` (à la racine du projet) est la source de vérité pour les communications email envoyées aux utilisateurs depuis le module Support de l'admin.
+
+**À mettre à jour à chaque déploiement** qui concerne l'expérience utilisateur (nouvelle fonctionnalité, amélioration visible, correction d'un bug notable, changement de comportement). Ne pas documenter les refactorisations internes, les migrations silencieuses ou les changements d'infrastructure.
+
+### Structure d'une entrée
+
+```json
+{
+  "id": "2026-07-01-nom-court",
+  "date": "2026-07-01",
+  "category": "feature | improvement | fix | behavior",
+  "title": "Titre court (affiché dans l'admin)",
+  "short": "Une phrase, ton direct, utilisable comme objet d'email.",
+  "detail": "Paragraphe complet, rédigé pour un utilisateur non technique. Ton chaleureux et concret.",
+  "audience": "all | artists | beatmakers | engineers | buyers",
+  "sent_at": null
+}
+```
+
+- `sent_at` : `null` tant que la communication n'a pas été envoyée. Le module Support le met à jour avec la date d'envoi.
+- `audience` : utilisé pour filtrer les destinataires côté admin. `"all"` envoie à tous les utilisateurs actifs.
+- Rédiger `detail` comme si c'était un email : pas de jargon technique, bénéfice utilisateur en avant.
+
+### Règles de rédaction
+
+- Écrire en français, ton direct (pas de "nous sommes heureux de vous annoncer")
+- `short` = une seule phrase, utilisable comme objet d'email
+- `detail` = 2-3 phrases max, ce que l'utilisateur peut faire ou remarquer concrètement
+- Ne jamais mentionner de termes techniques (Redis, SQLAlchemy, Angular…)
 
 ---
 
@@ -336,3 +491,7 @@ await TestBed.configureTestingModule({
 - [ ] Testé manuellement : golden path + cas d'erreur
 - [ ] Responsive vérifié (mobile ≤ 600px)
 - [ ] Si nouvel objet de test créé : vérifier qu'un scénario existant ne couvrait pas déjà ce cas
+- [ ] Nouveau composant Angular : `ChangeDetectionStrategy.OnPush` présent
+- [ ] Images dans des listes ou cartes : `loading="lazy"` présent
+- [ ] Nouvelle relation SQLAlchemy dans une boucle : `selectinload` utilisé
+- [ ] Nouveau calcul coûteux côté Flask : envisager un cache Redis + invalidation
