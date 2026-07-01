@@ -339,12 +339,19 @@
   .right-desc { display: block; font-size: 0.74rem; color: v.$text-muted; margin-top: 0.1rem; }
   &.always-on     { opacity: 0.6; cursor: default; }
   &.auto-included { opacity: 0.75; cursor: default; }
+  &.rights-locked { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 }
 
 .right-badge {
   font-size: 0.7rem; font-weight: 600; border-radius: 4px; padding: 0.2rem 0.5rem; white-space: nowrap;
   &.included { background: v.$tag-green-dark; color: v.$tag-green-light; }
   &.optional { background: v.$gold-dark;      color: v.$gold-light; }
+}
+
+.rights-hint {
+  font-size: 0.77rem; color: v.$text-muted; font-style: italic;
+  margin: 0.5rem 0 0; display: flex; align-items: center; gap: 0.4rem;
+  i { color: v.$tag-blue; flex-shrink: 0; }
 }
 
 .duration-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }

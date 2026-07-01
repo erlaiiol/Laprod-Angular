@@ -146,6 +146,21 @@ export interface UserSearchResult {
   email:    string;
 }
 
+export interface AdminTopline {
+  id:           number;
+  is_published: boolean;
+  description:  string | null;
+  created_at:   string | null;
+  stream_url:   string;
+  artist: { id: number; username: string; profile_image: string } | null;
+  track: {
+    id:        number;
+    title:     string;
+    image_file: string;
+    beatmaker: { id: number; username: string } | null;
+  } | null;
+}
+
 export interface TrackSearchResult {
   id:                 number;
   title:              string;
@@ -345,6 +360,24 @@ export class AdminService {
 
   searchTracks(q: string): Observable<ApiResponse<{ tracks: TrackSearchResult[] }>> {
     return this.http.get<any>(`${this.base}/tracks/search`, { headers: this.headers, params: { q } });
+  }
+
+  // ── Toplines ────────────────────────────────────────────────────────────────
+
+  getToplines(page = 1, published = 'all'): Observable<ApiResponse<{
+    toplines: AdminTopline[];
+    total:    number;
+    pages:    number;
+    page:     number;
+  }>> {
+    return this.http.get<any>(`${this.base}/toplines`, {
+      headers: this.headers,
+      params:  { page: String(page), published },
+    });
+  }
+
+  deleteTopline(id: number): Observable<ApiResponse> {
+    return this.http.delete<any>(`${this.base}/toplines/${id}`, { headers: this.headers });
   }
 
   // ── Support email ───────────────────────────────────────────────────────────

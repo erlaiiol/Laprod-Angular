@@ -245,10 +245,10 @@
             <span class="right-badge included">Inclus</span>
           </label>
 
-          <label class="right-item" [class.auto-included]="mechanicalAutoIncluded()">
+          <label class="right-item" [class.auto-included]="mechanicalAutoIncluded()" [class.rights-locked]="streamOnly()">
             <input type="checkbox"
-                   [checked]="mechanicalAutoIncluded() || rightMechanical()"
-                   [disabled]="mechanicalAutoIncluded()"
+                   [checked]="!streamOnly() && (mechanicalAutoIncluded() || rightMechanical())"
+                   [disabled]="mechanicalAutoIncluded() || streamOnly()"
                    (change)="rightMechanical.set($any($event.target).checked)">
             <div>
               <span class="right-name">Reproduction mécanique</span>
@@ -261,10 +261,10 @@
             }
           </label>
 
-          <label class="right-item" [class.auto-included]="publicShowAutoIncluded()">
+          <label class="right-item" [class.auto-included]="publicShowAutoIncluded()" [class.rights-locked]="streamOnly()">
             <input type="checkbox"
-                   [checked]="publicShowAutoIncluded() || rightPublicShow()"
-                   [disabled]="publicShowAutoIncluded()"
+                   [checked]="!streamOnly() && (publicShowAutoIncluded() || rightPublicShow())"
+                   [disabled]="publicShowAutoIncluded() || streamOnly()"
                    (change)="rightPublicShow.set($any($event.target).checked)">
             <div>
               <span class="right-name">Diffusion publique</span>
@@ -277,16 +277,24 @@
             }
           </label>
 
-          <label class="right-item">
+          <label class="right-item" [class.rights-locked]="streamOnly()">
             <input type="checkbox"
-                   [ngModel]="rightArrangement()"
-                   (ngModelChange)="rightArrangement.set($event)">
+                   [checked]="!streamOnly() && rightArrangement()"
+                   [disabled]="streamOnly()"
+                   (change)="rightArrangement.set($any($event.target).checked)">
             <div>
               <span class="right-name">Arrangement / Adaptation</span>
               <span class="right-desc">Modification de la structure, remix</span>
             </div>
             <span class="right-badge optional">+{{ prices().arrangement }}€</span>
           </label>
+
+          @if (streamOnly()) {
+            <p class="rights-hint">
+              <i class="bi bi-arrow-down-circle"></i>
+              Veuillez indiquer une durée de licence ci-dessous pour activer ces droits d'exploitation.
+            </p>
+          }
         </section>
 
         <!-- Durée -->

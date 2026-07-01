@@ -130,8 +130,10 @@ class TrackPriceCalculator(PriceCalculator):
 
         if options.get('mechanical_reproduction'):
             if intermediate_total < MECHANICAL_THRESHOLD:
-                contract_price += _resolve('contract_price_mechanical',
-                                           'CONTRACT_MECHANICAL_REPRODUCTION_PRICE', 30)
+                mech_fee = _resolve('contract_price_mechanical',
+                                    'CONTRACT_MECHANICAL_REPRODUCTION_PRICE', 30)
+                contract_price    += mech_fee
+                intermediate_total += mech_fee  # mise à jour pour le seuil diffusion publique
 
         if options.get('public_show'):
             if intermediate_total < PUBLIC_SHOW_THRESHOLD:

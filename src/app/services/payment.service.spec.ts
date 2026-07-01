@@ -201,64 +201,50 @@ describe('PaymentService', () => {
 
   describe('createCheckout() — réponse Stripe', () => {
 
-    it('émet ApiResponse<CheckoutData> avec checkout_url string HTTPS', (done) => {
-      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({
-        next: (res: ApiResponse<CheckoutData>) => {
-          expect(res.success).toBeTrue();
-          expect(typeof res.data!.checkout_url).toBe('string');
-          expect(res.data!.checkout_url).toMatch(/^https:\/\//);
-          done();
-        },
-      });
+    it('émet ApiResponse<CheckoutData> avec checkout_url string HTTPS', () => {
+      let result: ApiResponse<CheckoutData> | undefined;
+      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({ next: r => result = r });
 
       const req = httpMock.expectOne(`${BASE_URL}/track/10/mp3/checkout`);
-      req.flush({
-        success: true,
-        data: { checkout_url: 'https://checkout.stripe.com/pay/cs_test_xyz', total: 14.99 },
-      });
+      req.flush({ success: true, data: { checkout_url: 'https://checkout.stripe.com/pay/cs_test_xyz', total: 14.99 } });
+
+      expect(result!.success).toBe(true);
+      expect(typeof result!.data!.checkout_url).toBe('string');
+      expect(result!.data!.checkout_url).toMatch(/^https:\/\//);
     });
 
-    it('data.total est un number (jamais une string)', (done) => {
-      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({
-        next: (res: ApiResponse<CheckoutData>) => {
-          expect(typeof res.data!.total).toBe('number');
-          done();
-        },
-      });
+    it('data.total est un number (jamais une string)', () => {
+      let result: ApiResponse<CheckoutData> | undefined;
+      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({ next: r => result = r });
 
       const req = httpMock.expectOne(`${BASE_URL}/track/10/mp3/checkout`);
       req.flush({ success: true, data: { checkout_url: 'https://stripe.test', total: 14.99 } });
+      expect(typeof result!.data!.total).toBe('number');
     });
 
-    it('propage les erreurs HTTP 403 (prix manipulé)', (done) => {
+    it('propage les erreurs HTTP 403 (prix manipulé)', () => {
+      let err: HttpErrorResponse | undefined;
       const tampered = { ...QUICK_MODE_OPTIONS, total_price: 0.01 };
-      service.createCheckout(10, 'mp3', tampered).subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(403);
-          done();
-        },
-      });
+      service.createCheckout(10, 'mp3', tampered).subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${BASE_URL}/track/10/mp3/checkout`);
       req.flush(
         { success: false, feedback: { message: 'Prix invalide.' } },
         { status: 403, statusText: 'Forbidden' },
       );
+      expect(err!.status).toBe(403);
     });
 
-    it('propage les erreurs HTTP 500 (Stripe indisponible)', (done) => {
-      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(500);
-          done();
-        },
-      });
+    it('propage les erreurs HTTP 500 (Stripe indisponible)', () => {
+      let err: HttpErrorResponse | undefined;
+      service.createCheckout(10, 'mp3', QUICK_MODE_OPTIONS).subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${BASE_URL}/track/10/mp3/checkout`);
       req.flush(
         { success: false, feedback: { message: 'Erreur Stripe.' } },
         { status: 500, statusText: 'Internal Server Error' },
       );
+      expect(err!.status).toBe(500);
     });
 
   });
@@ -294,48 +280,40 @@ describe('PaymentService', () => {
       req.flush({ success: true, data: { purchase_id: 3 } });
     });
 
-    it('émet ApiResponse<VerifyPurchaseData> avec purchase_id number', (done) => {
-      service.verifyPayment('cs_test_abc').subscribe({
-        next: (res: ApiResponse<VerifyPurchaseData>) => {
-          expect(res.success).toBeTrue();
-          expect(typeof res.data!.purchase_id).toBe('number');
-          expect(res.data!.purchase_id).toBe(99);
-          done();
-        },
-      });
+    it('émet ApiResponse<VerifyPurchaseData> avec purchase_id number', () => {
+      let result: ApiResponse<VerifyPurchaseData> | undefined;
+      service.verifyPayment('cs_test_abc').subscribe({ next: r => result = r });
 
       const req = httpMock.expectOne(`${BASE_URL}/verify`);
       req.flush({ success: true, data: { purchase_id: 99 } });
+
+      expect(result!.success).toBe(true);
+      expect(typeof result!.data!.purchase_id).toBe('number');
+      expect(result!.data!.purchase_id).toBe(99);
     });
 
-    it('propage les erreurs HTTP 403 (acheteur JWT ≠ metadata buyer_id)', (done) => {
-      service.verifyPayment('cs_test_other_user').subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(403);
-          done();
-        },
-      });
+    it('propage les erreurs HTTP 403 (acheteur JWT ≠ metadata buyer_id)', () => {
+      let err: HttpErrorResponse | undefined;
+      service.verifyPayment('cs_test_other_user').subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${BASE_URL}/verify`);
       req.flush(
         { success: false, feedback: { message: 'Cette session ne vous appartient pas.' } },
         { status: 403, statusText: 'Forbidden' },
       );
+      expect(err!.status).toBe(403);
     });
 
-    it('propage les erreurs HTTP 400 (paiement non confirmé)', (done) => {
-      service.verifyPayment('cs_test_pending').subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(400);
-          done();
-        },
-      });
+    it('propage les erreurs HTTP 400 (paiement non confirmé)', () => {
+      let err: HttpErrorResponse | undefined;
+      service.verifyPayment('cs_test_pending').subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${BASE_URL}/verify`);
       req.flush(
         { success: false, feedback: { message: 'Paiement non confirmé.' } },
         { status: 400, statusText: 'Bad Request' },
       );
+      expect(err!.status).toBe(400);
     });
 
   });
@@ -345,12 +323,10 @@ describe('PaymentService', () => {
   describe('redirectToCheckout()', () => {
 
     it('positionne window.location.href sans requête HTTP', () => {
-      // Pas de httpMock.expectOne → aucune requête HTTP ne doit partir
-      const spy = spyOnProperty(window, 'location').and.returnValue(
-        { href: '' } as Location,
-      );
-      service.redirectToCheckout('https://checkout.stripe.com/pay/cs_test_live');
-      // httpMock.verify() (dans afterEach) confirmera qu'aucune requête n'a été émise
+      // window.location n'est pas mockable via vi.spyOn en jsdom.
+      // Contrat clé : aucune requête HTTP ne part (httpMock.verify() dans afterEach).
+      // Contrat secondaire : l'appel ne lève pas d'exception.
+      expect(() => service.redirectToCheckout('https://checkout.stripe.com/pay/cs_test_live')).not.toThrow();
     });
 
   });

@@ -83,26 +83,39 @@ export class TrackContractConfigComponent implements OnInit {
          : (t.price_stems ?? 0);
   });
 
-  durationFee    = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
-  territoryFee   = computed(() => this.prices().territory[this.territory()]);
-  arrangementFee = computed(() => this.rightArrangement() ? this.prices().arrangement : 0);
+  durationFee  = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
+  territoryFee = computed(() => this.prices().territory[this.territory()]);
+
+  // "Streaming seul" sans durée → aucun autre droit (mécanique, publique, arrangement) accordé
+  streamOnly = computed(() => !this.isLifetime() && this.duration() === 'stream');
+
+  arrangementFee = computed(() =>
+    !this.streamOnly() && this.rightArrangement() ? this.prices().arrangement : 0
+  );
 
   subtotal = computed(() =>
     this.basePrice() + this.durationFee() + this.territoryFee() + this.arrangementFee()
   );
 
   mechanicalAutoIncluded = computed(() => this.subtotal() >= MECHANICAL_THRESHOLD);
-  publicShowAutoIncluded = computed(() => this.subtotal() >= PUBLIC_SHOW_THRESHOLD);
 
   mechanicalFee = computed(() =>
-    this.mechanicalAutoIncluded() ? 0 : this.rightMechanical() ? this.prices().mechanical : 0
+    !this.streamOnly() && !this.mechanicalAutoIncluded() && this.rightMechanical()
+      ? this.prices().mechanical : 0
   );
+
+  // Seuil diffusion publique calculé sur le sous-total APRÈS la mécanique
+  // (identique à la logique backend : intermediate_total mis à jour après mécanique)
+  subtotalWithMechanical = computed(() => this.subtotal() + this.mechanicalFee());
+  publicShowAutoIncluded = computed(() => this.subtotalWithMechanical() >= PUBLIC_SHOW_THRESHOLD);
+
   publicShowFee = computed(() =>
-    this.publicShowAutoIncluded() ? 0 : this.rightPublicShow() ? this.prices().publicShow : 0
+    !this.streamOnly() && !this.publicShowAutoIncluded() && this.rightPublicShow()
+      ? this.prices().publicShow : 0
   );
 
   totalPrice = computed(() =>
-    this.subtotal() + this.mechanicalFee() + this.publicShowFee()
+    this.subtotalWithMechanical() + this.publicShowFee()
   );
 
   sacemComposer = computed(() => (this.track() as any)?.sacem_percentage_composer ?? 50);
@@ -152,6 +165,14 @@ export class TrackContractConfigComponent implements OnInit {
   constructor() {
     effect(() => { if (this.mechanicalAutoIncluded()) this.rightMechanical.set(false); });
     effect(() => { if (this.publicShowAutoIncluded())  this.rightPublicShow.set(false); });
+    // Streaming seul : aucun droit d'exploitation accordé → réinitialiser les cases
+    effect(() => {
+      if (this.streamOnly()) {
+        this.rightMechanical.set(false);
+        this.rightPublicShow.set(false);
+        this.rightArrangement.set(false);
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -224,9 +245,9 @@ export class TrackContractConfigComponent implements OnInit {
       is_lifetime:             this.isLifetime(),
       duration_years:          this.isLifetime() ? 999 : this.duration() === 'stream' ? 0 : Number(this.duration()),
       territory:               this.territory(),
-      mechanical_reproduction: this.mechanicalAutoIncluded() || this.rightMechanical(),
-      public_show:             this.publicShowAutoIncluded() || this.rightPublicShow(),
-      arrangement:             this.rightArrangement(),
+      mechanical_reproduction: !this.streamOnly() && (this.mechanicalAutoIncluded() || this.rightMechanical()),
+      public_show:             !this.streamOnly() && (this.publicShowAutoIncluded() || this.rightPublicShow()),
+      arrangement:             !this.streamOnly() && this.rightArrangement(),
       total_price:             Math.round(this.totalPrice() * 100) / 100,
       buyer_address:           this.buyerAddress(),
       buyer_email:             this.auth.currentUser()?.email,

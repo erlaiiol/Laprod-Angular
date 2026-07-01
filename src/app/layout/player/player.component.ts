@@ -9,6 +9,7 @@ import {
   effect,
   signal,
   computed,
+  untracked,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -64,6 +65,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   // Dernière URL chargée dans WaveSurfer — évite les rechargements quand seul
   // le contexte change (ex: viewingTrack s'active sur le même track en lecture).
   private _lastLoadedUrl = '';
+  private _lastLoadedTrackId = 0;
 
   constructor() {
     effect(() => {
@@ -80,7 +82,17 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
         }
         return;
       }
+      // Même track en cours de lecture, URL différente → changement de contexte
+      // (ex: viewingTrack effacé en quittant track-detail). Ne pas recharger pour
+      // ne pas couper la lecture. On met à jour la référence silencieusement.
+      if (track.id > 0
+          && track.id === this._lastLoadedTrackId
+          && untracked(() => this.player.isPlaying())) {
+        this._lastLoadedUrl = url;
+        return;
+      }
       this._lastLoadedUrl = url;
+      this._lastLoadedTrackId = track.id;
       this.wavesurfer.load(url);
     });
   }
@@ -117,6 +129,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       const url = this.player.buildAudioUrl(pending);
       if (url && url !== this._lastLoadedUrl) {
         this._lastLoadedUrl = url;
+        this._lastLoadedTrackId = pending.id;
         this.wavesurfer.load(url);
       }
     }

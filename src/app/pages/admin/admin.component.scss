@@ -767,3 +767,38 @@
   padding: 1rem; font-size: 0.85rem; color: v.$text-secondary;
   white-space: pre-wrap; line-height: 1.7; min-height: 150px;
 }
+
+// ── Onglet Toplines ───────────────────────────────────────────────────────────
+
+.cell-track, .cell-user {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+
+.link-subtle {
+  color: v.$text-primary; text-decoration: none; font-size: 0.85rem;
+  &:hover { color: v.$primary; text-decoration: underline; }
+}
+
+.desc-cell {
+  max-width: 200px; color: v.$text-muted; font-size: 0.78rem;
+}
+
+.topline-audio {
+  height: 28px; width: 180px;
+  accent-color: v.$primary;
+}
+
+.pagination-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.3rem; margin-top: 1.5rem; flex-wrap: wrap;
+}
+
+.btn-page {
+  min-width: 32px; height: 32px; padding: 0 0.5rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 6px; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.82rem; transition: all 0.15s;
+  &:hover:not(:disabled) { border-color: v.$primary; color: v.$primary; }
+  &--active { background: v.$primary; border-color: v.$primary; color: #fff; font-weight: 600; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}

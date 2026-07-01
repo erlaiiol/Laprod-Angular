@@ -375,10 +375,10 @@ class TestTrackPriceCalculatorPresets:
           Monde entier     → CONTRACT_TERRITORY_WORLD = 10
           arrangement      → +10  (traité AVANT les seuils)
           contrat_price avant seuils = 70
-          intermédiaire = 9.99 + 70 = 79.99
+          intermédiaire avant mécanique = 9.99 + 70 = 79.99
 
-          public_show : 79.99 >= 74.99 → AUTO-INCLUS (aucun surcoût)
-          mechanical  : 79.99 < 199.99 → +30
+          mechanical  : 79.99 < 199.99 → +30 ; intermédiaire mis à jour → 109.99
+          public_show : 109.99 >= 74.99 → AUTO-INCLUS (aucun surcoût)
 
           options_fee = 50 + 10 + 10 + 30 = 100  (pas de public_show en plus)
           total       = 9.99 + 100 = 109.99
@@ -397,6 +397,33 @@ class TestTrackPriceCalculatorPresets:
             )
         assert opts_price == Decimal('100')
         assert total == Decimal('109.99')
+
+    def test_mechanical_fee_triggers_public_show_auto_include(self, app):
+        """
+        Bug fix : intermediate_total mis à jour après mécanique avant de tester
+        le seuil diffusion publique.
+
+        base=50, streaming seul (0), France (0) → intermédiaire = 50
+        mechanical : 50 < 199.99 → +30 → intermédiaire mis à jour = 80
+        public_show : 80 >= 74.99 → AUTO-INCLUS (seuil atteint grâce à la mécanique)
+
+        options_fee = 30  (pas de public_show facturé)
+        total       = 80
+        """
+        from utils.payment_validator import TrackPriceCalculator
+        track = self._make_track(mp3=50.0)
+
+        with app.app_context():
+            options = {
+                'is_exclusive': False, 'is_lifetime': False,
+                'duration_years': 0,   'territory': 'France',
+                'mechanical_reproduction': True, 'public_show': True, 'arrangement': False,
+            }
+            _base, opts_price, total = TrackPriceCalculator().calculate_total(
+                track, options, format_type='mp3'
+            )
+        assert opts_price == Decimal('30'), "publicShow auto-inclus: seul le mécanique est facturé"
+        assert total == Decimal('80.00')
 
     def test_duration_years_zero_does_not_charge_default_duration_fee(self, app):
         """

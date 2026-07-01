@@ -144,8 +144,7 @@ describe('MixmasterService — intégration Stripe', () => {
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-artist/order/1`);
       const body = req.request.body as FormData;
-      expect(body.get('service_cleaning')).toBe('1',
-        'service_cleaning doit être "1" (pas "true") — bval() Flask attend == "1"');
+      expect(body.get('service_cleaning')).toBe('1');
       req.flush({ success: true, data: { checkout_url: 'https://stripe.test' } });
     });
 
@@ -155,8 +154,7 @@ describe('MixmasterService — intégration Stripe', () => {
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-artist/order/1`);
       const body = req.request.body as FormData;
-      expect(body.get('service_cleaning')).toBe('0',
-        'service_cleaning doit être "0" (pas "false") — bval() Flask attend == "1"');
+      expect(body.get('service_cleaning')).toBe('0');
       req.flush({ success: true, data: { checkout_url: 'https://stripe.test' } });
     });
 
@@ -232,54 +230,43 @@ describe('MixmasterService — intégration Stripe', () => {
 
   describe('createOrder() — réponse Stripe', () => {
 
-    it('émet ApiResponse<CheckoutData> avec checkout_url string', (done) => {
+    it('émet ApiResponse<CheckoutData> avec checkout_url string', () => {
+      let result: ApiResponse<CheckoutData> | undefined;
       const fd = buildQuickModeFormData(1, { cleaning: true, effects: false, mastering: false, artistic: false });
-      service.createOrder(1, fd).subscribe({
-        next: (res: ApiResponse<CheckoutData>) => {
-          expect(res.success).toBeTrue();
-          expect(typeof res.data!.checkout_url).toBe('string');
-          expect(res.data!.checkout_url).toMatch(/^https:\/\//);
-          done();
-        },
-      });
+      service.createOrder(1, fd).subscribe({ next: r => result = r });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-artist/order/1`);
-      req.flush({
-        success: true,
-        data: { checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc' },
-      });
+      req.flush({ success: true, data: { checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc' } });
+
+      expect(result!.success).toBe(true);
+      expect(typeof result!.data!.checkout_url).toBe('string');
+      expect(result!.data!.checkout_url).toMatch(/^https:\/\//);
     });
 
-    it('propage les erreurs HTTP (ex: 400 aucun service sélectionné)', (done) => {
+    it('propage les erreurs HTTP (ex: 400 aucun service sélectionné)', () => {
+      let err: HttpErrorResponse | undefined;
       const fd = buildQuickModeFormData(1, { cleaning: false, effects: false, mastering: false, artistic: false });
-      service.createOrder(1, fd).subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(400);
-          done();
-        },
-      });
+      service.createOrder(1, fd).subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-artist/order/1`);
       req.flush(
         { success: false, feedback: { message: 'Sélectionnez au moins un service.' } },
         { status: 400, statusText: 'Bad Request' },
       );
+      expect(err!.status).toBe(400);
     });
 
-    it('propage les erreurs HTTP 500 (ex: Stripe indisponible)', (done) => {
+    it('propage les erreurs HTTP 500 (ex: Stripe indisponible)', () => {
+      let err: HttpErrorResponse | undefined;
       const fd = buildQuickModeFormData(1, { cleaning: true, effects: false, mastering: false, artistic: false });
-      service.createOrder(1, fd).subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(500);
-          done();
-        },
-      });
+      service.createOrder(1, fd).subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-artist/order/1`);
       req.flush(
         { success: false, feedback: { message: 'Erreur Stripe.' } },
         { status: 500, statusText: 'Internal Server Error' },
       );
+      expect(err!.status).toBe(500);
     });
 
   });
@@ -314,48 +301,40 @@ describe('MixmasterService — intégration Stripe', () => {
       req.flush({ success: true, data: { order_id: 2 } });
     });
 
-    it('émet ApiResponse<OrderIdData> avec order_id number', (done) => {
-      service.verifyPayment('cs_test_abc').subscribe({
-        next: (res: ApiResponse<OrderIdData>) => {
-          expect(res.success).toBeTrue();
-          expect(typeof res.data!.order_id).toBe('number');
-          expect(res.data!.order_id).toBe(42);
-          done();
-        },
-      });
+    it('émet ApiResponse<OrderIdData> avec order_id number', () => {
+      let result: ApiResponse<OrderIdData> | undefined;
+      service.verifyPayment('cs_test_abc').subscribe({ next: r => result = r });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-payment/verify`);
       req.flush({ success: true, data: { order_id: 42 } });
+
+      expect(result!.success).toBe(true);
+      expect(typeof result!.data!.order_id).toBe('number');
+      expect(result!.data!.order_id).toBe(42);
     });
 
-    it('propage les erreurs HTTP (ex: 403 session appartenant à un autre utilisateur)', (done) => {
-      service.verifyPayment('cs_test_stolen').subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(403);
-          done();
-        },
-      });
+    it('propage les erreurs HTTP (ex: 403 session appartenant à un autre utilisateur)', () => {
+      let err: HttpErrorResponse | undefined;
+      service.verifyPayment('cs_test_stolen').subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-payment/verify`);
       req.flush(
         { success: false, feedback: { message: 'Cette commande ne vous appartient pas.' } },
         { status: 403, statusText: 'Forbidden' },
       );
+      expect(err!.status).toBe(403);
     });
 
-    it('propage les erreurs HTTP (ex: 400 paiement non confirmé)', (done) => {
-      service.verifyPayment('cs_test_pending').subscribe({
-        error: (err: HttpErrorResponse) => {
-          expect(err.status).toBe(400);
-          done();
-        },
-      });
+    it('propage les erreurs HTTP (ex: 400 paiement non confirmé)', () => {
+      let err: HttpErrorResponse | undefined;
+      service.verifyPayment('cs_test_pending').subscribe({ error: e => err = e });
 
       const req = httpMock.expectOne(`${API}/api/mixmaster-payment/verify`);
       req.flush(
         { success: false, feedback: { message: 'Paiement non confirmé.' } },
         { status: 400, statusText: 'Bad Request' },
       );
+      expect(err!.status).toBe(400);
     });
 
   });

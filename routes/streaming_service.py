@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from extensions import db, limiter
-from models import Track, Topline, Purchase
+from models import Track, Topline, Purchase, User
 from serializers import err
 from utils.auth_helpers import require_user
 
@@ -192,9 +192,12 @@ def stream_topline(topline_id):
         try:
             verify_jwt_in_request()
             current_user_id = int(get_jwt_identity())
+            current_user    = db.session.get(User, current_user_id)
         except (JWTExtendedException, ValueError, TypeError):
             abort(403)
-        if topline.artist_id != current_user_id:
+        is_owner = topline.artist_id == current_user_id
+        is_admin = current_user and getattr(current_user, 'is_admin', False)
+        if not is_owner and not is_admin:
             abort(403)
 
     if not topline.audio_file:

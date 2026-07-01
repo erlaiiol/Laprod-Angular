@@ -34,6 +34,9 @@
     <button [class.active]="activeTab() === 'recommendations'" (click)="setTab('recommendations')">
       <i class="bi bi-stars"></i> Recommandations
     </button>
+    <button [class.active]="activeTab() === 'toplines'" (click)="setTab('toplines')">
+      <i class="bi bi-mic-fill"></i> Toplines
+    </button>
     <button [class.active]="activeTab() === 'support'" (click)="setTab('support')">
       <i class="bi bi-envelope-heart"></i> Support
     </button>
@@ -66,6 +69,9 @@
     }
     @if (activeTab() === 'recommendations') {
       <app-admin-recommendations />
+    }
+    @if (activeTab() === 'toplines') {
+      <app-admin-toplines />
     }
     @if (activeTab() === 'support') {
       <app-admin-support />

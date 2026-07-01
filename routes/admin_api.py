@@ -45,7 +45,8 @@ from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import html as html_lib
-from sqlalchemy import select, distinct
+from sqlalchemy import select, distinct, func
+from math import ceil
 import uuid
 import config
 
@@ -57,7 +58,7 @@ from utils.auth_helpers import require_admin
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
-    ListenEvent, SimilarArtist,
+    ListenEvent, SimilarArtist, Topline,
 )
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
@@ -1808,3 +1809,70 @@ def admin_send_support_email(current_user):
         f'Admin #{current_user.id} ({current_user.username}) a envoyé un email support à {to_email}: "{subject}"'
     )
     return ok(message=f'Email envoyé à {to_email}.', level='info')
+
+
+# ── Toplines (admin) ──────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/toplines', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_toplines_admin(current_user):
+    """Liste toutes les toplines avec track, beatmaker et artiste."""
+    page     = max(1, int(request.args.get('page', 1)))
+    per_page = 30
+    published_filter = request.args.get('published', 'all')
+
+    query = select(Topline).order_by(Topline.created_at.desc())
+    if published_filter == 'true':
+        query = query.where(Topline.is_published == True)
+    elif published_filter == 'false':
+        query = query.where(Topline.is_published == False)
+
+    total    = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    toplines = db.session.scalars(query.offset((page - 1) * per_page).limit(per_page)).all()
+
+    def _serialize(tl):
+        track = tl.track
+        artist = tl.artist_user
+        return {
+            'id':           tl.id,
+            'is_published': tl.is_published,
+            'description':  tl.description,
+            'created_at':   tl.created_at.isoformat() if tl.created_at else None,
+            'stream_url':   f'/api/stream/toplines/{tl.id}',
+            'artist': {
+                'id':            artist.id,
+                'username':      artist.username,
+                'profile_image': artist.profile_picture_url or artist.profile_image,
+            } if artist else None,
+            'track': {
+                'id':        track.id,
+                'title':     track.title,
+                'image_file': track.image_file,
+                'beatmaker': {
+                    'id':       track.composer_user.id,
+                    'username': track.composer_user.username,
+                } if track and track.composer_user else None,
+            } if track else None,
+        }
+
+    return ok({
+        'toplines': [_serialize(tl) for tl in toplines],
+        'total':    total,
+        'pages':    ceil(total / per_page) if total else 1,
+        'page':     page,
+    })
+
+
+@admin_api_bp.route('/toplines/<int:topline_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_topline_admin(topline_id, current_user):
+    """Supprime une topline (modération)."""
+    tl = db.get_or_404(Topline, topline_id)
+    db.session.delete(tl)
+    db.session.commit()
+    current_app.logger.info(f'Admin #{current_user.id} a supprimé la topline #{topline_id}')
+    return ok(message='Topline supprimée.')
