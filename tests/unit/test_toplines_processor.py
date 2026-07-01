@@ -101,20 +101,63 @@ class TestConvertToWav:
         out_duration = len(data) / out_sr
         assert abs(out_duration - duration) / duration < 0.05
 
-    def test_mp3_extension_uses_mp3_branch(self, tmp_path, app):
-        """Un fichier .mp3 déclenche from_mp3() (pas le chemin else)."""
-        src = _sine_wav(tmp_path / 'input.wav')
-        mp3_path = src.parent / 'input.mp3'
-        src.rename(mp3_path)
+    def test_mp3_auto_detected(self, tmp_path, app):
+        """Un fichier MP3 est correctement converti via auto-détection FFmpeg."""
         from pydub import AudioSegment
         from utils.toplines_processor import convert_to_wav
-        # On crée un vrai MP3 via pydub pour que la conversion réussisse
+        mp3_path = tmp_path / 'input.mp3'
         seg = AudioSegment.from_wav(str(_sine_wav(tmp_path / 'for_mp3.wav')))
         seg.export(str(mp3_path), format='mp3')
         with app.app_context():
             result = convert_to_wav(mp3_path)
         assert Path(result).exists()
         assert result.endswith('_temp.wav')
+
+
+# ── Tests : convert_to_wav — validation ──────────────────────────────────────
+
+class TestConvertToWavValidation:
+
+    def test_missing_file_raises_value_error(self, tmp_path, app):
+        """Un fichier absent lève ValueError (pas CouldntDecodeError)."""
+        from utils.toplines_processor import convert_to_wav
+        ghost = tmp_path / 'nonexistent.webm'
+        with app.app_context():
+            with pytest.raises(ValueError, match='introuvable'):
+                convert_to_wav(ghost)
+
+    def test_empty_file_raises_value_error(self, tmp_path, app):
+        """Un fichier de 0 octet lève ValueError avec message explicite."""
+        from utils.toplines_processor import convert_to_wav
+        empty = tmp_path / 'empty.webm'
+        empty.write_bytes(b'')
+        with app.app_context():
+            with pytest.raises(ValueError, match='vide'):
+                convert_to_wav(empty)
+
+    def test_tiny_file_raises_value_error(self, tmp_path, app):
+        """Un fichier < 512 octets lève ValueError."""
+        from utils.toplines_processor import convert_to_wav
+        tiny = tmp_path / 'tiny.webm'
+        tiny.write_bytes(b'\x1aE\xdf\xa3' + b'\x00' * 10)  # 14 octets
+        with app.app_context():
+            with pytest.raises(ValueError, match='octets'):
+                convert_to_wav(tiny)
+
+    def test_no_format_hardcoded_for_webm_extension(self, tmp_path, app):
+        """Un fichier .webm valide est traité sans hardcoder format='webm'."""
+        from pydub import AudioSegment
+        from utils.toplines_processor import convert_to_wav
+        # Créer un vrai WebM via pydub export
+        src = _sine_wav(tmp_path / 'src.wav')
+        webm_path = tmp_path / 'voice.webm'
+        seg = AudioSegment.from_wav(str(src))
+        seg.export(str(webm_path), format='webm')
+        with app.app_context():
+            result = convert_to_wav(webm_path)
+        assert Path(result).exists()
+        data, sr = __import__('soundfile').read(result, dtype='float32')
+        assert len(data) > 0
 
 
 # ── Tests : apply_audio_effects ───────────────────────────────────────────────

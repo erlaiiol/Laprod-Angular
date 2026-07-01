@@ -47,59 +47,6 @@ except ImportError as e:
     logging.getLogger(__name__).critical(f'[tracks_api] file_validator indisponible — upload désactivé: {e}')
     VALIDATION_AVAILABLE = False
 
-
-def _extract_primary_from_stems(archive_path, target_dir, safe_title, unique_id):
-    """
-    Extrait *_current.* (fallback *_master.*) d'une archive de stems FL Studio.
-    Retourne (path_extrait, filename_extrait) ou (None, None) si introuvable.
-    """
-    import zipfile
-    import rarfile
-    import magic as _magic
-
-    archive_path = Path(archive_path)
-    with open(archive_path, 'rb') as fh:
-        header = fh.read(2048)
-    mime = _magic.from_buffer(header, mime=True)
-
-    def _pick_and_extract(archive):
-        names = archive.namelist()
-        audio_files = [
-            n for n in names
-            if not n.endswith('/') and not n.startswith('__MACOSX')
-        ]
-        # Recherche insensible à la casse sur le nom de fichier (pas le chemin)
-        current_files = [n for n in audio_files if '_current.' in Path(n).name.lower()]
-        master_files  = [n for n in audio_files if '_master.'  in Path(n).name.lower()]
-
-        chosen = None
-        if current_files:
-            chosen = current_files[0]
-        elif master_files:
-            chosen = master_files[0]
-
-        if not chosen:
-            return None, None
-
-        ext = Path(chosen).suffix.lower()  # .wav ou .mp3
-        out_name = f"{safe_title}_{unique_id}_primary{ext}"
-        out_path = Path(target_dir) / out_name
-        out_path.write_bytes(archive.read(chosen))
-        return out_path, out_name
-
-    try:
-        if 'zip' in mime:
-            with zipfile.ZipFile(archive_path) as arch:
-                return _pick_and_extract(arch)
-        elif 'rar' in mime:
-            with rarfile.RarFile(str(archive_path)) as arch:
-                return _pick_and_extract(arch)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f'Extraction stems échouée: {e}')
-
-    return None, None
-
 tracks_api_bp = Blueprint('tracks_api', __name__, url_prefix='/api/tracks')
 
 _CONTRACT_PRICE_FIELDS = [
@@ -476,11 +423,12 @@ def post_track(current_user):
                     return err('Erreur de vérification du fichier', status=500)
 
         if has_stems:
-            is_valid, error_message = validate_stems_archive(file_stems)
+            stems_only = not has_mp3 and not has_wav
+            is_valid, error_message = validate_stems_archive(file_stems, require_primary=stems_only)
             if not is_valid:
-                return err(f'Archive stems invalide: {error_message}', status=400)
-            if not has_mp3 and not has_wav:
-                # Stems seuls — hash depuis l'archive
+                return err(f'Archive stems invalide : {error_message}', status=400, level='warning')
+            if stems_only:
+                # Stems seuls — hash depuis l'archive (la task extraira le fichier primaire)
                 try:
                     file_hash = Track.compute_file_hash(file_stems)
                     if Track.hash_exists(file_hash):
@@ -523,40 +471,13 @@ def post_track(current_user):
             wav_disk_path = config.UPLOAD_FOLDER / wav_filename
             file_wav.save(wav_disk_path)
 
-        # ── Sauvegarde stems + extraction current/master si stems seuls ───────
-        stems_filename = None
+        # ── Sauvegarde stems ──────────────────────────────────────────────────
+        stems_filename  = None
+        stems_disk_path = None
         if has_stems:
             stems_filename  = f"{safe_title}_{unique_id}_stems.zip"
             stems_disk_path = config.UPLOAD_FOLDER / stems_filename
             file_stems.save(stems_disk_path)
-
-            if not has_mp3 and not has_wav:
-                # Extraire *_current.* (fallback *_master.*) comme audio de vente
-                extracted_path, extracted_name = _extract_primary_from_stems(
-                    stems_disk_path, config.UPLOAD_FOLDER, safe_title, unique_id
-                )
-                if not extracted_path:
-                    return err(
-                        "L'archive ne contient pas de fichier '*_current.*' ou '*_master.*'. "
-                        "Ajoutez un fichier MP3 ou WAV séparément si votre export ne suit pas "
-                        "la convention FL Studio.",
-                        level='warning',
-                    )
-                ext = Path(extracted_name).suffix.lower()
-                if ext == '.mp3':
-                    mp3_filename  = extracted_name
-                    mp3_disk_path = extracted_path
-                else:
-                    wav_filename  = extracted_name
-                    wav_disk_path = extracted_path
-
-        # Audio source pour la génération du preview watermarqué
-        if mp3_disk_path:
-            primary_audio_path = str(mp3_disk_path)
-        elif wav_disk_path:
-            primary_audio_path = str(wav_disk_path)
-        else:
-            return err('Aucun fichier audio utilisable trouvé', status=500)
 
         if file_image and file_image.filename != '':
             original_filename = secure_filename(file_image.filename)
@@ -601,6 +522,8 @@ def post_track(current_user):
         job_payload = {
             'job_id':                    job_id,
             'user_id':                   current_user.id,
+            'safe_title':                safe_title,
+            'unique_id':                 unique_id,
             'title':                     title,
             'bpm':                       bpm,
             'key':                       key,
@@ -610,17 +533,20 @@ def post_track(current_user):
             'price_stems':               price_stems,
             'sacem_percentage_composer': sacem_percentage_composer,
             'file_hash':                 file_hash,
-            'primary_audio_path':        primary_audio_path,
-            'mp3_filename':              mp3_filename,
-            'preview_disk_path':         str(preview_disk_path),
-            'preview_filename':          preview_filename,
-            'wav_filename':              wav_filename,
-            'stems_filename':            stems_filename,
-            'image_filename':            image_filename if (file_image and file_image.filename != '') else None,
-            'image_disk_path':           str(image_disk_path) if (file_image and file_image.filename != '') else None,
-            'tag_ids':                   tag_ids,
-            'artist_ids':                artist_ids,
-            'playlist_ids':              playlist_ids,
+            # Chemins des fichiers uploadés (None si non fourni)
+            'mp3_disk_path':    str(mp3_disk_path)    if mp3_disk_path    else None,
+            'mp3_filename':     mp3_filename,
+            'wav_disk_path':    str(wav_disk_path)    if wav_disk_path    else None,
+            'wav_filename':     wav_filename,
+            'stems_disk_path':  str(stems_disk_path)  if stems_disk_path  else None,
+            'stems_filename':   stems_filename,
+            'preview_disk_path': str(preview_disk_path),
+            'preview_filename':  preview_filename,
+            'image_filename':   image_filename if (file_image and file_image.filename != '') else None,
+            'image_disk_path':  str(image_disk_path)  if (file_image and file_image.filename != '') else None,
+            'tag_ids':          tag_ids,
+            'artist_ids':       artist_ids,
+            'playlist_ids':     playlist_ids,
             **{field: request.form.get(field, type=int) for field in _CONTRACT_PRICE_FIELDS},
         }
 
@@ -634,14 +560,18 @@ def post_track(current_user):
         process_job = q.enqueue('tasks.track_processing.process_track_data', job_payload, job_timeout=720)
 
         auto_flags = ('auto_bpm', 'auto_key', 'auto_style')
-        if any(request.form.get(f, '0') == '1' for f in auto_flags):
+        # Pour stems-only, le fichier primaire n'est pas encore disponible (extrait par la task).
+        # L'analyse auto est ignorée dans ce cas — on a mp3 ou wav dispo sinon.
+        auto_primary_path = str(mp3_disk_path) if mp3_disk_path else (str(wav_disk_path) if wav_disk_path else None)
+        if auto_primary_path and any(request.form.get(f, '0') == '1' for f in auto_flags):
             try:
                 q.enqueue(
                     'tasks.audio_analysis.analyze_track',
                     {
                         'job_id':    job_id,
                         'user_id':   current_user.id,
-                        'mp3_path':  primary_audio_path,
+                        # mp3_disk_path ou wav_disk_path selon le mode — la task résout le reste
+                        'mp3_path':  auto_primary_path,
                         'auto_bpm':  request.form.get('auto_bpm',   '0') == '1',
                         'auto_key':  request.form.get('auto_key',   '0') == '1',
                         'auto_style': request.form.get('auto_style', '0') == '1',

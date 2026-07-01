@@ -32,13 +32,23 @@ from tests.scenarios.tracks import track_default_prices  # noqa: F401
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _fake_voice():
-    """Blob audio minimal valide pour multipart/form-data (webm stub)."""
-    return (io.BytesIO(b'\x1aE\xdf\xa3' + b'\x00' * 64), 'voice.webm', 'audio/webm')
+    """Blob audio webm stub 1KB — dépasse la validation de taille minimale (512 octets)."""
+    return (io.BytesIO(b'\x1aE\xdf\xa3' + b'\x00' * 1020), 'voice.webm', 'audio/webm')
 
 
-def _upload_payload(track_id, *, autotune='false', description=''):
+def _fake_voice_iphone():
+    """Blob audio MP4/M4A stub simulant Safari iOS (audio/mp4, 1KB)."""
+    return (io.BytesIO(b'\x00\x00\x00\x18ftypm4a ' + b'\x00' * 1000), 'voice.mp4', 'audio/mp4')
+
+
+def _fake_voice_empty():
+    """Blob audio trop petit pour être valide (< 512 octets)."""
+    return (io.BytesIO(b'\x1aE\xdf\xa3' + b'\x00' * 10), 'voice.webm', 'audio/webm')
+
+
+def _upload_payload(track_id, *, voice=None, autotune='false', description=''):
     return {
-        'voice_file': _fake_voice(),
+        'voice_file': voice if voice is not None else _fake_voice(),
         'track_id': str(track_id),
         'use_autotune': autotune,
         'description': description,
@@ -162,7 +172,7 @@ def topline_with_file(db, app, user_artist, track_default_prices):
 
 # ── Helper upload mocké ────────────────────────────────────────────────────────
 
-def _upload(client, track_id, headers, tmp_dir, **kwargs):
+def _upload(client, track_id, headers, tmp_dir, *, voice=None, **kwargs):
     """POST /upload avec UPLOAD_FOLDER, redis et Queue mockés."""
     import config
     mock_redis = MagicMock()
@@ -172,7 +182,7 @@ def _upload(client, track_id, headers, tmp_dir, **kwargs):
          patch('routes.toplines_api.Queue', MagicMock(return_value=mock_queue)):
         resp = client.post(
             '/api/toplines/upload',
-            data=_upload_payload(track_id, **kwargs),
+            data=_upload_payload(track_id, voice=voice, **kwargs),
             content_type='multipart/form-data',
             headers=headers,
         )
@@ -426,6 +436,44 @@ class TestUploadTopline:
 
         resp, _, _ = _upload(client, track_default_prices.id, artist_headers, tmp_path)
         assert resp.status_code == 200, f"Reset hebdo non appliqué : {resp.json}"
+
+    def test_iphone_mp4_upload_accepted_and_saved_as_m4a(
+        self, client, tmp_path, artist_headers, track_default_prices
+    ):
+        """Safari iOS envoie audio/mp4 — le fichier doit être sauvé en .m4a."""
+        resp, _, mock_queue = _upload(
+            client, track_default_prices.id, artist_headers, tmp_path,
+            voice=_fake_voice_iphone(),
+        )
+        assert resp.status_code == 200, f"Upload iPhone rejeté : {resp.json}"
+        saved = list((tmp_path / 'toplines').glob('topline_raw_*.m4a'))
+        assert len(saved) == 1, "Le fichier MP4 iPhone devrait être sauvé en .m4a"
+        mock_queue.enqueue.assert_called_once()
+
+    def test_empty_file_returns_400_invalid_audio(
+        self, client, tmp_path, artist_headers, track_default_prices
+    ):
+        """Un fichier audio trop petit (< 512 octets) doit retourner 400 INVALID_AUDIO."""
+        resp, _, mock_queue = _upload(
+            client, track_default_prices.id, artist_headers, tmp_path,
+            voice=_fake_voice_empty(),
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'INVALID_AUDIO'
+        mock_queue.enqueue.assert_not_called()
+
+    def test_ogg_upload_accepted_and_saved_as_ogg(
+        self, client, tmp_path, artist_headers, track_default_prices
+    ):
+        """Chrome Android peut envoyer audio/ogg — sauvé en .ogg."""
+        ogg_voice = (io.BytesIO(b'OggS' + b'\x00' * 1020), 'voice.ogg', 'audio/ogg')
+        resp, _, mock_queue = _upload(
+            client, track_default_prices.id, artist_headers, tmp_path,
+            voice=ogg_voice,
+        )
+        assert resp.status_code == 200
+        saved = list((tmp_path / 'toplines').glob('topline_raw_*.ogg'))
+        assert len(saved) == 1
 
 
 # ── POST /api/toplines/<id>/publish ───────────────────────────────────────────

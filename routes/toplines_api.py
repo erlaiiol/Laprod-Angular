@@ -112,8 +112,10 @@ def upload_topline(current_user):
         content_type = voice_file.content_type or ''
         if   'webm' in content_type:                              ext = 'webm'
         elif 'mp3'  in content_type or 'mpeg' in content_type:   ext = 'mp3'
-        elif 'mp4'  in content_type:                              ext = 'm4a'
-        else:                                                      ext = 'webm'
+        elif 'mp4'  in content_type or 'm4a'  in content_type:   ext = 'm4a'
+        elif 'ogg'  in content_type:                              ext = 'ogg'
+        elif 'wav'  in content_type:                              ext = 'wav'
+        else:                                                      ext = 'bin'
 
         toplines_dir = config.UPLOAD_FOLDER / 'toplines'
         toplines_dir.mkdir(parents=True, exist_ok=True)
@@ -121,6 +123,19 @@ def upload_topline(current_user):
         raw_filename = f"topline_raw_{track_id}_{current_user.id}_{timestamp}.{ext}"
         raw_path     = toplines_dir / raw_filename
         voice_file.save(raw_path)
+
+        file_size = raw_path.stat().st_size
+        if file_size < 512:
+            raw_path.unlink(missing_ok=True)
+            return err(
+                'Fichier audio vide ou invalide. Vérifiez que votre micro fonctionne et réessayez.',
+                level='warning', code='INVALID_AUDIO', status=400,
+            )
+
+        current_app.logger.info(
+            f"Topline raw saved: {raw_filename} ({file_size // 1024} KB, "
+            f"content-type={content_type!r})"
+        )
 
         # ── Enqueue RQ ────────────────────────────────────────────────────────
         job_id = str(uuid.uuid4())

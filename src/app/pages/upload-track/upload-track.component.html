@@ -532,11 +532,7 @@
 
       <!-- ── Fichiers ──────────────────────────────────────────────────────── -->
       <div class="section-card">
-        <h3 class="section-title">Fichiers audio</h3>
-        <p class="section-hint">
-          <i class="bi bi-info-circle"></i>
-          Au moins un fichier requis : MP3, WAV ou archive stems. Les stems FL Studio sont supportés — le fichier <b>"_current"</b> (ou <b>"_master"</b>) est automatiquement extrait comme fichier de vente pour le format wav.
-        </p>
+        <h3 class="section-title">Fichiers audio <span class="optional">— MP3, WAV ou archive stems</span></h3>
 
         <div class="file-field">
           <label class="file-label">
@@ -583,6 +579,12 @@
               <input type="file" accept=".zip,.rar" (change)="onFileSelected($event, 'stems')" />
             </label>
           </div>
+          @if (stemsOnly()) {
+            <p class="section-hint section-hint--warning">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Sans MP3 ni WAV, votre archive doit contenir un fichier <strong>*_current.*</strong> (ou <strong>*_master.*</strong> en fallback) — FL Studio génère automatiquement ce fichier lors d'un export ZIP. L'upload sera refusé autrement.
+            </p>
+          }
         } @else {
           <div class="file-field file-field--locked">
             <div class="file-label file-label--locked">

@@ -264,7 +264,7 @@ class TestWorkerFailurePaths:
         assert error_call is not None
 
     def test_convert_to_wav_failure_sets_error_status(self, app, db, job_payload):
-        """Échec de convert_to_wav → Redis 'error', ToplineProcessingError levée."""
+        """Échec technique de convert_to_wav (FFmpeg) → Redis 'error', ToplineProcessingError levée."""
         from tasks.topline_processing import process_topline_data, ToplineProcessingError
         mock_redis = MagicMock()
         with patch('utils.toplines_processor.convert_to_wav',
@@ -280,6 +280,25 @@ class TestWorkerFailurePaths:
             if (c.kwargs.get('mapping') or c.args[1]).get('status') == 'error'
         )
         assert error_mapping['status'] == 'error'
+
+    def test_empty_file_value_error_surfaces_user_message(self, app, db, job_payload):
+        """ValueError de convert_to_wav (fichier vide) → message lisible dans Redis."""
+        from tasks.topline_processing import process_topline_data, ToplineProcessingError
+        user_msg = "Fichier audio invalide ou vide (10 octets). L'enregistrement a peut-être été interrompu."
+        mock_redis = MagicMock()
+        with patch('utils.toplines_processor.convert_to_wav',
+                   side_effect=ValueError(user_msg)), \
+             patch('tasks.topline_processing.create_app', return_value=app), \
+             patch('extensions.redis_client', mock_redis):
+            with pytest.raises(ToplineProcessingError):
+                process_topline_data(job_payload)
+
+        error_mapping = next(
+            (c.kwargs.get('mapping') or c.args[1])
+            for c in mock_redis.hset.call_args_list
+            if (c.kwargs.get('mapping') or c.args[1]).get('status') == 'error'
+        )
+        assert error_mapping['error_message'] == user_msg
 
     def test_apply_audio_effects_failure_cleans_up_and_errors(self, app, db, tmp_path, job_payload):
         """Échec d'apply_audio_effects → cleanup des fichiers temp + Redis 'error'."""

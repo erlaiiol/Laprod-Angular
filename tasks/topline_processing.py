@@ -58,10 +58,18 @@ def process_topline_data(job_payload: dict):
             # ── Étape 1 : conversion WAV ──────────────────────────────────────
             try:
                 wav_temp_path = convert_to_wav(raw_path)
+            except ValueError as e:
+                # Fichier vide ou invalide — message explicite pour l'utilisateur
+                logging.warning(f"Topline job {job_id} — invalid audio file: {e}")
+                redis_client.hset(f"job:{job_id}", mapping={
+                    'status': 'error', 'error_message': str(e)
+                })
+                raise ToplineProcessingError(str(e)) from e
             except Exception as e:
                 logging.error(f"Topline job {job_id} — convert_to_wav failed: {e}", exc_info=True)
                 redis_client.hset(f"job:{job_id}", mapping={
-                    'status': 'error', 'error_message': 'Audio conversion failed'
+                    'status': 'error',
+                    'error_message': 'Impossible de décoder le fichier audio. Format non supporté ?'
                 })
                 raise ToplineProcessingError(f"Job {job_id} failed at convert_to_wav: {e}") from e
 

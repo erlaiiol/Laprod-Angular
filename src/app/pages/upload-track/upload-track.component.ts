@@ -223,6 +223,8 @@ export class UploadTrackComponent implements OnInit {
 
   canSubmit = computed(() => this.submitErrors().length === 0 && !this.loading());
 
+  stemsOnly = computed(() => !!this.fileStems() && !this.fileMp3() && !this.fileWav());
+
   constructor(
     private tagsService:           TagsService,
     private cudTrackService:       CudTrackService,
