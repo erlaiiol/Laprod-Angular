@@ -399,9 +399,12 @@
 
         <button type="submit" class="btn-submit"
                 [class.btn-submit--quick]="mode() === 'quick'"
+                [class.btn-submit--login]="!auth.isLoggedIn()"
                 [disabled]="submitting()">
           @if (submitting()) {
             <span class="spinner-sm"></span> Redirection vers Stripe...
+          } @else if (!auth.isLoggedIn()) {
+            <i class="bi bi-person-fill"></i> Se connecter pour commander
           } @else {
             <i class="bi bi-credit-card"></i>
             Payer {{ estimatedPrice().toFixed(2) }}€ maintenant via Stripe

@@ -436,10 +436,13 @@
         </a>
         <button class="btn-confirm"
                 [class.btn-confirm--quick]="mode() === 'quick'"
+                [class.btn-confirm--login]="!auth.isLoggedIn()"
                 (click)="onConfirm()"
                 [disabled]="paying()">
           @if (paying()) {
             <span class="spinner-border spinner-border-sm me-2"></span> Redirection…
+          } @else if (!auth.isLoggedIn()) {
+            <i class="bi bi-person-fill"></i> Se connecter pour acheter
           } @else {
             <i class="bi bi-lock-fill"></i> Confirmer et payer — {{ totalPrice().toFixed(2) }}€
           }
