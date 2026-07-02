@@ -2,7 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpResponse } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../services/auth.service';
 
@@ -25,9 +25,10 @@ export class SubmitMixmasterSampleComponent {
   processedFile  = signal<File | null>(null);
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  loading = signal(false);
-  error   = signal<string | null>(null);
-  success = signal(false);
+  loading        = signal(false);
+  uploadProgress = signal(0);
+  error          = signal<string | null>(null);
+  success        = signal(false);
 
   // ── Price validation ─────────────────────────────────────────────────────
   minRequired = computed(() => {
@@ -140,19 +141,31 @@ export class SubmitMixmasterSampleComponent {
     fd.append('sample_raw',      this.rawFile()!);
     fd.append('sample_processed', this.processedFile()!);
 
+    this.uploadProgress.set(0);
+
     this.http.post<any>(this.apiUrl, fd, {
       headers: { Authorization: `Bearer ${this.auth.getToken()}` },
+      reportProgress: true,
+      observe: 'events',
     }).subscribe({
-      next: (res) => {
-        this.loading.set(false);
-        if (res.success) {
-          this.success.set(true);
-        } else {
-          this.error.set(res.feedback?.message ?? 'Erreur lors de la soumission.');
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress) {
+          const pct = event.total ? Math.round(event.loaded / event.total * 100) : 0;
+          this.uploadProgress.set(pct);
+        } else if (event.type === HttpEventType.Response) {
+          this.loading.set(false);
+          const res = (event as HttpResponse<any>).body;
+          if (res?.success) {
+            this.uploadProgress.set(100);
+            this.success.set(true);
+          } else {
+            this.error.set(res?.feedback?.message ?? 'Erreur lors de la soumission.');
+          }
         }
       },
       error: (err) => {
         this.loading.set(false);
+        this.uploadProgress.set(0);
         this.error.set(err?.error?.feedback?.message ?? 'Erreur serveur. Réessayez.');
       },
     });

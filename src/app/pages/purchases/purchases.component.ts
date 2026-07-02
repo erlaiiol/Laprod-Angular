@@ -85,4 +85,8 @@ export class PurchasesComponent implements OnInit {
     if (!p.contract_url) return;
     this._jwtDownload(p.contract_url, `contrat_${p.track?.title ?? 'beat'}_${p.format}.pdf`, 'application/pdf');
   }
+
+  downloadInvoice(p: PurchaseItem): void {
+    this._jwtDownload(p.invoice_url, `facture_laprod_${p.track?.title ?? 'beat'}.pdf`, 'application/pdf');
+  }
 }

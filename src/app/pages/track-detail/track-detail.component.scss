@@ -334,6 +334,7 @@
   &:hover { background: v.$primary-dark; }
 }
 
+.btn-topline-edit,
 .btn-topline-unpublish,
 .btn-topline-delete {
   width:         30px;
@@ -360,6 +361,17 @@
   }
 }
 
+.btn-topline-edit {
+  background:   rgba(v.$tag-blue, 0.08);
+  border-color: rgba(v.$tag-blue, 0.25);
+  color:        v.$tag-blue-light;
+
+  &:hover {
+    background:   rgba(v.$tag-blue, 0.18);
+    border-color: rgba(v.$tag-blue, 0.5);
+  }
+}
+
 .btn-topline-delete {
   background:   rgba(v.$tag-red, 0.1);
   border-color: rgba(v.$tag-red, 0.3);
@@ -369,4 +381,62 @@
     background:   rgba(v.$tag-red, 0.22);
     border-color: rgba(v.$tag-red, 0.6);
   }
+}
+
+.topline-desc-edit {
+  display:     flex;
+  align-items: center;
+  gap:         0.3rem;
+}
+
+.topline-desc-input {
+  flex:          1;
+  min-width:     0;
+  background:    v.$bg-elevated;
+  border:        1px solid v.$bg-border;
+  border-radius: 6px;
+  color:         v.$text-primary;
+  font-size:     0.8rem;
+  padding:       3px 8px;
+  outline:       none;
+  transition:    border-color 0.15s;
+
+  &:focus { border-color: v.$tag-blue; }
+  &::placeholder { color: v.$text-muted; }
+}
+
+.btn-topline-desc-save {
+  flex-shrink:   0;
+  width:         26px;
+  height:        26px;
+  border-radius: 5px;
+  border:        1px solid rgba(v.$tag-green, 0.4);
+  background:    rgba(v.$tag-green, 0.12);
+  color:         v.$tag-green;
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     0.85rem;
+  transition:    background 0.15s;
+
+  &:hover { background: rgba(v.$tag-green, 0.25); }
+}
+
+.btn-topline-desc-cancel {
+  flex-shrink:   0;
+  width:         26px;
+  height:        26px;
+  border-radius: 5px;
+  border:        1px solid rgba(v.$text-muted, 0.3);
+  background:    transparent;
+  color:         v.$text-muted;
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     0.75rem;
+  transition:    background 0.15s, color 0.15s;
+
+  &:hover { background: rgba(255, 255, 255, 0.06); color: v.$text-secondary; }
 }

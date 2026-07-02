@@ -223,6 +223,32 @@ def unpublish_topline(topline_id, current_user):
     )
 
 
+# ── PATCH /toplines/<id> ───────────────────────────────────────────────────────
+
+@toplines_api_bp.route('/<int:topline_id>', methods=['PATCH'])
+@jwt_required()
+@csrf.exempt
+@handle_route_exceptions
+@require_user
+def update_topline(topline_id, current_user):
+    """Met à jour la description d'une topline (propriétaire uniquement)."""
+    topline = get_or_404(Topline, topline_id, 'Topline introuvable.')
+    require_ownership(topline, 'artist_id', current_user)
+
+    data = request.get_json(silent=True) or {}
+    description = (data.get('description') or '').strip()
+    if len(description) > 200:
+        return err('La description ne peut pas dépasser 200 caractères.', status=400)
+
+    topline.description = description or None
+    db.session.commit()
+
+    return ok(
+        data={'topline': ser_topline(topline)},
+        message='Description mise à jour.',
+    )
+
+
 # ── DELETE /toplines/<id> ──────────────────────────────────────────────────────
 
 @toplines_api_bp.route('/<int:topline_id>', methods=['DELETE'])

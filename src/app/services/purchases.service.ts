@@ -22,14 +22,8 @@ export interface PurchaseItem {
   created_at:     string;
   stream_url:     string;
   contract_url:   string | null;
+  invoice_url:    string;
   track:          PurchasedTrack | null;
-  // Licence lifecycle (ajouté lors de la refonte licences)
-  is_exclusive:   boolean;
-  duration_years: number | null;
-  is_lifetime:    boolean;
-  territory:      string | null;
-  expires_at:     string | null;
-  license_status: 'active' | 'expired' | 'renewed' | 'cancelled';
 }
 
 export interface MixOrderPurchase {

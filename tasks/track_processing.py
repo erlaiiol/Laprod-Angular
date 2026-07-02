@@ -245,9 +245,50 @@ def process_track_data(job_payload : dict):
     except Exception as e:
         logging.error(f"Unexpected error in track processing job: {e}", exc_info=True)
         redis_client.hset(f"job:{job_payload['job_id']}", mapping={'status': 'error', 'error_message': 'Unexpected error during track processing'})
+
+
+def regenerate_preview(track_id: int, primary_audio_path: str, new_preview_path: str, new_preview_filename: str) -> None:
+    """
+    Régénère le preview watermarqué d'un track existant. Exécutée par RQ.
+
+    Réutilise apply_watermark_and_trim() (même pipeline que l'upload initial).
+    Met à jour track.audio_file en DB et supprime l'ancien fichier preview.
+    """
+    flask_app = create_app()
+
+    with flask_app.app_context():
         try:
-            with flask_app.app_context():
-                db.session.rollback()
-        except Exception:
-            pass
-        raise TrackProcessingError(f"Job {job_payload['job_id']} failed with unexpected error: {e}") from e
+            if WATERMARK_AVAILABLE:
+                apply_watermark_and_trim(
+                    input_path=primary_audio_path,
+                    output_path=new_preview_path,
+                    watermark_path=config.WATERMARK_AUDIO_PATH,
+                    preview_duration=config.PREVIEW_DURATION,
+                    watermark_positions=config.WATERMARK_INTERVALS,
+                )
+            if not Path(new_preview_path).exists():
+                logging.warning(f'Preview absente après watermark (track {track_id}). Copie du fichier source.')
+                shutil.copy(primary_audio_path, new_preview_path)
+
+        except Exception as e:
+            logging.error(f"Erreur génération preview (track {track_id}): {e}", exc_info=True)
+            try:
+                shutil.copy(primary_audio_path, new_preview_path)
+            except Exception as copy_err:
+                logging.error(f"Fallback preview échoué (track {track_id}): {copy_err}")
+                return
+
+        track = db.session.get(Track, track_id)
+        if not track:
+            logging.error(f"Track {track_id} introuvable lors de la mise à jour du preview.")
+            return
+
+        old_preview = config.UPLOAD_FOLDER / track.audio_file
+        track.audio_file = new_preview_filename
+        db.session.commit()
+
+        if old_preview.exists() and old_preview.name != new_preview_filename:
+            try:
+                old_preview.unlink()
+            except Exception as e:
+                logging.warning(f"Impossible de supprimer l'ancien preview (track {track_id}): {e}")

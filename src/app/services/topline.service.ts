@@ -77,4 +77,10 @@ export class ToplineService {
       `${this.apiUrl}/${id}`
     );
   }
+
+  updateDescription(id: number, description: string): Observable<ApiResponse<{ topline: any }>> {
+    return this.http.patch<ApiResponse<{ topline: any }>>(
+      `${this.apiUrl}/${id}`, { description }
+    );
+  }
 }

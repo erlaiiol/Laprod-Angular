@@ -86,8 +86,8 @@ def _setup_vector_db(mocker, events, purchases=None, favorites=None):
 
     q = mock_db.session.query.return_value
 
-    # Chaîne longue : ListenEvent
-    q.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = events
+    # Chaîne longue : ListenEvent — build_user_vector() appelle .options().filter_by()...
+    q.options.return_value.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = events
 
     # Chaînes courtes : Purchase puis Favorite (side_effect = liste de retours successifs)
     q.filter_by.return_value.all.side_effect = [purchases or [], favorites or []]

@@ -12,6 +12,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
 from extensions import db, redis_client
@@ -239,9 +240,13 @@ def get_recommendations(user_id: int, limit: int = 20) -> tuple[list[Track], boo
 
     pool = (
         db.session.query(Track)
-        .filter_by(is_approved=True)
+        .options(
+            selectinload(Track.tags),
+            selectinload(Track.similar_artists),
+        )
+        .filter(Track.is_approved == True, Track.is_exclusive_sold == False)
         .order_by(Track.created_at.desc())
-        .limit(500)
+        .limit(300)
         .all()
     )
 
@@ -259,15 +264,23 @@ def get_recommendations(user_id: int, limit: int = 20) -> tuple[list[Track], boo
 
 
 def get_cold_start_tracks(limit: int = 20) -> list[Track]:
-    tracks = (
-        db.session.query(Track)
-        .filter_by(is_approved=True)
-        .order_by(Track.created_at.desc())
-        .limit(500)
+    purchase_sub = (
+        db.session.query(Purchase.track_id, func.count(Purchase.id).label('cnt'))
+        .group_by(Purchase.track_id)
+        .subquery()
+    )
+    rows = (
+        db.session.query(Track, func.coalesce(purchase_sub.c.cnt, 0))
+        .outerjoin(purchase_sub, purchase_sub.c.track_id == Track.id)
+        .filter(Track.is_approved == True, Track.is_exclusive_sold == False)
+        .order_by(
+            func.coalesce(purchase_sub.c.cnt, 0).desc(),
+            Track.created_at.desc(),
+        )
+        .limit(limit)
         .all()
     )
-    tracks.sort(key=lambda t: (t.purchase_count, t.created_at.timestamp()), reverse=True)
-    return tracks[:limit]
+    return [t for t, _ in rows]
 
 
 # ── Signal playlist browse ─────────────────────────────────────────────────────

@@ -186,8 +186,26 @@
                  alt="">
             <div class="topline-info">
               <span class="topline-artist">{{ tl.artist_user.username }}</span>
-              @if (tl.description) {
-                <span class="topline-desc">{{ tl.description }}</span>
+              @if (editingToplineId() === tl.id) {
+                <div class="topline-desc-edit">
+                  <input class="topline-desc-input"
+                         type="text"
+                         maxlength="200"
+                         [(ngModel)]="editingDesc"
+                         placeholder="Description…"
+                         (keydown.enter)="saveDesc(tl)"
+                         (keydown.escape)="cancelEditDesc()" />
+                  <button class="btn-topline-desc-save" (click)="saveDesc(tl)" title="Enregistrer">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                  <button class="btn-topline-desc-cancel" (click)="cancelEditDesc()" title="Annuler">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              } @else {
+                @if (tl.description) {
+                  <span class="topline-desc">{{ tl.description }}</span>
+                }
               }
               <span class="topline-date">{{ formatDate(tl.created_at) }}</span>
             </div>
@@ -196,6 +214,10 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
               </button>
               @if (isOwnTopline(tl)) {
+                <button class="btn-topline-edit" (click)="startEditDesc(tl)"
+                        title="Modifier la description" aria-label="Modifier la description">
+                  <i class="bi bi-pencil"></i>
+                </button>
                 @if (tl.is_published) {
                   <button class="btn-topline-unpublish" (click)="unpublishTopline(tl)"
                           title="Remettre en privé" aria-label="Remettre en privé">

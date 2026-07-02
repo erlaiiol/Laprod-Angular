@@ -1930,8 +1930,9 @@ def admin_broadcast_email(current_user):
     errors = 0
 
     for user in recipients:
-        personal_body    = body.replace('{username}', user.username)
-        personal_subject = subject.replace('{username}', user.username)
+        display_name     = user.username or user.email
+        personal_body    = body.replace('{username}', display_name)
+        personal_subject = subject.replace('{username}', display_name)
         safe_body  = html_lib.escape(personal_body).replace('\n', '<br>')
         html_body  = (
             f'<div style="font-family:sans-serif;line-height:1.6;color:#1a1a1a">'

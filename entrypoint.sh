@@ -6,7 +6,23 @@ set -e
 # L'entrypoint tourne en root pour pouvoir chown, puis bascule vers appuser
 # via gosu avant de lancer gunicorn.
 # =============================================================================
-chown -R appuser:appuser /usr/src/app/db_assets /usr/src/app/logs 2>/dev/null || true
+
+# Créer tous les sous-dossiers requis (idempotent — mkdir -p ne fail pas si présent)
+mkdir -p \
+  /usr/src/app/db_assets/audio \
+  /usr/src/app/db_assets/images/profiles \
+  /usr/src/app/db_assets/contracts \
+  /usr/src/app/db_assets/invoices \
+  /usr/src/app/db_assets/mixmaster/uploads \
+  /usr/src/app/db_assets/mixmaster/processed \
+  /usr/src/app/db_assets/mixmaster/previews \
+  /usr/src/app/db_assets/mixmaster/samples \
+  /usr/src/app/logs
+
+# Donner la propriété à appuser et s'assurer qu'il peut lire/écrire
+# chmod u+rwX : r/w sur tous les fichiers + x sur les dossiers uniquement
+chown -R appuser:appuser /usr/src/app/db_assets /usr/src/app/logs
+chmod -R u+rwX /usr/src/app/db_assets /usr/src/app/logs
 
 echo "=== LaProd - Démarrage ==="
 

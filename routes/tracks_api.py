@@ -643,6 +643,9 @@ def put_track(track_id, current_user):
         if not (0.50 <= _val <= 999.99):
             return err(f'Le prix {_label} doit être entre 0.50€ et 999.99€', level='warning')
 
+    safe_title = secure_filename(title)[:30]
+    uid        = str(_uuid.uuid4())[:8]
+
     file_image = request.files.get('file_image')
     if file_image and file_image.filename != '':
         from utils.file_validator import validate_image_file
@@ -652,8 +655,7 @@ def put_track(track_id, current_user):
 
         original_filename = secure_filename(file_image.filename)
         extension         = Path(original_filename).suffix.lower()
-        safe_title        = secure_filename(title)[:30]
-        new_img_filename  = f"{safe_title}_{str(_uuid.uuid4())[:8]}{extension}"
+        new_img_filename  = f"{safe_title}_{uid}{extension}"
 
         tracks_img_folder = config.IMAGES_FOLDER / 'tracks'
         tracks_img_folder.mkdir(parents=True, exist_ok=True)
@@ -671,6 +673,47 @@ def put_track(track_id, current_user):
                 old_img_path.unlink()
 
         track.image_file = f'images/tracks/{new_img_filename}'
+
+    # ── Fichiers audio (mp3 / wav / stems) ────────────────────────────────────
+    primary_audio_for_preview = None
+    _AUDIO_FIELDS = [
+        ('file_mp3',   '.mp3',          'file_mp3'),
+        ('file_wav',   '.wav',          'file_wav'),
+        ('file_stems', ('.zip', '.rar'), 'file_stems'),
+    ]
+    for field_key, accept_ext, attr_name in _AUDIO_FIELDS:
+        uploaded = request.files.get(field_key)
+        if not (uploaded and uploaded.filename != ''):
+            continue
+
+        orig_name = secure_filename(uploaded.filename)
+        ext       = Path(orig_name).suffix.lower()
+        valid_exts = (accept_ext,) if isinstance(accept_ext, str) else accept_ext
+        if ext not in valid_exts:
+            return err(f'Format {field_key} invalide (attendu : {"/".join(valid_exts)})', level='warning')
+
+        new_name = f"{safe_title}_{uid}{ext}"
+        new_path = config.UPLOAD_FOLDER / new_name
+        try:
+            uploaded.save(new_path)
+        except Exception as e:
+            current_app.logger.error(f'Erreur sauvegarde {field_key}: {e}')
+            return err(f"Erreur lors de l'upload {field_key}.", status=500)
+
+        old_val = getattr(track, attr_name, None)
+        if old_val:
+            old_path = config.UPLOAD_FOLDER / old_val
+            if old_path.exists():
+                try:
+                    old_path.unlink()
+                except Exception:
+                    pass
+
+        setattr(track, attr_name, new_name)
+
+        if field_key in ('file_mp3', 'file_wav'):
+            if primary_audio_for_preview is None or field_key == 'file_mp3':
+                primary_audio_for_preview = str(new_path)
 
     tag_ids_str = request.form.get('tag_ids', '')
     if tag_ids_str:
@@ -713,6 +756,24 @@ def put_track(track_id, current_user):
             setattr(track, field, val)
 
     db.session.commit()
+
+    # ── Régénération preview (async via RQ) ────────────────────────────────────
+    if request.form.get('regenerate_preview') == '1' and primary_audio_for_preview:
+        try:
+            from rq import Queue
+            new_preview_name = f"preview_{safe_title}_{uid}.mp3"
+            new_preview_path = config.UPLOAD_FOLDER / new_preview_name
+            q = Queue(connection=redis_client)
+            q.enqueue(
+                'tasks.track_processing.regenerate_preview',
+                track.id,
+                primary_audio_for_preview,
+                str(new_preview_path),
+                new_preview_name,
+                job_timeout=300,
+            )
+        except Exception as e:
+            current_app.logger.error(f'Erreur enqueue regenerate_preview (track {track.id}): {e}')
 
     return ok({
         'track': {

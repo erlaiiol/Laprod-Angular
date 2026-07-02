@@ -360,7 +360,8 @@ L'équipe LaProd
         purchase=purchase,
         track=track,
         buyer=buyer,
-        composer=composer
+        composer=composer,
+        purchases_url=_fe('/dashboard'),
     )
 
     attachments = []
@@ -407,7 +408,7 @@ Ce montant a été ajouté à vos gains sur LaProd et sera disponible au retrait
 Pour retirer vos gains, rendez-vous dans "Mes gains" et configurez votre compte Stripe Connect si ce n'est pas déjà fait.
 
 Voir mes gains :
-{url_for('wallet.mes_gains', _external=True)}
+{_fe('/dashboard')}
 
 Félicitations !
 
@@ -420,7 +421,8 @@ L'équipe LaProd
         purchase=purchase,
         track=track,
         composer=composer,
-        buyer=buyer
+        buyer=buyer,
+        wallet_url=_fe('/dashboard'),
     )
 
     attachments = []
@@ -499,7 +501,7 @@ Services demandés : {', '.join([
 ])}
 
 Consultez la demande :
-{url_for('mixmaster.dashboard', _external=True)}
+{_fe('/dashboard/mix-engineer')}
 
 ---
 L'équipe LaProd
@@ -606,7 +608,7 @@ Engineer : {engineer.username}
 Demande #{mixmaster_request.id}
 
 Consultez votre demande :
-{url_for('mixmaster.dashboard', _external=True)}
+{_fe('/dashboard/artist')}
 
 ---
 L'équipe LaProd
@@ -623,7 +625,8 @@ L'équipe LaProd
         message=artist_message,
         status_label=status_label,
         is_engineer=False,
-        revision_message=revision_message
+        revision_message=revision_message,
+        dashboard_url=_fe('/dashboard/artist'),
     )
 
     # Pièce jointe artiste : facture récapitulative si le contrat est terminé
@@ -658,7 +661,7 @@ Instructions de révision :
 {revision_message}
 ''' if revision_message else ''}
 Consultez vos commandes :
-{url_for('mixmaster.dashboard', _external=True)}
+{_fe('/dashboard/mix-engineer')}
 
 ---
 L'équipe LaProd
@@ -675,7 +678,8 @@ L'équipe LaProd
             message=engineer_message,
             status_label=status_label,
             is_engineer=True,
-            revision_message=revision_message
+            revision_message=revision_message,
+            dashboard_url=_fe('/dashboard/mix-engineer'),
         )
 
         # Pièce jointe ingénieur : relevé de gains à chaque étape de versement
@@ -735,7 +739,7 @@ Votre track "{track.title}" a été approuvé !
 Il est maintenant visible sur LaProd et disponible à l'achat.
 
 Voir mon track :
-{url_for('main.track_detail', track_id=track.id, _external=True)}
+{_fe(f'/track/{track.id}')}
 
 Bonne chance pour vos ventes !
 
@@ -817,9 +821,9 @@ def send_wallet_warning_email(user):
     Returns:
         bool: True si envoyé
     """
-    wallet_url = url_for('wallet.mes_gains', _external=True)
-    connect_url = url_for('stripe_connect.setup', _external=True)
-    cgu_url = url_for('main.terms_of_service', _external=True)
+    wallet_url = _fe('/wallet')
+    connect_url = _fe('/wallet')
+    cgu_url = _fe('/cgu')
 
     text_body = f"""
 Bonjour {user.username},

@@ -69,14 +69,15 @@
               </div>
               <div class="card-actions">
                 <button class="btn-download" (click)="downloadPurchase(p)">
-                  <i class="bi bi-download"></i> Télécharger
+                  <i class="bi bi-download"></i> Fichier
+                </button>
+                <button class="btn-invoice" (click)="downloadInvoice(p)">
+                  <i class="bi bi-receipt"></i> Facture
                 </button>
                 @if (p.has_contract && p.contract_url) {
                   <button class="btn-contract" (click)="downloadContract(p)">
                     <i class="bi bi-file-earmark-pdf"></i> Contrat
                   </button>
-                } @else {
-                  <span class="no-contract"><i class="bi bi-file-earmark-x"></i> Pas de contrat</span>
                 }
               </div>
             </div>

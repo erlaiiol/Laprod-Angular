@@ -1,6 +1,9 @@
 @if (uploadStatusSvc.status() !== null) {
 
-  <div class="upload-toast" [class]="'upload-toast--' + uploadStatusSvc.status()">
+  <div class="upload-toast"
+       [class.upload-toast--processing]="uploadStatusSvc.status() === 'uploading' || uploadStatusSvc.status() === 'queued' || uploadStatusSvc.status() === 'started' || uploadStatusSvc.status() === 'finalizing'"
+       [class.upload-toast--done]="uploadStatusSvc.status() === 'done'"
+       [class.upload-toast--error]="uploadStatusSvc.status() === 'error'">
 
     <!-- Miniature cover -->
     <img class="upload-toast__cover"
@@ -19,9 +22,13 @@
       <!-- Ligne de statut -->
       <div class="upload-toast__status-line">
 
-        @if (uploadStatusSvc.status() === 'queued' || uploadStatusSvc.status() === 'started' || uploadStatusSvc.status() === 'finalizing') {
+        @if (uploadStatusSvc.status() === 'uploading' || uploadStatusSvc.status() === 'queued' || uploadStatusSvc.status() === 'started' || uploadStatusSvc.status() === 'finalizing') {
           <span class="upload-toast__spinner" aria-hidden="true"></span>
-          <span class="upload-toast__message">Traitement en cours...</span>
+          <span class="upload-toast__message">
+            @if (uploadStatusSvc.status() === 'uploading') { Envoi en cours… }
+            @else { Traitement en cours… }
+          </span>
+          <span class="upload-toast__pct">{{ uploadStatusSvc.progress() }}%</span>
         }
 
         @if (uploadStatusSvc.status() === 'done') {
@@ -43,6 +50,17 @@
         }
 
       </div>
+
+      <!-- Barre de progression (phases upload + traitement) -->
+      @if (uploadStatusSvc.status() === 'uploading' || uploadStatusSvc.status() === 'queued' || uploadStatusSvc.status() === 'started' || uploadStatusSvc.status() === 'finalizing' || uploadStatusSvc.status() === 'done') {
+        <div class="upload-toast__track">
+          <div class="upload-toast__bar"
+               [class.upload-toast__bar--done]="uploadStatusSvc.status() === 'done'"
+               [style.width.%]="uploadStatusSvc.progress()">
+          </div>
+        </div>
+      }
+
     </div>
 
     <!-- Bouton fermer (done et error uniquement) -->
