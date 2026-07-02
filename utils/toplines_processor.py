@@ -438,16 +438,21 @@ def _apply_frame_by_frame_correction(y, sr, f0, corrections, hop_length):
 
 # ── Fusion voix + beat ────────────────────────────────────────────────────────
 
-def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp):
+def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, latency_ms=0):
     """
     Fusionne la voix traitée avec l'instrumentale via pydub.
 
     Args:
-        voice_path: Chemin vers la voix traitée (WAV).
-        beat_path:  Chemin vers l'instrumentale (MP3/WAV).
-        track_id:   ID de la track.
-        user_id:    ID de l'utilisateur.
-        timestamp:  Timestamp pour le nom de fichier.
+        voice_path:  Chemin vers la voix traitée (WAV).
+        beat_path:   Chemin vers l'instrumentale (MP3/WAV).
+        track_id:    ID de la track.
+        user_id:     ID de l'utilisateur.
+        timestamp:   Timestamp pour le nom de fichier.
+        latency_ms:  Latence audio hardware mesurée côté client (AudioContext.outputLatency
+                     + baseLatency). Rogne le début de la voix de cette durée pour compenser
+                     le décalage perçu : l'utilisateur chante en réponse à ce qu'il entend,
+                     mais le son lui parvient avec `latency_ms` ms de retard. Sans correction,
+                     la voix dans le mix final est d'autant en retard sur le beat.
 
     Returns:
         str: Chemin relatif du fichier fusionné (ex: 'audio/toplines/topline_final_X.wav').
@@ -460,6 +465,13 @@ def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp):
     beat  = AudioSegment.from_file(beat_path)
 
     current_app.logger.debug(f"Voice: {len(voice)/1000:.2f}s — Beat: {len(beat)/1000:.2f}s")
+
+    # Compensation de latence hardware : rogner le début de la voix avance son
+    # positionnement dans le mix sans altérer sa durée utile.
+    latency_ms = max(0, min(int(latency_ms), 500))
+    if latency_ms > 0 and len(voice) > latency_ms + 500:  # garder au moins 500ms de voix
+        voice = voice[latency_ms:]
+        current_app.logger.info(f"Sync correction: -{latency_ms}ms voice start (hardware latency)")
 
     beat_adjusted  = beat  - 9   # -9 dB
     voice_adjusted = voice + 0   # 0 dB (inchangé)

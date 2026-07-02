@@ -34,12 +34,13 @@
   }
 
   &--active {
-    background: v.$primary;
-    border-color: v.$primary;
+    background: v.$gradient-primary;
+    border-color: transparent;
     color: v.$white;
     font-weight: 600;
     cursor: default;
     pointer-events: none;
+    box-shadow: v.$glow-primary-sm;
   }
 
   &--nav {

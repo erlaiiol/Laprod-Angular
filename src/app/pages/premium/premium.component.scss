@@ -100,12 +100,20 @@
 .plan-card {
   position: relative;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
+  border-radius: v.$radius-lg;
   padding: 1.75rem 1.5rem;
   background: v.$black;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+  transition: border-color v.$dur-slow v.$ease-out,
+              transform v.$dur-slow v.$ease-out,
+              box-shadow v.$dur-slow v.$ease-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: v.$shadow-md, v.$edge-highlight;
+  }
 
   &.plan-current {
     border-color: rgba(v.$tag-blue, 0.4);
@@ -114,6 +122,8 @@
   &.plan-pro {
     border-color: rgba(234, 179, 8, 0.25);
     background: rgba(234, 179, 8, 0.03);
+
+    &:hover { box-shadow: v.$glow-gold, v.$shadow-md; }
   }
 }
 
@@ -154,10 +164,13 @@
   }
 
   .plan-price {
+    font-family: v.$font-display;
+    letter-spacing: v.$tracking-tight;
     font-size: 1.8rem;
-    font-weight: 800;
+    font-weight: 700;
 
-    span { font-size: 0.9rem; font-weight: 400; color: v.$text-secondary; }
+    span { font-family: v.$font-body; font-size: 0.9rem; font-weight: 400;
+           letter-spacing: normal; color: v.$text-secondary; }
   }
 }
 

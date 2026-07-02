@@ -99,15 +99,15 @@
 
 .lp-landing {
   width: 100%;
-  padding: 5rem 1.5rem 3.5rem;
+  padding: v.$space-12 v.$space-5 v.$space-8;
   text-align: center;
   background:
-    radial-gradient(ellipse 90% 55% at 50% -5%, rgba(v.$primary, 0.11) 0%, transparent 65%),
+    radial-gradient(ellipse 90% 55% at 50% -5%, v.$primary-soft 0%, transparent 65%),
     v.$bg-base;
   border-bottom: 1px solid rgba(v.$primary, 0.12);
-  margin-bottom: 2.5rem;
+  margin-bottom: v.$space-6;
 
-  @media (max-width: 600px) { padding: 2.5rem 1rem 2rem; }
+  @include m.mq(md) { padding: v.$space-6 v.$space-4 v.$space-6; }
 }
 
 .lp-landing__header {
@@ -126,16 +126,22 @@
 }
 
 .lp-landing__title {
-  font-size: 3rem;
-  font-weight: 800;
-  line-height: 1.12;
+  font-family: v.$font-display;
+  font-size: v.$text-4xl;
+  font-weight: v.$weight-bold;
+  line-height: v.$leading-tight;
   color: v.$text-primary;
-  letter-spacing: -0.025em;
+  letter-spacing: v.$tracking-tight;
   margin: 0;
 
-  span { color: v.$primary; }
+  span {
+    background: v.$gradient-primary;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 
-  @media (max-width: 600px) { font-size: 2rem; }
+  @include m.mq(md) { font-size: 2rem; }
 }
 
 .lp-landing__tabs {
@@ -151,21 +157,25 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 1rem;
-  border-radius: 20px;
+  border-radius: v.$radius-pill;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
   color: v.$text-secondary;
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: background v.$dur-base v.$ease-out,
+              border-color v.$dur-base v.$ease-out,
+              color v.$dur-base v.$ease-out,
+              box-shadow v.$dur-base v.$ease-out;
 
   &:hover { background: rgba(255, 255, 255, 0.1); color: v.$off-white; }
 
   &.lp-tab--active {
-    background: v.$primary;
-    border-color: v.$primary;
+    background: v.$gradient-primary;
+    border-color: transparent;
     color: v.$white;
+    box-shadow: v.$glow-primary-sm;
   }
 }
 
@@ -214,22 +224,11 @@
   }
 }
 
-// CTA primaire — rouge rempli, texte blanc
+// CTA primaire — dégradé rouge + glow au hover
 .lp-btn-cta {
-  @include m.btn-ghost(v.$primary);
+  @include m.btn-primary;
   padding: 0.75rem 1.75rem;
   font-size: 0.95rem;
-  border-radius: 8px;
-  // Filled by default (override ghost black bg)
-  background:   v.$primary;
-  color:        v.$white;
-  border-color: v.$primary;
-
-  &:hover, &:focus-visible {
-    background:   v.$primary-dark;
-    border-color: v.$primary-dark;
-    color:        v.$white;
-  }
 }
 
 // CTA secondaire — ghost pur : fond noir + liseret blanc → rouge au hover
@@ -237,8 +236,134 @@
   @include m.btn-ghost(v.$primary);
   padding: 0.75rem 1.5rem;
   font-size: 0.95rem;
-  border-radius: 8px;
+  border-radius: v.$radius-sm;
   cursor: pointer;
+}
+
+// ── Bandeau statistiques ──────────────────────────────────────────────────────
+
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: v.$space-4;
+  max-width: 860px;
+  margin: v.$space-8 auto 0;
+
+  @include m.mq(md) { grid-template-columns: repeat(2, 1fr); gap: v.$space-3; }
+}
+
+.lp-stat {
+  @include m.card(v.$space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+
+  i {
+    font-size: 1.3rem;
+    color: v.$primary;
+    opacity: 0.9;
+  }
+}
+
+.lp-stat__value {
+  font-family: v.$font-display;
+  font-size: v.$text-2xl;
+  font-weight: v.$weight-bold;
+  letter-spacing: v.$tracking-tight;
+  line-height: v.$leading-tight;
+  background: v.$gradient-primary;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-stat__label {
+  font-size: v.$text-xs;
+  color: v.$text-secondary;
+  text-transform: uppercase;
+  letter-spacing: v.$tracking-wide;
+  font-weight: v.$weight-semibold;
+}
+
+// ── Workflow — comment ça marche ──────────────────────────────────────────────
+
+.lp-workflow {
+  max-width: 860px;
+  margin: v.$space-10 auto 0;
+}
+
+.lp-workflow__title {
+  font-family: v.$font-display;
+  font-size: v.$text-xl;
+  font-weight: v.$weight-bold;
+  letter-spacing: v.$tracking-tight;
+  color: v.$text-primary;
+  margin: 0 0 v.$space-6;
+}
+
+.lp-workflow__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: v.$space-4;
+  position: relative;
+  text-align: left;
+
+  // Ligne de connexion entre les étapes (desktop uniquement)
+  &::before {
+    content: '';
+    position: absolute;
+    top: 2.4rem;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent,
+                rgba(v.$primary, 0.35) 20%, rgba(v.$primary, 0.35) 80%, transparent);
+  }
+
+  @include m.mq(md) {
+    grid-template-columns: 1fr;
+    &::before { display: none; }
+  }
+}
+
+.lp-step {
+  @include m.card(v.$space-5);
+  @include m.card-hover;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  h3 {
+    font-size: v.$text-md;
+    font-weight: v.$weight-bold;
+    color: v.$text-primary;
+    margin: 0;
+  }
+
+  p {
+    font-size: v.$text-sm;
+    color: v.$text-secondary;
+    line-height: v.$leading-relaxed;
+    margin: 0;
+  }
+}
+
+.lp-step__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: v.$gradient-primary;
+  color: v.$white;
+  font-family: v.$font-display;
+  font-size: v.$text-md;
+  font-weight: v.$weight-bold;
+  box-shadow: v.$glow-primary-sm;
 }
 
 // ── Feature cards ─────────────────────────────────────────────────────────────
@@ -259,17 +384,21 @@
 .lp-feature {
   background: v.$bg-surface;
   border: 1px solid v.$bg-border;
-  border-radius: 14px;
+  border-radius: v.$radius-lg;
   padding: 1.25rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.65rem;
-  transition: border-color 0.2s, transform 0.2s;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+  transition: border-color v.$dur-slow v.$ease-out,
+              transform v.$dur-slow v.$ease-out,
+              box-shadow v.$dur-slow v.$ease-out;
 
   &:hover {
     border-color: rgba(v.$primary, 0.45);
     transform: translateY(-2px);
+    box-shadow: v.$shadow-md, v.$edge-highlight;
   }
 
   img {
@@ -333,9 +462,12 @@
 
 .lp-manifesto {
   max-width: 680px;
-  margin: 3.5rem auto 0;
-  padding-top: 2.5rem;
-  border-top: 1px solid rgba(v.$primary, 0.15);
+  margin: v.$space-10 auto 0;
+  padding: v.$space-6 v.$space-5;
+  border: 1px solid v.$glass-border;
+  border-radius: v.$radius-xl;
+  background: linear-gradient(180deg, rgba(v.$primary, 0.06), transparent 60%), v.$bg-surface;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
   text-align: center;
 
   strong {

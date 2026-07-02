@@ -67,6 +67,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   private recordingStartTime = 0;
   private recordingTooShort  = false;
+  private _latencyHintMs     = 0;
 
   ngAfterViewInit(): void {}
 
@@ -113,6 +114,22 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     if (this.audioCtx.state === 'suspended') {
       await this.audioCtx.resume();
     }
+
+    // Mesurer la latence de rendu audio hardware AVANT de lancer la lecture.
+    // outputLatency = délai entre le buffer audio et le haut-parleur/casque.
+    // baseLatency   = latence minimale du graphe Web Audio.
+    // L'utilisateur chante en réponse à ce qu'il entend, donc sa voix est
+    // (outputLatency + baseLatency) ms "en avance" sur le beat dans sa tête,
+    // mais (outputLatency + baseLatency) ms "en retard" dans le fichier fusionné.
+    // On transmet ce hint au serveur pour qu'il rogne le début de la voix.
+    const outputLatency = (this.audioCtx as any).outputLatency ?? 0;
+    const baseLatency   = (this.audioCtx as any).baseLatency   ?? 0;
+    let latencyHintMs   = Math.round((outputLatency + baseLatency) * 1000);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) latencyHintMs = Math.max(latencyHintMs, 80); // iOS sous-estime souvent
+    latencyHintMs = Math.min(latencyHintMs, 500);           // plancher de sécurité
+    this._latencyHintMs = latencyHintMs;
+
     const source  = this.audioCtx.createMediaStreamSource(this.micStream);
     this.analyser = this.audioCtx.createAnalyser();
     this.analyser.fftSize = 256;
@@ -201,9 +218,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     const ext      = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
     const blob     = new Blob(this.chunks, { type: mimeType });
     const fd       = new FormData();
-    fd.append('voice_file',   blob, `voice.${ext}`);
-    fd.append('track_id',     String(this.track.id));
-    fd.append('use_autotune', String(this.useAutotune));
+    fd.append('voice_file',      blob, `voice.${ext}`);
+    fd.append('track_id',        String(this.track.id));
+    fd.append('use_autotune',    String(this.useAutotune));
+    fd.append('latency_hint_ms', String(this._latencyHintMs));
     if (this.description) fd.append('description', this.description);
 
     const imageUrl = this.track.image_file

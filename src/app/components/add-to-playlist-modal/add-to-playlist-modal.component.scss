@@ -3,17 +3,19 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: v.$backdrop-dim;
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: v.$z-modal;
 }
 
 .modal--playlist {
   background: v.$bg-surface;
   border: 1px solid var(--border-color, v.$tag-neutral-dark);
-  border-radius: 10px;
+  border-radius: v.$radius-lg;
+  box-shadow: v.$shadow-xl, v.$edge-highlight;
   padding: 24px;
   width: 420px;
   max-width: 90vw;
@@ -213,10 +215,10 @@
 }
 
 .btn-primary {
-  background: v.$primary;
+  background: v.$gradient-primary;
   color: v.$white;
 
-  &:hover:not(:disabled) { opacity: 0.85; }
+  &:hover:not(:disabled) { filter: brightness(1.08); }
 }
 
 .btn-ghost {

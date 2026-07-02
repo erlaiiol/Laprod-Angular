@@ -5,7 +5,7 @@
   top: 80px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 99999;
+  z-index: v.$z-toast;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -17,13 +17,13 @@
   min-width: 260px;
   max-width: 460px;
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: v.$radius-md;
   border: 1px solid;
   font-size: 0.9rem;
   font-weight: 600;
   text-align: center;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-  animation: slideDown 0.25s ease forwards;
+  box-shadow: v.$shadow-lg, v.$edge-highlight;
+  animation: slideDown v.$dur-slow v.$ease-out forwards;
 
   &.info {
     background-color: v.$tag-blue-dark;

@@ -96,7 +96,9 @@
 }
 
 .balance-amount {
-  font-size: 2.5rem; font-weight: 800; margin-bottom: 0.75rem;
+  font-family: v.$font-display; letter-spacing: v.$tracking-tight;
+  font-variant-numeric: tabular-nums;
+  font-size: 2.5rem; font-weight: 700; margin-bottom: 0.75rem;
   &.available { color: v.$tag-green; }
   &.pending   { color: v.$text-secondary; }
 }
@@ -195,14 +197,16 @@
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  position: fixed; inset: 0; background: v.$backdrop-dim;
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: 1rem;
+  z-index: v.$z-modal; padding: 1rem;
 }
 
 .modal-box {
   background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 14px; width: 100%; max-width: 440px;
+  border-radius: v.$radius-lg; width: 100%; max-width: 440px;
+  box-shadow: v.$shadow-xl, v.$edge-highlight;
   display: flex; flex-direction: column;
 }
 

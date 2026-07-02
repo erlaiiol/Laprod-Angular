@@ -69,8 +69,8 @@ def get_my_toplines(track_id):
 # ── POST /toplines/upload ──────────────────────────────────────────────────────
 
 @toplines_api_bp.route('/upload', methods=['POST'])
-@jwt_required()
 @csrf.exempt
+@jwt_required()
 @limiter.limit("10 per hour")
 @require_user
 def upload_topline(current_user):
@@ -78,20 +78,22 @@ def upload_topline(current_user):
     Upload voix + traitement audio async (RQ worker).
 
     FormData :
-      - voice_file   : Blob audio (webm / mp3 / wav)
-      - track_id     : int
-      - use_autotune : 'true' | 'false'
-      - description  : str (optionnel, max 500 car.)
+      - voice_file      : Blob audio (webm / mp3 / wav)
+      - track_id        : int
+      - use_autotune    : 'true' | 'false'
+      - latency_hint_ms : int (optionnel) — latence hardware mesurée côté client
+      - description     : str (optionnel, max 500 car.)
     """
     can_submit, quota_message = current_user.can_submit_topline()
     if not can_submit:
         return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
 
     try:
-        voice_file   = request.files.get('voice_file')
-        track_id_raw = request.form.get('track_id')
-        use_autotune = request.form.get('use_autotune', 'false') == 'true'
-        description  = request.form.get('description', '').strip()[:500] or None
+        voice_file      = request.files.get('voice_file')
+        track_id_raw    = request.form.get('track_id')
+        use_autotune    = request.form.get('use_autotune', 'false') == 'true'
+        description     = request.form.get('description', '').strip()[:500] or None
+        latency_hint_ms = max(0, min(500, int(request.form.get('latency_hint_ms', 0) or 0)))
 
         if not voice_file or not track_id_raw:
             return err(
@@ -151,6 +153,7 @@ def upload_topline(current_user):
             'beat_audio_file': track.audio_file,
             'track_key':       track.key,
             'timestamp':       timestamp,
+            'latency_hint_ms': latency_hint_ms,
         }
 
         redis_client.hset(f"job:{job_id}", mapping={

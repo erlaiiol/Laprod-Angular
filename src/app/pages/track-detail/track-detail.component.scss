@@ -56,7 +56,7 @@
   align-items:     center;
   justify-content: center;
   opacity:         0;
-  transition:      opacity 0.2s ease;
+  transition:      opacity v.$dur-base v.$ease-out;
   color:           v.$white;
 }
 
@@ -66,9 +66,11 @@
 }
 
 .track-title {
-  font-size:   1.8rem;
-  font-weight: 700;
-  margin:      0;
+  font-family:    v.$font-display;
+  font-size:      1.8rem;
+  font-weight:    700;
+  letter-spacing: v.$tracking-tight;
+  margin:         0;
 }
 
 .track-composer {
@@ -151,14 +153,21 @@
 .purchase-card {
   background-color: v.$bg-surface;
   border:        1px solid v.$bg-border;
-  border-radius: 10px;
+  border-radius: v.$radius-lg;
   padding:       1.25rem;
   text-align:    center;
-  transition:    border-color 0.15s;
+  box-shadow:    v.$shadow-sm, v.$edge-highlight;
+  transition:    border-color v.$dur-slow v.$ease-out,
+                 transform v.$dur-slow v.$ease-out,
+                 box-shadow v.$dur-slow v.$ease-out;
 
   &.featured         { border-color: v.$white; }
   &.unavailable      { opacity: 0.45; }
-  &:not(.unavailable):hover { border-color: v.$bg-border-subtle; }
+  &:not(.unavailable):hover {
+    border-color: v.$bg-border-subtle;
+    transform:    translateY(-2px);
+    box-shadow:   v.$shadow-md, v.$edge-highlight;
+  }
 }
 
 .format-badge {
@@ -187,7 +196,8 @@
 }
 
 .format-desc        { font-size: 0.8rem; color: v.$text-secondary; margin-bottom: 0.75rem; }
-.format-price       { font-size: 1.4rem; font-weight: 700; color: v.$text-primary; margin-bottom: 0.75rem; }
+.format-price       { font-family: v.$font-display; font-size: 1.4rem; font-weight: 700;
+                      letter-spacing: v.$tracking-tight; color: v.$text-primary; margin-bottom: 0.75rem; }
 .format-unavailable { color: v.$text-muted; font-size: 0.85rem; }
 
 .btn-buy {
@@ -228,22 +238,22 @@
 .confirm-overlay {
   position:        fixed;
   inset:           0;
-  background:      rgba(0, 0, 0, 0.65);
+  background:      v.$backdrop-dim;
   display:         flex;
   align-items:     center;
   justify-content: center;
-  z-index:         1000;
+  z-index:         v.$z-modal;
   padding:         1rem;
 }
 
 .confirm-dialog {
   background:    v.$bg-elevated;
   border:        1px solid v.$bg-border-subtle;
-  border-radius: 12px;
+  border-radius: v.$radius-lg;
   padding:       1.75rem;
   max-width:     440px;
   width:         100%;
-  box-shadow:    0 16px 48px rgba(0, 0, 0, 0.6);
+  box-shadow:    v.$shadow-xl, v.$edge-highlight;
 }
 
 .confirm-title {

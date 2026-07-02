@@ -1,0 +1,27 @@
+// ════════════════════════════════════════════════════════════════════════════
+// LaProd — Élévation : ombres, glows colorés, verre
+// Thème sombre profond → ombres franches + liseré supérieur pour la profondeur.
+// Forwarded by _variables.scss → accessible via  v.$shadow-md, v.$glow-primary…
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Shadow scale ──────────────────────────────────────────────────────────────
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+$shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
+$shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.5);   // drawers, popovers
+$shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);   // modales de premier plan
+
+// Liseré supérieur clair — sensation de relief sur les surfaces sombres
+$edge-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+// ── Glows colorés ─────────────────────────────────────────────────────────────
+$glow-primary:    0 0 24px rgba(229, 50, 60, 0.35);  // hover CTA principal
+$glow-primary-sm: 0 0 12px rgba(229, 50, 60, 0.25);  // focus / accents actifs
+$glow-gold:       0 0 20px rgba(234, 179, 8, 0.3);   // FAB premium / Pro
+$glow-white:      0 0 16px rgba(255, 255, 255, 0.1); // lift neutre
+
+// ── Verre (glassmorphism léger) ───────────────────────────────────────────────
+$glass-bg:     rgba(20, 23, 31, 0.72);      // navbar / player / modales
+$glass-border: rgba(255, 255, 255, 0.08);
+$glass-blur:   16px;                        // backdrop-filter: blur($glass-blur)
+$backdrop-dim: rgba(6, 7, 10, 0.72);        // backdrops de modale / drawer
