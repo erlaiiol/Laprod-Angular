@@ -21,7 +21,7 @@ import config
 import uuid as _uuid
 
 from extensions import db, limiter, csrf, redis_client
-from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist
+from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist, Purchase
 from helpers import generate_track_image
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
@@ -123,10 +123,28 @@ def get_track(track_id):
             if current_user_id else []
         )
 
+        # Licences actives de l'utilisateur connecté pour ce track (par format)
+        owned_licenses: dict = {}
+        if current_user_id:
+            user_purchases = db.session.query(Purchase).filter(
+                Purchase.track_id == track_id,
+                Purchase.buyer_id == current_user_id,
+                Purchase.license_status == 'active',
+            ).all()
+            for p in user_purchases:
+                owned_licenses[p.format_purchased] = {
+                    'purchase_id':  p.id,
+                    'is_lifetime':  p.is_lifetime,
+                    'duration_years': p.duration_years,
+                    'expires_at':   p.expires_at.isoformat() if p.expires_at else None,
+                    'license_status': p.license_status,
+                }
+
         track_data = track_detail(track)
         track_data['toplines']        = [ser_topline(tl) for tl in published_toplines]
         track_data['my_toplines']     = [ser_topline(tl) for tl in my_toplines]
         track_data['contract_prices'] = _resolve_contract_prices(track)
+        track_data['owned_licenses']  = owned_licenses
 
         return ok({'track': track_data})
 

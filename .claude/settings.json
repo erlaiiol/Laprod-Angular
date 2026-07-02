@@ -8,7 +8,12 @@
       "Read(//Users/eliott/**)",
       "Bash(git stash *)",
       "Bash(git checkout *)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "Bash(python -m pytest tests/integration/test_tracks_api.py -v)",
+      "Bash(python3 -m pytest tests/integration/test_tracks_api.py -v)",
+      "Bash(.venv/bin/pytest tests/integration/test_tracks_api.py -v)",
+      "Bash(npx vitest *)",
+      "Bash(node_modules/.bin/vitest run *)"
     ]
   }
 }

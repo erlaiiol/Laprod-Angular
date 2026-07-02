@@ -110,40 +110,61 @@
       } @else {
         <div class="purchase-cards">
 
-          <div class="purchase-card" [class.unavailable]="!track()!.price_mp3">
+          <div class="purchase-card" [class.unavailable]="!track()!.price_mp3" [class.already-owned]="!!ownedLicense('mp3')">
             <div class="format-badge mp3">MP3</div>
+            @if (ownedLicense('mp3'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
             <p class="format-desc">Licence lease standard</p>
             @if (track()!.price_mp3) {
               <p class="format-price">{{ track()!.price_mp3.toFixed(2) }}€</p>
-              <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'mp3']">
+              <button class="btn-buy" (click)="requestBuy('mp3')">
                 Acheter MP3
-              </a>
+              </button>
             } @else {
               <p class="format-unavailable">Non disponible</p>
             }
           </div>
 
-          <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav">
+          <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav" [class.already-owned]="!!ownedLicense('wav')">
             <div class="format-badge wav">WAV</div>
+            @if (ownedLicense('wav'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
             <p class="format-desc">Qualité studio non compressée</p>
             @if (track()!.price_wav && track()!.file_wav) {
               <p class="format-price">{{ (track()!.price_wav ?? 0).toFixed(2) }}€</p>
-              <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'wav']">
+              <button class="btn-buy" (click)="requestBuy('wav')">
                 Acheter WAV
-              </a>
+              </button>
             } @else {
               <p class="format-unavailable">Non disponible</p>
             }
           </div>
 
-          <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems">
+          <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems" [class.already-owned]="!!ownedLicense('stems')">
             <div class="format-badge stems">STEMS</div>
+            @if (ownedLicense('stems'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
             <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
             @if (track()!.price_stems && track()!.file_stems) {
               <p class="format-price">{{ (track()!.price_stems ?? 0).toFixed(2) }}€</p>
-              <a class="btn-buy featured" [routerLink]="['/contract', track()!.id, 'stems']">
+              <button class="btn-buy featured" (click)="requestBuy('stems')">
                 Acheter STEMS
-              </a>
+              </button>
             } @else {
               <p class="format-unavailable">Non disponible</p>
             }
@@ -152,6 +173,32 @@
         </div>
       }
     </section>
+
+    <!-- ── CONFIRMATION RACHAT ────────────────────────────────────────────── -->
+    @if (confirmFormat()) {
+      <div class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
+           (click)="cancelBuy()" (keydown.escape)="cancelBuy()">
+        <div class="confirm-dialog" (click)="$event.stopPropagation()">
+          <h3 id="confirm-title" class="confirm-title">
+            <i class="bi bi-info-circle-fill"></i>
+            Licence déjà active
+          </h3>
+          <p class="confirm-body">
+            Vous disposez déjà d'une licence active pour ce track au format
+            <strong>{{ confirmFormat()!.toUpperCase() }}</strong>.
+            Souhaitez-vous vraiment effectuer un nouvel achat ?
+          </p>
+          <div class="confirm-actions">
+            <button class="btn-confirm-cancel" (click)="cancelBuy()">
+              Annuler
+            </button>
+            <button class="btn-confirm-proceed" (click)="proceedBuy()">
+              Continuer l'achat
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- ── TOPLINES ──────────────────────────────────────────────────────── -->
     <section class="toplines-section">

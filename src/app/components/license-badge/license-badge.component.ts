@@ -22,11 +22,12 @@ export class LicenseBadgeComponent {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   }
 
-  get urgency(): 'lifetime' | 'ok' | 'soon' | 'urgent' | 'expired' | 'renewed' | 'cancelled' {
-    if (this.licenseStatus === 'renewed')    return 'renewed';
-    if (this.licenseStatus === 'cancelled')  return 'cancelled';
-    if (this.licenseStatus === 'expired')    return 'expired';
-    if (this.isLifetime || this.expiresAt === null) return 'lifetime';
+  get urgency(): 'lifetime' | 'streaming' | 'ok' | 'soon' | 'urgent' | 'expired' | 'renewed' | 'cancelled' {
+    if (this.licenseStatus === 'renewed')   return 'renewed';
+    if (this.licenseStatus === 'cancelled') return 'cancelled';
+    if (this.licenseStatus === 'expired')   return 'expired';
+    if (this.isLifetime) return 'lifetime';
+    if (this.expiresAt === null) return 'streaming';
     const d = this.days;
     if (d === null || d < 0) return 'expired';
     if (d <= 7)  return 'urgent';
@@ -36,7 +37,8 @@ export class LicenseBadgeComponent {
 
   get label(): string {
     switch (this.urgency) {
-      case 'lifetime':   return 'Licence à vie';
+      case 'lifetime':   return 'Droits à vie';
+      case 'streaming':  return 'Streaming illimité';
       case 'renewed':    return 'Renouvelée';
       case 'cancelled':  return 'Annulée';
       case 'expired':    return 'Expirée';
@@ -55,6 +57,7 @@ export class LicenseBadgeComponent {
   get icon(): string {
     switch (this.urgency) {
       case 'lifetime':  return 'bi-infinity';
+      case 'streaming': return 'bi-broadcast';
       case 'renewed':   return 'bi-arrow-clockwise';
       case 'cancelled': return 'bi-x-circle';
       case 'expired':   return 'bi-clock-history';

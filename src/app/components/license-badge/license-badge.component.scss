@@ -18,6 +18,12 @@
     color: v.$tag-green-light;
   }
 
+  &--streaming {
+    background: v.$tag-teal-dark;
+    border-color: v.$tag-teal;
+    color: v.$tag-teal-light;
+  }
+
   &--ok {
     background: v.$tag-green-dark;
     border-color: v.$tag-green;

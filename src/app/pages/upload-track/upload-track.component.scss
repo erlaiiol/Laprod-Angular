@@ -760,3 +760,99 @@
 
   strong { color: v.$text-muted; font-size: 0.9rem; }
 }
+
+// ── Template YouTube post-upload ───────────────────────────────────────────────
+
+.yt-template-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: v.$bg-surface;
+  border: 1px solid v.$tag-green;
+  border-radius: 12px;
+}
+
+.yt-template-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+
+  h3 { margin: 0; font-size: 1.1rem; color: v.$text-primary; }
+  p  { margin: 0; font-size: 0.875rem; color: v.$text-muted; }
+}
+
+.yt-success-icon {
+  font-size: 2rem;
+  color: v.$tag-green;
+}
+
+.yt-template-box {
+  background: v.$bg-base;
+  border: 1px solid v.$bg-border;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.yt-template-text {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: v.$text-secondary;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.yt-template-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  background: v.$tag-green;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover { opacity: 0.85; }
+}
+
+.btn-go-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  background: transparent;
+  color: v.$text-muted;
+  border: 1px solid v.$bg-border;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: v.$text-primary; color: v.$text-primary; }
+}
+
+.yt-template-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: v.$text-muted;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+
+  i { flex-shrink: 0; margin-top: 0.15em; }
+}
