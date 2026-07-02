@@ -96,7 +96,11 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     }
 
     try {
-      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Désactiver le traitement du signal iOS qui peut changer la route audio
+      this.micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        video: false,
+      });
     } catch {
       this.errorMsg.set('Accès au microphone refusé. Autorisez le micro dans votre navigateur.');
       this.cdr.markForCheck();
@@ -105,6 +109,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
     // Web Audio API — visualizer
     this.audioCtx = new AudioContext();
+    // iOS : l'AudioContext créé dans un contexte async démarre en suspended
+    if (this.audioCtx.state === 'suspended') {
+      await this.audioCtx.resume();
+    }
     const source  = this.audioCtx.createMediaStreamSource(this.micStream);
     this.analyser = this.audioCtx.createAnalyser();
     this.analyser.fftSize = 256;
@@ -116,6 +124,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       this.monitorAudio.srcObject = this.micStream;
       this.monitorAudio.play().catch(() => {});
     }
+
+    // iOS : laisser 150 ms à la session audio pour stabiliser la route
+    // après activation du micro (évite le renvoi vers l'écouteur interne)
+    await new Promise<void>(resolve => setTimeout(resolve, 150));
 
     // Beat playback
     this.player.play(this.track as any);

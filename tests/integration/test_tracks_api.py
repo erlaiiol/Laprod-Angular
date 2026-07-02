@@ -1,11 +1,12 @@
 """
 Tests d'intégration — routes/tracks_api.py
 
-Couvre : GET /track/<id>, GET /tracks, DELETE /delete/<id>.
+Couvre : GET /track/<id>, GET /tracks, DELETE /delete/<id>, owned_licenses.
 """
 
 import json
 import uuid
+from decimal import Decimal
 
 import pytest
 
@@ -168,6 +169,133 @@ class TestExclusiveSold:
         resp = client.get(f'/api/tracks/track/{track.id}')
         assert resp.status_code == 200
         assert 'is_exclusive_sold' in resp.json['data']['track']
+
+
+# ── owned_licenses dans le détail du track ───────────────────────────────────
+
+class TestOwnedLicenses:
+    """GET /api/tracks/track/<id> doit retourner owned_licenses selon le JWT."""
+
+    def _make_purchase(self, db, track, buyer, format_purchased='mp3',
+                       is_lifetime=False, duration_years=None, expires_at=None,
+                       license_status='active'):
+        from models import Purchase
+        p = Purchase(
+            track_id=track.id,
+            buyer_id=buyer.id,
+            buyer_name=buyer.username,
+            format_purchased=format_purchased,
+            price_paid=Decimal('9.99'),
+            track_price=Decimal('9.99'),
+            contract_price=Decimal('0'),
+            platform_fee=Decimal('1.00'),
+            composer_revenue=Decimal('8.99'),
+            stripe_payment_intent_id=f'pi_test_{uuid.uuid4().hex[:16]}',
+            is_exclusive=False,
+            duration_years=duration_years,
+            is_lifetime=is_lifetime,
+            expires_at=expires_at,
+            license_status=license_status,
+        )
+        db.session.add(p)
+        db.session.commit()
+        return p
+
+    def test_owned_licenses_empty_without_auth(self, client, track):
+        resp = client.get(f'/api/tracks/track/{track.id}')
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert owned == {}
+
+    def test_owned_licenses_empty_when_no_purchase(self, client, app, track, user, auth_headers):
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert owned == {}
+
+    def test_owned_licenses_mp3_active(self, client, app, db, track, user, auth_headers):
+        p = self._make_purchase(db, track, user, format_purchased='mp3')
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert 'mp3' in owned
+        assert owned['mp3']['purchase_id'] == p.id
+        assert owned['mp3']['license_status'] == 'active'
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_owned_licenses_wav_active(self, client, app, db, track, user, auth_headers):
+        p = self._make_purchase(db, track, user, format_purchased='wav')
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert 'wav' in owned
+        assert 'mp3' not in owned
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_owned_licenses_stems_active(self, client, app, db, track, user, auth_headers):
+        p = self._make_purchase(db, track, user, format_purchased='stems')
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert 'stems' in owned
+        assert 'mp3' not in owned
+        assert 'wav' not in owned
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_owned_licenses_lifetime_flag(self, client, app, db, track, user, auth_headers):
+        p = self._make_purchase(db, track, user, format_purchased='mp3', is_lifetime=True)
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert owned['mp3']['is_lifetime'] is True
+        assert owned['mp3']['expires_at'] is None
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_expired_license_not_in_owned(self, client, app, db, track, user, auth_headers):
+        p = self._make_purchase(db, track, user, format_purchased='mp3', license_status='expired')
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert 'mp3' not in owned
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_multiple_formats_independently_tracked(self, client, app, db, track, user, auth_headers):
+        p_mp3  = self._make_purchase(db, track, user, format_purchased='mp3')
+        p_wav  = self._make_purchase(db, track, user, format_purchased='wav')
+        resp   = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned  = resp.json['data']['track']['owned_licenses']
+        assert 'mp3' in owned
+        assert 'wav' in owned
+        assert 'stems' not in owned
+        from models import Purchase
+        for p in (p_mp3, p_wav):
+            db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
+
+    def test_streaming_only_license_included(self, client, app, db, track, user, auth_headers):
+        """Licence streaming seul (is_lifetime=False, duration_years=None) → active."""
+        p = self._make_purchase(db, track, user, format_purchased='mp3',
+                                is_lifetime=False, duration_years=None)
+        resp = client.get(f'/api/tracks/track/{track.id}', headers=auth_headers)
+        assert resp.status_code == 200
+        owned = resp.json['data']['track']['owned_licenses']
+        assert 'mp3' in owned
+        assert owned['mp3']['is_lifetime'] is False
+        assert owned['mp3']['expires_at'] is None
+        from models import Purchase
+        db.session.delete(db.session.get(Purchase, p.id))
+        db.session.commit()
 
 
 # ── PUT contract prices ───────────────────────────────────────────────────────

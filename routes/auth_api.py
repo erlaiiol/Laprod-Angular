@@ -8,7 +8,7 @@ from flask import Blueprint, request, redirect, url_for, current_app, jsonify
 from werkzeug.utils import secure_filename
 from email_validator import validate_email, EmailNotValidError
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import config
 from utils.file_validator import validate_image_file
@@ -167,8 +167,10 @@ def login():
         return err('Compte désactivé ou suspendu.', status=403)
 
         
-    access_token = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
+    access_token  = create_access_token(identity=str(user.id))
+    # remember=True → 30 jours ; remember=False → 1 jour (session courte)
+    refresh_delta = timedelta(days=30) if remember else timedelta(days=1)
+    refresh_token = create_refresh_token(identity=str(user.id), expires_delta=refresh_delta)
 
     decoded = decode_token(refresh_token)
     jti = decoded['jti']

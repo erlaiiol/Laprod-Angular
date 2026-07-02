@@ -96,7 +96,7 @@ export class WalletComponent implements OnInit {
       },
       error: (err) => {
         const msg = err?.error?.feedback?.message ?? 'Erreur Stripe Connect.';
-        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: msg });
+        this.toast.showToast({ level: 'error', message: msg });
         this.stripeError.set(msg);
         this.settingUpStripe.set(false);
       },

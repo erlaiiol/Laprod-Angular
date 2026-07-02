@@ -39,8 +39,8 @@ def get_status(current_user):
 # ── POST /api/stripe-connect/setup-url ────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/setup-url', methods=['POST'])
+@csrf.exempt          # doit être outermost : Flask-WTF regarde la fonction enregistrée
 @jwt_required()
-@csrf.exempt
 @require_user
 def get_setup_url(current_user):
     """
@@ -63,6 +63,10 @@ def get_setup_url(current_user):
         if not current_user.stripe_account_id:
             result = create_connect_account(current_user)
             if not result.get('success'):
+                current_app.logger.error(
+                    f"Stripe Connect — création compte échouée pour user {current_user.id}: "
+                    f"{result.get('error')}"
+                )
                 return err(
                     result.get('message', 'Erreur création compte.'),
                     code='STRIPE_ERROR', status=500,
@@ -80,8 +84,8 @@ def get_setup_url(current_user):
 # ── POST /api/stripe-connect/dashboard-url ────────────────────────────────────
 
 @stripe_connect_api_bp.route('/dashboard-url', methods=['POST'])
-@jwt_required()
 @csrf.exempt
+@jwt_required()
 @require_user
 def get_dashboard_url(current_user):
     """Retourne l'URL du dashboard Express Stripe pour l'utilisateur."""
@@ -100,8 +104,8 @@ def get_dashboard_url(current_user):
 # ── POST /api/stripe-connect/refresh ──────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/refresh', methods=['POST'])
-@jwt_required()
 @csrf.exempt
+@jwt_required()
 @require_user
 def refresh_status(current_user):
     """Rafraîchit le statut du compte Stripe Connect depuis l'API Stripe."""

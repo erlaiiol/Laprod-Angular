@@ -4,10 +4,10 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { TrackService, TrackDetail, PublishedTopline } from '../../services/track.service';
+import { TrackService, TrackDetail, PublishedTopline, OwnedLicense } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { ToplineService } from '../../services/topline.service';
@@ -15,13 +15,14 @@ import { ToplineRecorderComponent } from '../../components/topline-recorder/topl
 import { FavoriteButtonComponent } from '../../components/favorite-button/favorite-button.component';
 import { AddToPlaylistModalComponent } from '../../components/add-to-playlist-modal/add-to-playlist-modal.component';
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
+import { LicenseBadgeComponent } from '../../components/license-badge/license-badge.component';
 import { FavoritesService } from '../../services/favorites.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent, LicenseBadgeComponent],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -33,11 +34,13 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   error             = signal<string | null>(null);
   showRecorder      = signal(false);
   showPlaylistModal = signal(false);
+  confirmFormat     = signal<'mp3' | 'wav' | 'stems' | null>(null);
 
   editingToplineId  = signal<number | null>(null);
   editingDesc       = signal('');
 
   private route       = inject(ActivatedRoute);
+  private router      = inject(Router);
   private trackSvc    = inject(TrackService);
   private toplineSvc  = inject(ToplineService);
   private http        = inject(HttpClient);
@@ -288,6 +291,30 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  ownedLicense(format: 'mp3' | 'wav' | 'stems'): OwnedLicense | null {
+    return this.track()?.owned_licenses?.[format] ?? null;
+  }
+
+  requestBuy(format: 'mp3' | 'wav' | 'stems'): void {
+    if (this.ownedLicense(format)) {
+      this.confirmFormat.set(format);
+    } else {
+      this.router.navigate(['/contract', this.track()!.id, format]);
+    }
+  }
+
+  cancelBuy(): void {
+    this.confirmFormat.set(null);
+  }
+
+  proceedBuy(): void {
+    const fmt = this.confirmFormat();
+    const t   = this.track();
+    if (!fmt || !t) return;
+    this.confirmFormat.set(null);
+    this.router.navigate(['/contract', t.id, fmt]);
   }
 
   canEditTrack = computed(() => {

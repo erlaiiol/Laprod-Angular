@@ -99,6 +99,9 @@ def user_auth(u, notif_count: int = 0) -> dict:
         'is_premium':            bool(u.is_premium_active),
         'subscription_plan':     u.subscription_plan,
         'preferred_tag_category': u.preferred_tag_category,
+        'instagram': u.instagram,
+        'twitter':   u.twitter,
+        'youtube':   u.youtube,
     }
 
 

@@ -88,6 +88,14 @@ export interface ContractPrices {
   territory_world: number;
 }
 
+export interface OwnedLicense {
+  purchase_id:    number;
+  is_lifetime:    boolean;
+  duration_years: number | null;
+  expires_at:     string | null;
+  license_status: 'active' | 'expired' | 'renewed' | 'cancelled';
+}
+
 export interface TrackDetail extends Track {
   created_at:        string | null;
   price_wav:         number | null;
@@ -99,6 +107,7 @@ export interface TrackDetail extends Track {
   my_toplines:       PublishedTopline[];
   contract_prices?:  ContractPrices;
   is_exclusive_sold?: boolean;
+  owned_licenses?:   Record<string, OwnedLicense>;
 }
 
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)

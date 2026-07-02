@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpEventType, HttpResponse } from '@angular/common/http';
+import { switchMap } from 'rxjs';
 import { TagsService, Tag } from '../../services/tags.service';
 import { CudTrackService, UploadResponse } from '../../services/cud-track.service';
 import { AuthService } from '../../services/auth.service';
@@ -10,6 +11,7 @@ import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
 import { Playlist, PlaylistService } from '../../services/playlist.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
+import { environment } from '../../../environments/environment';
 
 
 
@@ -203,8 +205,10 @@ export class UploadTrackComponent implements OnInit {
   });
 
   /* ── State ──────────────────────────────────────────────────────────────── */
-  loading = signal(false);
-  error   = signal<string | null>(null);
+  loading    = signal(false);
+  error      = signal<string | null>(null);
+  uploadDone = signal(false);
+  copyDone   = signal(false);
 
   submitErrors = computed(() => {
     const errs: string[] = [];
@@ -301,6 +305,51 @@ export class UploadTrackComponent implements OnInit {
     );
   }
 
+  /* ── YouTube template ──────────────────────────────────────────────────── */
+
+  youtubeTemplate = computed(() => {
+    const bpm = this.bpm();
+    const key = this.key();
+    const u     = this.auth.currentUser();
+    const baseUrl = environment.apiUrl.includes('localhost')
+      ? 'https://laprod.net'
+      : window.location.origin;
+    const trackUrl = `${baseUrl}/track/(ID disponible dans votre profil)`;
+
+    const lines: string[] = [
+      `⚠️ conditions et licences ⚠️`,
+      ``,
+      `Cette instrumentale est gratuite pour un usage non commercial.`,
+      `Tu n'es pas autorisé à la diffuser sur les plateformes de streaming.`,
+      `Pour toute utilisation sur une plateforme permettant une rémunération,`,
+      `l'achat d'une licence est obligatoire: ${trackUrl}`,
+      ``,
+      `Free for non-commercial use only. Not allowed on streaming platforms.`,
+      `A license must be purchased for any monetized use: ${trackUrl}`,
+    ];
+
+    if (bpm) lines.push(``, `BPM: ${bpm}`);
+    if (key)  lines.push(`Key: ${key}`);
+
+    if (u?.instagram) lines.push(``, `INSTAGRAM: ${u.instagram}`);
+    if (u?.twitter)   lines.push(`TWITTER: ${u.twitter}`);
+    if (u?.youtube)   lines.push(`YOUTUBE: ${u.youtube}`);
+    if (u?.email)     lines.push(`EMAIL: ${u.email}`);
+
+    return lines.join('\n');
+  });
+
+  copyYoutubeTemplate(): void {
+    navigator.clipboard.writeText(this.youtubeTemplate()).then(() => {
+      this.copyDone.set(true);
+      setTimeout(() => this.copyDone.set(false), 2500);
+    });
+  }
+
+  goHome(): void {
+    this.router.navigate(['/']);
+  }
+
   onSubmit(): void {
     if (!this.canSubmit()) return;
     this.loading.set(true);
@@ -332,27 +381,30 @@ export class UploadTrackComponent implements OnInit {
       : null;
     this.uploadStatusSvc.openForUpload(this.title(), localImageUrl);
 
-    this.cudTrackService.postTrack({
-      title:                    this.title(),
-      bpm:                      this.bpm()!,
-      key:                      this.key(),
-      style:                    this.style(),
-      price_mp3:                this.priceMp3(),
-      price_wav:                this.priceWav(),
-      price_stems:              this.priceStems(),
-      sacem_percentage_composer: this.sacemComposer(),
-      tag_ids:                  this.selectedTagIds().join(','),
-      similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
-      playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
-      file_mp3:                 this.fileMp3() ?? undefined,
-      file_wav:                 this.fileWav() ?? undefined,
-      file_stems:               this.fileStems() ?? undefined,
-      file_image:               this.fileImage() ?? undefined,
-      auto_bpm:                 this.autoBpm(),
-      auto_key:                 this.autoKey(),
-      auto_style:               this.autoStyle(),
-      ...contractPrices,
-    }).subscribe({
+    // Rafraîchir le token si proche de l'expiration avant un upload potentiellement long
+    this.auth.refreshIfExpiringSoon().pipe(
+      switchMap(() => this.cudTrackService.postTrack({
+        title:                    this.title(),
+        bpm:                      this.bpm()!,
+        key:                      this.key(),
+        style:                    this.style(),
+        price_mp3:                this.priceMp3(),
+        price_wav:                this.priceWav(),
+        price_stems:              this.priceStems(),
+        sacem_percentage_composer: this.sacemComposer(),
+        tag_ids:                  this.selectedTagIds().join(','),
+        similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
+        playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
+        file_mp3:                 this.fileMp3() ?? undefined,
+        file_wav:                 this.fileWav() ?? undefined,
+        file_stems:               this.fileStems() ?? undefined,
+        file_image:               this.fileImage() ?? undefined,
+        auto_bpm:                 this.autoBpm(),
+        auto_key:                 this.autoKey(),
+        auto_style:               this.autoStyle(),
+        ...contractPrices,
+      })),
+    ).subscribe({
       next: event => {
         if (event.type === HttpEventType.UploadProgress) {
           const pct = event.total ? Math.round(event.loaded / event.total * 100) : 0;
@@ -363,9 +415,9 @@ export class UploadTrackComponent implements OnInit {
           const res = (event as HttpResponse<UploadResponse>).body;
           if (res?.success && res.data?.job_id) {
             this.auth.me().subscribe();
-            // title/imageUrl déjà définis par openForUpload() — on passe uniquement le job_id.
             this.uploadStatusSvc.startPolling(res.data.job_id);
-            this.router.navigate(['/']);
+            // Montrer le template YouTube avant de naviguer
+            this.uploadDone.set(true);
           } else {
             this.uploadStatusSvc.stopPolling();
             this.error.set(res?.feedback?.message ?? 'Erreur lors de la soumission.');

@@ -45,6 +45,9 @@ export interface User {
     is_premium:              boolean,
     subscription_plan:       'free' | 'amateur' | 'pro',
     preferred_tag_category:  string | null,
+    instagram?: string | null,
+    twitter?:   string | null,
+    youtube?:   string | null,
 }
 
 
@@ -155,8 +158,8 @@ export class AuthService {
   //// ALREADY A USER BLOCK (/login, /me... )
   //// ======================================================
 
-  login(identifier : string, 
-    password : string, 
+  login(identifier : string,
+    password : string,
     remember : boolean ): Observable<LoginResponse>{
     return this.http.post<LoginResponse>(`${this.authUrl}/login`, {
       identifier,
@@ -165,7 +168,7 @@ export class AuthService {
     }).pipe(
       tap((res) => {
         if (res.success === true) {
-          this.storeAuth(res);
+          this.storeAuth(res, remember);
         }
 
       }),
@@ -180,15 +183,18 @@ export class AuthService {
 
 
 
-    private storeAuth(res: LoginSuccess){
+    private storeAuth(res: LoginSuccess, remember = true){
+      // remember=false → sessionStorage (effacé à la fermeture du navigateur)
+      // remember=true  → localStorage (persistant entre les sessions)
+      const storage = remember ? localStorage : sessionStorage;
 
-      localStorage.setItem('access_token', res.data.tokens.access_token);
+      storage.setItem('access_token', res.data.tokens.access_token);
 
       if (res.data.tokens.refresh_token) {
-        localStorage.setItem('refresh_token', res.data.tokens.refresh_token);
+        storage.setItem('refresh_token', res.data.tokens.refresh_token);
       }
 
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      storage.setItem('user', JSON.stringify(res.data.user));
       this._currentUser.set(res.data.user);
 
       // Si l'utilisateur avait sélectionné une catégorie en anonyme et que le serveur
@@ -222,6 +228,10 @@ export class AuthService {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    // Session courte (remember=false) → tokens dans sessionStorage
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
     this._currentUser.set(null);
     this.router.navigate(['/login']);
   }
@@ -232,10 +242,18 @@ export class AuthService {
       this._localTagCategoryPref.set(category);
       return;
     }
+    const persist = (u: User) => {
+      if (localStorage.getItem('user')) {
+        localStorage.setItem('user', JSON.stringify(u));
+      } else {
+        sessionStorage.setItem('user', JSON.stringify(u));
+      }
+    };
+
     // Optimistic update — l'UI répond immédiatement, sans attendre l'API
     const optimistic = { ...user, preferred_tag_category: category };
     this._currentUser.set(optimistic);
-    localStorage.setItem('user', JSON.stringify(optimistic));
+    persist(optimistic);
 
     this.http.patch<{ success: boolean; data: { preferred_tag_category: string | null } }>(
       '/api/main/users/preferences',
@@ -245,30 +263,52 @@ export class AuthService {
         // Confirme avec la valeur serveur (au cas où le serveur a validé différemment)
         const confirmed = { ...this._currentUser()!, preferred_tag_category: res.data.preferred_tag_category };
         this._currentUser.set(confirmed);
-        localStorage.setItem('user', JSON.stringify(confirmed));
+        persist(confirmed);
       },
       error: () => {
         // Révoque la mise à jour optimiste si l'API échoue
         this._currentUser.set(user);
-        localStorage.setItem('user', JSON.stringify(user));
+        persist(user);
       },
     });
   }
 
-  /** Met à jour le signal et localStorage avec un objet User partiel ou complet. */
+  /** Met à jour le signal et le stockage actif avec un objet User partiel ou complet. */
   updateCurrentUser(partial: Partial<User>): void {
     const merged = { ...this._currentUser()!, ...partial } as User;
-    localStorage.setItem('user', JSON.stringify(merged));
+    if (localStorage.getItem('user')) {
+      localStorage.setItem('user', JSON.stringify(merged));
+    } else {
+      sessionStorage.setItem('user', JSON.stringify(merged));
+    }
     this._currentUser.set(merged);
   }
 
   getToken(): string | null {
-    return localStorage.getItem('access_token');
+    // localStorage d'abord (session persistante), puis sessionStorage (session courte)
+    return localStorage.getItem('access_token') ?? sessionStorage.getItem('access_token');
   }
 
   getUser() {
-    const user = localStorage.getItem('user');
+    const user = localStorage.getItem('user') ?? sessionStorage.getItem('user');
     return user ? JSON.parse(user) : null;
+  }
+
+  /**
+   * Rafraîchit le token d'accès si son expiration est dans moins de `windowMs` ms.
+   * À appeler avant une opération longue (ex: upload) pour éviter une expiration en cours de route.
+   */
+  refreshIfExpiringSoon(windowMs = 5 * 60 * 1000): Observable<void> {
+    const token = this.getToken();
+    if (!token) return of(undefined);
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiresInMs = payload.exp * 1000 - Date.now();
+      if (expiresInMs < windowMs) {
+        return this.refreshToken().pipe(map(() => undefined));
+      }
+    } catch { /* token mal formé — laisser l'intercepteur gérer le 401 */ }
+    return of(undefined);
   }
 
   me(): Observable<MeResponse> {
@@ -276,7 +316,12 @@ export class AuthService {
       tap((res) => {
         if (res.success) {
           this._currentUser.set(res.data.user);
-          localStorage.setItem('user', JSON.stringify(res.data.user));
+          // Persister dans le même stockage que la session en cours
+          if (localStorage.getItem('user')) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          } else {
+            sessionStorage.setItem('user', JSON.stringify(res.data.user));
+          }
         }
       }),
       catchError((err) => {
@@ -305,7 +350,7 @@ export class AuthService {
   refreshToken(): Observable<string> {
     if (this._refreshing$) return this._refreshing$;
 
-    const rt = localStorage.getItem('refresh_token');
+    const rt = localStorage.getItem('refresh_token') ?? sessionStorage.getItem('refresh_token');
     if (!rt) return throwError(() => new Error('no_refresh_token'));
 
     this._refreshing$ = this.http.post<any>(
@@ -354,7 +399,7 @@ export class AuthService {
     );
   }
 
-  /** Stocke les tokens et l'utilisateur après échange OAuth. */
+  /** Stocke les tokens et l'utilisateur après échange OAuth (toujours persistent). */
   storeOauthAuth(data: OauthExchangeData | CompleteOauthProfileData): void {
     localStorage.setItem('access_token',  data.tokens.access_token);
     localStorage.setItem('refresh_token', data.tokens.refresh_token);
