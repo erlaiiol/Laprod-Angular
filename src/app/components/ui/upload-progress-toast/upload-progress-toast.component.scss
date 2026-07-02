@@ -1,0 +1,152 @@
+@use 'variables' as v;
+
+// ── Conteneur principal ───────────────────────────────────────────────────────
+.upload-toast {
+  position:      fixed;
+  bottom:        100px;     // au-dessus du player
+  right:         20px;
+  z-index:       9000;
+
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+
+  width:         300px;
+  padding:       10px 12px 10px 10px;
+  border-radius: 10px;
+  border:        1px solid transparent;
+  font-size:     0.85rem;
+  box-shadow:    0 8px 32px rgba(0, 0, 0, 0.6);
+  animation:     slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+
+  // ── États ────────────────────────────────────────────────────────────────────
+  &--queued,
+  &--started,
+  &--finalizing {
+    background:   v.$bg-surface;
+    border-color: v.$tag-blue;
+  }
+
+  &--done {
+    background:   v.$tag-green-dark;
+    border-color: v.$tag-green;
+  }
+
+  &--error {
+    background:   v.$tag-red-dark;
+    border-color: v.$tag-red;
+  }
+}
+
+// ── Miniature cover ───────────────────────────────────────────────────────────
+.upload-toast__cover {
+  flex-shrink:   0;
+  width:         52px;
+  height:        52px;
+  border-radius: 6px;
+  object-fit:    cover;
+  background:    v.$bg-elevated;
+  border:        1px solid v.$bg-border;
+}
+
+// ── Corps texte ───────────────────────────────────────────────────────────────
+.upload-toast__body {
+  flex:           1;
+  min-width:      0;        // permet le text-overflow sur les enfants
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+}
+
+.upload-toast__title {
+  font-weight:   600;
+  font-size:     0.875rem;
+  color:         v.$text-primary;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+
+// ── Ligne spinner / message ───────────────────────────────────────────────────
+.upload-toast__status-line {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  color:       v.$text-secondary;
+  font-size:   0.78rem;
+}
+
+// ── Spinner CSS ───────────────────────────────────────────────────────────────
+.upload-toast__spinner {
+  flex-shrink:      0;
+  width:            12px;
+  height:           12px;
+  border:           2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: v.$tag-blue;
+  border-radius:    50%;
+  animation:        spin 0.8s linear infinite;
+}
+
+// ── Icônes ────────────────────────────────────────────────────────────────────
+.upload-toast__icon {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size:   0.85rem;
+  line-height: 1;
+
+  &--success { color: v.$tag-green; }
+  &--error   { color: v.$tag-red;   }
+}
+
+// ── Message ───────────────────────────────────────────────────────────────────
+.upload-toast__message {
+  flex:          1;
+  min-width:     0;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  line-height:   1.3;
+}
+
+// ── Lien "Voir" ───────────────────────────────────────────────────────────────
+.upload-toast__link {
+  flex-shrink:     0;
+  padding:         2px 8px;
+  border-radius:   4px;
+  background:      v.$tag-green;
+  color:           #000;
+  font-size:       0.75rem;
+  font-weight:     700;
+  text-decoration: none;
+  white-space:     nowrap;
+  transition:      background 0.15s;
+
+  &:hover { background: v.$tag-green-light; }
+}
+
+// ── Bouton fermer ─────────────────────────────────────────────────────────────
+.upload-toast__close {
+  flex-shrink:  0;
+  align-self:   flex-start;
+  margin-top:   2px;
+  background:   transparent;
+  border:       none;
+  color:        v.$text-muted;
+  font-size:    0.8rem;
+  cursor:       pointer;
+  padding:      2px;
+  line-height:  1;
+  transition:   color 0.15s;
+
+  &:hover { color: v.$text-primary; }
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(24px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -33,11 +33,32 @@ jwt = JWTManager()
 
 _is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
 
+
+def _rate_limit_key():
+    """
+    Clé de rate-limiting :
+    - Utilisateur JWT connecté → clé = "user:<id>" (pas d'impact CG-NAT).
+    - Visiteur anonyme → clé = IP (comportement Flask-Limiter par défaut).
+    """
+    from flask import request as _req
+    try:
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        uid = get_jwt_identity()
+        if uid:
+            return f"user:{uid}"
+    except Exception:
+        pass
+    return get_remote_address()
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_rate_limit_key,
     # En développement : aucune limite globale (les @limiter.limit() par route restent actifs).
-    # En production : 300/jour et 50/heure par IP.
-    default_limits=[] if _is_dev else ["300 per day", "50 per hour"],
+    # En production :
+    #   • 2 000 requêtes/jour  (≈ 83/heure en usage continu — large pour une session active)
+    #   • 200 requêtes/heure   (CG-NAT : clé = user_id si connecté, IP sinon)
+    default_limits=[] if _is_dev else ["2000 per day", "200 per hour"],
     storage_uri=os.getenv("REDIS_URL", "redis://redis:6379"),
 )
 
@@ -80,14 +101,24 @@ def init_extensions(app):
     app.logger.info("  OK Rate Limiting")
 
     #  OAuth2 - Google
-    oauth.init_app(app)
+    # Utilise Redis comme cache pour le state OAuth (multi-workers safe).
+    # Sans ça, Authlib stocke le state dans le cookie de session Flask qui
+    # peut être perdu entre google/login (worker A) et google/callback (worker B).
+    _oauth_redis = redis.Redis(
+        host=app.config['REDIS_HOST'],
+        port=app.config['REDIS_PORT'],
+        db=app.config['REDIS_DB'],
+        decode_responses=True,
+    )
+    oauth.init_app(app, cache=_oauth_redis)
 
     # flask-mail
     mail.init_app(app)
 
     # flask-CORS
-    CORS(app, origins=['http://localhost:4200'], supports_credentials=True)
-    app.logger.info("  OK CORS (Angular dev: localhost:4200)")
+    _cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',')
+    CORS(app, origins=_cors_origins, supports_credentials=True)
+    app.logger.info(f"  OK CORS (origins: {_cors_origins})")
 
     #JWTManager
     jwt.init_app(app)
@@ -134,8 +165,8 @@ def init_extensions(app):
         # PRODUCTION : Sécurité maximale
         Talisman(
             app,
-            force_https=True,
-            force_https_permanent=True,
+            force_https=False,          # nginx gère la redirection HTTP→HTTPS
+            force_https_permanent=False,
             strict_transport_security=True,
             strict_transport_security_max_age=31536000,  # 1 an
             content_security_policy={
@@ -256,5 +287,64 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque nuit à 3h : corrélations pour l'algorithme de recommandation
+        from utils.recommendation_jobs import run_correlation_job
+        scheduler.add_job(
+            func=run_correlation_job,
+            trigger='cron',
+            hour=3,
+            minute=0,
+            id='recommendation_correlations',
+            replace_existing=True,
+            args=[app]
+        )
+        # Chaque nuit à 4h : purge RGPD des comptes en attente de suppression (>30j)
+        from utils.gdpr_purge import run_gdpr_purge_job
+        scheduler.add_job(
+            func=run_gdpr_purge_job,
+            trigger='cron',
+            hour=4,
+            minute=0,
+            id='gdpr_purge',
+            replace_existing=True,
+            args=[app]
+        )
+        # ── Jobs cycle de vie des licences ──────────────────────────────────
+        from utils.scheduled_tasks import (
+            run_contract_expiry_update,
+            run_expiry_notifications,
+            run_sole_licensee_notifications,
+        )
+        # Chaque nuit à 0h : expire les licences échues + libère les exclusivités
+        scheduler.add_job(
+            func=run_contract_expiry_update,
+            trigger='cron',
+            hour=0,
+            minute=5,
+            id='contract_expiry_update',
+            replace_existing=True,
+            args=[app]
+        )
+        # Chaque matin à 8h : rappels d'expiration (90/30/7/1 jours)
+        scheduler.add_job(
+            func=run_expiry_notifications,
+            trigger='cron',
+            hour=8,
+            minute=0,
+            id='expiry_notifications',
+            replace_existing=True,
+            args=[app]
+        )
+        # 1er de chaque mois à 9h : notification "unique licencié"
+        scheduler.add_job(
+            func=run_sole_licensee_notifications,
+            trigger='cron',
+            day=1,
+            hour=9,
+            minute=0,
+            id='sole_licensee_notifications',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences)")

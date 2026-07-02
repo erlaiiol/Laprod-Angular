@@ -26,13 +26,14 @@ logs/
 Dockerfile
 .dockerignore
 docker-compose.yml
-nginx/
+# nginx/ intentionnellement PAS exclu — requis par Dockerfile.frontend (COPY nginx/nginx.conf)
 
-# Uploads utilisateurs (bind-mountés depuis le serveur)
-static/audio/
-static/mixmaster/
-static/contracts/
-static/images/tracks/
+# Uploads utilisateurs + assets statiques (tous bind-mountés depuis le serveur)
+# Inutile de les copier dans les images — le volume les expose à nginx et Flask
+db_assets/audio/
+db_assets/mixmaster/
+db_assets/contracts/
+db_assets/images/
 
 # Outils de développement
 .vscode/

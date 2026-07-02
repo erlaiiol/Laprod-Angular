@@ -3,6 +3,7 @@
 Validation et calcul sécurisé des prix pour tous les types de paiements
 (Tracks, Mix/Master, Premium, etc.)
 """
+from decimal import Decimal, ROUND_HALF_UP
 from flask import request, flash, redirect, url_for, current_app, abort
 from flask_login import current_user
 from abc import ABC, abstractmethod
@@ -10,6 +11,8 @@ from typing import Dict, Any, Tuple, Optional
 from functools import wraps  #  AJOUT : nécessaire pour @wraps
 import logging
 from extensions import db
+
+_TWO_PLACES = Decimal('0.01')
 
 logger = logging.getLogger(__name__)
 
@@ -31,122 +34,130 @@ class PriceCalculator(ABC):
         """Calcule les options de prix disponibles pour la ressource"""
         pass
 
-    def calculate_total(self, resource, options: Dict[str, Any], **kwargs) -> Tuple[float, float, float]:
+    def calculate_total(self, resource, options: Dict[str, Any], **kwargs) -> Tuple[Decimal, Decimal, Decimal]:
         """Calcule le prix total en fonction de la ressource et des options"""
         base_price = self.calculate_base_price(resource, **kwargs)
         options_price = self.calculate_options_price(options)
-        total_price = round(base_price + options_price, 2)
+        total_price = (base_price + options_price).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         return base_price, options_price, total_price
-    
-    def validate_price(self, total_price: float, min_price: float = 1.0, max_price: float = 10000.0) -> bool:
-        """Le prix semble-t-il valide (dans les limites acceptables) ?"""    
+
+    def validate_price(self, total_price: Decimal, min_price: Decimal = Decimal('1.0'), max_price: Decimal = Decimal('10000.0')) -> bool:
+        """Le prix semble-t-il valide (dans les limites acceptables) ?"""
         return min_price <= total_price <= max_price
 
 
 class TrackPriceCalculator(PriceCalculator):
     """Calculateur de prix pour les Tracks"""
 
-    def calculate_base_price(self, resource, **kwargs) -> float:
+    def calculate_base_price(self, resource, **kwargs) -> Decimal:
         """Calcule le prix du track selon le format"""
         format_type = kwargs.get('format_type', 'mp3')
 
         track_prices = {
-            'mp3': resource.price_mp3,
-            'wav': resource.price_wav,
-            'stems': resource.price_stems
+            'mp3':   resource.price_mp3,
+            'wav':   resource.price_wav,
+            'stems': resource.price_stems,
         }
 
         price = track_prices.get(format_type)
-
         if price is None:
             raise ValueError(f"Format invalide ou prix non défini: {format_type}")
 
-        return float(price)
+        return Decimal(str(price))
 
-    def calculate_total(self, resource, options: Dict[str, Any], **kwargs) -> Tuple[float, float, float]:
-        """Calcul total avec passage du base_price aux options (pour seuils)"""
+    def calculate_total(self, resource, options: Dict[str, Any], **kwargs) -> Tuple[Decimal, Decimal, Decimal]:
+        """Calcul total avec passage du base_price et du track aux options (pour seuils et prix custom)."""
         base_price = self.calculate_base_price(resource, **kwargs)
-        # Passer base_price aux options pour le calcul des seuils
         options['base_price'] = base_price
+        options['_track'] = resource  # prix custom du beatmaker accessibles dans calculate_options_price
         options_price = self.calculate_options_price(options)
-        total_price = round(base_price + options_price, 2)
+        total_price = (base_price + options_price).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         return base_price, options_price, total_price
 
-    def calculate_options_price(self, options: Dict[str, Any]) -> float:
+    def calculate_options_price(self, options: Dict[str, Any]) -> Decimal:
         """
-        Calcule le prix du contrat selon les options
+        Calcule le prix du contrat selon les options.
+        Priorité : prix custom du track → config plateforme.
 
         IMPORTANT: Appliquer la même logique que le frontend (contract_config.html)
-        pour les seuils d'inclusion automatique des droits
+        pour les seuils d'inclusion automatique des droits.
         """
-        contract_price = 0.0
+        def _cfg(key, default):
+            return Decimal(str(current_app.config.get(key, default)))
 
-        # Base price from options (needed for threshold calculation)
-        base_price = options.get('base_price', 0.0)
+        track = options.get('_track')
 
-        # Exclusivité
+        def _resolve(attr, config_key, default):
+            """Prix du track si défini par le beatmaker, sinon défaut plateforme."""
+            val = getattr(track, attr, None) if track else None
+            if val is not None:
+                return Decimal(str(val))
+            return _cfg(config_key, default)
+
+        contract_price = Decimal('0')
+        base_price = Decimal(str(options.get('base_price', 0)))
+
         if options.get('is_exclusive'):
-            contract_price += float(current_app.config.get('CONTRACT_EXCLUSIVE_PRICE', 150))
+            contract_price += _resolve('contract_price_exclusive', 'CONTRACT_EXCLUSIVE_PRICE', 150)
 
-        # Durée
         if options.get('is_lifetime'):
-            contract_price += float(current_app.config['CONTRACT_DURATIONS']['lifetime'])
+            val = getattr(track, 'contract_price_lifetime', None) if track else None
+            contract_price += Decimal(str(val)) if val is not None else Decimal(
+                str(current_app.config['CONTRACT_DURATIONS']['lifetime']))
         else:
             years = str(int(options.get('duration_years', 3)))
-            contract_price += float(current_app.config['CONTRACT_DURATIONS'].get(years, 5))
+            if years != '0':  # 0 = streaming seul, inclus dans le prix de base (aucun surcoût)
+                _dur_attr = {'3': 'contract_price_duration_3y', '5': 'contract_price_duration_5y',
+                             '10': 'contract_price_duration_10y'}.get(years)
+                val = getattr(track, _dur_attr, None) if (track and _dur_attr) else None
+                contract_price += Decimal(str(val)) if val is not None else Decimal(
+                    str(current_app.config['CONTRACT_DURATIONS'].get(years, 5)))
 
-        # Territoire
         territory = options.get('territory', 'Monde entier')
         territory_prices = {
-            'France': 0,
-            'Europe': float(current_app.config.get('CONTRACT_TERRITORY_EUROPE', 5)),
-            'Monde entier': float(current_app.config.get('CONTRACT_TERRITORY_WORLD', 10))
+            'France':       Decimal('0'),
+            'Europe':       _resolve('contract_price_territory_eu', 'CONTRACT_TERRITORY_EUROPE', 5),
+            'Monde entier': _resolve('contract_price_territory_world', 'CONTRACT_TERRITORY_WORLD', 10),
         }
-        contract_price += territory_prices.get(territory, 0)
+        contract_price += territory_prices.get(territory, Decimal('0'))
 
-        # Arrangement (calculé AVANT les droits dynamiques car il affecte les seuils)
         if options.get('arrangement'):
-            contract_price += float(current_app.config.get('CONTRACT_ARRANGEMENT_PRICE', 10))
+            contract_price += _resolve('contract_price_arrangement', 'CONTRACT_ARRANGEMENT_PRICE', 10)
 
-        #  SEUILS D'INCLUSION AUTOMATIQUE (comme dans le frontend)
-        # Calculer le total intermédiaire pour les seuils
         intermediate_total = base_price + contract_price
-        MECHANICAL_THRESHOLD = 199.99
-        PUBLIC_SHOW_THRESHOLD = 74.99
+        MECHANICAL_THRESHOLD = Decimal('199.99')
+        PUBLIC_SHOW_THRESHOLD = Decimal('74.99')
 
-        # Droits d'exploitation avec logique de seuil
-        # Mechanical reproduction: inclus automatiquement si total ≥ 199.99€
         if options.get('mechanical_reproduction'):
             if intermediate_total < MECHANICAL_THRESHOLD:
-                # Coché manuellement ET en dessous du seuil → on paye
-                contract_price += float(current_app.config.get('CONTRACT_MECHANICAL_REPRODUCTION_PRICE', 30))
-            # Sinon: inclus automatiquement, prix = 0
+                mech_fee = _resolve('contract_price_mechanical',
+                                    'CONTRACT_MECHANICAL_REPRODUCTION_PRICE', 30)
+                contract_price    += mech_fee
+                intermediate_total += mech_fee  # mise à jour pour le seuil diffusion publique
 
-        # Public show: inclus automatiquement si total ≥ 74.99€
         if options.get('public_show'):
             if intermediate_total < PUBLIC_SHOW_THRESHOLD:
-                # Coché manuellement ET en dessous du seuil → on paye
-                contract_price += float(current_app.config.get('CONTRACT_PUBLIC_SHOW_PRICE', 40))
-            # Sinon: inclus automatiquement, prix = 0
+                contract_price += _resolve('contract_price_public_show',
+                                           'CONTRACT_PUBLIC_SHOW_PRICE', 40)
 
         return contract_price
 
 
 class MixMasterRequestPriceCalculator(PriceCalculator):
     """Calculateur de prix pour les demandes Mix/Master"""
-    
-    def calculate_base_price(self, resource, **kwargs) -> float:
+
+    def calculate_base_price(self, resource, **kwargs) -> Decimal:
         """Calcule le prix selon les services sélectionnés"""
-        total_percentage = 0.0
-        mixmaster_reference_price = float(resource.mixmaster_reference_price or 100)
+        ref = Decimal(str(resource.mixmaster_reference_price or 100))
 
         services_percentages = {
-            'service_cleaning': 0.35,
-            'service_effects': 0.45,
-            'service_artistic': 0.60,
-            'service_mastering': 0.20
+            'service_cleaning': Decimal('0.35'),
+            'service_effects':  Decimal('0.45'),
+            'service_artistic': Decimal('0.60'),
+            'service_mastering': Decimal('0.20'),
         }
 
+        total_percentage = Decimal('0')
         for service, percentage in services_percentages.items():
             if kwargs.get(service):
                 total_percentage += percentage
@@ -154,31 +165,28 @@ class MixMasterRequestPriceCalculator(PriceCalculator):
         if total_percentage == 0:
             raise ValueError("Aucun service sélectionné. Veuillez sélectionner un service.")
 
-        base_price = mixmaster_reference_price * total_percentage
-        return round(base_price, 2)
-    
-    def calculate_options_price(self, options: Dict[str, Any]) -> float:
+        return (ref * total_percentage).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+
+    def calculate_options_price(self, options: Dict[str, Any]) -> Decimal:
         """Calcule le bonus stems (+20% du prix de référence)"""
-        bonus = 0.0
-
+        bonus = Decimal('0')
         if options.get('has_separated_stems'):
-            reference_price = options.get('reference_price', 0)
-            bonus += reference_price * 0.20
+            reference_price = Decimal(str(options.get('reference_price', 0)))
+            bonus = (reference_price * Decimal('0.20')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        return bonus
 
-        return round(bonus, 2)
-
-    def calculate_total(self, resource, options: Dict[str, Any], **kwargs):
+    def calculate_total(self, resource, options: Dict[str, Any], **kwargs) -> Tuple[Decimal, Decimal, Decimal]:
         """Total avec minimum mixmaster_price_min appliqué"""
         base_price = self.calculate_base_price(resource, **kwargs)
         options['base_price'] = base_price
-        options['reference_price'] = float(resource.mixmaster_reference_price or 100)
+        options['reference_price'] = Decimal(str(resource.mixmaster_reference_price or 100))
         options_price = self.calculate_options_price(options)
 
         calculated_total = base_price + options_price
-        mixmaster_price_min = float(resource.mixmaster_price_min or 0)
-        total_price = max(calculated_total, mixmaster_price_min)
+        price_min = Decimal(str(resource.mixmaster_price_min or 0))
+        total_price = max(calculated_total, price_min)
 
-        return base_price, options_price, round(total_price, 2)
+        return base_price, options_price, total_price.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
 # ============================================

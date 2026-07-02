@@ -1,12 +1,13 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
-import { environment } from '../../../../environments/environment';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
+
+type Mode = 'quick' | 'advanced';
 
 @Component({
   selector: 'app-mixmaster-order',
@@ -14,6 +15,7 @@ import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mix
   imports: [CommonModule, RouterModule, FormsModule, MixmasterGuideComponent],
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MixmasterOrderComponent implements OnInit {
 
@@ -21,6 +23,7 @@ export class MixmasterOrderComponent implements OnInit {
   submitting  = signal(false);
   error       = signal<string | null>(null);
   engineer    = signal<MixEngineerPublic | null>(null);
+  mode        = signal<Mode>('quick');
 
   // ── Services ─────────────────────────────────────────────────────────────
   serviceCleaning  = signal(false);
@@ -66,17 +69,36 @@ export class MixmasterOrderComponent implements OnInit {
   referenceFile = signal<File | null>(null);
 
   // ── Price (computed) ──────────────────────────────────────────────────────
-  estimatedPrice = computed(() => {
+  ref = computed(() => +(this.engineer()?.mixmaster_reference_price ?? 0));
+
+  /** Prix brut des services cochés (sans plancher price_min). */
+  rawServicesPrice = computed(() => {
     const eng = this.engineer();
     if (!eng) return 0;
-    const ref = eng.mixmaster_reference_price;
+    const r = eng.mixmaster_reference_price;
+    if (r == null) return 0;
     let price = 0;
-    if (this.serviceCleaning())  price += ref * 0.35;
-    if (this.serviceEffects())   price += ref * 0.45;
-    if (this.serviceMastering()) price += ref * 0.20;
-    if (this.serviceArtistic())  price += ref * 0.60;
-    if (this.hasSeparatedStems()) price += ref * 0.20;
+    if (this.serviceCleaning())   price += +r * 0.35;
+    if (this.serviceEffects())    price += +r * 0.45;
+    if (this.serviceMastering())  price += +r * 0.20;
+    if (this.serviceArtistic())   price += +r * 0.60;
+    if (this.hasSeparatedStems()) price += +r * 0.20;
     return Math.round(price * 100) / 100;
+  });
+
+  /**
+   * Supplément appliqué pour atteindre le tarif minimum de l'ingénieur.
+   * Positif quand les services cochés sont inférieurs à price_min.
+   */
+  priceMinSupplement = computed(() => {
+    const priceMin = +(this.engineer()?.mixmaster_price_min ?? 0);
+    const raw      = this.rawServicesPrice();
+    return Math.max(0, Math.round((priceMin - raw) * 100) / 100);
+  });
+
+  /** Prix total réel = max(services, price_min). Cohérent avec le backend. */
+  estimatedPrice = computed(() => {
+    return this.rawServicesPrice() + this.priceMinSupplement();
   });
 
   depositAmount = computed(() => Math.round(this.estimatedPrice() * 0.30 * 100) / 100);
@@ -86,9 +108,9 @@ export class MixmasterOrderComponent implements OnInit {
   private router  = inject(Router);
   private mixSvc  = inject(MixmasterService);
   private toast   = inject(ToastService);
+  private cdr     = inject(ChangeDetectorRef);
 
   ngOnInit(): void {
-    if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     const id = Number(this.route.snapshot.paramMap.get('engineerId'));
     this.mixSvc.getEngineer(id).subscribe({
       next: (res) => {
@@ -104,12 +126,28 @@ export class MixmasterOrderComponent implements OnInit {
           this.error.set(res.feedback?.message ?? 'Ingénieur introuvable.');
         }
         this.loading.set(false);
+        this.cdr.markForCheck();
       },
       error: () => {
         this.error.set('Impossible de charger les informations de l\'ingénieur.');
         this.loading.set(false);
+        this.cdr.markForCheck();
       },
     });
+  }
+
+  setMode(m: Mode): void {
+    this.mode.set(m);
+    if (m === 'quick') {
+      // Revenir aux seuls services obligatoires, supprimer les extras
+      const mandatory = this.mandatoryServices();
+      this.serviceCleaning.set(mandatory.has('cleaning'));
+      this.serviceEffects.set(mandatory.has('effects'));
+      this.serviceMastering.set(mandatory.has('mastering'));
+      this.serviceArtistic.set(mandatory.has('artistic'));
+      this.hasSeparatedStems.set(false);
+    }
+    this.cdr.markForCheck();
   }
 
   onStemsChange(ev: Event): void {
@@ -123,6 +161,10 @@ export class MixmasterOrderComponent implements OnInit {
   }
 
   submit(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
     if (this.submitting()) return;
     const stems = this.stemsFile();
     if (!stems) { this.toast.showToast({ level: 'warning', message: 'Veuillez uploader votre archive (ZIP/RAR).' }); return; }
@@ -134,11 +176,11 @@ export class MixmasterOrderComponent implements OnInit {
     fd.append('stems_file', stems);
     if (this.referenceFile()) fd.append('reference_file', this.referenceFile()!);
     fd.append('title',               this.title().trim());
-    fd.append('service_cleaning',    String(this.serviceCleaning()));
-    fd.append('service_effects',     String(this.serviceEffects()));
-    fd.append('service_artistic',    String(this.serviceArtistic()));
-    fd.append('service_mastering',   String(this.serviceMastering()));
-    fd.append('has_separated_stems', String(this.hasSeparatedStems()));
+    fd.append('service_cleaning',    this.serviceCleaning()   ? '1' : '0');
+    fd.append('service_effects',     this.serviceEffects()    ? '1' : '0');
+    fd.append('service_artistic',    this.serviceArtistic()   ? '1' : '0');
+    fd.append('service_mastering',   this.serviceMastering()  ? '1' : '0');
+    fd.append('has_separated_stems', this.hasSeparatedStems() ? '1' : '0');
     fd.append('artist_message',      this.artistMessage());
     fd.append('brief_vocals',        this.briefVocals());
     fd.append('brief_backing_vocals', this.briefBackingVocals());
@@ -171,6 +213,8 @@ export class MixmasterOrderComponent implements OnInit {
   }
 
   imgUrl(path: string | null): string {
-    return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/default_profile.png';
+    if (!path) return '/assets/placeholders/default_profile.png';
+    if (path.startsWith('http')) return path;
+    return `/db_assets/${path}`;
   }
 }

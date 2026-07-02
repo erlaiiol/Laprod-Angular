@@ -2,77 +2,129 @@
 // PAGE HOME
 // Rôle : orchestrer. Elle charge les tracks depuis l'API et les distribue
 // vers TrackCardComponent. Elle réagit aux filtres posés par Navbar.
+// Si l'utilisateur est connecté et n'a pas de filtres actifs → recommandations.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, OnInit, signal, effect, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 
 import { TrackService, Track, TrackFilters } from '../../services/track.service';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
+import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
+import { OnboardingModalComponent } from '../../components/onboarding-modal/onboarding-modal.component';
+import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
-//                             └── service partagé : Navbar écrit, Home lit
+import { FavoritesService } from '../../services/favorites.service';
+import { AuthService } from '../../services/auth.service';
 
+const PER_PAGE = 20;
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, TrackCardComponent],
+  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent],
   templateUrl: './home.component.html',
-  styleUrls:   ['./home.component.scss']
+  styleUrls:   ['./home.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent implements OnInit {
 
-  tracks  = signal<Track[]>([]);
-  loading = signal(true);
-  error   = signal<string | null>(null);
+  tracks          = signal<Track[]>([]);
+  loading         = signal(true);
+  error           = signal<string | null>(null);
+
+  showOnboarding  = signal(false);
+  showHero        = signal(false);
+  heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
+  displayMode     = signal<'list' | 'gallery'>(
+    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'gallery'
+  );
+
+  // Pagination
+  page       = signal(1);
+  totalPages = signal(1);
 
   private trackService       = inject(TrackService);
   private filterStateService = inject(FilterStateService);
   private toast              = inject(ToastService);
-  // inject() est l'équivalent de "private x: X" dans le constructeur.
-  // Il peut être utilisé en dehors du constructeur, pratique ici car
-  // effect() doit être créé dans le contexte d'injection (champ de classe).
+  private favSvc             = inject(FavoritesService);
+  readonly auth              = inject(AuthService);
 
   constructor() {
-    // ── effect() ──────────────────────────────────────────────────────────
-    // effect() crée une réaction : Angular appelle cette fonction
-    // automatiquement chaque fois qu'un signal LU À L'INTÉRIEUR change.
-    //
-    // Ici : filterStateService.applied() est lu → Angular observe ce signal.
-    // Quand Navbar appelle filterStateService.apply() ou .reset(),
-    // applied() s'incrémente → effect() se déclenche → loadTracks() recharge.
-    //
-    // allowSignalWrites: true est nécessaire car loadTracks() écrit dans
-    // des signaux (loading, tracks, error) depuis l'intérieur d'un effect().
-
+    // Filtre ou catégorie changent → toujours revenir à la page 1
     effect(() => {
-      this.filterStateService.applied(); // lecture → crée la dépendance
-      this.loadTracks();
+      this.filterStateService.applied();
+      this.auth.preferredTagCategory();
+      this.loadTracks(1);
     }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
-    // loadTracks() est déjà appelé par effect() au démarrage
-    // (effect() s'exécute une première fois lors de l'initialisation).
-    // ngOnInit reste présent pour clarté architecturale.
+    if (!this.auth.isLoggedIn() && !localStorage.getItem('laprod_visited')) {
+      this.showHero.set(true);
+      localStorage.setItem('laprod_visited', '1');
+    }
+
+    const user = this.auth.currentUser();
+    const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
+    // Ne pas redemander si l'utilisateur a déjà une préférence (backend ou mode artistes local)
+    const alreadyHasPref = !!user?.preferred_tag_category
+      || localStorage.getItem('card_info_mode') === 'artists';
+    if (hasRole && !alreadyHasPref && OnboardingModalComponent.shouldShow()) {
+      localStorage.setItem('laprod_onboarding_done', '1');
+      this.showOnboarding.set(true);
+    }
   }
 
-  loadTracks(): void {
+  dismissHero(): void {
+    this.showHero.set(false);
+  }
+
+  setDisplayMode(mode: 'list' | 'gallery'): void {
+    this.displayMode.set(mode);
+    localStorage.setItem('laprod_display_mode', mode);
+  }
+
+  goToPage(p: number): void {
+    this.loadTracks(p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  loadTracks(page = 1): void {
+    this.page.set(page);
     this.loading.set(true);
     this.error.set(null);
+    this._loadRegularTracks(page);
+  }
 
-    // Convertit ActiveFilters (format Navbar) → TrackFilters (format API Flask)
-    const apiFilters = this.toTrackFilters(this.filterStateService.filters());
+  private _loadRegularTracks(page: number): void {
+    const apiFilters: TrackFilters = {
+      ...this.toTrackFilters(this.filterStateService.filters()),
+      page,
+      per_page: PER_PAGE,
+      sort: this.auth.isLoggedIn() ? 'recommended' : undefined,
+    };
 
     this.trackService.getTracks(apiFilters).subscribe({
       next: (response) => {
         if (response.success) {
-          this.tracks.set(response.data.tracks);
+          this.totalPages.set(response.data.pagination.pages);
+          if (this.auth.isLoggedIn()) {
+            const ids = (response.data.tracks as Track[]).map((t: Track) => t.id);
+            this.favSvc.prefetch(ids).subscribe({
+              next:  () => { this.tracks.set(response.data.tracks); this.loading.set(false); },
+              error: () => { this.tracks.set(response.data.tracks); this.loading.set(false); },
+            });
+          } else {
+            this.tracks.set(response.data.tracks);
+            this.loading.set(false);
+          }
         } else {
           this.error.set('Le serveur a répondu mais signale une erreur.');
+          this.loading.set(false);
         }
-        this.loading.set(false);
       },
       error: (err) => {
         if (!err?.error?.feedback) {
@@ -84,21 +136,18 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  // ── Conversion de format ──────────────────────────────────────────────────
-  // ActiveFilters (Navbar) → TrackFilters (HTTP query string pour Flask)
-  //
-  // Flask attend :  ?search=trap&bpm_min=80&keys=Am,Gm&styles=Trap
-  // Les tableaux sont joints en chaîne séparée par des virgules,
-  // comme filters.js le faisait avec params.set('keys', keys.join(','))
-
   private toTrackFilters(f: ActiveFilters): TrackFilters {
     return {
-      search:   f.search   || undefined,
-      bpm_min:  f.bpmMin   ?? undefined,
-      bpm_max:  f.bpmMax   ?? undefined,
-      keys:     f.keys.length   ? f.keys.join(',')   : undefined,
-      styles:   f.styles.length ? f.styles.join(',') : undefined,
-      tags:     f.tags.length   ? f.tags.join(',')   : undefined,
+      search:             f.search   || undefined,
+      bpm_min:            f.bpmMin   ?? undefined,
+      bpm_max:            f.bpmMax   ?? undefined,
+      keys:               f.keys.length           ? f.keys.join(',')           : undefined,
+      styles:             f.styles.length          ? f.styles.join(',')          : undefined,
+      tags:               f.tags.length            ? f.tags.join(',')            : undefined,
+      similar_artist_ids: f.similarArtists?.length ? f.similarArtists.join(',') : undefined,
+      // tag_category N'EST PAS envoyé comme filtre : la catégorie préférée informe
+      // uniquement l'algorithme de recommandation (persistée via AuthService),
+      // elle ne doit jamais exclure des tracks de la liste visible.
     };
   }
 

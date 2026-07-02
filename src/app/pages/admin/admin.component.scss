@@ -41,14 +41,36 @@
   }
 }
 
+// ── Exclusive tracks ──────────────────────────────────────────────────────────
+
+.btn-exclusive-tab {
+  border-color: rgba(234, 179, 8, 0.35) !important;
+  color: v.$gold !important;
+  &.active { background: rgba(234, 179, 8, 0.12) !important; border-color: v.$gold !important; }
+}
+
+.exclusive-tag {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  font-size: 0.68rem; font-weight: 700; color: v.$gold;
+  background: rgba(234, 179, 8, 0.12); border-radius: 4px; padding: 0.1rem 0.35rem;
+  margin-left: 0.35rem;
+}
+
+.exclusive-row td { background: rgba(234, 179, 8, 0.04); }
+
 // ── Loading bar ────────────────────────────────────────────────────────────────
 
 .loading-bar {
   height: 3px; background: v.$bg-border; border-radius: 2px; margin-bottom: 1rem; overflow: hidden;
+  // isolation:isolate prevents the animated child from polluting the stacking context
+  isolation: isolate;
 }
 .loading-inner {
   height: 100%; width: 40%; background: v.$tag-violet;
   animation: slide 1s infinite;
+  // will-change keeps the animation on its own compositor layer without
+  // creating a stacking context that would trap position:fixed modals
+  will-change: transform;
 }
 @keyframes slide {
   0%   { transform: translateX(-100%); }
@@ -212,13 +234,36 @@
   &.role-bm  { background: rgba(v.$tag-violet, 0.2); color: v.$tag-violet; }
   &.role-art { background: rgba(v.$tag-pink, 0.2);   color: v.$tag-pink; }
   &.role-eng { background: rgba(v.$tag-blue, 0.2);   color: v.$tag-blue; }
+  &.role-mst { background: rgba(v.$tag-teal, 0.2);   color: v.$tag-teal; }
   &.role-pa  { background: rgba(v.$tag-green, 0.2);  color: v.$tag-green; }
+}
+
+// Boutons de certification engineer groupés
+.cert-group {
+  display: inline-flex; gap: 2px; vertical-align: middle;
+}
+
+.btn-cert {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 0.2rem 0.3rem; line-height: 1;
+  opacity: 0.45;
+
+  &--on { opacity: 1; }
+  &:disabled { opacity: 0.2; cursor: not-allowed; }
+}
+
+.btn-icon--cert-on {
+  color: v.$tag-blue;
+  border-color: rgba(v.$tag-blue, 0.4);
+  background: rgba(v.$tag-blue, 0.08);
 }
 
 .badge-premium { color: v.$tag-orange; font-size: 0.8rem; margin-left: 0.3rem; }
 .badge-admin   { background: v.$tag-red; color: #fff; font-size: 0.65rem; font-weight: 700;
                  padding: 0.1rem 0.35rem; border-radius: 4px; margin-left: 0.3rem; }
 .badge-pa      { background: rgba(v.$tag-green, 0.2); color: v.$tag-green; font-size: 0.75rem;
+                 padding: 0.15rem 0.4rem; border-radius: 4px; }
+.badge-master  { background: rgba(16,185,129,0.15); color: v.$tag-green; font-size: 0.75rem;
                  padding: 0.15rem 0.4rem; border-radius: 4px; }
 
 .status-chip {
@@ -331,11 +376,13 @@
 // ── Modal ──────────────────────────────────────────────────────────────────────
 
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7);
-  display: flex; align-items: center; justify-content: center; z-index: 1000;
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000; // above player (1000), navbar (1040), uf-backdrop (1070)
 }
 
 .modal {
+  display: block;
   background: v.$bg-surface; border: 1px solid v.$bg-border;
   border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 480px;
   h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem; }
@@ -495,7 +542,7 @@
 .badge-certified-sm {
   display: inline-flex; align-items: center; gap: 0.25rem;
   padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
-  background: rgba(255, 193, 7, 0.15); color: #ffc107;
+  background: rgba(255, 193, 7, 0.15); color: v.$gold;
 }
 
 .btn-upload {
@@ -504,3 +551,485 @@
   color: v.$tag-blue; transition: background 0.15s;
   &:hover { background: rgba(59, 130, 246, 0.2); }
 }
+
+// ── Plan modal ──────────────────────────────────────────────────────────────────
+
+.modal--plan { max-width: 430px; }
+
+.plan-modal-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;
+  h3 { font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;
+    i { color: v.$primary; } }
+}
+
+.btn-icon-close {
+  background: none; border: none; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.9rem; padding: 0.25rem;
+  &:hover { color: v.$text-primary; }
+}
+
+.plan-current-block {
+  border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 1rem;
+  border: 1px solid v.$bg-border; background: v.$bg-elevated;
+  display: flex; flex-direction: column; gap: 0.35rem;
+
+  &--stripe { border-color: rgba(99, 179, 237, 0.4); background: rgba(99, 179, 237, 0.06); }
+  &--admin  { border-color: rgba(v.$primary, 0.35);  background: rgba(v.$primary, 0.06); }
+  &--free   { flex-direction: row; align-items: center; gap: 0.5rem; }
+}
+
+.plan-current-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.82rem; gap: 0.5rem;
+}
+
+.plan-current-label { color: v.$text-secondary; display: flex; align-items: center; gap: 0.35rem; }
+.plan-price { color: v.$tag-green; font-size: 0.88rem; }
+.plan-days-left { color: v.$text-muted; font-size: 0.78rem; font-style: normal; }
+
+// Plan badges (free / amateur / pro)
+.plan-badge {
+  display: inline-flex; align-items: center; border-radius: 20px;
+  padding: 0.15rem 0.6rem; font-size: 0.75rem; font-weight: 700;
+
+  &--free    { background: v.$bg-elevated;             color: v.$text-secondary; border: 1px solid v.$bg-border; }
+  &--amateur { background: rgba(v.$primary, 0.12);     color: v.$primary;        border: 1px solid rgba(v.$primary, 0.3); }
+  &--pro     { background: rgba(v.$tag-orange, 0.12);  color: v.$tag-orange;     border: 1px solid rgba(v.$tag-orange, 0.3); }
+}
+
+.plan-select-section { margin-bottom: 1rem; }
+.plan-select-label { font-size: 0.8rem; color: v.$text-secondary; margin: 0 0 0.5rem; }
+
+.plan-select-options { display: flex; gap: 0.5rem; }
+
+.plan-option {
+  cursor: pointer; display: flex; align-items: center;
+  input[type="radio"] { display: none; }
+  .plan-option-label { cursor: pointer; transition: opacity 0.12s, box-shadow 0.12s; }
+  &--selected .plan-option-label { box-shadow: 0 0 0 2px currentColor; }
+}
+
+.plan-warning {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  background: rgba(v.$tag-orange, 0.1); border: 1px solid rgba(v.$tag-orange, 0.3);
+  border-radius: 7px; padding: 0.55rem 0.75rem; font-size: 0.8rem;
+  color: v.$tag-orange; margin-bottom: 0.75rem;
+  i { flex-shrink: 0; margin-top: 0.05rem; }
+}
+
+.btn-icon--plan   { color: v.$primary; }
+.btn-icon--warn   { color: v.$gold; }
+.btn-icon--ok     { color: v.$tag-green; }
+.btn-icon--danger { color: v.$tag-red; }
+
+.acct-chip {
+  display: inline-flex; align-items: center;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+  border-radius: 4px; padding: 1px 5px; margin-left: 4px;
+
+  &--warn { background: rgba(v.$gold, 0.12); color: v.$gold; border: 1px solid rgba(v.$gold, 0.3); }
+  &--ok   { background: rgba(v.$tag-green, 0.12); color: v.$tag-green; border: 1px solid rgba(v.$tag-green, 0.3); }
+}
+
+.modal--danger { max-width: 420px; }
+
+.delete-warning {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  background: rgba(v.$tag-red, 0.08); border: 1px solid rgba(v.$tag-red, 0.3);
+  border-radius: 7px; padding: 0.6rem 0.75rem; font-size: 0.82rem;
+  color: v.$tag-red-light; margin-bottom: 0.85rem;
+  i { flex-shrink: 0; margin-top: 0.05rem; }
+}
+
+.btn-danger {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem; background: v.$tag-red; color: #fff;
+  border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+  &:hover:not(:disabled) { opacity: 0.85; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin-btn 0.7s linear infinite; vertical-align: middle; margin-right: 0.3rem;
+}
+
+@keyframes spin-btn { to { transform: rotate(360deg); } }
+
+// ── Onglet Support / Emails ───────────────────────────────────────────────────
+
+.support-wrap {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.support-section {
+  margin-bottom: 1.25rem;
+}
+
+.support-section-title {
+  font-size: 0.78rem; font-weight: 600; color: v.$text-secondary;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 0 0 0.55rem;
+  i { margin-right: 0.35rem; }
+}
+
+.support-input {
+  width: 100%; padding: 0.5rem 0.75rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  color: v.$text-primary; font-size: 0.88rem;
+  transition: border-color 0.15s;
+  &:focus { outline: none; border-color: v.$primary; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &--inline { width: auto; flex: 1; }
+}
+
+.support-textarea {
+  width: 100%; padding: 0.6rem 0.75rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  color: v.$text-primary; font-size: 0.88rem; font-family: inherit; line-height: 1.6;
+  resize: vertical; min-height: 200px;
+  transition: border-color 0.15s;
+  &:focus { outline: none; border-color: v.$primary; }
+}
+
+.support-hint {
+  margin: 0.4rem 0 0; font-size: 0.75rem; color: v.$text-muted;
+  code { background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 3px; padding: 0.05rem 0.3rem; font-size: 0.8em; }
+  i { margin-right: 0.25rem; }
+}
+
+// ── Nouveautés (updates.json) ─────────────────────────────────────────────────
+
+.update-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: v.$primary; border-radius: 9px;
+  font-size: 0.7rem; font-weight: 700; color: #fff;
+  margin-left: 0.4rem; vertical-align: middle;
+}
+
+.updates-list {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  max-height: 340px; overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.update-card {
+  display: block; width: 100%; text-align: left;
+  padding: 0.6rem 0.85rem; border-radius: 6px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  cursor: pointer; transition: border-color 0.15s, background 0.12s;
+
+  &:hover { border-color: v.$text-muted; background: v.$bg-elevated; }
+
+  &--selected {
+    border-color: v.$primary;
+    background: rgba(v.$primary, 0.07);
+  }
+
+  &--sent { opacity: 0.55; }
+}
+
+.update-card-header {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+
+.update-cat-badge {
+  font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 10px; font-weight: 600;
+  &--feature     { background: rgba(v.$tag-blue,   0.15); color: v.$tag-blue-dark; }
+  &--improvement { background: rgba(v.$gold,        0.15); color: v.$gold; }
+  &--fix         { background: rgba(v.$tag-red,     0.12); color: v.$tag-red; }
+  &--behavior    { background: rgba(v.$text-muted,  0.15); color: v.$text-secondary; }
+}
+
+.update-audience-badge {
+  font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 10px;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-muted;
+}
+
+.update-date {
+  font-size: 0.68rem; color: v.$text-muted; margin-left: auto;
+}
+
+.update-sent-chip {
+  font-size: 0.68rem; color: v.$tag-green; display: flex; align-items: center; gap: 0.2rem;
+}
+
+.update-selected-icon {
+  color: v.$primary; font-size: 0.9rem; margin-left: 0.1rem;
+}
+
+.update-card-title {
+  margin: 0 0 0.15rem; font-size: 0.84rem; font-weight: 600; color: v.$text-primary;
+}
+
+.update-card-short {
+  margin: 0; font-size: 0.76rem; color: v.$text-muted; line-height: 1.4;
+}
+
+.updates-actions-bar {
+  display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem;
+  padding: 0.5rem 0.75rem; border-radius: 6px;
+  background: rgba(v.$primary, 0.07); border: 1px solid rgba(v.$primary, 0.25);
+}
+
+.updates-selected-label {
+  font-size: 0.8rem; color: v.$primary; font-weight: 600; flex: 1;
+}
+
+.btn-insert-updates {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.3rem 0.8rem; border-radius: 5px;
+  background: v.$primary; border: none; color: #fff;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+}
+
+.btn-clear-selection {
+  background: none; border: none; color: v.$text-muted; cursor: pointer; font-size: 0.8rem;
+  padding: 0.2rem 0.35rem; border-radius: 4px;
+  &:hover { color: v.$text-primary; background: v.$bg-surface; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+.mode-toggle-wrap {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.mode-toggle-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem; border-radius: 20px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; cursor: pointer; font-size: 0.83rem;
+  transition: all 0.15s;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+  &.active {
+    background: rgba(v.$primary, 0.15); border-color: v.$primary;
+    color: v.$primary; font-weight: 600;
+  }
+}
+
+.broadcast-info {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.65rem 1rem; border-radius: 6px;
+  background: rgba(v.$primary, 0.08); border: 1px solid rgba(v.$primary, 0.3);
+  color: v.$text-primary; font-size: 0.87rem;
+  i { color: v.$primary; flex-shrink: 0; }
+  strong { color: v.$primary; }
+}
+
+.broadcast-confirm {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem; border-radius: 6px;
+  background: rgba(v.$tag-red, 0.08); border: 1px solid rgba(v.$tag-red, 0.35);
+  color: v.$text-primary; font-size: 0.87rem; margin-bottom: 1rem;
+  i { color: v.$tag-red; flex-shrink: 0; font-size: 1.1rem; }
+  strong { color: v.$tag-red; }
+}
+
+.broadcast-confirm-actions {
+  display: flex; gap: 0.5rem; margin-left: auto;
+}
+
+.btn-confirm-cancel {
+  padding: 0.35rem 0.85rem; border-radius: 6px;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; cursor: pointer; font-size: 0.83rem;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+}
+
+.btn-confirm-send {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 1rem; border-radius: 6px;
+  background: v.$tag-red; border: 1px solid v.$tag-red;
+  color: #fff; cursor: pointer; font-size: 0.83rem; font-weight: 600;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.recipient-search-wrap { position: relative; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.recipient-pill {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.65rem; background: v.$bg-surface; border: 1px solid v.$primary;
+  border-radius: 20px; font-size: 0.85rem; color: v.$text-primary;
+
+  .recipient-clear {
+    background: none; border: none; color: v.$text-muted; cursor: pointer; padding: 0; line-height: 1;
+    font-size: 0.7rem; display: flex; align-items: center;
+    &:hover { color: v.$tag-red; }
+  }
+}
+
+.search-dropdown {
+  position: absolute; top: calc(100% + 0.25rem); left: 0; right: 0; z-index: 10;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden;
+}
+
+.search-result-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%; padding: 0.5rem 0.75rem; background: none; border: none;
+  color: v.$text-primary; cursor: pointer; font-size: 0.85rem; text-align: left;
+  transition: background 0.1s;
+  &:hover { background: v.$bg-surface; }
+  i { color: v.$text-muted; flex-shrink: 0; }
+  .search-email { color: v.$text-muted; font-size: 0.78rem; margin-left: auto; }
+}
+
+.manual-email-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  .or-divider { font-size: 0.75rem; color: v.$text-muted; white-space: nowrap; }
+}
+
+.template-pills {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+}
+
+.template-pill {
+  padding: 0.3rem 0.75rem; background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 16px; color: v.$text-secondary; cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s;
+  &:hover { border-color: v.$text-muted; color: v.$text-primary; }
+  &.active { background: rgba(v.$primary, 0.15); border-color: v.$primary; color: v.$primary; font-weight: 600; }
+}
+
+.support-actions {
+  display: flex; justify-content: flex-end; padding-top: 0.5rem;
+}
+
+// Prévisualisation
+.support-preview {
+  position: sticky; top: 1rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-header {
+  padding: 0.65rem 1rem; background: v.$bg-surface; border-bottom: 1px solid v.$bg-border;
+  font-size: 0.78rem; font-weight: 600; color: v.$text-secondary; text-transform: uppercase;
+  letter-spacing: 0.05em;
+  i { margin-right: 0.35rem; }
+}
+
+.preview-meta {
+  display: flex; gap: 0.5rem; align-items: baseline;
+  padding: 0.3rem 1rem;
+  border-bottom: 1px solid v.$bg-border;
+  font-size: 0.8rem;
+  .preview-label { color: v.$text-muted; min-width: 50px; flex-shrink: 0; }
+  .preview-value { color: v.$text-primary; word-break: break-all; }
+  &:last-of-type { border-bottom: 2px solid v.$bg-border; }
+}
+
+.preview-body {
+  padding: 1rem; font-size: 0.85rem; color: v.$text-secondary;
+  white-space: pre-wrap; line-height: 1.7; min-height: 150px;
+}
+
+// ── Onglet Toplines ───────────────────────────────────────────────────────────
+
+.cell-track, .cell-user {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+
+.link-subtle {
+  color: v.$text-primary; text-decoration: none; font-size: 0.85rem;
+  &:hover { color: v.$primary; text-decoration: underline; }
+}
+
+.desc-cell {
+  max-width: 200px; color: v.$text-muted; font-size: 0.78rem;
+}
+
+.topline-audio {
+  height: 28px; width: 180px;
+  accent-color: v.$primary;
+}
+
+.pagination-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.3rem; margin-top: 1.5rem; flex-wrap: wrap;
+}
+
+.btn-page {
+  min-width: 32px; height: 32px; padding: 0 0.5rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 6px; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.82rem; transition: all 0.15s;
+  &:hover:not(:disabled) { border-color: v.$primary; color: v.$primary; }
+  &--active { background: v.$primary; border-color: v.$primary; color: #fff; font-weight: 600; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── Invoices tab ───────────────────────────────────────────────────────────────
+
+.stat-sub { font-size: 0.75rem; color: v.$text-muted; margin-top: 0.1rem; }
+
+.stat-card--total { border-color: v.$accent; }
+
+.section-toggle {
+  display: flex; gap: 0.5rem; margin-bottom: 1rem;
+  button {
+    padding: 0.4rem 1rem; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    border-radius: 6px; color: v.$text-secondary; cursor: pointer; font-size: 0.84rem;
+    transition: all 0.15s;
+    &:hover { border-color: v.$accent; color: v.$text-primary; }
+    &.active { background: rgba(v.$accent, 0.1); border-color: v.$accent; color: v.$accent; font-weight: 600; }
+  }
+}
+
+.table-wrapper { overflow-x: auto; }
+
+.id-cell     { font-size: 0.78rem; color: v.$text-muted; }
+.track-title { font-weight: 600; font-size: 0.84rem; }
+.amount      { font-weight: 700; color: v.$tag-green; white-space: nowrap; }
+
+.user-name  { display: block; font-weight: 600; font-size: 0.84rem; }
+.user-email { display: block; font-size: 0.72rem; color: v.$text-muted; }
+
+.format-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px;
+  text-transform: uppercase;
+  &.mp3   { background: v.$format-mp3-bg;   color: v.$format-mp3-color; }
+  &.wav   { background: v.$format-wav-bg;   color: v.$format-wav-color; }
+  &.stems { background: v.$format-stems-bg; color: v.$format-stems-color; }
+}
+
+.status-badge {
+  font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 10px;
+  &.status-accepted  { background: rgba(v.$tag-blue, 0.15);   color: v.$tag-blue; }
+  &.status-processing { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &.status-delivered { background: rgba(v.$tag-violet, 0.15); color: v.$tag-violet; }
+  &.status-revision1,
+  &.status-revision2 { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &.status-completed { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green; }
+}
+
+.actions-cell { white-space: nowrap; }
+.actions-cell--mm { min-width: 260px; }
+
+.btn-dl {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem;
+  border-radius: 5px; text-decoration: none; margin-right: 0.25rem;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.8; }
+  &--buyer    { background: rgba(v.$tag-blue, 0.15);   color: v.$tag-blue; }
+  &--composer { background: rgba(v.$tag-green, 0.15);  color: v.$tag-green; }
+  &--rev      { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; }
+  &--final    { background: rgba(v.$accent, 0.15);     color: v.$accent; }
+}
+
+.empty-state { color: v.$text-muted; font-size: 0.9rem; text-align: center; padding: 2rem 0; }

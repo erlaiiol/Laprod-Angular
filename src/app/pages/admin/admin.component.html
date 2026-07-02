@@ -28,6 +28,21 @@
     <button [class.active]="activeTab() === 'transactions'" (click)="setTab('transactions')">
       <i class="bi bi-cash-stack"></i> Transactions
     </button>
+    <button [class.active]="activeTab() === 'contract-builder'" (click)="setTab('contract-builder')">
+      <i class="bi bi-file-earmark-richtext"></i> Générateur
+    </button>
+    <button [class.active]="activeTab() === 'recommendations'" (click)="setTab('recommendations')">
+      <i class="bi bi-stars"></i> Recommandations
+    </button>
+    <button [class.active]="activeTab() === 'toplines'" (click)="setTab('toplines')">
+      <i class="bi bi-mic-fill"></i> Toplines
+    </button>
+    <button [class.active]="activeTab() === 'support'" (click)="setTab('support')">
+      <i class="bi bi-envelope-heart"></i> Support
+    </button>
+    <button [class.active]="activeTab() === 'invoices'" (click)="setTab('invoices')">
+      <i class="bi bi-receipt"></i> Factures
+    </button>
   </div>
 
   <div class="tab-content">
@@ -51,6 +66,21 @@
     }
     @if (activeTab() === 'transactions') {
       <app-admin-transactions />
+    }
+    @if (activeTab() === 'contract-builder') {
+      <app-admin-contract-builder />
+    }
+    @if (activeTab() === 'recommendations') {
+      <app-admin-recommendations />
+    }
+    @if (activeTab() === 'toplines') {
+      <app-admin-toplines />
+    }
+    @if (activeTab() === 'support') {
+      <app-admin-support />
+    }
+    @if (activeTab() === 'invoices') {
+      <app-admin-invoices />
     }
   </div>
 

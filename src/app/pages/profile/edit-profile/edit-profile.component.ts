@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
 })
 export class EditProfileComponent implements OnInit {
 
-  staticBase = `${environment.apiUrl.replace('/api', '')}/static/`;
+  staticBase = `/db_assets/`;
 
   // ── Form state ────────────────────────────────────────────────────────────
   bio        = signal('');
@@ -41,9 +41,17 @@ export class EditProfileComponent implements OnInit {
   error   = signal<string | null>(null);
   success = signal<string | null>(null);
 
-  isMixmasterCertified = signal(false);
-  isCertifiedProducer  = signal(false);
-  producerReqSubmitted = signal(false);
+  isMixmasterCertified        = signal(false);
+  isCertifiedProducer         = signal(false);
+  producerReqSubmitted        = signal(false);
+  isCertifiedMasterEngineer   = signal(false);
+  masterSampleSubmitted       = signal(false);
+
+  // Computed premium helpers (lus depuis le signal auth)
+  private authSvc = inject(AuthService);
+  readonly subscriptionPlan   = computed(() => this.authSvc.currentUser()?.subscription_plan ?? 'free');
+  readonly isPremium           = computed(() => this.authSvc.isPremium());
+  readonly isPro               = computed(() => this.authSvc.isPro());
 
   constructor(
     private userSvc: UserService,
@@ -69,12 +77,19 @@ export class EditProfileComponent implements OnInit {
     this.isCertifiedProducer.set((user as any).is_certified_producer_arranger ?? false);
     this.producerReqSubmitted.set((user as any).producer_arranger_request_submitted ?? false);
 
-    // Fetch fresh data for mixmaster prices (not in User signal)
+    // Fetch fresh data (prices, master certification — not all in User signal)
     this.userSvc.getProfile(user.username).subscribe(res => {
-      if (res.success && res.data?.user.mixmaster) {
-        const mm = res.data.user.mixmaster;
-        this.refPrice.set(mm.reference_price);
-        this.priceMin.set(mm.price_min);
+      if (!res.success || !res.data) return;
+      const u = res.data.user;
+      if (u.mixmaster) {
+        this.refPrice.set(u.mixmaster.reference_price);
+        this.priceMin.set(u.mixmaster.price_min);
+      }
+      if (u.is_certified_master_engineer !== undefined) {
+        this.isCertifiedMasterEngineer.set(u.is_certified_master_engineer);
+      }
+      if (u.master_sample_submitted !== undefined) {
+        this.masterSampleSubmitted.set(u.master_sample_submitted);
       }
     });
   }

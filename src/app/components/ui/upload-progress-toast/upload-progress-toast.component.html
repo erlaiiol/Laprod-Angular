@@ -1,0 +1,57 @@
+@if (uploadStatusSvc.status() !== null) {
+
+  <div class="upload-toast" [class]="'upload-toast--' + uploadStatusSvc.status()">
+
+    <!-- Miniature cover -->
+    <img class="upload-toast__cover"
+         [src]="uploadStatusSvc.imageUrl() ?? 'assets/placeholders/placeholder-track.png'"
+         onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'"
+         alt="" aria-hidden="true" />
+
+    <!-- Contenu principal -->
+    <div class="upload-toast__body">
+
+      <!-- Titre du beat -->
+      <span class="upload-toast__title">
+        {{ uploadStatusSvc.title() ?? 'Beat' }}
+      </span>
+
+      <!-- Ligne de statut -->
+      <div class="upload-toast__status-line">
+
+        @if (uploadStatusSvc.status() === 'queued' || uploadStatusSvc.status() === 'started' || uploadStatusSvc.status() === 'finalizing') {
+          <span class="upload-toast__spinner" aria-hidden="true"></span>
+          <span class="upload-toast__message">Traitement en cours...</span>
+        }
+
+        @if (uploadStatusSvc.status() === 'done') {
+          <span class="upload-toast__icon upload-toast__icon--success" aria-hidden="true">✓</span>
+          <span class="upload-toast__message">Beat publié !</span>
+          @if (uploadStatusSvc.trackId()) {
+            <a class="upload-toast__link"
+               [routerLink]="['/track', uploadStatusSvc.trackId()]">
+              Voir
+            </a>
+          }
+        }
+
+        @if (uploadStatusSvc.status() === 'error') {
+          <span class="upload-toast__icon upload-toast__icon--error" aria-hidden="true">✕</span>
+          <span class="upload-toast__message">
+            {{ uploadStatusSvc.errorMessage() ?? 'Erreur lors du traitement.' }}
+          </span>
+        }
+
+      </div>
+    </div>
+
+    <!-- Bouton fermer (done et error uniquement) -->
+    @if (uploadStatusSvc.status() === 'done' || uploadStatusSvc.status() === 'error') {
+      <button class="upload-toast__close"
+              aria-label="Fermer"
+              (click)="uploadStatusSvc.stopPolling()">✕</button>
+    }
+
+  </div>
+
+}

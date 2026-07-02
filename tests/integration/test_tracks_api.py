@@ -1,0 +1,218 @@
+"""
+Tests d'intégration — routes/tracks_api.py
+
+Couvre : GET /track/<id>, GET /tracks, DELETE /delete/<id>.
+"""
+
+import json
+import uuid
+
+import pytest
+
+
+# ── Fixture locale ────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def track(db, user):
+    """Track minimal approuvé, lié au user standard."""
+    from models import Track
+    t = Track(
+        title='Test Beat',
+        composer_id=user.id,
+        file_hash=str(uuid.uuid4()),
+        audio_file='test_preview.mp3',
+        bpm=120,
+        key='C major',
+        is_approved=True,
+    )
+    db.session.add(t)
+    db.session.commit()
+    yield t
+    existing = db.session.get(Track, t.id)
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+
+
+# ── GET /api/tracks/track/<id> ────────────────────────────────────────────────
+
+class TestGetTrack:
+
+    def test_returns_404_for_nonexistent_track(self, client):
+        resp = client.get('/api/tracks/track/99999')
+        assert resp.status_code == 404
+
+    def test_returns_track_data_for_existing_track(self, client, track):
+        resp = client.get(f'/api/tracks/track/{track.id}')
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data['data']['track']['id'] == track.id
+
+
+# ── GET /api/tracks/tracks ────────────────────────────────────────────────────
+
+class TestGetTracks:
+
+    def test_returns_list_without_authentication(self, client):
+        resp = client.get('/api/tracks/tracks')
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert isinstance(data['data']['tracks'], list)
+
+    def test_pagination_fields_present(self, client):
+        resp = client.get('/api/tracks/tracks')
+        assert resp.status_code == 200
+        pagination = json.loads(resp.data)['data']['pagination']
+        assert 'page' in pagination
+        assert 'total' in pagination
+        assert 'per_page' in pagination
+        assert 'pages' in pagination
+
+
+# ── DELETE /api/tracks/delete/<id> ────────────────────────────────────────────
+
+class TestDeleteTrack:
+
+    def test_requires_authentication(self, client, track):
+        resp = client.delete(f'/api/tracks/delete/{track.id}')
+        assert resp.status_code == 401
+
+    def test_owner_can_delete_own_track(self, client, db, user, auth_headers, app):
+        from models import Track
+        t = Track(
+            title='Deletable Beat',
+            composer_id=user.id,
+            file_hash=str(uuid.uuid4()),
+            audio_file='deletable.mp3',
+            bpm=100,
+            key='A minor',
+            is_approved=True,
+        )
+        db.session.add(t)
+        db.session.commit()
+        track_id = t.id
+
+        resp = client.delete(f'/api/tracks/delete/{track_id}', headers=auth_headers)
+        assert resp.status_code == 200
+
+    def test_other_user_cannot_delete_track(self, client, track, db, app):
+        """Un utilisateur non propriétaire et non admin reçoit 403."""
+        from models import User
+        from flask_jwt_extended import create_access_token
+
+        other = User(
+            email='other_tracks@test.laprod.fr',
+            username='other_user_tracks',
+            email_verified=True,
+            account_status='active',
+            user_type_selected=True,
+        )
+        other.set_password('OtherPass123!')
+        db.session.add(other)
+        db.session.commit()
+
+        with app.app_context():
+            token = create_access_token(identity=str(other.id))
+        headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+        resp = client.delete(f'/api/tracks/delete/{track.id}', headers=headers)
+
+        db.session.delete(other)
+        db.session.commit()
+
+        assert resp.status_code == 403
+
+
+# ── Exclusivité vendue ────────────────────────────────────────────────────────
+
+class TestExclusiveSold:
+
+    def test_exclusive_sold_track_absent_from_index(self, client, db, user):
+        """Un track is_exclusive_sold=True ne doit pas apparaître dans l'index."""
+        from models import Track
+        t = Track(
+            title='Exclusive Beat',
+            composer_id=user.id,
+            file_hash=str(uuid.uuid4()),
+            audio_file='excl_preview.mp3',
+            bpm=130,
+            key='G major',
+            is_approved=True,
+            is_exclusive_sold=True,
+        )
+        db.session.add(t)
+        db.session.commit()
+
+        resp = client.get('/api/tracks/tracks')
+        assert resp.status_code == 200
+        ids = [tr['id'] for tr in resp.json['data']['tracks']]
+        assert t.id not in ids
+
+        db.session.delete(db.session.get(Track, t.id))
+        db.session.commit()
+
+    def test_get_track_includes_contract_prices(self, client, track):
+        """GET /api/tracks/track/<id> retourne un objet contract_prices."""
+        resp = client.get(f'/api/tracks/track/{track.id}')
+        assert resp.status_code == 200
+        data = resp.json['data']['track']
+        assert 'contract_prices' in data
+        cp = data['contract_prices']
+        for key in ('exclusive', 'duration_3y', 'duration_5y', 'duration_10y',
+                    'lifetime', 'mechanical', 'public_show', 'arrangement',
+                    'territory_eu', 'territory_world'):
+            assert key in cp
+
+    def test_get_track_includes_is_exclusive_sold(self, client, track):
+        """GET /api/tracks/track/<id> retourne is_exclusive_sold."""
+        resp = client.get(f'/api/tracks/track/{track.id}')
+        assert resp.status_code == 200
+        assert 'is_exclusive_sold' in resp.json['data']['track']
+
+
+# ── PUT contract prices ───────────────────────────────────────────────────────
+
+class TestPutContractPrices:
+
+    def test_put_saves_contract_price_exclusive(self, client, db, track, auth_headers):
+        """PUT avec contract_price_exclusive persiste la valeur."""
+        resp = client.put(
+            f'/api/tracks/put/{track.id}',
+            data={
+                'title': track.title,
+                'bpm': str(track.bpm),
+                'key': track.key or 'C major',
+                'style': track.style or 'Trap',
+                'price_mp3': '9.99',
+                'price_wav': '19.99',
+                'price_stems': '39.99',
+                'contract_price_exclusive': '500',
+            },
+            headers=auth_headers,
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 200
+
+        from models import Track
+        db.session.expire(track)
+        refreshed = db.session.get(Track, track.id)
+        assert refreshed.contract_price_exclusive == 500
+
+    def test_put_rejects_negative_contract_price(self, client, track, auth_headers):
+        """Un prix négatif retourne 200 ou 4xx selon la validation."""
+        resp = client.put(
+            f'/api/tracks/put/{track.id}',
+            data={
+                'title': track.title,
+                'bpm': str(track.bpm),
+                'key': track.key or 'C major',
+                'style': track.style or 'Trap',
+                'price_mp3': '9.99',
+                'price_wav': '19.99',
+                'price_stems': '39.99',
+                'contract_price_exclusive': '-1',
+            },
+            headers=auth_headers,
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code in (400, 422)

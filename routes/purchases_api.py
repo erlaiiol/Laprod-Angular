@@ -1,11 +1,13 @@
 """
 Purchases API — GET /purchases : historique d'achats de l'utilisateur connecté
 """
-from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint
+from flask_jwt_extended import jwt_required
 from sqlalchemy import select
 from extensions import db, csrf
 from models import Purchase, Track, MixMasterRequest
+from serializers import ok, err
+from utils.auth_helpers import require_user
 
 purchases_api_bp = Blueprint('purchases_api', __name__, url_prefix='/api/purchases')
 
@@ -13,13 +15,12 @@ purchases_api_bp = Blueprint('purchases_api', __name__, url_prefix='/api/purchas
 @purchases_api_bp.route('', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def get_my_purchases():
+@require_user
+def get_my_purchases(current_user):
     """Retourne tous les achats de tracks de l'utilisateur connecté."""
-    user_id = int(get_jwt_identity())
-
     purchases = db.session.scalars(
         select(Purchase)
-        .where(Purchase.buyer_id == user_id)
+        .where(Purchase.buyer_id == current_user.id)
         .order_by(Purchase.created_at.desc())
     ).all()
 
@@ -48,7 +49,7 @@ def get_my_purchases():
     # ── Commandes mix/master complétées ──────────────────────────────────────
     mm_orders = db.session.scalars(
         select(MixMasterRequest)
-        .where(MixMasterRequest.artist_id == user_id, MixMasterRequest.status == 'completed')
+        .where(MixMasterRequest.artist_id == current_user.id, MixMasterRequest.status == 'completed')
         .order_by(MixMasterRequest.completed_at.desc())
     ).all()
 
@@ -74,12 +75,9 @@ def get_my_purchases():
         for o in mm_orders
     ]
 
-    return jsonify({
-        'success': True,
-        'data': {
-            'purchases':      data,
-            'total_spent':    round(sum(p.price_paid for p in purchases), 2),
-            'mm_orders':      mm_data,
-            'mm_total_spent': round(sum(o.total_price or 0 for o in mm_orders), 2),
-        },
-    }), 200
+    return ok({
+        'purchases':      data,
+        'total_spent':    round(sum(p.price_paid for p in purchases), 2),
+        'mm_orders':      mm_data,
+        'mm_total_spent': round(sum(o.total_price or 0 for o in mm_orders), 2),
+    })

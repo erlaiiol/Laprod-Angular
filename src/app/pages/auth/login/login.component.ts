@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -14,7 +15,8 @@ import { finalize } from 'rxjs';
 })
 export class LoginComponent {
 
-  
+  readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
+
   identifier : string = '';
   password : string = '';
   remember : boolean = false;
@@ -26,6 +28,8 @@ export class LoginComponent {
   resendSuccess        = signal(false);
   showPasswordSetLink  = signal(false);                // compte OAuth sans mot de passe
   passwordEmail        = signal<string | null>(null);
+
+  private hasCalled = false;
 
   constructor(private authService : AuthService, private router : Router ) {}
 
@@ -42,9 +46,10 @@ export class LoginComponent {
       .subscribe({
         next: (res) => {
           if (res.success) {
-            // La navigation est déjà gérée par AuthService.login() via tap()
-            // (→ /select-role si SHOW_SELECT_ROLE, sinon on navigue vers /)
-            if (res.code !== 'SHOW_SELECT_ROLE') {
+            const user = this.authService.currentUser();
+            if (res.code === 'SHOW_SELECT_ROLE' || (user && !user.user_type_selected)) {
+              this.router.navigate(['/select-role']);
+            } else {
               this.router.navigate(['/']);
             }
           } else {

@@ -1,28 +1,216 @@
 
 
 <!-- PAGE HOME — gère les états (loading/error/empty) et distribue les tracks -->
-<div id="tracks-container">
 
-  <div class="state-loading" *ngIf="loading()">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Chargement...</span>
+@if (showOnboarding()) {
+  <app-onboarding-modal (closed)="showOnboarding.set(false)" />
+}
+
+<div class="tracks-toolbar">
+  <app-tag-category-filter />
+  <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
+    <button
+      class="layout-btn"
+      [class.layout-btn--active]="displayMode() === 'list'"
+      (click)="setDisplayMode('list')"
+      title="Vue liste">
+      <i class="bi bi-list-ul"></i>
+    </button>
+    <button
+      class="layout-btn"
+      [class.layout-btn--active]="displayMode() === 'gallery'"
+      (click)="setDisplayMode('gallery')"
+      title="Vue galerie">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
+    </button>
+  </div>
+</div>
+
+@if (!auth.isLoggedIn() && showHero()) {
+  <section class="lp-landing">
+
+    <div class="lp-landing__header">
+      <img src="/db_assets/main/logo.png" class="lp-landing__logo" alt="LaProd">
+      <h1 class="lp-landing__title">Le marché musical<br><span>qui te respecte.</span></h1>
+
+      <!-- ── Onglets rôle ─────────────────────────────────────────────────── -->
+      <div class="lp-landing__tabs">
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'artiste'"
+                (click)="heroTab.set('artiste')">
+          <i class="bi bi-mic-fill"></i> Artiste
+        </button>
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'beatmaker'"
+                (click)="heroTab.set('beatmaker')">
+          <i class="bi bi-sliders"></i> Beatmaker
+        </button>
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'ingenieur'"
+                (click)="heroTab.set('ingenieur')">
+          <i class="bi bi-equalizer-fill"></i> Ingénieur
+        </button>
+        <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'producteur'"
+                (click)="heroTab.set('producteur')">
+          <i class="bi bi-file-earmark-text-fill"></i> Producteur
+        </button>
+      </div>
+
+      @switch (heroTab()) {
+
+        @case ('artiste') {
+          <p class="lp-landing__sub">Trouve le beat qui correspond à ton projet, signe un contrat clair, garde le contrôle sur tes droits.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Beats triés par BPM, tonalité & style</span>
+            <span><i class="bi bi-check-circle-fill"></i> Contrats lisibles, droits expliqués</span>
+            <span><i class="bi bi-check-circle-fill"></i> Topline — chante avant d'acheter</span>
+          </div>
+          <div class="lp-landing__features">
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_sounddesign.png" alt="Beats & Licences">
+              <h3>Exactement ce qu'il te faut. Rien de plus.</h3>
+              <p>MP3, WAV ou Stems — tous les budgets, tous les niveaux de droits. Tu choisis ce que tu utilises et tu paies pour ça, seulement ça.</p>
+            </div>
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_session.png" alt="Recherche intelligente">
+              <h3>Le beat parfait est là. Maintenant.</h3>
+              <p>Notre algorithme trie par vrais critères musicaux — BPM, tonalité, style. Facile à utiliser que tu démarres ou que tu produises depuis dix ans.</p>
+            </div>
+            <div class="lp-feature lp-feature--topline">
+              <div class="lp-feature__icon-wrap"><i class="bi bi-mic-fill"></i></div>
+              <h3>Ta mélodie sur le beat. Avant d'acheter.</h3>
+              <p>Chante en un clic — autotune intégré, zéro logiciel. Tu sais si ça marche avant de dépenser un centime.</p>
+            </div>
+          </div>
+        }
+
+        @case ('beatmaker') {
+          <p class="lp-landing__sub">Mets tes prods en vente au juste prix. Fixe tes tarifs, configure tes droits SACEM, touche directement sans intermédiaire.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Contrats personnalisés par beat</span>
+            <span><i class="bi bi-check-circle-fill"></i> Paiements directs, droits conservés</span>
+            <span><i class="bi bi-check-circle-fill"></i> Preview protégée contre le vol</span>
+          </div>
+          <div class="lp-landing__features">
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_sounddesign.png" alt="Vends tes beats">
+              <h3>Vends au juste prix. Garde tes droits.</h3>
+              <p>MP3, WAV, Stems exclusif — tu configures chaque format indépendamment. Personne ne te dicte tes tarifs.</p>
+            </div>
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_mixengineer.png" alt="Paiements sécurisés">
+              <h3>Payé directement. Sans intermédiaire.</h3>
+              <p>L'argent va de l'acheteur à toi. Pas de délai, pas d'intermédiaire qui prend sa marge. Tes droits SACEM sont configurés à l'upload.</p>
+            </div>
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_session.png" alt="Algorithme de recommandation">
+              <h3>L'algorithme propulse tes beats.</h3>
+              <p>Plus tes métadonnées sont précises — BPM, tonalité, style, tags — plus ton catalogue est visible auprès des artistes qui cherchent exactement ce que tu fais.</p>
+            </div>
+          </div>
+        }
+
+        @case ('ingenieur') {
+          <p class="lp-landing__sub">Reçois des commandes de mix/mastering depuis ta fiche certifiée. Acompte versé à la commande, solde à la livraison.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Profil certifié par LaProd</span>
+            <span><i class="bi bi-check-circle-fill"></i> Acompte protégé, paiement garanti</span>
+            <span><i class="bi bi-check-circle-fill"></i> Gestion des livraisons intégrée</span>
+          </div>
+          <div class="lp-landing__features">
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_mixengineer.png" alt="Acompte et paiement">
+              <h3>Tu paies au rythme du travail.</h3>
+              <p>Acompte à la commande, solde à la livraison. Ton investissement est protégé à chaque étape — zéro prise de risque inutile pour le client comme pour toi.</p>
+            </div>
+            <div class="lp-feature lp-feature--icon">
+              <div class="lp-feature__icon-wrap lp-feature__icon-wrap--green"><i class="bi bi-patch-check-fill"></i></div>
+              <h3>Profil certifié LaProd.</h3>
+              <p>Ta certification valide ton niveau et rassure les artistes. Mix Engineer, Master Engineer ou Producteur/Arrangeur — chaque niveau a ses propres critères.</p>
+            </div>
+            <div class="lp-feature lp-feature--icon">
+              <div class="lp-feature__icon-wrap lp-feature__icon-wrap--blue"><i class="bi bi-cloud-upload-fill"></i></div>
+              <h3>Livraisons intégrées et tracées.</h3>
+              <p>Dépose tes fichiers directement dans la commande. L'artiste reçoit une notification, valide la livraison, et le solde est débloqué automatiquement.</p>
+            </div>
+          </div>
+        }
+
+        @case ('producteur') {
+          <p class="lp-landing__sub">Crée des contrats clairs avec tes artistes. Configure les droits, la SACEM, les exclusivités — sans juriste, sans ambiguïté.</p>
+          <div class="lp-landing__bullets">
+            <span><i class="bi bi-check-circle-fill"></i> Contrats sur-mesure en quelques clics</span>
+            <span><i class="bi bi-check-circle-fill"></i> Droits SACEM & exclusivités configurables</span>
+            <span><i class="bi bi-check-circle-fill"></i> Analyseur de contrats externes</span>
+          </div>
+          <div class="lp-landing__features">
+            <div class="lp-feature">
+              <img src="/db_assets/main/laprod_contract.png" alt="Contrats musicaux">
+              <h3>Signe en sachant ce que tu cèdes.</h3>
+              <p>Dépose n'importe quel contrat musical. LaProd t'explique droits, exclusivités et durée — avant que tu n'apposer ta signature.</p>
+            </div>
+            <div class="lp-feature lp-feature--icon">
+              <div class="lp-feature__icon-wrap lp-feature__icon-wrap--violet"><i class="bi bi-pencil-square"></i></div>
+              <h3>Builder de contrats intégré.</h3>
+              <p>Génère un contrat de cession de droits en configurant chaque clause : formats autorisés, territoire, durée, part SACEM. Exportable en PDF signable.</p>
+            </div>
+            <div class="lp-feature lp-feature--icon">
+              <div class="lp-feature__icon-wrap"><i class="bi bi-shield-lock-fill"></i></div>
+              <h3>Protège tes créations à chaque étape.</h3>
+              <p>Chaque transaction génère une preuve horodatée. Tu sais qui a acheté quoi, quand, et dans quelles conditions — pour toujours.</p>
+            </div>
+          </div>
+        }
+
+      }
+
+      <div class="lp-landing__actions">
+        <a routerLink="/register" class="lp-btn-cta">
+          <i class="bi bi-person-plus-fill"></i> S'inscrire gratuitement
+        </a>
+        <button class="lp-btn-explore" (click)="dismissHero()">
+          Explorer les beats <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
     </div>
-    <p>Chargement des morceaux...</p>
-  </div>
 
-  <div class="state-error" *ngIf="error() && !loading()">
-    <i class="bi bi-exclamation-triangle-fill"></i>
-    {{ error() }}. Rechargez la page ou contactez le support.
-  </div>
+    <div class="lp-manifesto">
+      <strong>Une rémunération juste pour chaque créateur. Un marché géré par ses acteurs, pas par des intermédiaires.</strong>
+      <p>LaProd est pensé par et pour ceux qui aiment la musique — pas seulement ceux qui en ont fait un business juteux et déshumanisé.</p>
+    </div>
 
-  <div class="state-empty" *ngIf="!loading() && !error() && tracks().length === 0">
-    <i class="bi bi-music-note-list"></i>
-    <p>Aucun morceau trouvé.</p>
-  </div>
+  </section>
+}
 
-  <app-track-card
-    *ngFor="let track of tracks()"
-    [track]="track">
-  </app-track-card>
+<div id="tracks-container" [class.tracks-gallery]="displayMode() === 'gallery'">
+
+  @if (loading()) {
+    <div class="state-loading">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Chargement...</span>
+      </div>
+      <p>Chargement des morceaux...</p>
+    </div>
+  }
+
+  @if (error() && !loading()) {
+    <div class="state-error">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {{ error() }}. Rechargez la page ou contactez le support.
+    </div>
+  }
+
+  @if (!loading() && !error() && tracks().length === 0) {
+    <div class="state-empty">
+      <i class="bi bi-music-note-list"></i>
+      <p>Aucun morceau trouvé.</p>
+    </div>
+  }
+
+  @for (track of tracks(); track track.id) {
+    <app-track-card [track]="track" [galleryMode]="displayMode() === 'gallery'" />
+  }
 
 </div>
+
+<app-pagination
+  [currentPage]="page()"
+  [totalPages]="totalPages()"
+  (pageChange)="goToPage($event)" />

@@ -1,0 +1,163 @@
+<div class="premium-page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1><i class="bi bi-star-fill"></i> LaProd<span class="plus">+</span></h1>
+    <p class="hero-sub">Passez au niveau supérieur : beats exclusifs, contrats juridiques, mastering Pro.</p>
+  </div>
+
+  <!-- Activation en cours -->
+  @if (activating()) {
+    <div class="alert alert-info activation-loader">
+      <div class="spinner-border spinner-border-sm me-2"></div>
+      Activation de votre abonnement…
+    </div>
+  }
+
+  <!-- Succès activation -->
+  @if (activated()) {
+    <div class="alert-activated">
+      <i class="bi bi-check-circle-fill"></i>
+      <div>
+        <strong>Abonnement activé !</strong>
+        <p>Bienvenue dans LaProd+. Toutes vos nouvelles fonctionnalités sont disponibles.</p>
+      </div>
+    </div>
+  }
+
+  <!-- Abonnement actif -->
+  @if (isPremium() && !activating()) {
+    <div class="current-plan">
+      <div class="current-plan-badge" [class.is-pro]="isPro()">
+        @if (isPro()) {
+          <i class="bi bi-star-fill"></i> Plan Pro
+        } @else {
+          <i class="bi bi-lightning-charge-fill"></i> Plan Amateur
+        }
+      </div>
+      <div class="current-plan-info">
+        <p>Votre abonnement est actif.</p>
+        @if (!isPro()) {
+          <p class="upgrade-hint">Passez en Pro pour débloquer le Contract Builder.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Tableau comparatif -->
+  <div class="plans-grid">
+
+    <!-- Free -->
+    <div class="plan-card plan-free">
+      <div class="plan-header">
+        <h2>Free</h2>
+        <div class="plan-price">0 €<span>/mois</span></div>
+      </div>
+      <ul class="plan-features">
+        <li><i class="bi bi-check"></i> +1 token upload / jour (cap 2)</li>
+        <li><i class="bi bi-check"></i> +5 tokens topline / semaine (cap 5)</li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Beats exclusifs</span></li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Analyzer</span></li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Builder</span></li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Badge Engineer Pro</span></li>
+      </ul>
+      <div class="plan-cta">
+        <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
+      </div>
+    </div>
+
+    <!-- Amateur -->
+    <div class="plan-card plan-amateur" [class.plan-current]="isAmateur()">
+      @if (isAmateur()) {
+        <div class="plan-badge-current">Actuel</div>
+      }
+      <div class="plan-header">
+        <h2>Amateur</h2>
+        <div class="plan-price">1,99 €<span>/mois</span></div>
+      </div>
+      <ul class="plan-features">
+        <li><i class="bi bi-check-circle-fill"></i> +5 tokens upload / jour (cap 15)</li>
+        <li><i class="bi bi-check-circle-fill"></i> +50 tokens topline / semaine (cap 50)</li>
+        <li><i class="bi bi-check-circle-fill"></i> Beats exclusifs</li>
+        <li><i class="bi bi-check-circle-fill"></i> Contract Analyzer</li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Builder</span></li>
+        <li><i class="bi bi-x text-muted"></i> <span class="muted">Badge Engineer Pro</span></li>
+      </ul>
+      <div class="plan-cta">
+        @if (!isAmateur()) {
+          <button
+            class="btn-plan btn-plan-amateur"
+            [disabled]="subscribing() !== null"
+            (click)="subscribe('amateur')"
+          >
+            @if (subscribing() === 'amateur') {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            S'abonner
+          </button>
+        } @else {
+          <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
+        }
+      </div>
+    </div>
+
+    <!-- Pro -->
+    <div class="plan-card plan-pro" [class.plan-current]="isPro()">
+      <div class="plan-badge-popular">Recommandé</div>
+      @if (isPro()) {
+        <div class="plan-badge-current">Actuel</div>
+      }
+      <div class="plan-header">
+        <h2>Pro <i class="bi bi-star-fill text-warning"></i></h2>
+        <div class="plan-price">19,99 €<span>/mois</span></div>
+      </div>
+      <ul class="plan-features">
+        <li><i class="bi bi-check-circle-fill"></i> +10 tokens upload / jour (cap 30)</li>
+        <li><i class="bi bi-check-circle-fill"></i> +200 tokens topline / semaine (cap 200)</li>
+        <li><i class="bi bi-check-circle-fill"></i> Beats exclusifs</li>
+        <li><i class="bi bi-check-circle-fill"></i> Contract Analyzer</li>
+        <li><i class="bi bi-check-circle-fill"></i> Contract Builder</li>
+        <li><i class="bi bi-check-circle-fill"></i> Badge Engineer Master Pro</li>
+      </ul>
+      <div class="plan-cta">
+        @if (!isPro()) {
+          <button
+            class="btn-plan btn-plan-pro"
+            [disabled]="subscribing() !== null"
+            (click)="subscribe('pro')"
+          >
+            @if (subscribing() === 'pro') {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            S'abonner
+          </button>
+        } @else {
+          <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <h3>Questions fréquentes</h3>
+    <div class="faq-item">
+      <strong>Puis-je changer de plan ?</strong>
+      <p>Oui, vous pouvez passer du plan Amateur au plan Pro à tout moment. Votre abonnement sera prolongé.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Le paiement est-il sécurisé ?</strong>
+      <p>Oui, les paiements sont traités par Stripe, certifié PCI-DSS. Aucune donnée bancaire ne transite sur nos serveurs.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Qu'est-ce que le Badge Engineer Master Pro ?</strong>
+      <p>Avec un abonnement Pro, votre profil ingénieur affiche un badge doré indiquant que vous êtes habilité à proposer le service de mastering.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Comment résilier ?</strong>
+      <p>Contactez notre support depuis la page <a routerLink="/contact">Contact</a>. Votre accès reste actif jusqu'à la fin de la période en cours.</p>
+    </div>
+  </div>
+
+</div>

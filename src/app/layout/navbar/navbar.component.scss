@@ -1,52 +1,33 @@
-/* Styles du composant Navbar uniquement */
+@use 'variables' as v;
 
-:host {
-  display: block;
-}
+:host { display: block; }
 
 /* ── États de chargement/erreur inline ─────────────────────────────────────── */
 
 .state-loading-inline,
 .state-error-inline {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 1rem;
-  font-size: 0.8rem;
-  color: #6c757d;
-  background: #1a1d20;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.25rem 1rem; font-size: 0.8rem;
+  color: v.$text-muted; background: v.$bg-base;
 }
 
-.state-error-inline { color: #dc3545; }
+.state-error-inline { color: v.$tag-red; }
 
 
 /* ── Barre de recherche ────────────────────────────────────────────────────── */
 
 .btn-clear-search {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #6c757d;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: v.$text-muted; cursor: pointer; padding: 0; line-height: 1;
 
-  &:hover { color: #f8f9fa; }
+  &:hover { color: v.$off-white; }
 }
 
 
 /* ── Popover backdrop ──────────────────────────────────────────────────────── */
 
 .popover-backdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1040;
-
+  display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1040;
   &.active { display: block; }
 }
 
@@ -54,79 +35,55 @@
 /* ── Popover de filtres ────────────────────────────────────────────────────── */
 
 .filters-popover {
-  position: fixed;
-  top: 0;
-  right: -360px;          /* caché hors écran par défaut */
-  width: 340px;
-  height: 100vh;
-  background: #2c3034;
-  border-left: 1px solid #495057;
-  z-index: 1050;
-  display: flex;
-  flex-direction: column;
-  transition: right 0.3s ease;
-  overflow-y: auto;
+  position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
+  background: v.$bg-surface; border-left: 1px solid v.$bg-border;
+  z-index: 1050; display: flex; flex-direction: column;
+  transition: right 0.3s ease; overflow: hidden;
 
-  &.open { right: 0; }   /* [class.open]="filtersOpen()" déclenche ça */
+  &.open { right: 0; }
 }
 
 .filters-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #495057;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid v.$bg-border;
 
-  h5 {
-    margin: 0;
-    color: #f8f9fa;
-    font-size: 1rem;
-  }
+  h5 { margin: 0; color: v.$off-white; font-size: 1rem; }
+}
+
+.filters-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: v.$text-muted;
+  line-height: 1.3;
 }
 
 .btn-close-popover {
-  background: none;
-  border: none;
-  color: #6c757d;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
+  background: none; border: none; color: v.$text-muted; font-size: 1.5rem;
+  line-height: 1; cursor: pointer; padding: 0;
 
-  &:hover { color: #f8f9fa; }
+  &:hover { color: v.$off-white; }
 }
 
 .filters-body {
-  flex: 1;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  flex: 1; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 1.25rem;
 }
 
 .filter-section { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .filter-label {
-  color: #adb5bd;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 0.4rem;
+  color: v.$text-secondary; font-size: 0.8rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
 }
 
 .bpm-inputs {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
 
-  input { width: 80px; background: #1a1d20; color: #f8f9fa; border-color: #495057; }
-  span  { color: #6c757d; }
+  input { width: 80px; background: v.$bg-base; color: v.$off-white; border-color: v.$bg-border; }
+  span  { color: v.$text-muted; }
 }
 
-.filter-tags-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
+.filter-tags-container { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 /* ── Tags colorés (catégories) ─────────────────────────────────────────────
    --tag-color est posé en inline style depuis Angular ([style.--tag-color])
@@ -134,51 +91,155 @@
 
 .filter-tag {
   background: transparent;
-  color: #e7e8e9;
-  border: 1px solid color-mix(in srgb, var(--tag-color, #6b7280) 40%, transparent);
-  border-radius: 4px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  color: v.$off-white;
+  border: 1px solid color-mix(in srgb, var(--tag-color, #{v.$tag-neutral}) 40%, transparent);
+  border-radius: 4px; padding: 0.2rem 0.55rem; font-size: 0.75rem;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
 
   &:hover {
-    background: color-mix(in srgb, var(--tag-color, #6b7280) 18%, transparent);
-    border-color: var(--tag-color, #9ca3af);
+    background: color-mix(in srgb, var(--tag-color, #{v.$tag-neutral}) 18%, transparent);
+    border-color: var(--tag-color, #{v.$tag-neutral-light});
   }
 
   &.selected {
-    background: color-mix(in srgb, var(--tag-color, #6b7280) 28%, transparent);
-    border-color: var(--tag-color, #9ca3af);
+    background: color-mix(in srgb, var(--tag-color, #{v.$tag-neutral}) 28%, transparent);
+    border-color: var(--tag-color, #{v.$tag-neutral-light});
   }
 }
 
 /* ── Gammes & Styles — comportement neutre (blanc au survol/sélection) ────── */
 
 .filter-tag--neutral {
-  --tag-color: unset;    /* on neutralise la variable héritable */
-  color: #e7e8e9;
+  --tag-color: unset;
+  color: v.$off-white;
   border-color: rgba(255, 255, 255, 0.15);
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.35);
-    color: #e5e7eb;
+    color: v.$off-white;
   }
 
   &.selected {
     background: rgba(255, 255, 255, 0.88);
     border-color: rgba(255, 255, 255, 0.9);
-    color: #1a1d20;
+    color: v.$bg-base;
   }
 }
 
-.no-tags { color: #6c757d; font-size: 0.8rem; }
+// ── Accordéon (artistes + tags) ──────────────────────────────────────────────
+
+.filter-accordion {
+  border: 1px solid v.$bg-border;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.filter-accordion-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 0.65rem; cursor: pointer; user-select: none;
+  font-size: 0.78rem; font-weight: 500; color: v.$text-secondary;
+  background: v.$bg-elevated; list-style: none;
+
+  &::-webkit-details-marker { display: none; }
+  &::marker { display: none; }
+
+  > span:first-child { flex: 1; }
+
+  .filter-accordion-arrow {
+    color: v.$text-muted; font-size: 0.65rem;
+    transition: transform 0.2s ease; flex-shrink: 0;
+  }
+}
+
+details.filter-accordion[open] .filter-accordion-arrow {
+  transform: rotate(-180deg);
+}
+
+.filter-accordion-body {
+  padding: 0.5rem 0.65rem 0.6rem;
+  border-top: 1px solid v.$bg-border;
+  background: v.$bg-base;
+}
+
+.filter-active-count {
+  background: v.$primary; color: #fff; border-radius: 10px;
+  padding: 0.05rem 0.42rem; font-size: 0.64rem; font-weight: 700;
+  line-height: 1.5; flex-shrink: 0;
+}
+
+// ── Artistes similaires ───────────────────────────────────────────────────────
+
+.filter-tag--artist {
+  --tag-color: unset;
+  color: v.$text-secondary;
+  border-color: rgba(255, 255, 255, 0.12);
+  font-style: italic;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: v.$off-white;
+  }
+
+  &.selected {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(255, 255, 255, 0.9);
+    color: v.$bg-base;
+    font-style: normal;
+  }
+}
+
+.no-tags { color: v.$text-muted; font-size: 0.8rem; }
 
 .filters-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid #495057;
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  padding: 1rem 1.25rem; border-top: 1px solid v.$bg-border;
+}
+
+// ── Contrats Pro — section premium dans le dropdown ──────────────────────────
+
+.dropdown-header--pro {
+  color: v.$gold; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.35rem 1rem 0.2rem;
+}
+
+.dropdown-item--pro {
+  color: v.$gold !important;
+  font-weight: 500;
+
+  i { opacity: 0.85; }
+
+  &:hover, &:focus {
+    background-color: rgba(v.$gold, 0.12) !important;
+    color: v.$gold-light !important;
+  }
+
+  &.active {
+    background-color: rgba(v.$gold, 0.2) !important;
+    color: v.$gold-light !important;
+  }
+}
+
+.dropdown-item--beta { opacity: 0.6; pointer-events: none; }
+
+// ── Bouton S'inscrire — CTA visible pour visiteurs anonymes ──────────────────
+
+.nav-link--register {
+  background: v.$primary !important;
+  color: v.$white !important;
+  border-radius: 6px;
+  padding: 0.3rem 0.85rem !important;
+  font-weight: 700;
+  transition: background 0.2s;
+
+  &:hover, &.active { background: v.$primary-dark !important; color: v.$white !important; }
+}
+
+.nav-beta-badge {
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  background: rgba(v.$gold, 0.2); color: v.$gold;
+  border: 1px solid rgba(v.$gold, 0.35); border-radius: 3px;
+  padding: 0.05rem 0.3rem; margin-left: 0.3rem; vertical-align: middle;
 }

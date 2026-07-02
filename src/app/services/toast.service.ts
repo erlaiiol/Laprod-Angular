@@ -3,7 +3,7 @@ import { Subject } from 'rxjs';
 
 
 export interface Toast {
-  level : 'info' | 'warning' | 'error';
+  level : 'info' | 'warning' | 'error' | 'success';
   message : string;
 }
 

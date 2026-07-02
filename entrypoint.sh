@@ -6,14 +6,18 @@ set -e
 # L'entrypoint tourne en root pour pouvoir chown, puis bascule vers appuser
 # via gosu avant de lancer gunicorn.
 # =============================================================================
-chown -R appuser:appuser /usr/src/app/static /usr/src/app/logs 2>/dev/null || true
+chown -R appuser:appuser /usr/src/app/db_assets /usr/src/app/logs 2>/dev/null || true
 
 echo "=== LaProd - Démarrage ==="
 
 # Migrations et création admin : tournent en tant qu'appuser via gosu
 echo ">>> Migrations base de données..."
-gosu appuser uv run flask db upgrade
+gosu appuser uv run flask db upgrade heads
 echo ">>> Migrations OK"
+
+echo ">>> Seed contract builder (no-op si déjà peuplé)..."
+gosu appuser uv run flask seed-contract-builder
+echo ">>> Seed OK"
 
 echo ">>> Création du compte admin..."
 gosu appuser uv run python -c "
@@ -52,14 +56,8 @@ else
     WORKERS=$((2 * $(nproc) + 1))
     echo ">>> Démarrage gunicorn ($WORKERS workers)..."
     exec gosu appuser uv run gunicorn \
+        --config gunicorn.conf.py \
         --workers $WORKERS \
-        --bind 0.0.0.0:5000 \
-        --timeout 120 \
         --preload \
-        --worker-tmp-dir /dev/shm \
-        --max-requests 1000 \
-        --max-requests-jitter 50 \
-        --access-logfile - \
-        --error-logfile - \
         app:app
 fi

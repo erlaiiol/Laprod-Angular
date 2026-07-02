@@ -1,0 +1,217 @@
+<div class="legal-page">
+  <div class="legal-container">
+
+    <header class="legal-header">
+      <h1>Politique de gestion des cookies</h1>
+      <p class="last-updated">Dernière mise à jour : {{ lastUpdated }}</p>
+    </header>
+
+    <nav class="legal-toc">
+      <p class="toc-title">Sommaire</p>
+      <ol>
+        <li><a href="#quest-ce-quun-cookie">Qu'est-ce qu'un cookie ?</a></li>
+        <li><a href="#cookies-utilises">Cookies utilisés sur LaProd</a></li>
+        <li><a href="#cookies-tiers">Cookies tiers</a></li>
+        <li><a href="#duree">Durées de conservation</a></li>
+        <li><a href="#gestion">Gérer vos préférences</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+    </nav>
+
+    <div class="legal-body">
+
+      <section id="quest-ce-quun-cookie">
+        <h2>1. Qu'est-ce qu'un cookie ?</h2>
+        <p>
+          Un cookie est un petit fichier texte déposé sur votre terminal (ordinateur, tablette, smartphone)
+          lorsque vous visitez un site web. Les cookies permettent au site de mémoriser des informations
+          sur votre visite (préférences, session de connexion, panier, etc.) afin d'améliorer votre
+          expérience et de faire fonctionner certaines fonctionnalités essentielles.
+        </p>
+        <p>
+          Conformément au <strong>Règlement Général sur la Protection des Données (RGPD, UE 2016/679)</strong>
+          et à la <strong>directive ePrivacy (2002/58/CE)</strong> transposée en France par la loi n°78-17
+          relative à l'informatique, aux fichiers et aux libertés, certains cookies nécessitent votre
+          consentement préalable.
+        </p>
+      </section>
+
+      <section id="cookies-utilises">
+        <h2>2. Cookies utilisés sur LaProd</h2>
+        <p>
+          LaProd utilise un nombre <strong>volontairement limité</strong> de cookies, tous fonctionnels
+          et nécessaires au bon fonctionnement de la plateforme. Nous n'utilisons <strong>aucun cookie
+          publicitaire ou de tracking comportemental</strong> tiers.
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nom du cookie</th>
+                <th>Type</th>
+                <th>Finalité</th>
+                <th>Durée</th>
+                <th>Consentement requis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>access_token</code></td>
+                <td>Stockage local (JWT)</td>
+                <td>Authentification — maintient votre session après connexion. Sans lui, vous devez vous reconnecter à chaque visite.</td>
+                <td>15 minutes (renouvelé automatiquement)</td>
+                <td>Non — strictement nécessaire</td>
+              </tr>
+              <tr>
+                <td><code>refresh_token</code></td>
+                <td>Cookie HTTP Only</td>
+                <td>Renouvellement silencieux du token d'accès. Envoyé uniquement à l'endpoint <code>/api/auth/refresh</code>.</td>
+                <td>7 jours</td>
+                <td>Non — strictement nécessaire</td>
+              </tr>
+              <tr>
+                <td>Session Redis</td>
+                <td>Cookie de session serveur</td>
+                <td>Maintien de l'état de session côté serveur pour les opérations nécessitant une continuité (upload, paiement Stripe).</td>
+                <td>Durée de la session (fermeture du navigateur)</td>
+                <td>Non — strictement nécessaire</td>
+              </tr>
+              <tr>
+                <td>Cookie Stripe</td>
+                <td>Cookie tiers (Stripe Inc.)</td>
+                <td>Gestion du paiement sécurisé. Déposé uniquement lors d'un processus d'achat. Ne sert pas au tracking publicitaire.</td>
+                <td>Variable (défini par Stripe)</td>
+                <td>Oui — lors de l'initiation d'un paiement</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Les tokens JWT (<code>access_token</code>, <code>refresh_token</code>) sont des mécanismes
+          d'authentification cryptographique et non des cookies de tracking. Ils sont indispensables
+          au fonctionnement du compte utilisateur.
+        </p>
+      </section>
+
+      <section id="cookies-tiers">
+        <h2>3. Cookies tiers</h2>
+        <p>LaProd intègre les services tiers suivants susceptibles de déposer des cookies :</p>
+        <ul>
+          <li>
+            <strong>Stripe (paiement)</strong> — déposé uniquement lors d'un processus d'achat.
+            Stripe est un sous-traitant de traitement de données certifié PCI-DSS.
+            <a href="https://stripe.com/fr/privacy" target="_blank" rel="noopener">Politique de confidentialité Stripe</a>.
+          </li>
+          <li>
+            <strong>Google OAuth (connexion sociale)</strong> — si vous choisissez de vous connecter
+            via Google, Google peut déposer ses propres cookies d'authentification.
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Politique de confidentialité Google</a>.
+          </li>
+        </ul>
+        <p>
+          LaProd n'intègre <strong>aucun pixel publicitaire</strong> (Facebook Pixel, Google Ads, etc.),
+          <strong>aucun cookie de remarketing</strong>, et <strong>aucun outil d'analytics</strong>
+          tiers à des fins de profilage comportemental.
+        </p>
+      </section>
+
+      <section id="duree">
+        <h2>4. Durées de conservation</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cookie / Donnée</th>
+                <th>Durée maximale</th>
+                <th>Motif</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Token d'accès (JWT)</td>
+                <td>15 minutes</td>
+                <td>Sécurité : expiration courte pour limiter le risque de vol</td>
+              </tr>
+              <tr>
+                <td>Token de rafraîchissement</td>
+                <td>7 jours</td>
+                <td>Confort de connexion : restez connecté sans ressaisir vos identifiants</td>
+              </tr>
+              <tr>
+                <td>Session Redis</td>
+                <td>Session navigateur</td>
+                <td>Effacé à la fermeture du navigateur</td>
+              </tr>
+              <tr>
+                <td>Cookies Stripe</td>
+                <td>Défini par Stripe</td>
+                <td>Nécessaire à la sécurisation des transactions</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="gestion">
+        <h2>5. Gérer vos préférences</h2>
+        <h3>5.1 Désactivation via votre navigateur</h3>
+        <p>
+          Vous pouvez configurer votre navigateur pour refuser, supprimer ou être alerté lors du
+          dépôt de cookies. Notez que <strong>la désactivation des cookies strictement nécessaires
+          rendra LaProd inutilisable</strong> (impossible de se connecter, d'acheter ou d'uploader).
+        </p>
+        <ul>
+          <li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
+          <li><a href="https://support.mozilla.org/fr/kb/activer-desactiver-cookies" target="_blank" rel="noopener">Mozilla Firefox</a></li>
+          <li><a href="https://support.apple.com/fr-fr/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Apple Safari</a></li>
+          <li><a href="https://support.microsoft.com/fr-fr/windows/supprimer-et-g-rer-les-cookies-168dab11-0753-043d-7c16-ede5947fc64d" target="_blank" rel="noopener">Microsoft Edge</a></li>
+        </ul>
+
+        <h3>5.2 Suppression de votre compte</h3>
+        <p>
+          La suppression de votre compte LaProd entraîne la révocation de tous vos tokens d'accès
+          et de rafraîchissement, ainsi que la suppression de vos données personnelles conformément
+          à notre <a routerLink="/privacy">Politique de confidentialité</a>.
+        </p>
+
+        <h3>5.3 Opt-out Google OAuth</h3>
+        <p>
+          Vous pouvez révoquer l'accès de LaProd à votre compte Google depuis la section
+          « Applications tierces » de votre compte Google à tout moment, sans affecter votre
+          accès à LaProd (si vous avez défini un mot de passe LaProd).
+        </p>
+      </section>
+
+      <section id="contact">
+        <h2>6. Contact</h2>
+        <p>
+          Pour toute question relative à notre utilisation des cookies ou à vos droits en matière
+          de protection des données :
+        </p>
+        <div class="info-block">
+          <strong>LaProd — Responsable du traitement</strong><br>
+          Eliott Raillère<br>
+          E-mail : <a href="mailto:contact@laprod.net">contact@laprod.net</a><br>
+          Formulaire : <a routerLink="/contact">Page de contact</a>
+        </div>
+        <p>
+          Vous disposez également du droit d'introduire une réclamation auprès de la
+          <strong>CNIL</strong> (Commission Nationale de l'Informatique et des Libertés) :
+          <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.
+        </p>
+      </section>
+
+    </div>
+
+    <footer class="legal-footer">
+      <span>© 2026 LaProd.</span>
+      <a routerLink="/cgu">CGU / CGV</a> ·
+      <a routerLink="/privacy">Confidentialité</a> ·
+      <a routerLink="/dmca">DMCA</a> ·
+      <a routerLink="/mentions-legales">Mentions légales</a>
+    </footer>
+
+  </div>
+</div>

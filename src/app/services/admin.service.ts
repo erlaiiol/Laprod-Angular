@@ -31,22 +31,25 @@ export interface AdminUserSummary {
 }
 
 export interface AdminTrack {
-  id:             number;
-  title:          string;
-  bpm:            number;
-  key:            string;
-  style:          string | null;
-  image_file:     string;
-  stream_url:     string;
-  price_mp3:      number | null;
-  price_wav:      number | null;
-  price_stems:    number | null;
-  is_approved:    boolean;
-  purchase_count: number;
-  created_at:     string | null;
-  approved_at:    string | null;
-  composer:       { id: number; username: string; profile_image: string } | null;
-  tags:           { id: number; name: string; category: string | null }[];
+  id:               number;
+  title:            string;
+  bpm:              number;
+  key:              string;
+  style:            string | null;
+  image_file:       string;
+  stream_url:       string;
+  price_mp3:        number | null;
+  price_wav:        number | null;
+  price_stems:      number | null;
+  is_approved:      boolean;
+  is_exclusive_sold: boolean;
+  exclusive_sold_at: string | null;
+  exclusive_buyer:  { id: number; username: string; profile_image: string } | null;
+  purchase_count:   number;
+  created_at:       string | null;
+  approved_at:      string | null;
+  composer:         { id: number; username: string; profile_image: string } | null;
+  tags:             { id: number; name: string; category: string | null }[];
 }
 
 export interface AdminUser {
@@ -55,17 +58,27 @@ export interface AdminUser {
   email:           string;
   profile_image:   string;
   account_status:  string;
+  email_verified:     boolean;
+  user_type_selected: boolean;
+  auth_method:        'local' | 'google';
   is_admin:        boolean;
   is_beatmaker:    boolean;
   is_artist:       boolean;
   is_mix_engineer: boolean;
-  is_mixmaster_engineer: boolean;
+  is_mixmaster_engineer:          boolean;
+  is_certified_master_engineer:   boolean;
   is_certified_producer_arranger: boolean;
   producer_arranger_request_submitted: boolean;
-  is_premium:      boolean;
+  is_premium:          boolean;
+  subscription_plan:   'free' | 'amateur' | 'pro';
+  premium_since:       string | null;
+  premium_expires_at:  string | null;
+  premium_source:      'stripe' | 'admin' | null;
+  premium_price_paid:  number | null;
   upload_track_tokens: number;
-  topline_tokens:  number;
-  created_at:      string | null;
+  topline_tokens:      number;
+  created_at:          string | null;
+  deleted_at:          string | null;
   tracks_count:    number;
   contracts_count: number;
   mm_count:        number;
@@ -106,10 +119,11 @@ export interface AdminTransaction {
 }
 
 export interface AdminCategory {
-  id:    number;
-  name:  string;
-  color: string;
-  tags:  { id: number; name: string }[];
+  id:          number;
+  name:        string;
+  color:       string;
+  description: string | null;
+  tags:        { id: number; name: string }[];
 }
 
 export interface AdminMixEngineer {
@@ -117,8 +131,12 @@ export interface AdminMixEngineer {
   username:        string;
   email:           string;
   profile_image:   string;
-  is_mixmaster_engineer: boolean;
+  is_mixmaster_engineer:          boolean;
   is_certified_producer_arranger: boolean;
+  is_certified_master_engineer:   boolean;
+  master_sample_raw:       string | null;
+  master_sample_processed: string | null;
+  master_sample_submitted: boolean;
   mixmaster_reference_price: number | null;
   mixmaster_price_min:       number | null;
   mixmaster_bio:             string | null;
@@ -132,6 +150,21 @@ export interface UserSearchResult {
   email:    string;
 }
 
+export interface AdminTopline {
+  id:           number;
+  is_published: boolean;
+  description:  string | null;
+  created_at:   string | null;
+  stream_url:   string;
+  artist: { id: number; username: string; profile_image: string } | null;
+  track: {
+    id:        number;
+    title:     string;
+    image_file: string;
+    beatmaker: { id: number; username: string } | null;
+  } | null;
+}
+
 export interface TrackSearchResult {
   id:                 number;
   title:              string;
@@ -140,6 +173,54 @@ export interface TrackSearchResult {
   price_mp3:          number | null;
   price_wav:          number | null;
   price_stems:        number | null;
+}
+
+export interface RecommendationStats {
+  total_listen_events: number;
+  active_users_last_7d: number;
+  top_keys:  [string, number][];
+  top_tags:  [string, number][];
+  top_correlations: { from: string; to: string; probability: number }[];
+  top_artists?: [string, number][];
+  artist_correlations?: { from: string; to: string; probability: number }[];
+}
+
+export interface AdminPurchaseInvoice {
+  id:            number;
+  type:          'purchase';
+  created_at:    string;
+  buyer:         string;
+  buyer_email:   string;
+  composer:      string;
+  track_title:   string;
+  format:        string;
+  amount:        number;
+  invoice_url:   string;
+  statement_url: string;
+}
+
+export interface AdminMixmasterInvoice {
+  id:           number;
+  type:         'mixmaster';
+  created_at:   string;
+  artist:       string;
+  engineer:     string;
+  title:        string;
+  status:       string;
+  amount:       number;
+  invoice_url:  string;
+  earnings_urls: { deposit: string; revision1: string; revision2: string; final: string };
+}
+
+export interface AdminInvoicesData {
+  purchases:   AdminPurchaseInvoice[];
+  mm_requests: AdminMixmasterInvoice[];
+  totals: {
+    purchases_count:   number;
+    mm_count:          number;
+    purchases_revenue: number;
+    mm_revenue:        number;
+  };
 }
 
 export type ApiFeedback = { level: 'info' | 'warning' | 'error'; message: string };
@@ -169,7 +250,7 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/stats`, { headers: this.headers });
   }
 
-  getTracks(status: 'pending' | 'approved' | 'all' = 'pending'): Observable<ApiResponse<{ tracks: AdminTrack[]; pending_count: number; approved_count: number }>> {
+  getTracks(status: 'pending' | 'approved' | 'all' | 'exclusive' = 'pending'): Observable<ApiResponse<{ tracks: AdminTrack[]; pending_count: number; approved_count: number; exclusive_count: number }>> {
     return this.http.get<any>(`${this.base}/tracks`, { headers: this.headers, params: { status } });
   }
 
@@ -177,7 +258,7 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/users`, { headers: this.headers, params: { user_type: userType } });
   }
 
-  getEngineers(): Observable<ApiResponse<{ certified: AdminMixEngineer[]; pending: AdminMixEngineer[]; pa_requests: AdminMixEngineer[]; price_requests: PriceRequest[] }>> {
+  getEngineers(): Observable<ApiResponse<{ certified: AdminMixEngineer[]; pending: AdminMixEngineer[]; pa_requests: AdminMixEngineer[]; master_pending: AdminMixEngineer[]; price_requests: PriceRequest[] }>> {
     return this.http.get<any>(`${this.base}/engineers`, { headers: this.headers });
   }
 
@@ -229,6 +310,26 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/users/${userId}/toggle-premium`, {}, { headers: this.headers });
   }
 
+  setPlan(userId: number, plan: 'free' | 'amateur' | 'pro'): Observable<ApiResponse<{ is_premium: boolean; subscription_plan: string; premium_expires_at: string | null }>> {
+    return this.http.post<any>(`${this.base}/users/${userId}/set-plan`, { plan }, { headers: this.headers });
+  }
+
+  resendVerificationEmail(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/resend-verification`, {}, { headers: this.headers });
+  }
+
+  forceVerifyEmail(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/force-verify-email`, {}, { headers: this.headers });
+  }
+
+  deleteUser(userId: number): Observable<ApiResponse> {
+    return this.http.delete<any>(`${this.base}/users/${userId}`, { headers: this.headers });
+  }
+
+  purgeUserNow(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/users/${userId}/purge-now`, {}, { headers: this.headers });
+  }
+
   // ── Engineers CUD ──────────────────────────────────────────────────────────
 
   certifyEngineer(userId: number): Observable<ApiResponse> {
@@ -267,6 +368,22 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/producer-arranger/${userId}/reject`, {}, { headers: this.headers });
   }
 
+  certifyMasterEngineer(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/certify-master`, {}, { headers: this.headers });
+  }
+
+  revokeMasterEngineer(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/revoke-master`, {}, { headers: this.headers });
+  }
+
+  approveMasterSample(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/approve-master-sample`, {}, { headers: this.headers });
+  }
+
+  rejectMasterSample(userId: number): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/engineers/${userId}/reject-master-sample`, {}, { headers: this.headers });
+  }
+
   // ── Engineer direct certification ──────────────────────────────────────────
 
   getAllMixEngineers(): Observable<ApiResponse<{ engineers: AdminMixEngineer[] }>> {
@@ -291,6 +408,38 @@ export class AdminService {
     return this.http.get<any>(`${this.base}/tracks/search`, { headers: this.headers, params: { q } });
   }
 
+  // ── Toplines ────────────────────────────────────────────────────────────────
+
+  getToplines(page = 1, published = 'all'): Observable<ApiResponse<{
+    toplines: AdminTopline[];
+    total:    number;
+    pages:    number;
+    page:     number;
+  }>> {
+    return this.http.get<any>(`${this.base}/toplines`, {
+      headers: this.headers,
+      params:  { page: String(page), published },
+    });
+  }
+
+  deleteTopline(id: number): Observable<ApiResponse> {
+    return this.http.delete<any>(`${this.base}/toplines/${id}`, { headers: this.headers });
+  }
+
+  // ── Support email ───────────────────────────────────────────────────────────
+
+  sendSupportEmail(payload: { email: string; name: string; subject: string; body: string }): Observable<ApiResponse> {
+    return this.http.post<any>(`${this.base}/send-support-email`, payload, { headers: this.headers });
+  }
+
+  getBroadcastPreview(): Observable<ApiResponse<{ count: number }>> {
+    return this.http.get<any>(`${this.base}/broadcast-preview`, { headers: this.headers });
+  }
+
+  broadcastEmail(payload: { subject: string; body: string }): Observable<ApiResponse<{ sent: number; errors: number }>> {
+    return this.http.post<any>(`${this.base}/broadcast-email`, payload, { headers: this.headers });
+  }
+
   // ── Manual contract ────────────────────────────────────────────────────────
 
   createContract(payload: {
@@ -310,8 +459,8 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/categories`, { name, color }, { headers: this.headers });
   }
 
-  editCategory(catId: number, name: string, color: string): Observable<ApiResponse> {
-    return this.http.put<any>(`${this.base}/categories/${catId}`, { name, color }, { headers: this.headers });
+  editCategory(catId: number, name: string, color: string, description?: string | null): Observable<ApiResponse> {
+    return this.http.put<any>(`${this.base}/categories/${catId}`, { name, color, description }, { headers: this.headers });
   }
 
   deleteCategory(catId: number): Observable<ApiResponse> {
@@ -328,5 +477,36 @@ export class AdminService {
 
   deleteTag(tagId: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/tags/${tagId}`, { headers: this.headers });
+  }
+
+  getRecommendationStats(): Observable<ApiResponse<RecommendationStats>> {
+    return this.http.get<any>(`${this.base}/recommendation-stats`, { headers: this.headers });
+  }
+
+  getSimilarArtists(): Observable<any> {
+    return this.http.get<any>(`${this.base}/similar-artists`, { headers: this.headers });
+  }
+
+  createSimilarArtist(name: string, scene: string): Observable<any> {
+    return this.http.post<any>(`${this.base}/similar-artists`, { name, scene }, { headers: this.headers });
+  }
+
+  deleteSimilarArtist(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.base}/similar-artists/${id}`, { headers: this.headers });
+  }
+
+  // ── Invoices ───────────────────────────────────────────────────────────────
+
+  getAdminInvoices(): Observable<ApiResponse<AdminInvoicesData>> {
+    return this.http.get<any>('/api/admin/invoices', { headers: this.headers });
+  }
+
+  getAdminInvoiceUrl(type: 'purchase' | 'purchase-statement' | 'mixmaster' | 'mm-earnings',
+                     id: number, stage?: string): string {
+    const base = '/api/admin/invoices';
+    if (type === 'purchase')           return `${base}/purchase/${id}`;
+    if (type === 'purchase-statement') return `${base}/purchase/${id}/statement`;
+    if (type === 'mixmaster')          return `${base}/mixmaster/${id}`;
+    return `${base}/mixmaster/${id}/earnings/${stage}`;
   }
 }

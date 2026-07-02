@@ -13,16 +13,23 @@ export interface PurchasedTrack {
 }
 
 export interface PurchaseItem {
-  id:            number;
-  format:        string;
-  price_paid:    number;
-  track_price:   number;
+  id:             number;
+  format:         string;
+  price_paid:     number;
+  track_price:    number;
   contract_price: number;
-  has_contract:  boolean;
-  created_at:    string;
-  stream_url:    string;
-  contract_url:  string | null;
-  track:         PurchasedTrack | null;
+  has_contract:   boolean;
+  created_at:     string;
+  stream_url:     string;
+  contract_url:   string | null;
+  track:          PurchasedTrack | null;
+  // Licence lifecycle (ajouté lors de la refonte licences)
+  is_exclusive:   boolean;
+  duration_years: number | null;
+  is_lifetime:    boolean;
+  territory:      string | null;
+  expires_at:     string | null;
+  license_status: 'active' | 'expired' | 'renewed' | 'cancelled';
 }
 
 export interface MixOrderPurchase {

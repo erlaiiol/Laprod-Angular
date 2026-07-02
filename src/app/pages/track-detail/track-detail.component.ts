@@ -12,23 +12,26 @@ import { AuthService } from '../../services/auth.service';
 import { ToplineService } from '../../services/topline.service';
 import { ToplineRecorderComponent } from '../../components/topline-recorder/topline-recorder.component';
 import { FavoriteButtonComponent } from '../../components/favorite-button/favorite-button.component';
+import { AddToPlaylistModalComponent } from '../../components/add-to-playlist-modal/add-to-playlist-modal.component';
+import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { FavoritesService } from '../../services/favorites.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent],
+  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrackDetailComponent implements OnInit, OnDestroy {
 
-  track        = signal<TrackDetail | null>(null);
-  loading      = signal(true);
-  error        = signal<string | null>(null);
-  showRecorder = signal(false);
+  track             = signal<TrackDetail | null>(null);
+  loading           = signal(true);
+  error             = signal<string | null>(null);
+  showRecorder      = signal(false);
+  showPlaylistModal = signal(false);
 
   private route       = inject(ActivatedRoute);
   private trackSvc    = inject(TrackService);
@@ -70,6 +73,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
           ];
           this.track.set({ ...t, toplines: merged });
           this.player.viewingTrack.set(t as any);
+          this.trackSvc.recordView(t.id, 'detail');
         } else {
           this.error.set('Track introuvable.');
         }
@@ -115,9 +119,11 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   playThisTrack(): void {
     const t = this.track();
     if (!t) return;
-    if (this.player.currentTrack()?.id === t.id) {
-      this.player.togglePlay();
+    if (this.player.isPlaying() && this.player.currentTrack()?.id === t.id) {
+      this.player.pause();
     } else {
+      // Toujours appeler play() — gère aussi la reprise du même track
+      // et le cas où playOnReady était bloqué sur même URL.
       this.player.play(t as any);
     }
   }
@@ -131,14 +137,17 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
         id:            tl.id,
         title:         `Topline par ${tl.artist_user.username}`,
         composer_user: tl.artist_user as any,
-        stream_url:    streamUrl,
-        image_file:    t.image_file,
-        bpm:           t.bpm,
-        key:           t.key,
-        style:         t.style,
-        price_mp3:     0,
-        tags:          [],
-        is_approved:   true,
+        stream_url:      streamUrl,
+        full_stream_url: null,
+        image_file:      t.image_file,
+        bpm:             t.bpm,
+        key:             t.key,
+        style:           t.style,
+        price_mp3:       0,
+        tags:            [],
+        is_approved:        true,
+        playlist_count:     0,
+        first_playlist_image: null,
       });
     };
 
@@ -245,5 +254,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
     if (!user || !t) return false;
     return user.id === t.composer_user.id || user.roles?.is_admin;
   });
+
+  isExclusiveSold = computed(() => this.track()?.is_exclusive_sold === true);
 
 }

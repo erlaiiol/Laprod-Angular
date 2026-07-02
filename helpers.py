@@ -14,7 +14,6 @@ def admin_required(f):
     
     Usage:
         @app.route('/admin/...')
-        @login_required
         @admin_required
         def ma_fonction_admin():
             ...
@@ -98,7 +97,7 @@ def generate_track_image(title, scale, output_path, size=800):
     draw = ImageDraw.Draw(img)
 
     # Logo watermark (si existe)
-    logo_path = Path(current_app.root_path) / 'static' / 'images' / 'main' / 'logo.png'
+    logo_path = Path(current_app.root_path) / 'db_assets' / 'main' / 'logo.png'
     if logo_path.exists():
         try:
             logo = Image.open(logo_path).convert("RGBA")
@@ -112,7 +111,7 @@ def generate_track_image(title, scale, output_path, size=800):
 
     # Texte du titre
     try:
-        font_path = Path(current_app.root_path) / 'static' / 'fonts' / 'MomoSignature-Regular.ttf'
+        font_path = Path(current_app.root_path) / 'db_assets' / 'fonts' / 'MomoSignature-Regular.ttf'
         font = ImageFont.truetype(str(font_path), size // 8)
     except:
         font = ImageFont.load_default()

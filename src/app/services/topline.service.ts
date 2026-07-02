@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { PublishedTopline } from './track.service';
 
@@ -24,8 +23,7 @@ export interface ApiResponse<T = void> {
 // ── Types spécifiques topline ─────────────────────────────────────────────────
 
 export interface UploadToplineData {
-  topline:          PublishedTopline;
-  tokens_remaining: number;
+  job_id: string;
 }
 
 export interface PublishToplineData {
@@ -59,7 +57,7 @@ export class ToplineService {
   uploadTopline(formData: FormData): Observable<ApiResponse<UploadToplineData>> {
     return this.http.post<ApiResponse<UploadToplineData>>(
       `${this.apiUrl}/upload`, formData,
-    ).pipe(timeout(120_000));  // 2 min — pipeline audio peut être long
+    );
   }
 
   publishTopline(id: number): Observable<ApiResponse<PublishToplineData>> {

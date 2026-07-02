@@ -25,28 +25,36 @@ import config
 
 def convert_to_wav(audio_path):
     """
-    Convertit n'importe quel format audio (webm, mp3, mp4/m4a, …) en WAV.
+    Convertit n'importe quel format audio (webm, mp3, mp4/m4a, ogg, wav…) en WAV.
+    Laisse FFmpeg détecter automatiquement le format — ne suppose jamais webm.
 
     Args:
         audio_path: Path ou str vers le fichier source.
 
     Returns:
         str: Chemin vers le fichier WAV temporaire généré.
+
+    Raises:
+        ValueError: Fichier absent, vide ou trop petit pour être audio.
+        pydub.exceptions.CouldntDecodeError: FFmpeg ne peut pas décoder le fichier.
     """
     from pydub import AudioSegment
 
-    ext = str(audio_path).lower().split('.')[-1]
+    audio_path = Path(audio_path)
+
+    if not audio_path.exists():
+        raise ValueError(f"Fichier audio introuvable : {audio_path.name}")
+
+    file_size = audio_path.stat().st_size
+    if file_size < 512:
+        raise ValueError(
+            f"Fichier audio invalide ou vide ({file_size} octets). "
+            "L'enregistrement a peut-être été interrompu avant le début."
+        )
+
     temp_wav_path = str(audio_path).rsplit('.', 1)[0] + '_temp.wav'
 
-    if ext == 'webm':
-        audio = AudioSegment.from_file(audio_path, format='webm')
-    elif ext == 'mp3':
-        audio = AudioSegment.from_mp3(audio_path)
-    elif ext in ['mp4', 'm4a']:
-        audio = AudioSegment.from_file(audio_path, format='mp4')
-    else:
-        audio = AudioSegment.from_file(audio_path)
-
+    audio = AudioSegment.from_file(str(audio_path))
     audio.export(temp_wav_path, format='wav')
     return temp_wav_path
 

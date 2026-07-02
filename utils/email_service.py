@@ -3,13 +3,28 @@ Service d'envoi d'emails pour LaProd
 Gère l'envoi d'emails de vérification, notifications, et factures
 """
 from flask import current_app, render_template
+
+
+def _fe(path: str = '') -> str:
+    """Construit une URL absolue vers le frontend Angular.
+    Remplace url_for() — l'app est API-only, les routes Flask n'existent plus."""
+    base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
+    return f"{base.rstrip('/')}/{path.lstrip('/')}"
 import extensions
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime
 from pathlib import Path
 import html as html_module
 import os
+
+from utils.invoice_generator import (
+    generate_track_purchase_invoice,
+    generate_track_sale_statement,
+    generate_mixmaster_invoice,
+    generate_mixmaster_earnings_statement,
+)
 
 # Instance globale de Flask-Mail (initialisée dans app.py)
 mail = extensions.mail
@@ -141,8 +156,7 @@ def send_verification_email(user):
         send_verification_email(new_user)
     """
     token = generate_verification_token(user.email)
-    frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
-    verification_url = f"{frontend_url}/verify-email?token={token}"
+    verification_url = _fe(f'verify-email?token={token}')
 
     # Texte brut
     text_body = f"""
@@ -206,11 +220,7 @@ def verify_email_change_token(token, expiration=3600):
 def send_email_change_verification_email(user, new_email):
     """Envoie un email de vérification pour le changement d'email"""
     token = generate_email_change_token(user.id, new_email)
-    verification_url = url_for(
-        'auth.confirm_email_change',
-        token=token,
-        _external=True
-    )
+    verification_url = _fe(f'/confirm-email-change?token={token}')
     html_body = render_template(
         'emails/confirm_email_change.html',
         user=user,
@@ -263,11 +273,7 @@ def send_password_reset_email(user):
     """
     reset_token = generate_password_reset_token(user.id)
 
-    reset_url = url_for(
-        'auth.reset_password_via_email',
-        token=reset_token,
-        _external=True
-    )
+    reset_url = _fe(f'/reset-password?token={reset_token}')
 
     text_body = f"""
 Bonjour {user.username},
@@ -341,7 +347,7 @@ Format : {purchase.format_purchased.upper()}
 Prix payé : {purchase.price_paid}€
 
 Vous pouvez télécharger votre fichier depuis votre espace "Mes achats" :
-{url_for('payment.my_purchases', _external=True)}
+{_fe('/dashboard')}
 
 Merci pour votre confiance !
 
@@ -357,11 +363,19 @@ L'équipe LaProd
         composer=composer
     )
 
+    attachments = []
+    try:
+        pdf = generate_track_purchase_invoice(purchase)
+        attachments = [(f"facture_laprod_{purchase.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération facture achat #{purchase.id}: {e}")
+
     return send_email(
         subject=f'Achat confirmé - {track.title} - LaProd',
         recipients=[buyer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -409,11 +423,47 @@ L'équipe LaProd
         buyer=buyer
     )
 
+    attachments = []
+    try:
+        pdf = generate_track_sale_statement(purchase)
+        attachments = [(f"releve_vente_laprod_{purchase.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération relevé vente #{purchase.id}: {e}")
+
     return send_email(
         subject=f'Vente confirmée - {track.title} - LaProd',
         recipients=[composer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
+    )
+
+
+def send_exclusive_sold_email(track, purchase):
+    """Notifie le compositeur par email qu'un contrat exclusif a été signé."""
+    composer = track.composer_user
+
+    text_body = f"""
+Bonjour {composer.username},
+
+Votre track a été vendu en exclusivité.
+
+Track       : {track.title}
+Acheteur    : {purchase.buyer_user.username}
+Montant reçu: {purchase.composer_revenue}€
+
+Ce track est maintenant retiré de la vente sur LaProd.
+Vous pouvez consulter vos revenus dans votre espace "Mes gains".
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Contrat exclusif signé — {track.title} — LaProd',
+        recipients=[composer.email],
+        text_body=text_body,
+        html_body=text_body,
     )
 
 
@@ -462,11 +512,19 @@ L'équipe LaProd
         artist=artist
     )
 
+    attachments = []
+    try:
+        pdf = generate_mixmaster_invoice(mixmaster_request)
+        attachments = [(f"facture_mixmaster_laprod_{mixmaster_request.id}.pdf", 'application/pdf', pdf)]
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération facture mixmaster #{mixmaster_request.id}: {e}")
+
     return send_email(
         subject=f'Nouvelle demande de mixage - LaProd',
         recipients=[engineer.email],
         text_body=text_body,
-        html_body=html_body
+        html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -498,8 +556,8 @@ def send_mixmaster_status_update_email(mixmaster_request, old_status, new_status
         'refunded': 'Délai dépassé. Vous avez été remboursé intégralement.'
     }
 
-    deposit_net = round(float(mixmaster_request.deposit_amount) * 0.90, 2)
-    final_net   = round(float(mixmaster_request.remaining_amount) * 0.90, 2)
+    deposit_net = (mixmaster_request.deposit_amount   * Decimal('0.90')).quantize(Decimal('0.01'), ROUND_HALF_UP)
+    final_net   = (mixmaster_request.remaining_amount * Decimal('0.90')).quantize(Decimal('0.01'), ROUND_HALF_UP)
 
     # Messages pour l'engineer
     engineer_messages = {
@@ -568,11 +626,21 @@ L'équipe LaProd
         revision_message=revision_message
     )
 
+    # Pièce jointe artiste : facture récapitulative si le contrat est terminé
+    artist_attachments = []
+    if new_status == 'completed':
+        try:
+            pdf = generate_mixmaster_invoice(mixmaster_request)
+            artist_attachments = [(f"facture_finale_mixmaster_{mixmaster_request.id}.pdf", 'application/pdf', pdf)]
+        except Exception as e:
+            current_app.logger.error(f"Erreur facture finale artiste mixmaster #{mixmaster_request.id}: {e}")
+
     send_email(
         subject=f'Mix/Master #{mixmaster_request.id} - {status_label} - LaProd',
         recipients=[artist.email],
         text_body=artist_text,
-        html_body=artist_html
+        html_body=artist_html,
+        attachments=artist_attachments,
     )
 
     # Email à l'engineer (pour les statuts pertinents)
@@ -610,11 +678,34 @@ L'équipe LaProd
             revision_message=revision_message
         )
 
+        # Pièce jointe ingénieur : relevé de gains à chaque étape de versement
+        _stage_map = {
+            'delivered': 'deposit',
+            'revision1': 'revision1',
+            'revision2': 'revision2',
+            'completed': 'final',
+        }
+        engineer_attachments = []
+        if new_status in _stage_map:
+            try:
+                stage = _stage_map[new_status]
+                pdf = generate_mixmaster_earnings_statement(mixmaster_request, stage)
+                engineer_attachments = [(
+                    f"releve_gains_{stage}_{mixmaster_request.id}.pdf",
+                    'application/pdf',
+                    pdf,
+                )]
+            except Exception as e:
+                current_app.logger.error(
+                    f"Erreur relevé gains ingénieur mixmaster #{mixmaster_request.id}: {e}"
+                )
+
         send_email(
             subject=f'Mix/Master #{mixmaster_request.id} - {status_label} - LaProd',
             recipients=[engineer.email],
             text_body=engineer_text,
-            html_body=engineer_html
+            html_body=engineer_html,
+            attachments=engineer_attachments,
         )
 
     return True
@@ -876,4 +967,218 @@ L'équipe LaProd
         recipients=[user.email],
         text_body=text_body,
         html_body=html_body
+    )
+
+
+def send_plan_changed_email(user, new_plan, expires_at=None, granted_by_admin=False):
+    """
+    Notifie l'utilisateur par email d'un changement de plan d'abonnement.
+
+    Args:
+        user: Instance User
+        new_plan: Nouveau plan ('free' | 'amateur' | 'pro')
+        expires_at: Date d'expiration (datetime) si applicable
+        granted_by_admin: True si accordé manuellement par un admin
+    """
+    plan_labels = {'free': 'Free', 'amateur': 'LaProd+ Amateur', 'pro': 'LaProd+ Pro'}
+    new_label   = plan_labels.get(new_plan, new_plan)
+    expires_str = expires_at.strftime('%d/%m/%Y') if expires_at else ''
+
+    if new_plan == 'free':
+        subject   = 'Votre abonnement LaProd+ a été désactivé'
+        text_body = f"""Bonjour {user.username},
+
+Votre abonnement LaProd+ a été désactivé. Vous repassez en plan Free.
+
+Vous pouvez vous réabonner à tout moment sur laprod.fr/premium.
+
+---
+L'équipe LaProd
+"""
+    else:
+        admin_note = '\nCe plan vous a été accordé par l\'équipe LaProd.' if granted_by_admin else ''
+        subject   = f'Votre plan {new_label} est actif !'
+        text_body = f"""Bonjour {user.username},
+
+Votre plan {new_label} est maintenant actif.{admin_note}
+{"Valable jusqu'au : " + expires_str + '.' if expires_str else ''}
+
+Profitez de toutes vos fonctionnalités sur laprod.fr.
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/plan_changed.html',
+        user=user,
+        new_plan=new_plan,
+        new_label=new_label,
+        expires_str=expires_str,
+        granted_by_admin=granted_by_admin,
+    )
+
+    return send_email(
+        subject=subject,
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_audio_analysis_email(user, track, suggestions: dict):
+    parts = []
+    if 'bpm' in suggestions:
+        parts.append(f"BPM détecté : {suggestions['bpm']}")
+    if 'key' in suggestions:
+        parts.append(f"Gamme détectée : {suggestions['key']}")
+    if 'style' in suggestions:
+        parts.append(f"Style suggéré : {suggestions['style']}")
+
+    summary = '\n'.join(f'  • {p}' for p in parts)
+    subject   = f'Analyse audio terminée — {track.title}'
+    text_body = f"""Bonjour {user.username},
+
+L'analyse audio de votre beat « {track.title} » est terminée.
+
+Suggestions :
+{summary}
+
+Connectez-vous à votre tableau de bord pour valider ou modifier ces valeurs.
+
+---
+L'équipe LaProd
+"""
+    return send_email(
+        subject=subject,
+        recipients=[user.email],
+        text_body=text_body,
+    )
+
+
+# ============================================
+# EMAILS — CYCLE DE VIE DES LICENCES
+# ============================================
+
+def send_expiry_reminder_email(purchase, days_remaining: int):
+    """Rappel d'expiration de licence (90 / 30 / 7 / 1 jours avant)."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    if days_remaining <= 1:
+        urgency_line = "Votre licence expire demain !"
+        urgency_subject = "expire demain"
+    elif days_remaining <= 7:
+        urgency_line = f"Votre licence expire dans {days_remaining} jours !"
+        urgency_subject = f"expire dans {days_remaining} jours"
+    else:
+        urgency_line = f"Votre licence expire dans {days_remaining} jours."
+        urgency_subject = f"expire dans {days_remaining} jours"
+
+    expires_str = purchase.expires_at.strftime('%d/%m/%Y') if purchase.expires_at else '—'
+
+    text_body = f"""Bonjour {buyer.username},
+
+{urgency_line}
+
+Track      : {track_title}
+Format     : {purchase.format_purchased.upper() if purchase.format_purchased else '—'}
+Expiration : {expires_str}
+
+Pour conserver vos droits d'exploitation, renouvelez votre licence dès maintenant depuis votre espace :
+{_fe('/licenses')}
+
+Sans renouvellement, vos droits contractuels cesseront à la date d'expiration.
+Vos enregistrements réalisés pendant la période de licence restent valides.
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Votre licence {urgency_subject} — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+    )
+
+
+def send_sole_licensee_email(purchase):
+    """Notification mensuelle : l'artiste est l'unique licencié actif."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    text_body = f"""Bonjour {buyer.username},
+
+Ce mois-ci encore, vous êtes le seul titulaire d'une licence pour :
+
+Track : {track_title}
+
+Cette composition n'a pas été vendue à d'autres artistes. Vous bénéficiez d'une situation avantageuse — pensez à renouveler votre licence avant son expiration pour maintenir cet avantage.
+
+Retrouvez le détail de vos licences ici :
+{_fe('/licenses')}
+
+---
+L'équipe LaProd
+"""
+
+    return send_email(
+        subject=f'Vous êtes le seul licencié — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+    )
+
+
+def send_renewal_confirmation_email(purchase):
+    """Confirmation de renouvellement de licence (artiste)."""
+    buyer = purchase.buyer_user
+    track = purchase.track
+    track_title = track.title if track else f'Track #{purchase.track_id}'
+
+    expires_str = purchase.expires_at.strftime('%d/%m/%Y') if purchase.expires_at else 'à vie'
+    duration_line = f"Nouvelle échéance : {expires_str}"
+
+    text_body = f"""Bonjour {buyer.username},
+
+Votre licence a été renouvelée avec succès !
+
+Track    : {track_title}
+Format   : {purchase.format_purchased.upper() if purchase.format_purchased else '—'}
+{duration_line}
+
+Vos droits d'exploitation sont prolongés. Vous pouvez consulter et télécharger votre nouveau contrat depuis votre espace licences :
+{_fe('/licenses')}
+
+Merci pour votre confiance !
+
+---
+L'équipe LaProd
+"""
+
+    attachments = []
+    if purchase.contract_file:
+        try:
+            contract_path = purchase.contract_file
+            if not contract_path.startswith('/'):
+                contract_path = os.path.join(
+                    current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+                    contract_path,
+                )
+            if os.path.exists(contract_path):
+                with open(contract_path, 'rb') as f:
+                    attachments = [(
+                        f"contrat_renouvellement_{purchase.id}.pdf",
+                        'application/pdf',
+                        f.read(),
+                    )]
+        except Exception as e:
+            current_app.logger.error(f"Erreur attach contrat renouvellement #{purchase.id}: {e}")
+
+    return send_email(
+        subject=f'Licence renouvelée — {track_title} — LaProd',
+        recipients=[buyer.email],
+        text_body=text_body,
+        attachments=attachments,
     )

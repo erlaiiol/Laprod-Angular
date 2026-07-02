@@ -15,7 +15,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container-fluid">
 
-    <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']">
+    <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']" (click)="resetFilters()">
       <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
            onerror="this.onerror=null; this.style.display='none'">
       <span>LaProd</span>
@@ -26,8 +26,8 @@
       <div class="position-relative flex-grow-1 me-2">
         <input type="text"
                class="form-control form-control-sm"
-               placeholder="Rechercher (appuyez sur Entrée)..."
-               title="Rechercher par titre ou artiste — appuyez sur Entrée"
+               placeholder="Titre, beatmaker, tag, BPM, style..."
+               title="Recherche par titre, beatmaker, tag, BPM, style ou gamme — appuyez sur Entrée"
                [value]="search()"
                (input)="search.set($any($event.target).value)"
                (keyup.enter)="onSearchEnter()">
@@ -44,12 +44,13 @@
         }
       </div>
 
-      <button class="btn btn-outline-light btn-sm flex-shrink-0"
+      <button class="btn btn-outline-light btn-sm flex-shrink-0 btn-filter-toggle"
               (click)="toggleFilters()"
-              title="Filtres avancés">
-        <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              title="Filtres avancés (BPM, gamme, style, tags)">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
         </svg>
+        <span class="d-none d-lg-inline ms-1">Filtrer les tracks</span>
       </button>
     </div>
 
@@ -63,7 +64,7 @@
       <ul class="navbar-nav ms-auto">
 
         <li class="nav-item">
-          <a class="nav-link" [routerLink]="['/']"
+          <a class="nav-link" [routerLink]="['/']" (click)="resetFilters()"
              routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
             <i class="bi bi-music-note-list"></i> Beats
           </a>
@@ -73,6 +74,25 @@
           <a class="nav-link" [routerLink]="['/mix/engineers']" routerLinkActive="active">
             <i class="bi bi-sliders"></i> Mix/Master
           </a>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button"
+             data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-file-earmark-text"></i> Contrats
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+            <li>
+              <a class="dropdown-item" [routerLink]="['/contract-builder']" routerLinkActive="active">
+                <i class="bi bi-pencil-square"></i> Créer un contrat
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" [routerLink]="['/contract-analyzer']" routerLinkActive="active">
+                <i class="bi bi-shield-check"></i> Analyser un contrat
+              </a>
+            </li>
+          </ul>
         </li>
 
         @if (isLoggedIn()) {
@@ -121,6 +141,8 @@
                     </a>
                   </li>
                 }
+
+
               </ul>
             </li>
           }
@@ -172,6 +194,12 @@
             </a>
           </li>
 
+          <li class="nav-item">
+            <a class="nav-link nav-link--register" [routerLink]="['/register']" routerLinkActive="active">
+              <i class="bi bi-person-plus-fill"></i> S'inscrire
+            </a>
+          </li>
+
         }
 
       </ul>
@@ -191,11 +219,45 @@
 <div class="filters-popover" [class.open]="filtersOpen()">
 
   <div class="filters-header">
-    <h5>Filtres avancés</h5>
+    <div>
+      <h5>Filtres avancés</h5>
+      <p class="filters-subtitle">BPM, gamme, style, tags — distinct des catégories de tags affichées en bas de page</p>
+    </div>
     <button class="btn-close-popover" (click)="closeFilters()">&times;</button>
   </div>
 
   <div class="filters-body">
+
+    @if (artistScenes().length > 0) {
+      <div class="filter-section">
+        <label class="filter-label">
+          Artistes similaires
+          @if (selectedSimilarArtists().length > 0) {
+            <span class="filter-active-count">{{ selectedSimilarArtists().length }}</span>
+          }
+        </label>
+        @for (scene of artistScenes(); track scene.name) {
+          <details class="filter-accordion">
+            <summary class="filter-accordion-header">
+              <span>{{ scene.name }}</span>
+              @if (artistCountInScene(scene) > 0) {
+                <span class="filter-active-count">{{ artistCountInScene(scene) }}</span>
+              }
+              <i class="bi bi-chevron-down filter-accordion-arrow"></i>
+            </summary>
+            <div class="filter-tags-container filter-accordion-body">
+              @for (a of scene.artists; track a.id) {
+                <span class="filter-tag filter-tag--artist"
+                      [class.selected]="isArtistFilterActive(a.name)"
+                      (click)="toggleArtistFilter(a.name)">
+                  {{ a.name }}
+                </span>
+              }
+            </div>
+          </details>
+        }
+      </div>
+    }
 
     <div class="filter-section">
       <label class="filter-label">BPM</label>
@@ -245,21 +307,36 @@
     </div>
 
     <div class="filter-section">
-      <label class="filter-label">Tags</label>
-      <div class="filter-tags-container">
-        @for (tag of tags(); track tag.name) {
-          <span class="filter-tag"
-                [style.--tag-color]="tag.category.color"
-                [class.selected]="selectedTags().includes(tag.name)"
-                (click)="toggleTag(tag.name)">
-            #{{ tag.name }}
-          </span>
-        } @empty {
-          @if (!loading()) {
-            <span class="no-tags">Aucun tag disponible</span>
-          }
+      <label class="filter-label">
+        Tags
+        @if (selectedTags().length > 0) {
+          <span class="filter-active-count">{{ selectedTags().length }}</span>
         }
-      </div>
+      </label>
+      @if (tagGroups().length === 0 && !loading()) {
+        <span class="no-tags">Aucun tag disponible</span>
+      }
+      @for (group of tagGroups(); track group.name) {
+        <details class="filter-accordion">
+          <summary class="filter-accordion-header">
+            <span [style.color]="group.color">{{ group.name }}</span>
+            @if (tagCountInGroup(group) > 0) {
+              <span class="filter-active-count">{{ tagCountInGroup(group) }}</span>
+            }
+            <i class="bi bi-chevron-down filter-accordion-arrow"></i>
+          </summary>
+          <div class="filter-tags-container filter-accordion-body">
+            @for (tag of group.tags; track tag.name) {
+              <span class="filter-tag"
+                    [style.--tag-color]="tag.category.color"
+                    [class.selected]="selectedTags().includes(tag.name)"
+                    (click)="toggleTag(tag.name)">
+                #{{ tag.name }}
+              </span>
+            }
+          </div>
+        </details>
+      }
     </div>
 
   </div>

@@ -31,7 +31,9 @@ def setup_logging(app):
     logs_folder.mkdir(exist_ok=True)
 
     # Déterminer le niveau de log selon l'environnement
-    if app.debug:
+    # En production, forcer INFO même si app.debug est True (mauvaise config)
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    if app.debug and not is_production:
         log_level = logging.DEBUG
         console_level = logging.DEBUG
     else:
@@ -48,6 +50,12 @@ def setup_logging(app):
 
     app.logger.setLevel(log_level)
 
+    # En production : couper la propagation vers le root logger pour éviter
+    # que des handlers de bas niveau (gunicorn, bibliothèques) affichent les messages Flask.
+    if is_production:
+        app.logger.propagate = False
+        logging.root.setLevel(logging.WARNING)
+
     # Format des logs
     detailed_formatter = logging.Formatter(
         '[%(asctime)s] %(levelname)s in %(module)s.%(funcName)s:%(lineno)d: %(message)s',
@@ -60,9 +68,19 @@ def setup_logging(app):
     )
 
     # ============================================
-    # HANDLER 1: CONSOLE (développement)
+    # HANDLER 1: CONSOLE
+    # Toujours actif en développement.
+    # En production: branché sur gunicorn.error pour apparaître dans
+    # `docker compose logs web` — niveau INFO minimum.
     # ============================================
-    if app.debug:
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        # Production : réutiliser les handlers gunicorn (stdout/stderr de docker)
+        for h in gunicorn_logger.handlers:
+            h.setLevel(logging.INFO)
+            app.logger.addHandler(h)
+    else:
+        # Développement ou hors gunicorn
         console_handler = logging.StreamHandler()
         console_handler.setLevel(console_level)
         console_handler.setFormatter(simple_formatter)

@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { finalize } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -13,6 +14,8 @@ import { finalize } from 'rxjs';
   styleUrl: './register.component.scss',
 })
 export class RegisterComponent {
+
+  readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
 
   username        = '';
   email           = '';
@@ -53,8 +56,12 @@ export class RegisterComponent {
           }
         },
         error: (err) => {
-          if (err?.error?.code === 'PENDING_EMAIL_VERIFICATION') {
+          const code = err?.error?.code;
+          if (code === 'PENDING_EMAIL_VERIFICATION') {
             this.pendingEmail.set(err.error.data?.email ?? this.email);
+          } else if (code === 'SEND_CONFIRM_EMAIL_MESSAGE') {
+            // Compte créé mais email non envoyé : afficher le panel resend
+            this.pendingEmail.set(err.error.data?.user?.email ?? this.email);
           } else {
             this.error.set(
               err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'

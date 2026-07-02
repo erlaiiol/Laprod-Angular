@@ -5,7 +5,7 @@ import { AdminService, AdminMixEngineer, PriceRequest } from '../../../services/
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
-type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'direct';
+type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'master' | 'direct';
 
 @Component({
   selector: 'app-admin-engineers',
@@ -17,15 +17,16 @@ type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'direct';
 export class AdminEngineersComponent implements OnInit {
   @Output() pendingCountChange = new EventEmitter<number>();
 
-  staticBase = `${environment.apiUrl.replace('/api', '')}/static/`;
+  staticBase = `/db_assets/`;
 
   loading    = signal(false);
   activeTab  = signal<EngTab>('pending');
 
-  certified    = signal<AdminMixEngineer[]>([]);
-  pending      = signal<AdminMixEngineer[]>([]);
-  paRequests   = signal<AdminMixEngineer[]>([]);
-  priceReqs    = signal<PriceRequest[]>([]);
+  certified      = signal<AdminMixEngineer[]>([]);
+  pending        = signal<AdminMixEngineer[]>([]);
+  paRequests     = signal<AdminMixEngineer[]>([]);
+  masterPending  = signal<AdminMixEngineer[]>([]);
+  priceReqs      = signal<PriceRequest[]>([]);
 
   // Prix inline
   priceEditId  = signal<number | null>(null);
@@ -139,9 +140,11 @@ export class AdminEngineersComponent implements OnInit {
           this.certified.set(res.data.certified);
           this.pending.set(res.data.pending);
           this.paRequests.set(res.data.pa_requests);
+          this.masterPending.set(res.data.master_pending ?? []);
           this.priceReqs.set(res.data.price_requests);
           this.pendingCountChange.emit(
-            res.data.pending.length + res.data.price_requests.length + res.data.pa_requests.length
+            res.data.pending.length + res.data.price_requests.length +
+            res.data.pa_requests.length + (res.data.master_pending?.length ?? 0)
           );
         }
       },
@@ -224,6 +227,35 @@ export class AdminEngineersComponent implements OnInit {
     this.adminSvc.revokeProducerArranger(e.id).subscribe({
       next: res => { if (res.success) this.load(); },
       error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+    });
+  }
+
+  certifyMaster(e: AdminMixEngineer): void {
+    this.adminSvc.certifyMasterEngineer(e.id).subscribe({
+      next: res => { if (res.success) { e.is_certified_master_engineer = true; } },
+      error: () => this.toast.showToast({ level: 'error', message: 'Erreur lors de la certification.' }),
+    });
+  }
+
+  revokeMaster(e: AdminMixEngineer): void {
+    this.adminSvc.revokeMasterEngineer(e.id).subscribe({
+      next: res => { if (res.success) { e.is_certified_master_engineer = false; } },
+      error: () => this.toast.showToast({ level: 'error', message: 'Erreur lors de la révocation.' }),
+    });
+  }
+
+  approveMasterSample(e: AdminMixEngineer): void {
+    this.adminSvc.approveMasterSample(e.id).subscribe({
+      next: res => { if (res.success) this.load(); },
+      error: () => this.toast.showToast({ level: 'error', message: 'Erreur lors de l\'approbation.' }),
+    });
+  }
+
+  rejectMasterSample(e: AdminMixEngineer): void {
+    if (!confirm(`Rejeter la soumission mastering de ${e.username} ?`)) return;
+    this.adminSvc.rejectMasterSample(e.id).subscribe({
+      next: res => { if (res.success) this.load(); },
+      error: () => this.toast.showToast({ level: 'error', message: 'Erreur lors du rejet.' }),
     });
   }
 

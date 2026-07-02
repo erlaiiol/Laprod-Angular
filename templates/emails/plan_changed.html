@@ -1,0 +1,46 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #a78bfa; margin: 0 0 20px;">
+  {% if new_plan == 'free' %}
+    Abonnement désactivé
+  {% else %}
+    🎉 Plan {{ new_label }} activé !
+  {% endif %}
+</h2>
+
+<p style="color: #ccddee; font-size: 15px;">Bonjour {{ user.username }},</p>
+
+{% if new_plan == 'free' %}
+  <p style="color: #ccddee; font-size: 15px;">
+    Votre abonnement LaProd+ a été désactivé. Vous repassez en plan <strong>Free</strong>.
+  </p>
+  <p style="margin-top: 24px; text-align: center;">
+    <a href="https://laprod.fr/premium"
+       style="display:inline-block; padding: 12px 28px; background:#a78bfa; color:#fff;
+              text-decoration:none; border-radius:6px; font-weight:700; font-size:14px;">
+      Se réabonner
+    </a>
+  </p>
+{% else %}
+  <p style="color: #ccddee; font-size: 15px;">
+    Votre plan <strong style="color:#a78bfa;">{{ new_label }}</strong> est maintenant actif.
+    {% if granted_by_admin %}Ce plan vous a été accordé par l'équipe LaProd.{% endif %}
+  </p>
+
+  {% if expires_str %}
+  <div style="background:#0f3460; border-radius:8px; padding:16px 20px; margin:20px 0; text-align:center;">
+    <p style="color:#8899aa; font-size:13px; margin:0 0 4px;">Valable jusqu'au</p>
+    <p style="color:#ffffff; font-size:20px; font-weight:700; margin:0;">{{ expires_str }}</p>
+  </div>
+  {% endif %}
+
+  <p style="margin-top: 24px; text-align: center;">
+    <a href="https://laprod.fr"
+       style="display:inline-block; padding: 12px 28px; background:#a78bfa; color:#fff;
+              text-decoration:none; border-radius:6px; font-weight:700; font-size:14px;">
+      Accéder à LaProd
+    </a>
+  </p>
+{% endif %}
+{% endblock %}
