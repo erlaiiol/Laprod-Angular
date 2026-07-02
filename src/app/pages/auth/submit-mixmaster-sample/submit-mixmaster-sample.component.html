@@ -257,6 +257,18 @@
     </div>
 
     <!-- ── Actions ───────────────────────────────────────────────────────── -->
+    @if (loading()) {
+      <div class="upload-progress">
+        <div class="upload-progress__header">
+          <span class="upload-progress__label"><span class="spinner-xs"></span> Envoi en cours…</span>
+          <span class="upload-progress__pct">{{ uploadProgress() }}%</span>
+        </div>
+        <div class="upload-progress__track">
+          <div class="upload-progress__bar" [style.width.%]="uploadProgress()"></div>
+        </div>
+      </div>
+    }
+
     <button
       type="button" class="btn-submit"
       [disabled]="!canSubmit()"

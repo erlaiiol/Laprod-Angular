@@ -406,6 +406,51 @@
 }
 
 
+/* ── Progression upload ───────────────────────────────────────────────────── */
+
+.upload-progress {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  &__header {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     center;
+    margin-bottom:   0.5rem;
+  }
+
+  &__label {
+    display:     flex;
+    align-items: center;
+    gap:         0.4rem;
+    font-size:   0.83rem;
+    color:       v.$text-secondary;
+  }
+
+  &__pct {
+    font-size:   0.83rem;
+    font-weight: 700;
+    color:       v.$tag-blue;
+  }
+
+  &__track {
+    height:        4px;
+    border-radius: 2px;
+    background:    rgba(255, 255, 255, 0.08);
+    overflow:      hidden;
+  }
+
+  &__bar {
+    height:        100%;
+    border-radius: 2px;
+    background:    v.$tag-blue;
+    transition:    width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
 /* ── Boutons ──────────────────────────────────────────────────────────────── */
 
 .btn-submit {
@@ -499,6 +544,17 @@
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+.spinner-xs {
+  display:          inline-block;
+  width:            10px;
+  height:           10px;
+  border:           2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: v.$tag-blue;
+  border-radius:    50%;
+  animation:        spin 0.7s linear infinite;
+  flex-shrink:      0;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

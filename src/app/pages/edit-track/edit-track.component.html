@@ -20,7 +20,7 @@
   @if (success()) {
     <div class="state-success">
       <i class="bi bi-check-circle-fill"></i>
-      Beat mis à jour ! Redirection…
+      {{ successMessage() }}
     </div>
   }
 
@@ -212,6 +212,10 @@
           <div class="license-price-header">
             <div class="license-price-left">
               <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
+              <p class="section-hint">
+                <i class="bi bi-search"></i>
+                Ce qui permet à un artiste cherchant « quelque chose de triste avec de la guitare » de trouver votre beat.
+              </p>
               @if (selectedTagIds().length > 0) {
                 <span class="price-badge price-badge--custom">{{ selectedTagIds().length }} sélectionné{{ selectedTagIds().length > 1 ? 's' : '' }}</span>
               } @else {
@@ -320,11 +324,20 @@
       <div class="card-section">
         <h3 class="section-title">Remplacer les fichiers <span class="optional">(optionnel)</span></h3>
 
+        <div class="info-banner info-banner--preview">
+          <i class="bi bi-shield-lock-fill"></i>
+          <span>
+            LaProd insère automatiquement des tags <em>« purchase your track »</em> sur votre preview pour protéger votre beat.
+            Durée limitée à <strong>1:30</strong> pour les artistes — impossible à récupérer sans achat.
+            Si vous remplacez un fichier audio, vous pouvez recalculer cette preview.
+          </span>
+        </div>
+
         <div class="files-grid">
-          <label class="file-label">
+          <label class="file-label" [class.file-label--changed]="fileMp3()">
             <i class="bi bi-file-earmark-music-fill"></i>
             <span>
-              <strong>MP3</strong>
+              <strong>MP3</strong> <em class="opt">recommandé</em>
               @if (fileMp3()) {
                 <em class="file-name">{{ fileMp3()!.name }}</em>
               } @else {
@@ -334,10 +347,10 @@
             <input type="file" accept=".mp3" (change)="onFileSelected($event, 'mp3')" />
           </label>
 
-          <label class="file-label">
+          <label class="file-label" [class.file-label--changed]="fileWav()">
             <i class="bi bi-file-earmark-music"></i>
             <span>
-              <strong>WAV</strong>
+              <strong>WAV</strong> <em class="opt">optionnel — suffisant sans MP3</em>
               @if (fileWav()) {
                 <em class="file-name">{{ fileWav()!.name }}</em>
               } @else {
@@ -347,14 +360,14 @@
             <input type="file" accept=".wav" (change)="onFileSelected($event, 'wav')" />
           </label>
 
-          <label class="file-label">
+          <label class="file-label" [class.file-label--changed]="fileStems()">
             <i class="bi bi-file-earmark-zip"></i>
             <span>
-              <strong>Stems</strong>
+              <strong>Stems</strong> <em class="opt">optionnel — suffisant sans MP3/WAV</em>
               @if (fileStems()) {
                 <em class="file-name">{{ fileStems()!.name }}</em>
               } @else {
-                <em>Remplacer (.zip/.rar)</em>
+                <em>Remplacer (.zip/.rar) — export FL Studio accepté</em>
               }
             </span>
             <input type="file" accept=".zip,.rar" (change)="onFileSelected($event, 'stems')" />
@@ -366,8 +379,8 @@
 
       <!-- ═══ SUBMIT ══════════════════════════════════════════════════════════ -->
       <div class="card-footer">
-        <button type="submit" class="btn-submit" [disabled]="loading()">
-          @if (loading()) {
+        <button type="submit" class="btn-submit" [disabled]="submitting()">
+          @if (submitting()) {
             <span class="spinner-sm"></span> Mise à jour…
           } @else {
             <i class="bi bi-floppy-fill"></i> Enregistrer les modifications
@@ -379,3 +392,29 @@
   }
 
 </div>
+
+<!-- ── Modale preview ──────────────────────────────────────────────────────── -->
+@if (showPreviewModal()) {
+  <div class="modal-overlay" (click)="showPreviewModal.set(false)">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-icon"><i class="bi bi-music-note-beamed"></i></div>
+      <h3 class="modal-title">Recalculer le preview ?</h3>
+      <p class="modal-body">
+        Vous avez sélectionné un nouveau fichier audio. Voulez-vous recalculer la
+        <strong>preview du player</strong> (watermark + découpe à 1:30) à partir de ce fichier ?
+      </p>
+      <p class="modal-hint">
+        <i class="bi bi-info-circle"></i>
+        La génération prend quelques secondes en arrière-plan — vous serez redirigé(e) pendant ce temps.
+      </p>
+      <div class="modal-actions">
+        <button class="btn-modal btn-modal--secondary" (click)="onPreviewChoice(false)">
+          <i class="bi bi-x-lg"></i> Non, garder l'ancien
+        </button>
+        <button class="btn-modal btn-modal--primary" (click)="onPreviewChoice(true)">
+          <i class="bi bi-arrow-repeat"></i> Oui, recalculer
+        </button>
+      </div>
+    </div>
+  </div>
+}

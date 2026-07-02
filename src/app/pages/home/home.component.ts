@@ -113,14 +113,12 @@ export class HomeComponent implements OnInit {
           this.totalPages.set(response.data.pagination.pages);
           if (this.auth.isLoggedIn()) {
             const ids = (response.data.tracks as Track[]).map((t: Track) => t.id);
-            this.favSvc.prefetch(ids).subscribe({
-              next:  () => { this.tracks.set(response.data.tracks); this.loading.set(false); },
-              error: () => { this.tracks.set(response.data.tracks); this.loading.set(false); },
-            });
-          } else {
-            this.tracks.set(response.data.tracks);
-            this.loading.set(false);
+            // Prefetch lancé avant le rendu : FavoriteButtonComponent s'y branche
+            // automatiquement via favSvc.check() — pas besoin d'attendre ici.
+            this.favSvc.prefetch(ids).subscribe();
           }
+          this.tracks.set(response.data.tracks);
+          this.loading.set(false);
         } else {
           this.error.set('Le serveur a répondu mais signale une erreur.');
           this.loading.set(false);

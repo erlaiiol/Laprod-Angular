@@ -2,8 +2,9 @@ import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpEventType, HttpResponse } from '@angular/common/http';
 import { TagsService, Tag } from '../../services/tags.service';
-import { CudTrackService } from '../../services/cud-track.service';
+import { CudTrackService, UploadResponse } from '../../services/cud-track.service';
 import { AuthService } from '../../services/auth.service';
 import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
@@ -325,6 +326,12 @@ export class UploadTrackComponent implements OnInit {
       contract_price_territory_world: this.cpTerritoryWorld(),
     } : {};
 
+    // Ouvrir le toast immédiatement, avec une prévisualisation locale de l'image.
+    const localImageUrl = this.fileImage()
+      ? URL.createObjectURL(this.fileImage()!)
+      : null;
+    this.uploadStatusSvc.openForUpload(this.title(), localImageUrl);
+
     this.cudTrackService.postTrack({
       title:                    this.title(),
       bpm:                      this.bpm()!,
@@ -346,18 +353,28 @@ export class UploadTrackComponent implements OnInit {
       auto_style:               this.autoStyle(),
       ...contractPrices,
     }).subscribe({
-      next: res => {
-        this.loading.set(false);
-        
+      next: event => {
+        if (event.type === HttpEventType.UploadProgress) {
+          const pct = event.total ? Math.round(event.loaded / event.total * 100) : 0;
+          this.uploadStatusSvc.setUploadProgress(pct);
 
-        if (res.success && res.data?.job_id) {
-          this.auth.me().subscribe();  // rafraîchit le compteur de tokens
-          this.uploadStatusSvc.startPolling(res.data.job_id, res.data.title, res.data.image_url);
-          this.router.navigate(['/']);
+        } else if (event.type === HttpEventType.Response) {
+          this.loading.set(false);
+          const res = (event as HttpResponse<UploadResponse>).body;
+          if (res?.success && res.data?.job_id) {
+            this.auth.me().subscribe();
+            // title/imageUrl déjà définis par openForUpload() — on passe uniquement le job_id.
+            this.uploadStatusSvc.startPolling(res.data.job_id);
+            this.router.navigate(['/']);
+          } else {
+            this.uploadStatusSvc.stopPolling();
+            this.error.set(res?.feedback?.message ?? 'Erreur lors de la soumission.');
+          }
         }
       },
       error: err => {
         this.loading.set(false);
+        this.uploadStatusSvc.stopPolling();
         this.error.set(err?.error?.feedback?.message ?? 'Erreur serveur. Réessayez.');
       },
     });

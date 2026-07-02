@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Tag } from './tags.service';
@@ -34,6 +34,8 @@ export interface TrackData {
   auto_bpm?:   boolean;
   auto_key?:   boolean;
   auto_style?: boolean;
+  // Régénération preview lors d'un remplacement de fichier audio
+  regenerate_preview?: boolean;
 }
 
 export interface UploadResponse {
@@ -60,9 +62,10 @@ export class CudTrackService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Upload un nouveau track
+   * Upload un nouveau track.
+   * Retourne un Observable d'événements HTTP pour suivre la progression XHR.
    */
-  postTrack(trackData: TrackData): Observable<UploadResponse> {
+  postTrack(trackData: TrackData): Observable<HttpEvent<UploadResponse>> {
     const formData = new FormData();
 
     // Ajouter les champs texte
@@ -122,7 +125,10 @@ export class CudTrackService {
     formData.append('auto_key',   trackData.auto_key   ? '1' : '0');
     formData.append('auto_style', trackData.auto_style ? '1' : '0');
 
-    return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData);
+    return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData, {
+      reportProgress: true,
+      observe: 'events',
+    });
   }
 
   putTrack(trackId: number, trackData: TrackData): Observable<EditResponse> {
@@ -159,6 +165,10 @@ export class CudTrackService {
       }
     }
 
+    if (trackData.file_mp3) {
+      formData.append('file_mp3', trackData.file_mp3);
+    }
+
     if (trackData.file_wav) {
       formData.append('file_wav', trackData.file_wav);
     }
@@ -169,6 +179,10 @@ export class CudTrackService {
 
     if (trackData.file_stems) {
       formData.append('file_stems', trackData.file_stems);
+    }
+
+    if (trackData.regenerate_preview) {
+      formData.append('regenerate_preview', '1');
     }
 
     return this.http.put<EditResponse>(`${this.apiUrl}/api/tracks/put/${trackId}`, formData);

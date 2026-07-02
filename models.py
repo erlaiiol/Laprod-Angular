@@ -576,6 +576,7 @@ class Track(db.Model):
         CheckConstraint('bpm >= 40 AND bpm <= 300', name='ck_track_bpm_range'),
         CheckConstraint('sacem_percentage_composer >= 0 AND sacem_percentage_composer <= 100', name='ck_sacem_percentage_valid'),
         db.Index('idx_track_composer', 'composer_id'),
+        db.Index('idx_track_home', 'is_approved', 'is_exclusive_sold', 'created_at'),
     )
 
     def get_sacem_percentage_buyer(self):

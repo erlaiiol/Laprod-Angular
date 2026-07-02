@@ -25,9 +25,12 @@ interface TagGroup {
 export class EditTrackComponent implements OnInit {
 
   // UI
-  loading = signal(true);
-  error = signal<string | null>(null);
-  success = signal(false);
+  loading          = signal(true);
+  submitting       = signal(false);
+  error            = signal<string | null>(null);
+  success          = signal(false);
+  successMessage   = signal('Beat mis à jour ! Redirection…');
+  showPreviewModal = signal(false);
 
   // Route param
   trackId : number = 0;
@@ -248,6 +251,20 @@ export class EditTrackComponent implements OnInit {
   }
 
   onSubmit(): void {
+    const hasAudioChange = !!(this.fileMp3() || this.fileWav() || this.fileStems());
+    if (hasAudioChange) {
+      this.showPreviewModal.set(true);
+      return;
+    }
+    this._doSubmit(false);
+  }
+
+  onPreviewChoice(regenerate: boolean): void {
+    this.showPreviewModal.set(false);
+    this._doSubmit(regenerate);
+  }
+
+  private _doSubmit(regeneratePreview: boolean): void {
     const contractPrices = this.auth.isPremium() ? {
       contract_price_exclusive:       this.cpExclusive(),
       contract_price_duration_3y:     this.cpDuration3y(),
@@ -261,33 +278,46 @@ export class EditTrackComponent implements OnInit {
       contract_price_territory_world: this.cpTerritoryWorld(),
     } : {};
 
+    this.submitting.set(true);
+    this.error.set(null);
+
     this.cudTrackService.putTrack(this.trackId, {
-      title:        this.title(),
-      bpm:          this.bpm()!,
-      key:          this.key(),
-      style:        this.style(),
-      price_mp3:    this.priceMp3(),
-      price_wav:    this.priceWav() ?? 0,
-      price_stems:  this.priceStems() ?? 0,
-      tag_ids:              this.selectedTagIds().join(','),
-      similar_artist_ids:   this.selectedArtistIds().join(','),
-      file_mp3:             this.fileMp3()   ?? undefined,
-      file_image:   this.fileImage() ?? undefined,
-      file_wav:     this.fileWav()   ?? undefined,
-      file_stems:   this.fileStems() ?? undefined,
+      title:              this.title(),
+      bpm:                this.bpm()!,
+      key:                this.key(),
+      style:              this.style(),
+      price_mp3:          this.priceMp3(),
+      price_wav:          this.priceWav() ?? 0,
+      price_stems:        this.priceStems() ?? 0,
+      tag_ids:            this.selectedTagIds().join(','),
+      similar_artist_ids: this.selectedArtistIds().join(','),
+      file_mp3:           this.fileMp3()   ?? undefined,
+      file_image:         this.fileImage() ?? undefined,
+      file_wav:           this.fileWav()   ?? undefined,
+      file_stems:         this.fileStems() ?? undefined,
+      regenerate_preview: regeneratePreview || undefined,
       ...contractPrices,
     }).subscribe({
       next: res => {
+        this.submitting.set(false);
         if (!res.success) {
           this.error.set(res.error || 'Erreur inconnue lors de la mise à jour du track.');
           return;
         }
         this._syncPlaylists().then(() => {
+          this.successMessage.set(
+            regeneratePreview
+              ? 'Beat mis à jour ! Preview en cours de régénération… Redirection.'
+              : 'Beat mis à jour ! Redirection…'
+          );
           this.success.set(true);
-          setTimeout(() => this.router.navigate(['/track', this.trackId]), 2000);
+          setTimeout(() => this.router.navigate(['/track', this.trackId]), 2500);
         });
       },
-      error: () => this.error.set('Erreur lors de la mise à jour du track.'),
+      error: () => {
+        this.submitting.set(false);
+        this.error.set('Erreur lors de la mise à jour du track.');
+      },
     });
   }
 
