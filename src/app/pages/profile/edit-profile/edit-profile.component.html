@@ -11,6 +11,15 @@
     @if (error())   { <div class="form-feedback form-feedback--error">{{ error() }}</div> }
     @if (success()) { <div class="form-feedback form-feedback--success">{{ success() }}</div> }
 
+    <!-- ── Banner Stripe Connect ──────────────────────────────────────────── -->
+    @if ((auth.currentUser()?.roles?.is_beatmaker || auth.currentUser()?.roles?.is_mix_engineer) && !auth.currentUser()?.stripe_onboarding_complete) {
+      <div class="stripe-setup-banner">
+        <i class="bi bi-credit-card-fill"></i>
+        <span>Compte de paiement non configuré — vos gains de ventes ne pourront pas être versés.</span>
+        <a routerLink="/wallet" class="stripe-setup-link">Configurer →</a>
+      </div>
+    }
+
     <!-- ── Avatar ─────────────────────────────────────────────────────────── -->
     <div class="avatar-section">
       <div class="avatar-preview">

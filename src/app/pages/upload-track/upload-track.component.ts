@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { HttpEventType, HttpResponse } from '@angular/common/http';
 import { switchMap } from 'rxjs';
 import { TagsService, Tag } from '../../services/tags.service';
@@ -24,7 +24,7 @@ interface TagGroup {
 @Component({
   selector:    'app-upload-track',
   standalone:  true,
-  imports:     [CommonModule, FormsModule],
+  imports:     [CommonModule, FormsModule, RouterLink],
   templateUrl: './upload-track.component.html',
   styleUrl:    './upload-track.component.scss',
 })
@@ -347,7 +347,7 @@ export class UploadTrackComponent implements OnInit {
   }
 
   goHome(): void {
-    this.router.navigate(['/']);
+    this.router.navigate(['/dashboard/beatmaker']);
   }
 
   onSubmit(): void {

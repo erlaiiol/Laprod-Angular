@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, signal, inject, computed,
-  ChangeDetectionStrategy, ChangeDetectorRef, effect
+  ChangeDetectionStrategy, ChangeDetectorRef, effect, untracked
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -11,6 +11,7 @@ import { TrackService, TrackDetail, PublishedTopline, OwnedLicense } from '../..
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { ToplineService } from '../../services/topline.service';
+import { ToplineStatusService } from '../../services/topline-status.service';
 import { ToplineRecorderComponent } from '../../components/topline-recorder/topline-recorder.component';
 import { FavoriteButtonComponent } from '../../components/favorite-button/favorite-button.component';
 import { AddToPlaylistModalComponent } from '../../components/add-to-playlist-modal/add-to-playlist-modal.component';
@@ -39,19 +40,19 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   editingToplineId  = signal<number | null>(null);
   editingDesc       = signal('');
 
-  private route       = inject(ActivatedRoute);
-  private router      = inject(Router);
-  private trackSvc    = inject(TrackService);
-  private toplineSvc  = inject(ToplineService);
-  private http        = inject(HttpClient);
-  player              = inject(PlayerService);
-  auth                = inject(AuthService);
-  private cdr         = inject(ChangeDetectorRef);
-  private toast       = inject(ToastService);
+  private route             = inject(ActivatedRoute);
+  private router            = inject(Router);
+  private trackSvc          = inject(TrackService);
+  private toplineSvc        = inject(ToplineService);
+  private toplineStatusSvc  = inject(ToplineStatusService);
+  private http              = inject(HttpClient);
+  player                    = inject(PlayerService);
+  auth                      = inject(AuthService);
+  private cdr               = inject(ChangeDetectorRef);
+  private toast             = inject(ToastService);
 
   // Cache blob URLs pour les toplines privées (libérés dans ngOnDestroy)
   private toplineBlobUrls = new Map<number, string>();
-  
 
   constructor() {
     // Bouton REC du player → ouvre la modale + pause
@@ -61,6 +62,37 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
         this.showRecorder.set(true);
         this.cdr.markForCheck();
       }
+    });
+
+    // Quand le worker topline termine (toast de progression), rafraîchir
+    // automatiquement la liste si la topline appartient au track affiché.
+    // untracked() sur track() évite de ré-entrer dans l'effect après track.set().
+    effect(() => {
+      const status      = this.toplineStatusSvc.status();
+      const toplineId   = this.toplineStatusSvc.toplineId();
+      const beatTrackId = this.toplineStatusSvc.beatTrackId();
+      if (status !== 'done' || !toplineId) return;
+
+      const track = untracked(() => this.track());
+      if (!track || beatTrackId !== track.id) return;
+
+      untracked(() => {
+        this.toplineSvc.getMyToplines(track.id).subscribe({
+          next: (res) => {
+            if (!res.success || !res.data?.toplines) return;
+            const fresh   = res.data.toplines;
+            const current = this.track();
+            if (!current) return;
+            // Garder les toplines publiées d'autres artistes + toutes les miennes
+            const merged = [
+              ...current.toplines.filter(t => t.is_published && !fresh.some(f => f.id === t.id)),
+              ...fresh,
+            ];
+            this.track.set({ ...current, toplines: merged });
+            this.cdr.markForCheck();
+          },
+        });
+      });
     });
   }
 

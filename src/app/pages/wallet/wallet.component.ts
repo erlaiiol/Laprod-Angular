@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   WalletService, WalletInfo, WalletTransaction,
 } from '../../services/wallet.service';
@@ -46,6 +46,7 @@ export class WalletComponent implements OnInit {
   private walletSvc = inject(WalletService);
   readonly auth     = inject(AuthService);
   private router    = inject(Router);
+  private route     = inject(ActivatedRoute);
   private toast     = inject(ToastService);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -53,26 +54,43 @@ export class WalletComponent implements OnInit {
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
-    this.walletSvc.getWallet().subscribe({
-      next: (res) => {
-        if (res.success) {
-          this.wallet.set(res.data!.wallet);
-          this.transactions.set(res.data!.transactions);
-          this.showConnectAlert.set(res.data!.show_connect_alert);
-          this.withdrawAmount.set(res.data!.wallet.balance_available);
-        } else {
-          this.error.set(res.feedback?.message ?? 'Erreur de chargement.');
-        }
-        this.loading.set(false);
-      },
-      error: (err) => {
-        if (!err?.error?.feedback) {
-          this.toast.showToast({ level: 'error', message: 'Impossible de charger le portefeuille.' });
-        }
-        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger le portefeuille.');
-        this.loading.set(false);
-      },
-    });
+    const returningFromStripe = this.route.snapshot.queryParamMap.has('stripe_return');
+
+    const loadWallet = () => {
+      this.walletSvc.getWallet().subscribe({
+        next: (res) => {
+          if (res.success) {
+            this.wallet.set(res.data!.wallet);
+            this.transactions.set(res.data!.transactions);
+            this.showConnectAlert.set(res.data!.show_connect_alert);
+            this.withdrawAmount.set(res.data!.wallet.balance_available);
+          } else {
+            this.error.set(res.feedback?.message ?? 'Erreur de chargement.');
+          }
+          this.loading.set(false);
+        },
+        error: (err) => {
+          if (!err?.error?.feedback) {
+            this.toast.showToast({ level: 'error', message: 'Impossible de charger le portefeuille.' });
+          }
+          this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger le portefeuille.');
+          this.loading.set(false);
+        },
+      });
+    };
+
+    if (returningFromStripe) {
+      // Synchroniser le statut Stripe depuis l'API Stripe avant de charger le wallet,
+      // car stripe_onboarding_complete en DB n'est pas mis à jour par Stripe automatiquement.
+      this.walletSvc.refreshStripeStatus().subscribe({
+        next:  () => loadWallet(),
+        error: () => loadWallet(), // charger quand même même si le refresh échoue
+      });
+      // Retirer le query param de l'URL sans recharger la page
+      this.router.navigate([], { replaceUrl: true, queryParams: {} });
+    } else {
+      loadWallet();
+    }
   }
 
   // ── Stripe Connect ────────────────────────────────────────────────────────────
@@ -82,7 +100,8 @@ export class WalletComponent implements OnInit {
     this.settingUpStripe.set(true);
     this.stripeError.set(null);
 
-    const returnUrl = window.location.href;
+    // ?stripe_return=1 → détecté dans ngOnInit pour déclencher le refresh statut Stripe
+    const returnUrl = `${window.location.origin}/wallet?stripe_return=1`;
     this.walletSvc.getSetupUrl(returnUrl).subscribe({
       next: (res) => {
         if (res.success && res.data?.url) {

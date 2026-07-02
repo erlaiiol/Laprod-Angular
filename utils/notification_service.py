@@ -429,6 +429,37 @@ def notify_stripe_connect_setup(user_id):
     )
 
 
+def notify_stripe_connect_reminder(user_id):
+    """
+    Rappel hebdomadaire pour les beatmakers/mix engineers qui n'ont pas encore
+    configuré leur compte Stripe Connect. Dédupliqué : ne crée pas de notif si
+    une notification non lue de ce type existe déjà depuis moins de 7 jours.
+    Doit être suivi d'un db.session.commit() par l'appelant.
+    """
+    from datetime import datetime, timedelta
+    recent_cutoff = datetime.now() - timedelta(days=7)
+    already_pending = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.type    == 'stripe_connect_setup',
+        Notification.is_read == False,
+        Notification.created_at >= recent_cutoff,
+    ).first()
+    if already_pending:
+        return None
+
+    return create_notification(
+        user_id=user_id,
+        notif_type='stripe_connect_setup',
+        title='Rappel : compte de paiement non configuré',
+        message=(
+            'Vous n\'avez pas encore connecté votre compte Stripe. '
+            'Sans cela, vos gains de ventes ne pourront pas vous être versés. '
+            'Rendez-vous dans votre Wallet pour finaliser en 2 minutes.'
+        ),
+        link='/wallet',
+    )
+
+
 def notify_tokens_low(user, token_type='upload'):
     """
     Notifie l'utilisateur que ses tokens sont bientôt épuisés

@@ -346,5 +346,17 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque lundi à 9h : rappel Stripe Connect aux beatmakers/mix engineers non configurés
+        from utils.scheduled_tasks import run_stripe_reminder_job
+        scheduler.add_job(
+            func=run_stripe_reminder_job,
+            trigger='cron',
+            day_of_week='mon',
+            hour=9,
+            minute=0,
+            id='stripe_connect_reminder',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe)")

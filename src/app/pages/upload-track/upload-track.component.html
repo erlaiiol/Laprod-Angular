@@ -20,6 +20,15 @@
         <div class="form-error">{{ error() }}</div>
       }
 
+      <!-- ── Banner Stripe Connect ──────────────────────────────────────── -->
+      @if ((auth.currentUser()?.roles?.is_beatmaker || auth.currentUser()?.roles?.is_mix_engineer) && !auth.currentUser()?.stripe_onboarding_complete) {
+        <div class="stripe-setup-banner">
+          <i class="bi bi-credit-card-fill"></i>
+          <span>Votre compte de paiement n'est pas configuré — vous ne pourrez pas recevoir vos gains de ventes.</span>
+          <a routerLink="/wallet" class="stripe-setup-link">Configurer maintenant →</a>
+        </div>
+      }
+
       <!-- ── Banner protection ───────────────────────────────────────────── -->
       <div class="upload-protection-note">
         <i class="bi bi-shield-lock-fill"></i>
