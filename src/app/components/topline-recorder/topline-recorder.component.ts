@@ -194,19 +194,26 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     fd.append('use_autotune', String(this.useAutotune));
     if (this.description) fd.append('description', this.description);
 
+    const imageUrl = this.track.image_file
+      ? `${environment.apiUrl}/db_assets/${this.track.image_file}`
+      : null;
+    this.toplineStatusSvc.openForUpload(this.track.id, this.track.title, imageUrl);
+
     this.toplineSvc.uploadTopline(fd).subscribe({
       next: (res) => {
         if (res.success && res.data?.job_id) {
           this.toplineStatusSvc.startPolling(res.data.job_id);
           this.state.set('idle');
-          this.closed.emit();  // ferme le recorder — l'utilisateur peut naviguer
+          this.closed.emit();
         } else {
+          this.toplineStatusSvc.stopPolling();
           this.errorMsg.set(res.feedback?.message ?? 'Erreur lors de l\'envoi.');
           this.state.set('idle');
         }
         this.cdr.markForCheck();
       },
       error: () => {
+        this.toplineStatusSvc.stopPolling();
         this.errorMsg.set('Impossible de contacter le serveur.');
         this.state.set('idle');
         this.cdr.markForCheck();

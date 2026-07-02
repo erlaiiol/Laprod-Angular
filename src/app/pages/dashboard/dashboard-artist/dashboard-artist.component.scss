@@ -339,6 +339,10 @@
     background: v.$tag-green-dark; border-color: v.$tag-green; color: v.$tag-green-light;
     &:hover { background: v.$tag-green; color: #000; }
   }
+  &.btn-invoice {
+    background: v.$tag-teal-dark; border-color: v.$tag-teal; color: v.$tag-teal-light;
+    &:hover { background: v.$tag-teal; color: #000; }
+  }
   &.btn-contract {
     background: v.$tag-blue-dark; border-color: v.$tag-blue; color: v.$tag-blue-light;
     &:hover { background: v.$tag-blue; color: v.$black; }

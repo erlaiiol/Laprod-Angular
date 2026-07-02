@@ -256,28 +256,28 @@ def regenerate_preview(track_id: int, primary_audio_path: str, new_preview_path:
     """
     flask_app = create_app()
 
-    try:
-        if WATERMARK_AVAILABLE:
-            apply_watermark_and_trim(
-                input_path=primary_audio_path,
-                output_path=new_preview_path,
-                watermark_path=config.WATERMARK_AUDIO_PATH,
-                preview_duration=config.PREVIEW_DURATION,
-                watermark_positions=config.WATERMARK_INTERVALS,
-            )
-        if not Path(new_preview_path).exists():
-            logging.warning(f'Preview absente après watermark (track {track_id}). Copie du fichier source.')
-            shutil.copy(primary_audio_path, new_preview_path)
-
-    except Exception as e:
-        logging.error(f"Erreur génération preview (track {track_id}): {e}", exc_info=True)
-        try:
-            shutil.copy(primary_audio_path, new_preview_path)
-        except Exception as copy_err:
-            logging.error(f"Fallback preview échoué (track {track_id}): {copy_err}")
-            return
-
     with flask_app.app_context():
+        try:
+            if WATERMARK_AVAILABLE:
+                apply_watermark_and_trim(
+                    input_path=primary_audio_path,
+                    output_path=new_preview_path,
+                    watermark_path=config.WATERMARK_AUDIO_PATH,
+                    preview_duration=config.PREVIEW_DURATION,
+                    watermark_positions=config.WATERMARK_INTERVALS,
+                )
+            if not Path(new_preview_path).exists():
+                logging.warning(f'Preview absente après watermark (track {track_id}). Copie du fichier source.')
+                shutil.copy(primary_audio_path, new_preview_path)
+
+        except Exception as e:
+            logging.error(f"Erreur génération preview (track {track_id}): {e}", exc_info=True)
+            try:
+                shutil.copy(primary_audio_path, new_preview_path)
+            except Exception as copy_err:
+                logging.error(f"Fallback preview échoué (track {track_id}): {copy_err}")
+                return
+
         track = db.session.get(Track, track_id)
         if not track:
             logging.error(f"Track {track_id} introuvable lors de la mise à jour du preview.")
@@ -292,9 +292,3 @@ def regenerate_preview(track_id: int, primary_audio_path: str, new_preview_path:
                 old_preview.unlink()
             except Exception as e:
                 logging.warning(f"Impossible de supprimer l'ancien preview (track {track_id}): {e}")
-        try:
-            with flask_app.app_context():
-                db.session.rollback()
-        except Exception:
-            pass
-        raise TrackProcessingError(f"Job {job_payload['job_id']} failed with unexpected error: {e}") from e

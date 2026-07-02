@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy, ChangeDetectorRef, effect
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
@@ -20,7 +21,7 @@ import { ToastService } from '../../services/toast.service';
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -32,6 +33,9 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   error             = signal<string | null>(null);
   showRecorder      = signal(false);
   showPlaylistModal = signal(false);
+
+  editingToplineId  = signal<number | null>(null);
+  editingDesc       = signal('');
 
   private route       = inject(ActivatedRoute);
   private trackSvc    = inject(TrackService);
@@ -245,6 +249,44 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
         }
       },
       error: () => this.toast.showToast({ level: 'error', message: 'Impossible de contacter le serveur.' }),
+    });
+  }
+
+  startEditDesc(tl: PublishedTopline): void {
+    this.editingToplineId.set(tl.id);
+    this.editingDesc.set(tl.description ?? '');
+    this.cdr.markForCheck();
+  }
+
+  cancelEditDesc(): void {
+    this.editingToplineId.set(null);
+    this.editingDesc.set('');
+    this.cdr.markForCheck();
+  }
+
+  saveDesc(tl: PublishedTopline): void {
+    const desc = this.editingDesc().trim();
+    this.toplineSvc.updateDescription(tl.id, desc).subscribe({
+      next: (res) => {
+        if (res.success) {
+          const t = this.track();
+          if (t) {
+            this.track.set({
+              ...t,
+              toplines: t.toplines.map(x => x.id === tl.id ? { ...x, description: desc || null } : x),
+            });
+          }
+          this.editingToplineId.set(null);
+          this.editingDesc.set('');
+        } else {
+          this.toast.showToast({ level: 'error', message: res.feedback?.message ?? 'Erreur.' });
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.toast.showToast({ level: 'error', message: 'Impossible de contacter le serveur.' });
+        this.cdr.markForCheck();
+      },
     });
   }
 

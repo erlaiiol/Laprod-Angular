@@ -403,4 +403,8 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     if (!p.contract_url) return;
     this._jwtDownload(p.contract_url, `contrat_${p.track?.title ?? 'beat'}_${p.format}.pdf`, 'application/pdf');
   }
+
+  downloadInvoice(p: { invoice_url: string; track: { title: string } | null }): void {
+    this._jwtDownload(p.invoice_url, `facture_laprod_${p.track?.title ?? 'beat'}.pdf`, 'application/pdf');
+  }
 }

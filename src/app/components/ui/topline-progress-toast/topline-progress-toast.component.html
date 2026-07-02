@@ -1,0 +1,72 @@
+@if (toplineStatusSvc.status() !== null) {
+
+  <div class="topline-toast"
+       [class.topline-toast--processing]="isProcessing()"
+       [class.topline-toast--done]="toplineStatusSvc.status() === 'done'"
+       [class.topline-toast--error]="toplineStatusSvc.status() === 'error'">
+
+    <!-- Miniature cover du beat -->
+    <img class="topline-toast__cover"
+         [src]="toplineStatusSvc.trackImageUrl() ?? 'assets/placeholders/placeholder-track.png'"
+         onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'"
+         alt="" aria-hidden="true" />
+
+    <!-- Contenu principal -->
+    <div class="topline-toast__body">
+
+      <span class="topline-toast__title">
+        <i class="bi bi-mic-fill topline-toast__mic"></i>
+        {{ toplineStatusSvc.trackTitle() ?? 'Topline' }}
+      </span>
+
+      <div class="topline-toast__status-line">
+
+        @if (isProcessing()) {
+          <span class="topline-toast__spinner" aria-hidden="true"></span>
+          <span class="topline-toast__message">
+            @if (toplineStatusSvc.status() === 'uploading') { Envoi en cours… }
+            @else { Traitement topline… }
+          </span>
+          <span class="topline-toast__pct">{{ toplineStatusSvc.progress() }}%</span>
+        }
+
+        @if (toplineStatusSvc.status() === 'done') {
+          <span class="topline-toast__icon topline-toast__icon--success" aria-hidden="true">✓</span>
+          <span class="topline-toast__message">Topline publiée !</span>
+          @if (toplineStatusSvc.beatTrackId()) {
+            <a class="topline-toast__link"
+               [routerLink]="['/track', toplineStatusSvc.beatTrackId()]">
+              Voir
+            </a>
+          }
+        }
+
+        @if (toplineStatusSvc.status() === 'error') {
+          <span class="topline-toast__icon topline-toast__icon--error" aria-hidden="true">✕</span>
+          <span class="topline-toast__message">
+            {{ toplineStatusSvc.errorMessage() ?? 'Erreur de traitement.' }}
+          </span>
+        }
+
+      </div>
+
+      @if (isProcessing() || toplineStatusSvc.status() === 'done') {
+        <div class="topline-toast__track">
+          <div class="topline-toast__bar"
+               [class.topline-toast__bar--done]="toplineStatusSvc.status() === 'done'"
+               [style.width.%]="toplineStatusSvc.progress()">
+          </div>
+        </div>
+      }
+
+    </div>
+
+    @if (toplineStatusSvc.status() === 'done' || toplineStatusSvc.status() === 'error') {
+      <button class="topline-toast__close"
+              aria-label="Fermer"
+              (click)="toplineStatusSvc.stopPolling()">✕</button>
+    }
+
+  </div>
+
+}

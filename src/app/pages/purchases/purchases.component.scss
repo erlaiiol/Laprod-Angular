@@ -88,18 +88,22 @@
   &:hover { filter: brightness(1.1); }
 }
 
+.btn-invoice {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.9rem; background: v.$tag-blue-dark;
+  border: 1px solid v.$tag-blue; border-radius: 7px;
+  font-size: 0.82rem; font-weight: 600; color: v.$tag-blue-light;
+  text-decoration: none; cursor: pointer; transition: background 0.15s, color 0.15s;
+  &:hover { background: v.$tag-blue; color: v.$black; }
+}
+
 .btn-contract {
   display: inline-flex; align-items: center; gap: 0.35rem;
   padding: 0.45rem 0.9rem; background: v.$bg-elevated;
   border: 1px solid v.$bg-border; border-radius: 7px;
   font-size: 0.82rem; font-weight: 600; color: v.$text-secondary;
-  text-decoration: none; transition: border-color 0.15s, color 0.15s;
+  text-decoration: none; cursor: pointer; transition: border-color 0.15s, color 0.15s;
   &:hover { border-color: v.$bg-border-subtle; color: v.$text-primary; }
-}
-
-.no-contract {
-  font-size: 0.75rem; color: v.$text-muted;
-  i { margin-right: 0.2rem; }
 }
 
 // ── Browse button ─────────────────────────────────────────────────────────────

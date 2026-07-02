@@ -7,11 +7,12 @@ import { PlayerComponent } from './layout/player/player.component';
 import { AuthService } from './services/auth.service';
 import { NotificationService } from './services/notification.service';
 import { UploadProgressToastComponent } from './components/ui/upload-progress-toast/upload-progress-toast.component';
+import { ToplineProgressToastComponent } from './components/ui/topline-progress-toast/topline-progress-toast.component';
 import { UserflowComponent } from './components/userflow/userflow.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, UserflowComponent],
+  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

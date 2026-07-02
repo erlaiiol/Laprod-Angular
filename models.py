@@ -462,7 +462,7 @@ class Category(db.Model):
     name = db.Column(db.String(32), unique=True, nullable=False)
     color = db.Column(db.String(7), nullable=True, default='#6b7280')  # Couleur hexadécimale
     description = db.Column(db.Text, nullable=True)
-    tags = db.relationship('Tag', back_populates='category_obj')
+    tags = db.relationship('Tag', back_populates='category_obj', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Category {self.name}>"

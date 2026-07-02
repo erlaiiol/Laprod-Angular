@@ -375,7 +375,10 @@
                   <span class="purchase-price">{{ p.price_paid.toFixed(2) }}€</span>
                   <div class="purchase-actions">
                     <button class="btn-purchase btn-dl" (click)="downloadPurchase(p)">
-                      <i class="bi bi-download"></i> Télécharger
+                      <i class="bi bi-download"></i> Fichier
+                    </button>
+                    <button class="btn-purchase btn-invoice" (click)="downloadInvoice(p)">
+                      <i class="bi bi-receipt"></i> Facture
                     </button>
                     @if (p.has_contract && p.contract_url) {
                       <button class="btn-purchase btn-contract" (click)="downloadContract(p)">

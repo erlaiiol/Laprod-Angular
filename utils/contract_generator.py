@@ -320,8 +320,8 @@ def generate_contract_pdf(output_path, contract_data):
     # Prix total payé par l'interprète
     total_price = contract_data['price']
     platform_commission_pct = contract_data.get('platform_commission', 10)
-    platform_commission_amount = round(total_price * (platform_commission_pct / 100), 2)
-    composer_revenue = round(total_price - platform_commission_amount, 2)
+    platform_commission_amount = round(float(total_price) * (platform_commission_pct / 100), 2)
+    composer_revenue = round(float(total_price) - platform_commission_amount, 2)
 
     remuneration_data = [
         ['Prix total payé par l\'Interprète :', f"{total_price} €"],
