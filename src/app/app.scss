@@ -10,7 +10,7 @@
   position: fixed;
   bottom: 9.8rem; // au-dessus du bouton userflow (6.5rem) et du player (5rem)
   right: 1.1rem;
-  z-index: 1059;
+  z-index: v.$z-fab;
   width: 36px;
   height: 36px;
   display: flex;
@@ -29,11 +29,13 @@
   background: v.$bg-base;
   border: 1px solid v.$gold;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition: border-color v.$dur-base v.$ease-out,
+              box-shadow v.$dur-base v.$ease-out,
+              transform v.$dur-base v.$ease-spring;
 
   .premium-fab:hover & {
     border-color: rgba(v.$gold, 0.9);
-    box-shadow: 0 0 0 4px rgba(v.$tag-violet, 0.12), 0 2px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: v.$glow-gold, 0 2px 10px rgba(0, 0, 0, 0.5);
     transform: rotate(45deg) scale(1.1);
   }
 }

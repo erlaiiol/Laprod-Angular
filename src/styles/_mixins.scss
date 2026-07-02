@@ -4,7 +4,25 @@
 //   @use 'variables' as v;
 //   @use 'mixins'    as m;
 //   .my-badge { @include m.badge(v.$tag-green, v.$tag-green-dark); }
+//   .my-card  { @include m.card; @include m.card-hover; }
 // ════════════════════════════════════════════════════════════════════════════
+
+@use 'sass:map';
+@use 'sass:color';
+@use 'tokens'    as t;
+@use 'elevation' as e;
+
+// Couches de fond — dupliquées ici (pas de @use 'variables' → cycle @forward)
+$-bg-base:          #101218;
+$-bg-surface:       #181b24;
+$-bg-elevated:      #212533;
+$-bg-border:        #2b3140;
+$-bg-border-subtle: #3d4457;
+$-text-primary:     #f5f6f8;
+$-text-muted:       #687180;
+$-primary:          #e5323c;
+$-primary-darker:   #9c1620;
+$-gradient-primary: linear-gradient(135deg, #e5323c 0%, #ff5f45 100%);
 
 // ── Badge: dark tinted bg + vivid border + white text ────────────────────────
 //
@@ -16,7 +34,7 @@
   background:    $dark-bg;
   border:        1px solid $color;
   color:         $text;
-  border-radius: 20px;
+  border-radius: t.$radius-pill;
   display:       inline-flex;
   align-items:   center;
   gap:           0.3rem;
@@ -24,6 +42,7 @@
   font-size:     0.75rem;
   font-weight:   600;
   line-height:   1.4;
+  transition:    border-color t.$dur-fast t.$ease-out;
 }
 
 // Flat (rectangular) variant — same palette, square pill
@@ -41,7 +60,13 @@
   line-height:   1.4;
 }
 
-// ── Ghost button: black bg + white border → fills with color on hover ─────────
+// ── Focus ring — double anneau lisible sur fond sombre ───────────────────────
+@mixin focus-ring($color: $-primary) {
+  outline: none;
+  box-shadow: 0 0 0 2px $-bg-base, 0 0 0 4px rgba($color, 0.55);
+}
+
+// ── Ghost button: near-black bg + soft border → fills with color on hover ────
 //
 // $color       — fill color on hover (e.g. v.$tag-violet)
 // $hover-text  — text color on hover, default #fff
@@ -51,21 +76,39 @@
   align-items:     center;
   gap:             0.4rem;
   padding:         0.4rem 0.9rem;
-  background:      #000000;
+  background:      #0b0d12;
   color:           #ffffff;
-  border:          1px solid rgba(255, 255, 255, 0.7);
-  border-radius:   6px;
+  border:          1px solid rgba(255, 255, 255, 0.45);
+  border-radius:   t.$radius-sm;
   font-size:       0.82rem;
   font-weight:     700;
   letter-spacing:  0.02em;
   text-decoration: none;
   cursor:          pointer;
-  transition:      background 0.2s, border-color 0.2s, color 0.2s;
+  transition:      background t.$dur-base t.$ease-out,
+                   border-color t.$dur-base t.$ease-out,
+                   color t.$dur-base t.$ease-out,
+                   box-shadow t.$dur-base t.$ease-out,
+                   transform t.$dur-base t.$ease-out;
 
-  &:hover, &:focus-visible {
+  &:hover {
     background:   $color;
     border-color: $color;
     color:        $hover-text;
+    box-shadow:   0 0 16px rgba($color, 0.28);
+    transform:    translateY(-1px);
+  }
+
+  &:focus-visible {
+    background:   $color;
+    border-color: $color;
+    color:        $hover-text;
+    @include focus-ring($color);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: none;
   }
 
   &:disabled, &[disabled] {
@@ -80,4 +123,197 @@
   @include btn-ghost($color, $hover-text);
   padding:   0.25rem 0.6rem;
   font-size: 0.75rem;
+}
+
+// ── Primary button — dégradé rouge + glow, LE CTA ────────────────────────────
+@mixin btn-primary {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.4rem;
+  padding:         0.5rem 1.1rem;
+  background:      $-gradient-primary;
+  color:           #ffffff;
+  border:          none;
+  border-radius:   t.$radius-sm;
+  font-size:       0.85rem;
+  font-weight:     700;
+  letter-spacing:  0.02em;
+  text-decoration: none;
+  cursor:          pointer;
+  transition:      box-shadow t.$dur-base t.$ease-out,
+                   filter t.$dur-base t.$ease-out,
+                   transform t.$dur-base t.$ease-out;
+
+  &:hover {
+    color:      #ffffff;
+    box-shadow: e.$glow-primary;
+    filter:     brightness(1.06);
+    transform:  translateY(-1px);
+  }
+
+  &:focus-visible {
+    color: #ffffff;
+    @include focus-ring($-primary);
+  }
+
+  &:active {
+    background: $-primary-darker;
+    filter:     none;
+    transform:  translateY(0);
+    box-shadow: none;
+  }
+
+  &:disabled, &[disabled] {
+    opacity:        0.4;
+    cursor:         not-allowed;
+    pointer-events: none;
+  }
+}
+
+// ── Subtle button — action « calme » sur surface ─────────────────────────────
+@mixin btn-subtle {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.4rem;
+  padding:         0.4rem 0.9rem;
+  background:      $-bg-elevated;
+  color:           $-text-primary;
+  border:          1px solid $-bg-border;
+  border-radius:   t.$radius-sm;
+  font-size:       0.82rem;
+  font-weight:     600;
+  text-decoration: none;
+  cursor:          pointer;
+  transition:      background t.$dur-base t.$ease-out,
+                   border-color t.$dur-base t.$ease-out;
+
+  &:hover {
+    background:   color.adjust($-bg-elevated, $lightness: 3%);
+    border-color: $-bg-border-subtle;
+  }
+
+  &:focus-visible { @include focus-ring; }
+
+  &:disabled, &[disabled] {
+    opacity:        0.4;
+    cursor:         not-allowed;
+    pointer-events: none;
+  }
+}
+
+// ── Card / surface ────────────────────────────────────────────────────────────
+@mixin card($padding: t.$space-5) {
+  background:    $-bg-surface;
+  border:        1px solid $-bg-border;
+  border-radius: t.$radius-lg;
+  padding:       $padding;
+  box-shadow:    e.$shadow-sm, e.$edge-highlight;
+}
+
+@mixin card-hover {
+  transition: transform t.$dur-slow t.$ease-out,
+              border-color t.$dur-slow t.$ease-out,
+              box-shadow t.$dur-slow t.$ease-out;
+
+  &:hover {
+    transform:    translateY(-2px);
+    border-color: $-bg-border-subtle;
+    box-shadow:   e.$shadow-md, e.$edge-highlight;
+  }
+}
+
+// ── Verre léger (glassmorphism) ───────────────────────────────────────────────
+@mixin glass {
+  background: $-bg-surface;  // fallback
+  border:     1px solid e.$glass-border;
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background:              e.$glass-bg;
+    -webkit-backdrop-filter: blur(e.$glass-blur) saturate(1.4);
+    backdrop-filter:         blur(e.$glass-blur) saturate(1.4);
+  }
+}
+
+// ── Champ de formulaire ───────────────────────────────────────────────────────
+@mixin field {
+  background:    $-bg-elevated;
+  border:        1px solid $-bg-border;
+  border-radius: t.$radius-sm;
+  color:         $-text-primary;
+  padding:       0.5rem 0.75rem;
+  font-size:     0.9rem;
+  transition:    border-color t.$dur-base t.$ease-out,
+                 box-shadow t.$dur-base t.$ease-out;
+
+  &::placeholder { color: $-text-muted; }
+
+  &:focus {
+    border-color: rgba($-primary, 0.6);
+    @include focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor:  not-allowed;
+  }
+}
+
+// ── Skeleton loading (shimmer) ────────────────────────────────────────────────
+@mixin skeleton {
+  position:      relative;
+  overflow:      hidden;
+  background:    $-bg-elevated;
+  border-radius: t.$radius-sm;
+  color:         transparent;
+  user-select:   none;
+  pointer-events: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent,
+                rgba(255, 255, 255, 0.06), transparent);
+    animation: lp-shimmer 1.4s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after { animation: none; }
+  }
+}
+
+@keyframes lp-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+// ── Truncate ──────────────────────────────────────────────────────────────────
+@mixin truncate($lines: 1) {
+  @if $lines == 1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  } @else {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: $lines;
+    line-clamp: $lines;
+    overflow: hidden;
+  }
+}
+
+// ── Media query depuis la map de breakpoints ─────────────────────────────────
+//   @include m.mq(md)        → @media (max-width: 640px)
+//   @include m.mq(md, up)    → @media (min-width: 641px)
+@mixin mq($bp, $dir: down) {
+  $value: map.get(t.$breakpoints, $bp);
+  @if $value == null {
+    @error "Breakpoint inconnu: #{$bp}. Disponibles: #{map.keys(t.$breakpoints)}";
+  }
+  @if $dir == down {
+    @media (max-width: $value) { @content; }
+  } @else {
+    @media (min-width: ($value + 1px)) { @content; }
+  }
 }

@@ -4,7 +4,7 @@
   position:      fixed;
   bottom:        100px;
   right:         20px;
-  z-index:       8900;
+  z-index:       v.$z-toast - 1; // sous l'upload-progress-toast, même zone
 
   display:       flex;
   align-items:   center;

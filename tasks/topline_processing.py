@@ -105,6 +105,7 @@ def process_topline_data(job_payload: dict):
                     track_id=job_payload['track_id'],
                     user_id=job_payload['user_id'],
                     timestamp=job_payload['timestamp'],
+                    latency_ms=job_payload.get('latency_hint_ms', 0),
                 )
             except Exception as e:
                 logging.error(f"Topline job {job_id} — merge_voice_and_beat failed: {e}", exc_info=True)

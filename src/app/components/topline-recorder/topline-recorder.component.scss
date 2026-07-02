@@ -10,8 +10,9 @@
 .recorder-backdrop {
   position:        fixed;
   inset:           0;
-  z-index:         1500;
-  background:      rgba(0, 0, 0, 0.72);
+  z-index:         v.$z-modal;
+  background:      v.$backdrop-dim;
+  backdrop-filter: blur(6px);
   display:         flex;
   align-items:     center;
   justify-content: center;
@@ -21,7 +22,8 @@
 .recorder-modal {
   background:    v.$bg-surface;
   border:        1px solid v.$bg-border;
-  border-radius: 16px;
+  border-radius: v.$radius-xl;
+  box-shadow:    v.$shadow-xl, v.$edge-highlight;
   padding:       1.75rem;
   width:         100%;
   max-width:     520px;

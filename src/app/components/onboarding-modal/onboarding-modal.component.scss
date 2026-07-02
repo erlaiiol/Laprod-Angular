@@ -1,12 +1,12 @@
 @use 'variables' as v;
 
 .ob-backdrop {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0, 0, 0, 0.72);
+  position: fixed; inset: 0; z-index: v.$z-modal;
+  background: v.$backdrop-dim;
   display: flex; align-items: center; justify-content: center;
   padding: 1rem;
-  backdrop-filter: blur(4px);
-  animation: ob-fade-in 0.2s ease;
+  backdrop-filter: blur(6px);
+  animation: ob-fade-in v.$dur-base v.$ease-out;
 }
 
 @keyframes ob-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -14,12 +14,13 @@
 .ob-modal {
   background: v.$bg-elevated;
   border: 1px solid v.$bg-border;
-  border-radius: 20px;
+  border-radius: v.$radius-xl;
   padding: 2rem 2rem 1.5rem;
   max-width: 600px; width: 100%;
   max-height: 90vh; overflow-y: auto;
   display: flex; flex-direction: column; gap: 1.5rem;
-  animation: ob-slide-up 0.25s ease;
+  box-shadow: v.$shadow-xl, v.$edge-highlight;
+  animation: ob-slide-up v.$dur-slow v.$ease-spring;
 }
 
 @keyframes ob-slide-up {
@@ -102,10 +103,10 @@
 
 .ob-btn-confirm {
   display: inline-flex; align-items: center; gap: 0.4rem;
-  background: v.$primary; border: none; color: v.$white;
-  border-radius: 10px; padding: 0.6rem 1.3rem;
+  background: v.$gradient-primary; border: none; color: v.$white;
+  border-radius: v.$radius-md; padding: 0.6rem 1.3rem;
   font-size: 0.9rem; font-weight: 700; cursor: pointer;
-  transition: opacity 0.15s;
-  &:hover:not(:disabled) { opacity: 0.88; }
+  transition: filter v.$dur-base v.$ease-out, box-shadow v.$dur-base v.$ease-out, opacity v.$dur-base v.$ease-out;
+  &:hover:not(:disabled) { filter: brightness(1.08); box-shadow: v.$glow-primary-sm; }
   &:disabled { opacity: 0.35; cursor: not-allowed; }
 }

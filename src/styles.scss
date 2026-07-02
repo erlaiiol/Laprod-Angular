@@ -37,7 +37,7 @@
   --tag-neutral-light:  #{v.$tag-neutral-light};
   --tag-neutral-dark:   #{v.$tag-neutral-dark};
 
-  // App background layers (dark grey, faint blue undertone)
+  // App background layers (deep dark, faint blue undertone)
   --bg-base:          #{v.$bg-base};
   --bg-surface:       #{v.$bg-surface};
   --bg-elevated:      #{v.$bg-elevated};
@@ -53,13 +53,22 @@
   --white:     #{v.$white};
   --off-white: #{v.$off-white};
 
-  // Primary CTA — cyan électrique; $accent kept as alias
-  --primary:        #{v.$primary};
-  --primary-dark:   #{v.$primary-dark};
-  --primary-darker: #{v.$primary-darker};
-  --accent:         #{v.$accent};
-  --accent-dark:    #{v.$accent-dark};
-  --accent-darker:  #{v.$accent-darker};
+  // Primary CTA — rouge raffiné; $accent kept as alias
+  --primary:          #{v.$primary};
+  --primary-dark:     #{v.$primary-dark};
+  --primary-darker:   #{v.$primary-darker};
+  --primary-coral:    #{v.$primary-coral};
+  --primary-soft:     #{v.$primary-soft};
+  --gradient-primary: #{v.$gradient-primary};
+  --accent:           #{v.$accent};
+  --accent-dark:      #{v.$accent-dark};
+  --accent-darker:    #{v.$accent-darker};
+
+  // Semantic
+  --success: #{v.$success};
+  --warning: #{v.$warning};
+  --danger:  #{v.$danger};
+  --info:    #{v.$info};
 
   // Premium / Gold
   --gold:       #{v.$gold};
@@ -76,6 +85,23 @@
   --format-wav-color:   #{v.$format-wav-color};
   --format-stems-bg:    #{v.$format-stems-bg};
   --format-stems-color: #{v.$format-stems-color};
+
+  // Design tokens — radius / shadows / glow / motion / z-index
+  --radius-xs:   #{v.$radius-xs};
+  --radius-sm:   #{v.$radius-sm};
+  --radius-md:   #{v.$radius-md};
+  --radius-lg:   #{v.$radius-lg};
+  --radius-xl:   #{v.$radius-xl};
+  --radius-pill: #{v.$radius-pill};
+  --shadow-sm:   #{v.$shadow-sm};
+  --shadow-md:   #{v.$shadow-md};
+  --shadow-lg:   #{v.$shadow-lg};
+  --glow-primary: #{v.$glow-primary};
+  --dur-fast:    #{v.$dur-fast};
+  --dur-base:    #{v.$dur-base};
+  --dur-slow:    #{v.$dur-slow};
+  --ease-out:    #{v.$ease-out};
+  --glass-bg:    #{v.$glass-bg};
 }
 
 // ── Global dark-theme overrides (loaded after Bootstrap CDN) ─────────────────
@@ -96,25 +122,62 @@ body {
   min-height:       100%;
   background-color: v.$bg-base;
   color:            v.$text-primary;
-  font-family:      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-                    'Helvetica Neue', Arial, sans-serif;
+  font-family:      v.$font-body;
   font-size:        16px;
-  line-height:      1.5;
+  line-height:      v.$leading-normal;
   -webkit-font-smoothing: antialiased;
+}
+
+// Titres — police display, tracking serré
+h1, h2, h3, h4, h5, h6,
+.font-display {
+  font-family:    v.$font-display;
+  letter-spacing: v.$tracking-tight;
+}
+
+// Sélection de texte teintée primaire
+::selection {
+  background: rgba(v.$primary, 0.35);
+  color:      v.$white;
+}
+
+// Focus clavier par défaut — chaque élément interactif doit être repérable
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px v.$bg-base, 0 0 0 4px rgba(v.$primary, 0.55);
+  border-radius: v.$radius-xs;
+}
+
+// Accessibilité — damper global des animations
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 // ── Bootstrap component overrides ────────────────────────────────────────────
 
-// Align Bootstrap's bg-dark navbar with the page's dark-blue background
+// Align Bootstrap's bg-dark navbar with the page's dark background.
+// Verre léger : le contenu défile derrière la navbar sticky avec un blur discret.
 nav.navbar.bg-dark,
 .navbar.navbar-dark.bg-dark {
   background-color: v.$bg-base !important;
-  border-bottom: 1px solid v.$bg-elevated;
+  border-bottom: 1px solid v.$glass-border;
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background-color: v.$glass-bg !important;
+    -webkit-backdrop-filter: blur(v.$glass-blur) saturate(1.4);
+    backdrop-filter: blur(v.$glass-blur) saturate(1.4);
+  }
 }
 
 // Override Bootstrap's default link color
 a {
   color: v.$accent;
+  transition: color v.$dur-fast v.$ease-out;
   &:hover { color: v.$tag-violet-light; }
 }
 
@@ -127,7 +190,7 @@ img { max-width: 100%; }
 // ── Custom scrollbar ──────────────────────────────────────────────────────────
 
 ::-webkit-scrollbar             { width: 6px; height: 6px; }
-::-webkit-scrollbar-track       { background: v.$bg-base; }
+::-webkit-scrollbar-track       { background: transparent; }
 ::-webkit-scrollbar-thumb       { background: v.$bg-elevated; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: v.$bg-border-subtle; }
 
@@ -142,7 +205,7 @@ img { max-width: 100%; }
 // Works for .badge.bg-* (Bootstrap 4/5) and .badge.text-bg-* (Bootstrap 5).
 //
 .badge {
-  border-radius: 20px !important;
+  border-radius: v.$radius-pill !important;
 
   &.bg-success,    &.text-bg-success    { background: v.$tag-green-dark  !important; border: 1px solid v.$tag-green;  color: #fff !important; }
   &.bg-info,       &.text-bg-info       { background: v.$tag-blue-dark   !important; border: 1px solid v.$tag-blue;   color: #fff !important; }
@@ -158,7 +221,7 @@ img { max-width: 100%; }
 // Or directly on a semantic element.
 //
 .lp-badge          { display: inline-flex; align-items: center; gap: 0.3rem;
-                     padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid;
+                     padding: 0.2rem 0.65rem; border-radius: v.$radius-pill; border: 1px solid;
                      font-size: 0.75rem; font-weight: 600; line-height: 1.4; }
 
 .lp-badge-green    { @include m.badge(v.$tag-green,   v.$tag-green-dark); }
@@ -168,20 +231,42 @@ img { max-width: 100%; }
 .lp-badge-pink     { @include m.badge(v.$tag-pink,    v.$tag-pink-dark); }
 .lp-badge-violet   { @include m.badge(v.$tag-violet,  v.$tag-violet-dark); }
 .lp-badge-neutral  { @include m.badge(v.$tag-neutral, v.$tag-neutral-dark); }
-// "Premium" / featured — cyan CTA sur fond navy sombre
+// "Premium" / featured — rouge CTA sur fond navy sombre
 .lp-badge-premium  { @include m.badge(v.$primary, v.$tag-blue-dark); }
 
 // ── Button overrides ──────────────────────────────────────────────────────────
 //
-// Ghost pattern: black bg + white border at rest → fills with color on hover.
+// Ghost pattern: near-black bg + soft border at rest → fills with color on hover.
 // Overrides Bootstrap's filled buttons with our premium look.
 //
 .btn-success  { @include m.btn-ghost(v.$tag-green,  #000); }
-.btn-info     { @include m.btn-ghost(v.$tag-blue); }
+.btn-info     { @include m.btn-ghost(v.$tag-blue,   #000); }
 .btn-warning  { @include m.btn-ghost(v.$tag-orange); }
 .btn-danger   { @include m.btn-ghost(v.$tag-red); }
 .btn-primary  { @include m.btn-ghost(v.$primary); }
 .btn-secondary{ @include m.btn-ghost(v.$tag-neutral); }
 
-// "Premium" — CTA principal LaProd
-.btn-premium  { @include m.btn-ghost(v.$primary); }
+// "Premium" — CTA principal LaProd : dégradé rouge + glow
+.btn-premium  { @include m.btn-primary; }
+
+// ── Reveal au scroll (RevealOnScrollDirective pose .lp-reveal / .is-revealed) ─
+
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity v.$dur-slower v.$ease-out, transform v.$dur-slower v.$ease-out;
+
+  &.is-revealed { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal { opacity: 1; transform: none; }
+}
+
+// ── Utilitaires surface ───────────────────────────────────────────────────────
+//
+// Usage direct dans les templates: <div class="lp-card">…</div>
+//
+.lp-card       { @include m.card; }
+.lp-card-hover { @include m.card-hover; }
+.lp-glass      { @include m.glass; }

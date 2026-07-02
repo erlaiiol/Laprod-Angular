@@ -27,7 +27,7 @@
 /* ── Popover backdrop ──────────────────────────────────────────────────────── */
 
 .popover-backdrop {
-  display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1040;
+  display: none; position: fixed; inset: 0; background: v.$backdrop-dim; z-index: v.$z-backdrop;
   &.active { display: block; }
 }
 
@@ -37,10 +37,10 @@
 .filters-popover {
   position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
   background: v.$bg-surface; border-left: 1px solid v.$bg-border;
-  z-index: 1050; display: flex; flex-direction: column;
-  transition: right 0.3s ease; overflow: hidden;
+  z-index: v.$z-drawer; display: flex; flex-direction: column;
+  transition: right v.$dur-slow v.$ease-in-out; overflow: hidden;
 
-  &.open { right: 0; }
+  &.open { right: 0; box-shadow: v.$shadow-lg; }
 }
 
 .filters-header {
@@ -224,17 +224,41 @@ details.filter-accordion[open] .filter-accordion-arrow {
 
 .dropdown-item--beta { opacity: 0.6; pointer-events: none; }
 
+// ── Nav links — alignement icône + texte, taille réduite ─────────────────────
+
+.navbar-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+
+  i.bi { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
+}
+
+.navbar-nav .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+
+  i.bi { font-size: 0.875rem; line-height: 1; flex-shrink: 0; width: 1rem; text-align: center; }
+}
+
 // ── Bouton S'inscrire — CTA visible pour visiteurs anonymes ──────────────────
 
 .nav-link--register {
-  background: v.$primary !important;
+  background: v.$gradient-primary !important;
   color: v.$white !important;
-  border-radius: 6px;
+  border-radius: v.$radius-sm;
   padding: 0.3rem 0.85rem !important;
   font-weight: 700;
-  transition: background 0.2s;
+  transition: box-shadow v.$dur-base v.$ease-out, filter v.$dur-base v.$ease-out;
 
-  &:hover, &.active { background: v.$primary-dark !important; color: v.$white !important; }
+  &:hover, &.active {
+    color: v.$white !important;
+    box-shadow: v.$glow-primary-sm;
+    filter: brightness(1.06);
+  }
 }
 
 .nav-beta-badge {

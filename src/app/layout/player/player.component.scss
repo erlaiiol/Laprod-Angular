@@ -8,12 +8,19 @@
   bottom:     0;
   left:       0;
   right:      0;
-  z-index:    1000;
+  z-index:    v.$z-player;
   background: v.$bg-base;
-  border-top: 1px solid v.$bg-border;
+  border-top: 1px solid v.$glass-border;
   color:      v.$text-primary;
   padding:    0 16px 0 12px;
-  transition: transform 0.25s ease;
+  transition: transform v.$dur-slow v.$ease-out;
+
+  // Verre léger — le contenu défile derrière la barre fixe
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background: v.$glass-bg;
+    -webkit-backdrop-filter: blur(v.$glass-blur) saturate(1.4);
+    backdrop-filter: blur(v.$glass-blur) saturate(1.4);
+  }
 
   // Slide off-screen instead of display:none — WaveSurfer needs layout
   // dimensions at init time; display:none gives 0×0 → waveform broken
@@ -406,10 +413,11 @@
   display:       flex;
   align-items:   center;
   justify-content: center;
-  transition:    color 0.15s;
+  transition:    color v.$dur-fast v.$ease-out, transform v.$dur-base v.$ease-spring;
   flex-shrink:   0;
 
-  &:hover { color: v.$text-primary; }
+  &:hover { color: v.$text-primary; transform: scale(1.15); }
+  &:active { transform: scale(0.95); }
 }
 
 // ── Mix order context ─────────────────────────────────────────────────────────
@@ -463,11 +471,11 @@
 .confirm-modal {
   background:    v.$bg-surface;
   border:        1px solid v.$bg-border-subtle;
-  border-radius: 10px;
+  border-radius: v.$radius-md;
   padding:       1rem 1.25rem;
   max-width:     380px;
   width:         100%;
-  box-shadow:    0 -4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow:    v.$shadow-lg, v.$edge-highlight;
   text-align:    center;
 }
 
@@ -491,10 +499,10 @@
 
 .btn-confirm-yes {
   padding:       0.45rem 1rem;
-  background:    #000;
-  color:         #fff;
+  background:    v.$black;
+  color:         v.$white;
   border:        1px solid v.$primary;
-  border-radius: 6px;
+  border-radius: v.$radius-sm;
   font-size:     0.82rem;
   font-weight:   700;
   cursor:        pointer;

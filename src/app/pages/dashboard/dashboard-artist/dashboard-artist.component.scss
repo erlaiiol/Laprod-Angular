@@ -21,11 +21,14 @@
 
 .stat-card {
   background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 1rem; text-align: center;
+  border-radius: v.$radius-md; padding: 1rem; text-align: center;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
 }
 
 .stat-value {
-  font-size: 1.6rem; font-weight: 800; color: v.$text-primary; margin-bottom: 0.25rem;
+  font-family: v.$font-display; letter-spacing: v.$tracking-tight;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem; font-weight: 700; color: v.$text-primary; margin-bottom: 0.25rem;
   &.text-green { color: v.$tag-green; }
   &.text-pink  { color: v.$tag-pink; }
   &.text-blue  { color: v.$tag-blue; }

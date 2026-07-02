@@ -1,0 +1,65 @@
+// ════════════════════════════════════════════════════════════════════════════
+// LaProd — Design tokens : spacing, radius, motion, z-index, breakpoints
+// Forwarded by _variables.scss → accessible partout via  v.$space-4, v.$radius-lg…
+// ════════════════════════════════════════════════════════════════════════════
+
+@use 'sass:map';
+
+// ── Spacing scale (base 4px) ──────────────────────────────────────────────────
+$space-0:  0;
+$space-1:  0.25rem;   // 4px
+$space-2:  0.5rem;    // 8px
+$space-3:  0.75rem;   // 12px
+$space-4:  1rem;      // 16px
+$space-5:  1.5rem;    // 24px
+$space-6:  2rem;      // 32px
+$space-7:  2.5rem;    // 40px
+$space-8:  3rem;      // 48px
+$space-10: 4rem;      // 64px
+$space-12: 5rem;      // 80px — rythme hero / sections landing
+
+// ── Radius scale ──────────────────────────────────────────────────────────────
+$radius-xs:   4px;    // chips, mini-tags
+$radius-sm:   6px;    // boutons, inputs
+$radius-md:   10px;   // petites cartes, popovers
+$radius-lg:   14px;   // cartes, panneaux
+$radius-xl:   20px;   // modales, panneaux hero
+$radius-pill: 999px;  // badges pills
+
+// ── Motion ────────────────────────────────────────────────────────────────────
+$dur-fast:   120ms;   // hovers sur petits contrôles
+$dur-base:   200ms;   // transitions par défaut
+$dur-slow:   320ms;   // drawers, cartes, overlays
+$dur-slower: 500ms;   // reveals de page
+
+$ease-out:    cubic-bezier(0.16, 1, 0.3, 1);     // défaut — vif, premium
+$ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);    // drawers / popovers
+$ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); // micro-interactions ludiques
+
+// ── Z-index scale ─────────────────────────────────────────────────────────────
+$z-raised:    10;     // overlays dans une carte (play overlay…)
+$z-dropdown:  1000;   // dropdowns locaux
+$z-sticky:    1020;   // navbar (aligné Bootstrap sticky-top)
+$z-player:    1030;   // barre player du bas
+$z-backdrop:  1040;   // backdrops de drawer / modale
+$z-drawer:    1050;   // popover latéral filtres
+$z-fab:       1060;   // FAB premium + userflow
+$z-modal:     1080;   // modales (onboarding, playlist, recorder)
+$z-toast:     1090;   // toasts — toujours au-dessus
+
+// ── Breakpoints (desktop-first, max-width) ────────────────────────────────────
+$bp-xs:  400px;
+$bp-sm:  480px;
+$bp-md:  640px;
+$bp-lg:  768px;
+$bp-xl:  900px;
+$bp-xxl: 1100px;
+
+$breakpoints: (
+  xs:  $bp-xs,
+  sm:  $bp-sm,
+  md:  $bp-md,
+  lg:  $bp-lg,
+  xl:  $bp-xl,
+  xxl: $bp-xxl,
+);

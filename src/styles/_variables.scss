@@ -3,9 +3,16 @@
 // Usage in any component:  @use 'variables' as v;  then v.$primary etc.
 // CSS custom properties are also emitted on :root (see styles.scss),
 // so  var(--primary)  works everywhere without any import.
+//
+// Ce fichier @forward aussi les tokens du Design System :
+//   v.$space-4, v.$radius-lg, v.$shadow-md, v.$dur-base, v.$font-display…
 // ════════════════════════════════════════════════════════════════════════════
 
 @use 'sass:color';
+
+@forward 'tokens';
+@forward 'typography';
+@forward 'elevation';
 
 // ── Tag palette  (matches /admin/categories.html preset palette) ─────────────
 
@@ -42,34 +49,53 @@ $tag-neutral:       #6b7280;  // gray-500
 $tag-neutral-light: #9ca3af;  // gray-400
 $tag-neutral-dark:  #1f2937;  // gray-800 — badge bg
 
-// ── App background layers (dark grey, faint blue undertone) ──────────────────
-$bg-base:          #1c2028;  // body — deepest layer
-$bg-surface:       #2f3448;  // cards, modals, panels
-$bg-elevated:      #363f50;  // inputs, raised areas, hover backgrounds
-$bg-border:        #404956;  // default separator (distinct from $bg-elevated)
-$bg-border-subtle: #4e5870;  // hover / focus border (more visible)
+// ── App background layers — pile profonde, séparation nette entre couches ────
+$bg-base:          #101218;  // body — near-black, faible sous-ton bleu
+$bg-surface:       #181b24;  // cards, modals, panels — « flottent » sur base
+$bg-elevated:      #212533;  // inputs, raised areas, hover backgrounds
+$bg-border:        #2b3140;  // default separator — discret (whitespace > lignes)
+$bg-border-subtle: #3d4457;  // hover / focus border (plus visible)
 
 // ── Text ──────────────────────────────────────────────────────────────────────
-$text-primary:   #f3f4f6;  // gray-100 — default body text
-$text-secondary: #94a3b8;  // slate-400 — labels, captions, meta
-$text-muted:     #64748b;  // slate-500 — hints, placeholders, disabled
+$text-primary:   #f5f6f8;  // default body text
+$text-secondary: #9aa3b2;  // labels, captions, meta — désaturé, hiérarchie calme
+$text-muted:     #687180;  // hints, placeholders, disabled
 
 // ── Whites ────────────────────────────────────────────────────────────────────
 $white:     #ffffff;
-$off-white: #f3f4f6;  // = $text-primary; alias for clarity
+$off-white: #f5f6f8;  // = $text-primary; alias for clarity
 
-// ── Primary CTA — Rouge vif ──────────────────────────────────────────────────
+// ── Primary CTA — Rouge raffiné ──────────────────────────────────────────────
 // Use $primary for buttons, links, focus rings, active states.
 // $accent is kept as a backwards-compatibility alias.
-// NOTE: rouge vif → texte blanc (#fff) sur fond rouge, et au hover des ghost buttons.
+// NOTE: texte blanc (#fff) sur fond rouge — jamais de rouge primaire en petit
+// texte courant ($danger-light existe pour ça).
 // NOTE: $tag-violet (#8b5cf6) stays violet — used for content category tags only.
-$primary:        #d52424;  // Rouge vif — acheter, inscription, premium CTAs
-$primary-dark:   #bb0000;  // hover
-$primary-darker: #8c0000;  // active / pressed
+$primary:        #e5323c;  // rouge moderne — acheter, inscription, premium CTAs
+$primary-dark:   #c41e28;  // hover
+$primary-darker: #9c1620;  // active / pressed
+$primary-coral:  #ff5f45;  // fin de dégradé uniquement — jamais en texte seul
+$primary-soft:   rgba(229, 50, 60, 0.12);  // fonds teintés (toggles actifs, radial hero)
 
-$accent:         #d52424;  // alias → $primary
-$accent-dark:    #bb0000;  // alias → $primary-dark
-$accent-darker:  #8c0000;  // alias → $primary-darker
+$gradient-primary: linear-gradient(135deg, $primary 0%, $primary-coral 100%);
+
+$accent:         $primary;         // alias → $primary
+$accent-dark:    $primary-dark;    // alias → $primary-dark
+$accent-darker:  $primary-darker;  // alias → $primary-darker
+
+// ── Semantic aliases — mapped to tag palette ─────────────────────────────────
+$success:       $tag-green;
+$success-dark:  $tag-green-dark;
+$success-light: $tag-green-light;
+$warning:       $tag-orange;
+$warning-dark:  $tag-orange-dark;
+$warning-light: $tag-orange-light;
+$danger:        $tag-red;
+$danger-dark:   $tag-red-dark;
+$danger-light:  $tag-red-light;
+$info:          $tag-teal;
+$info-dark:     $tag-teal-dark;
+$info-light:    $tag-teal-light;
 
 // ── Premium / Gold ────────────────────────────────────────────────────────────
 $gold:       #eab308;  // amber-500 — badge Pro, indicateurs premium
@@ -84,9 +110,7 @@ $black: #000000;
 // Badge recipe:  background: $format-*-bg  /  border: $format-*-color  /  color: #fff
 $format-mp3-bg:      #041f05;
 $format-mp3-color:   #009405;   // vivid green
-
 $format-wav-bg:      #022325;
 $format-wav-color:   #00c1cf;   // cyan
-
 $format-stems-bg:    #110420;
 $format-stems-color: #a78bfa;   // violet (hardcoded — independent of $primary)

@@ -41,6 +41,8 @@
               ]
             },
             "styles": [
+              "node_modules/@fontsource-variable/inter/index.css",
+              "node_modules/@fontsource-variable/space-grotesk/index.css",
               "src/styles.scss"
             ]
           },

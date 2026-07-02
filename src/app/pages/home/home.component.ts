@@ -18,13 +18,33 @@ import { FilterStateService, ActiveFilters } from '../../services/filter-state.s
 import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
+import { RevealOnScrollDirective } from '../../directives/reveal-on-scroll.directive';
 
 const PER_PAGE = 20;
+
+// ── Statistiques landing ──────────────────────────────────────────────────────
+// Valeurs vitrines (pas branchées sur l'API) — à ajuster à mesure que la
+// plateforme grandit. Animées en count-up à l'entrée dans le viewport.
+interface LandingStat {
+  icon: string;
+  target: number;
+  suffix: string;
+  label: string;
+}
+
+const LANDING_STATS: LandingStat[] = [
+  { icon: 'bi-music-note-beamed',       target: 150,  suffix: '+', label: 'beats en ligne' },
+  { icon: 'bi-people-fill',             target: 45,   suffix: '+', label: 'créateurs inscrits' },
+  { icon: 'bi-file-earmark-check-fill', target: 60,   suffix: '+', label: 'contrats générés' },
+  { icon: 'bi-headphones',              target: 2400, suffix: '+', label: 'écoutes cette semaine' },
+];
+
+const STATS_COUNTUP_MS = 1600;
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent],
+  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent, RevealOnScrollDirective],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,6 +65,11 @@ export class HomeComponent implements OnInit {
   // Pagination
   page       = signal(1);
   totalPages = signal(1);
+
+  // Stats landing — count-up déclenché par lpReveal sur le bandeau
+  readonly landingStats = LANDING_STATS;
+  statValues = signal<number[]>(LANDING_STATS.map(() => 0));
+  private statsStarted = false;
 
   private trackService       = inject(TrackService);
   private filterStateService = inject(FilterStateService);
@@ -80,6 +105,29 @@ export class HomeComponent implements OnInit {
 
   dismissHero(): void {
     this.showHero.set(false);
+  }
+
+  startStatsCountUp(): void {
+    if (this.statsStarted) return;
+    this.statsStarted = true;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.statValues.set(LANDING_STATS.map((s) => s.target));
+      return;
+    }
+
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / STATS_COUNTUP_MS, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      this.statValues.set(LANDING_STATS.map((s) => Math.round(s.target * eased)));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  formatStat(value: number): string {
+    return value.toLocaleString('fr-FR');
   }
 
   setDisplayMode(mode: 'list' | 'gallery'): void {

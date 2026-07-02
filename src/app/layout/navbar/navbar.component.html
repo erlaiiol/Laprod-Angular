@@ -97,14 +97,6 @@
 
         @if (isLoggedIn()) {
 
-          @if (isBeatmaker() || isMixEngineer()) {
-            <li class="nav-item">
-              <a class="nav-link" [routerLink]="['/wallet']" routerLinkActive="active">
-                <i class="bi bi-wallet2"></i> Mes gains
-              </a>
-            </li>
-          }
-
           @if (isBeatmaker()) {
             <li class="nav-item">
               <a class="nav-link" [routerLink]="['/upload-track']" routerLinkActive="active">
@@ -113,39 +105,48 @@
             </li>
           }
 
-          @if (isBeatmaker() || isArtist() || isMixEngineer()) {
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button"
-                 data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-speedometer2"></i> Mes Espaces
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-                @if (isBeatmaker()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
-                      <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
-                    </a>
-                  </li>
-                }
-                @if (isArtist()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
-                      <i class="bi bi-mic"></i> Espace Artiste
-                    </a>
-                  </li>
-                }
-                @if (isMixEngineer()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
-                      <i class="bi bi-sliders"></i> Espace Mix Engineer
-                    </a>
-                  </li>
-                }
-
-
-              </ul>
-            </li>
-          }
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-speedometer2"></i> Mes Espaces
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+              @if (isBeatmaker()) {
+                <li>
+                  <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
+                    <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
+                  </a>
+                </li>
+              }
+              @if (isArtist()) {
+                <li>
+                  <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
+                    <i class="bi bi-mic"></i> Espace Artiste
+                  </a>
+                </li>
+              }
+              @if (isMixEngineer()) {
+                <li>
+                  <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
+                    <i class="bi bi-sliders"></i> Espace Mix Engineer
+                  </a>
+                </li>
+              }
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" [routerLink]="['/purchases']" routerLinkActive="active">
+                  <i class="bi bi-bag-check"></i> Mes Achats
+                </a>
+              </li>
+              @if (isBeatmaker() || isMixEngineer()) {
+                <li>
+                  <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
+                    <i class="bi bi-wallet2"></i> Mes Gains
+                  </a>
+                </li>
+              }
+            </ul>
+          </li>
 
           <li class="nav-item">
             <a class="nav-link" [routerLink]="['/profile', username()]" routerLinkActive="active">
@@ -162,12 +163,6 @@
                   {{ notifCount() }}
                 </span>
               }
-            </a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link" [routerLink]="['/purchases']" routerLinkActive="active">
-              <i class="bi bi-bag-check"></i> Mes Achats
             </a>
           </li>
 

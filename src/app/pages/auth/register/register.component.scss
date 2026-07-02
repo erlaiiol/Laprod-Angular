@@ -145,7 +145,7 @@
 /* ── Boutons ──────────────────────────────────────────────────────────────── */
 
 .btn-primary {
-  @include m.btn-ghost(v.$primary);
+  @include m.btn-primary;
   width: 100%;
   justify-content: center;
   font-size: 0.95rem;

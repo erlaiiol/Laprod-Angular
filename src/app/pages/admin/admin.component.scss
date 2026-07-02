@@ -99,11 +99,14 @@
 
 .stat-card {
   background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 1rem; text-align: center;
+  border-radius: v.$radius-md; padding: 1rem; text-align: center;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
 }
 
 .stat-value {
-  font-size: 1.5rem; font-weight: 800; margin-bottom: 0.2rem;
+  font-family: v.$font-display; letter-spacing: v.$tracking-tight;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem; font-weight: 700; margin-bottom: 0.2rem;
   &.text-green  { color: v.$tag-green; }
   &.text-blue   { color: v.$tag-blue; }
   &.text-orange { color: v.$tag-orange; }
@@ -376,15 +379,17 @@
 // ── Modal ──────────────────────────────────────────────────────────────────────
 
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72);
+  position: fixed; inset: 0; background: v.$backdrop-dim;
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
-  z-index: 2000; // above player (1000), navbar (1040), uf-backdrop (1070)
+  z-index: v.$z-modal; // au-dessus du player, de la navbar et du uf-backdrop (1070)
 }
 
 .modal {
   display: block;
   background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 480px;
+  border-radius: v.$radius-lg; padding: 1.5rem; width: 100%; max-width: 480px;
+  box-shadow: v.$shadow-xl, v.$edge-highlight;
   h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem; }
   label {
     display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; margin-bottom: 0.75rem;

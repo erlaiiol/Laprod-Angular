@@ -38,11 +38,14 @@
 
 .stat-card {
   background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 1rem; text-align: center;
+  border-radius: v.$radius-md; padding: 1rem; text-align: center;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
 }
 
 .stat-value {
-  font-size: 1.6rem; font-weight: 800; color: v.$text-primary; margin-bottom: 0.25rem;
+  font-family: v.$font-display; letter-spacing: v.$tracking-tight;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem; font-weight: 700; color: v.$text-primary; margin-bottom: 0.25rem;
   &.text-green  { color: v.$tag-green; }
   &.text-orange { color: v.$tag-orange; }
   &.text-blue   { color: v.$tag-blue; }
@@ -395,8 +398,8 @@
   &:hover:not(:disabled) { background: v.$bg-border; }
 }
 .btn-primary {
-  background: v.$primary; color: #fff;
-  &:hover:not(:disabled) { opacity: 0.85; }
+  background: v.$gradient-primary; color: v.$white;
+  &:hover:not(:disabled) { filter: brightness(1.08); }
 }
 .btn-ghost {
   background: none; color: v.$text-muted;

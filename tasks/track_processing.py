@@ -158,7 +158,8 @@ def process_track_data(job_payload : dict):
                     redis_client.hset(f"job:{job_id}", mapping={'status': 'error', 'error_message': 'Image generation failed (track_processing.py generate_track_image())'})
                     raise TrackProcessingError(f"Job {job_id} failed during image generation: {e}") from e
             else:
-                image_filename = f"{job_payload['title']}_{uuid4().hex[:8]}.png"
+                orig_ext = Path(job_payload['image_disk_path']).suffix or '.png'
+                image_filename = f"{job_payload['title']}_{uuid4().hex[:8]}{orig_ext}"
 
                 try:
                     image_disk_path = Path(config.IMAGES_FOLDER) / 'tracks' / image_filename

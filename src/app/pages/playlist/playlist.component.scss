@@ -70,10 +70,10 @@
 
 .btn-save {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 6px; border: none;
-  background: v.$primary; color: v.$white; font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: background 0.15s, opacity 0.15s;
-  &:hover:not(:disabled) { background: v.$primary-dark; }
+  padding: 6px 14px; border-radius: v.$radius-sm; border: none;
+  background: v.$gradient-primary; color: v.$white; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: filter v.$dur-base v.$ease-out, opacity v.$dur-base v.$ease-out;
+  &:hover:not(:disabled) { filter: brightness(1.08); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 

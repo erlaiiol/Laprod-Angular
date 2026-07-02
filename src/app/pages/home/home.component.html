@@ -171,7 +171,40 @@
       </div>
     </div>
 
-    <div class="lp-manifesto">
+    <!-- ── Bandeau statistiques — count-up à l'entrée dans le viewport ────── -->
+    <div class="lp-stats" lpReveal (revealed)="startStatsCountUp()">
+      @for (stat of landingStats; track stat.label; let i = $index) {
+        <div class="lp-stat">
+          <i class="bi {{ stat.icon }}"></i>
+          <span class="lp-stat__value">{{ formatStat(statValues()[i]) }}{{ stat.suffix }}</span>
+          <span class="lp-stat__label">{{ stat.label }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- ── Workflow — comment ça marche ────────────────────────────────────── -->
+    <div class="lp-workflow">
+      <h2 class="lp-workflow__title" lpReveal>Comment ça marche</h2>
+      <div class="lp-workflow__steps">
+        <div class="lp-step" lpReveal>
+          <span class="lp-step__num">1</span>
+          <h3>Trouve ton beat</h3>
+          <p>Filtre par BPM, tonalité et style. Écoute librement, enregistre ta topline directement sur l'instru avant d'acheter.</p>
+        </div>
+        <div class="lp-step" lpReveal [lpRevealDelay]="120">
+          <span class="lp-step__num">2</span>
+          <h3>Signe un contrat clair</h3>
+          <p>Chaque licence est expliquée noir sur blanc : droits, exclusivité, SACEM. Tu sais exactement ce que tu achètes.</p>
+        </div>
+        <div class="lp-step" lpReveal [lpRevealDelay]="240">
+          <span class="lp-step__num">3</span>
+          <h3>Récupère tes fichiers</h3>
+          <p>Paiement sécurisé, versé directement au créateur. MP3, WAV ou stems disponibles immédiatement dans ton espace.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="lp-manifesto" lpReveal>
       <strong>Une rémunération juste pour chaque créateur. Un marché géré par ses acteurs, pas par des intermédiaires.</strong>
       <p>LaProd est pensé par et pour ceux qui aiment la musique — pas seulement ceux qui en ont fait un business juteux et déshumanisé.</p>
     </div>

@@ -104,7 +104,48 @@ export class AuthService {
 
   private authUrl = `${environment.apiUrl}/api/auth`
 
-  constructor(private http:HttpClient, private router:Router) {}
+  constructor(private http:HttpClient, private router:Router) {
+    // Reprendre le timer si l'utilisateur était déjà connecté (rechargement de page)
+    const token = this.getToken();
+    if (token) this._scheduleProactiveRefresh(token);
+  }
+
+  // ── Timer de rafraîchissement proactif ───────────────────────────────────────
+
+  private _refreshTimer?: ReturnType<typeof setTimeout>;
+
+  /**
+   * Planifie un rafraîchissement automatique du token 5 minutes avant son expiration.
+   * S'enchaîne avec chaque nouveau token pour maintenir la session vivante indéfiniment
+   * (tant que le refresh_token reste valide).
+   */
+  private _scheduleProactiveRefresh(token: string): void {
+    if (this._refreshTimer) clearTimeout(this._refreshTimer);
+    try {
+      const payload     = JSON.parse(atob(token.split('.')[1]));
+      const expiresInMs = payload.exp * 1000 - Date.now();
+      if (expiresInMs <= 0) return; // déjà expiré — l'intercepteur gère le 401
+      // Rafraîchir 5 min avant expiration, minimum 30 s pour éviter les boucles
+      const delay = Math.max(30_000, expiresInMs - 5 * 60 * 1000);
+      this._refreshTimer = setTimeout(() => {
+        if (!this.getToken() || !this.isLoggedIn()) return;
+        this.refreshToken().subscribe({
+          next:  newToken => this._scheduleProactiveRefresh(newToken),
+          error: () => { /* token expiré/révoqué — l'intercepteur gère le prochain 401 */ },
+        });
+      }, delay);
+    } catch { /* JWT mal formé — l'intercepteur gèrera */ }
+  }
+
+  /** Renvoie true si l'access_token JWT est expiré (selon son claim `exp`). */
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch { return true; }
+  }
 
 
   //// ======================================================
@@ -204,6 +245,7 @@ export class AuthService {
         this.updateTagCategoryPreference(localPref);
       }
       this._localTagCategoryPref.set(null);
+      this._scheduleProactiveRefresh(res.data.tokens.access_token);
     }
 
     private failedAuth(_res: LoginError){ /* noop — error handled by component */ }
@@ -223,6 +265,8 @@ export class AuthService {
   }
 
   private _clearAuth(): void {
+    // Annuler le timer proactif avant de déconnecter
+    if (this._refreshTimer) { clearTimeout(this._refreshTimer); this._refreshTimer = undefined; }
     // Ne pas effacer tout le localStorage — les préférences UI (onboarding_done,
     // card_info_mode, display_mode…) doivent persister entre les sessions.
     localStorage.removeItem('access_token');
@@ -358,7 +402,13 @@ export class AuthService {
       { headers: { Authorization: `Bearer ${rt}` } },
     ).pipe(
       map((res): string => res.data.access_token),
-      tap(token => localStorage.setItem('access_token', token)),
+      tap(token => {
+        // Stocker dans le même espace que la session en cours (localStorage ou sessionStorage)
+        const storage = localStorage.getItem('refresh_token') ? localStorage : sessionStorage;
+        storage.setItem('access_token', token);
+        // Planifier le prochain rafraîchissement automatique
+        this._scheduleProactiveRefresh(token);
+      }),
       shareReplay(1),
       finalize(() => { this._refreshing$ = null; }),
     );
@@ -405,6 +455,7 @@ export class AuthService {
     localStorage.setItem('refresh_token', data.tokens.refresh_token);
     localStorage.setItem('user', JSON.stringify(data.user));
     this._currentUser.set(data.user);
+    this._scheduleProactiveRefresh(data.tokens.access_token);
   }
 
   // ── Inscription ───────────────────────────────────────────────────────────
