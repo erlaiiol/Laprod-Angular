@@ -37,7 +37,7 @@
       </div>
     } @else {
       <div class="engineers-grid">
-        @for (eng of engineers(); track eng.id) {
+        @for (eng of pagedEngineers(); track eng.id) {
           <div class="engineer-card">
 
             <!-- Avatar + nom -->
@@ -45,9 +45,14 @@
               <img class="eng-avatar" [src]="imgUrl(eng.profile_image)" [alt]="eng.username">
               <div class="eng-identity">
                 <span class="eng-name">{{ eng.username }}</span>
-                <span class="badge-certified"><i class="bi bi-patch-check-fill"></i> Certifié</span>
+                <span class="badge-eng-mix"><i class="bi bi-patch-check-fill"></i> Certifié Mix</span>
+                @if (eng.is_certified_master_engineer) {
+                  <span class="badge-eng-master"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
+                } @else if (eng.subscription_plan === 'pro') {
+                  <span class="badge-eng-master-pro"><i class="bi bi-star-fill"></i> Master Pro</span>
+                }
                 @if (eng.is_certified_producer_arranger) {
-                  <span class="badge-producer">Producteur/Arrangeur</span>
+                  <span class="badge-eng-pa"><i class="bi bi-music-note-beamed"></i> Producteur</span>
                 }
               </div>
             </div>
@@ -94,21 +99,25 @@
                 {{ eng.active_orders }}/5 slots</div>
               @if (eng.slots_available === 0) {
                 <span class="btn-order btn-full">Complet</span>
-              } @else if (auth.isLoggedIn()) {
+              } @else if (!eng.stripe_ready) {
+                <span class="btn-order btn-full">Indisponible</span>
+              } @else {
                 <a class="btn-order" [routerLink]="['/mix/order', eng.id]">
                   Commander <i class="bi bi-arrow-right"></i>
                 </a>
-              } @else {
-                <a class="btn-order btn-login" [routerLink]="['/login']">
-                  Se connecter pour commander
-                </a>
               }
+              <app-share-button [url]="'/mix/order/' + eng.id" [title]="eng.username"></app-share-button>
             </div>
 
           </div>
         }
       </div>
     }
+
+    <app-pagination
+      [currentPage]="page()"
+      [totalPages]="totalPages()"
+      (pageChange)="goToPage($event)" />
   }
 
 </div>

@@ -40,10 +40,20 @@
         <div class="track-title-row">
           <h1 class="track-title">{{ track()!.title }}</h1>
           <app-favorite-button [trackId]="track()!.id"></app-favorite-button>
+          <app-share-button [url]="'/track/' + track()!.id" [title]="track()!.title"></app-share-button>
           @if (canEditTrack()) {
             <a [routerLink]="['/edit-track', track()!.id]" class="btn-edit">
               <i class="bi bi-pencil-fill"></i> Modifier
             </a>
+            <button class="btn-playlist" (click)="showPlaylistModal.set(true)">
+              <i class="bi bi-collection-play-fill"></i> Playlists
+            </button>
+          }
+          @if (showPlaylistModal()) {
+            <app-add-to-playlist-modal
+              [trackId]="track()!.id"
+              (closed)="showPlaylistModal.set(false)">
+            </app-add-to-playlist-modal>
           }
         </div>
 
@@ -75,54 +85,72 @@
             </span>
           }
         </div>
+        @if (track()!.similar_artists?.length) {
+          <div class="similar-artists-row">
+            <span class="similar-artists-label">
+              <i class="bi bi-person-circle"></i> Inspiré de
+            </span>
+            @for (a of track()!.similar_artists!; track a.id) {
+              <span class="artist-chip">{{ a.name }}</span>
+            }
+          </div>
+        }
       </div>
     </section>
 
     <!-- ── PURCHASE ─────────────────────────────────────────────────────── -->
     <section class="purchase-section">
       <h2>Acquérir une licence</h2>
-      <div class="purchase-cards">
 
-        <div class="purchase-card" [class.unavailable]="!track()!.price_mp3">
-          <div class="format-badge mp3">MP3</div>
-          <p class="format-desc">Licence lease standard</p>
-          @if (track()!.price_mp3) {
-            <p class="format-price">{{ track()!.price_mp3.toFixed(2) }}€</p>
-            <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'mp3']">
-              Acheter MP3
-            </a>
-          } @else {
-            <p class="format-unavailable">Non disponible</p>
-          }
+      @if (isExclusiveSold()) {
+        <div class="exclusive-sold-banner">
+          <i class="bi bi-lock-fill"></i>
+          Ce track a été vendu en exclusivité et n'est plus disponible à la vente.
         </div>
+      } @else {
+        <div class="purchase-cards">
 
-        <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav">
-          <div class="format-badge wav">WAV</div>
-          <p class="format-desc">Qualité studio non compressée</p>
-          @if (track()!.price_wav && track()!.file_wav) {
-            <p class="format-price">{{ (track()!.price_wav ?? 0).toFixed(2) }}€</p>
-            <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'wav']">
-              Acheter WAV
-            </a>
-          } @else {
-            <p class="format-unavailable">Non disponible</p>
-          }
+          <div class="purchase-card" [class.unavailable]="!track()!.price_mp3">
+            <div class="format-badge mp3">MP3</div>
+            <p class="format-desc">Licence lease standard</p>
+            @if (track()!.price_mp3) {
+              <p class="format-price">{{ track()!.price_mp3.toFixed(2) }}€</p>
+              <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'mp3']">
+                Acheter MP3
+              </a>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
+          <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav">
+            <div class="format-badge wav">WAV</div>
+            <p class="format-desc">Qualité studio non compressée</p>
+            @if (track()!.price_wav && track()!.file_wav) {
+              <p class="format-price">{{ (track()!.price_wav ?? 0).toFixed(2) }}€</p>
+              <a class="btn-buy" [routerLink]="['/contract', track()!.id, 'wav']">
+                Acheter WAV
+              </a>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
+          <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems">
+            <div class="format-badge stems">STEMS</div>
+            <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
+            @if (track()!.price_stems && track()!.file_stems) {
+              <p class="format-price">{{ (track()!.price_stems ?? 0).toFixed(2) }}€</p>
+              <a class="btn-buy featured" [routerLink]="['/contract', track()!.id, 'stems']">
+                Acheter STEMS
+              </a>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
         </div>
-
-        <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems">
-          <div class="format-badge stems">STEMS</div>
-          <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
-          @if (track()!.price_stems && track()!.file_stems) {
-            <p class="format-price">{{ (track()!.price_stems ?? 0).toFixed(2) }}€</p>
-            <a class="btn-buy featured" [routerLink]="['/contract', track()!.id, 'stems']">
-              Acheter STEMS
-            </a>
-          } @else {
-            <p class="format-unavailable">Non disponible</p>
-          }
-        </div>
-
-      </div>
+      }
     </section>
 
     <!-- ── TOPLINES ──────────────────────────────────────────────────────── -->

@@ -121,20 +121,197 @@
 
       <div class="card-divider"></div>
 
-      <!-- ═══ TAGS ════════════════════════════════════════════════════════════ -->
-      @if (availableTags().length > 0) {
-        <div class="card-section">
-          <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
-          <div class="tag-pills">
-            @for (tag of availableTags(); track tag.id) {
-              <button type="button" class="tag-pill"
-                      [class.selected]="isTagSelected(tag.id)"
-                      [style.--tag-color]="tag.category.color"
-                      (click)="toggleTag(tag.id)">
-                {{ tag.name }}
-              </button>
+      <!-- ═══ PRIX DES DROITS DE LICENCE (premium only) ═══════════════════ -->
+      @if (auth.isPremium()) {
+      <div class="card-section">
+        <div class="license-price-header">
+          <div class="license-price-left">
+            <h3 class="section-title">Prix des droits de licence</h3>
+            @if (hasCustomPrices()) {
+              <span class="price-badge price-badge--custom">Personnalisé</span>
+            } @else {
+              <span class="price-badge price-badge--standard">Prix standards</span>
             }
           </div>
+          <button type="button" class="btn-toggle-prices"
+                  (click)="showCustomPrices.set(!showCustomPrices())">
+            Personnaliser
+            <i class="bi" [class.bi-chevron-up]="showCustomPrices()"
+                          [class.bi-chevron-down]="!showCustomPrices()"></i>
+          </button>
+        </div>
+
+        @if (showCustomPrices()) {
+          <div class="license-price-subheader">
+            <p class="section-hint">Ces prix s'appliquent aux contrats générés pour ce track.</p>
+            <button type="button" class="btn-standard-prices" (click)="applyStandardPrices()">
+              <i class="bi bi-arrow-repeat"></i> Prix standards
+            </button>
+          </div>
+          <div class="contract-prices-grid">
+            <div class="field">
+              <label>Exclusivité (€)</label>
+              <input type="number" name="cpExclusive" min="0" max="9999" step="1"
+                     [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 3 ans (€)</label>
+              <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 5 ans (€)</label>
+              <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Durée 10 ans (€)</label>
+              <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
+                     [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>À vie (€)</label>
+              <input type="number" name="cpLifetime" min="0" max="9999" step="1"
+                     [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Reproduction mécanique (€)</label>
+              <input type="number" name="cpMechanical" min="0" max="9999" step="1"
+                     [ngModel]="cpMechanical()" (ngModelChange)="cpMechanical.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Représentation publique (€)</label>
+              <input type="number" name="cpPublicShow" min="0" max="9999" step="1"
+                     [ngModel]="cpPublicShow()" (ngModelChange)="cpPublicShow.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Droit d'arrangement (€)</label>
+              <input type="number" name="cpArrangement" min="0" max="9999" step="1"
+                     [ngModel]="cpArrangement()" (ngModelChange)="cpArrangement.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Territoire Europe (€)</label>
+              <input type="number" name="cpTerritoryEu" min="0" max="9999" step="1"
+                     [ngModel]="cpTerritoryEu()" (ngModelChange)="cpTerritoryEu.set(+$event)" />
+            </div>
+            <div class="field">
+              <label>Territoire monde entier (€)</label>
+              <input type="number" name="cpTerritoryWorld" min="0" max="9999" step="1"
+                     [ngModel]="cpTerritoryWorld()" (ngModelChange)="cpTerritoryWorld.set(+$event)" />
+            </div>
+          </div>
+        }
+      </div>
+      }
+
+      <div class="card-divider"></div>
+
+      <!-- ═══ TAGS ════════════════════════════════════════════════════════════ -->
+      @if (tagGroups().length > 0) {
+        <div class="card-section">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
+              @if (selectedTagIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedTagIds().length }} sélectionné{{ selectedTagIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun tag</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showTags.set(!showTags())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showTags()" [class.bi-chevron-down]="!showTags()"></i>
+            </button>
+          </div>
+          @if (showTags()) {
+            @for (group of tagGroups(); track group.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" [style.color]="group.color">{{ group.name }}</span>
+                <div class="tag-pills">
+                  @for (tag of group.tags; track tag.id) {
+                    <button type="button" class="tag-pill"
+                            [class.selected]="isTagSelected(tag.id)"
+                            [style.--tag-color]="tag.category.color"
+                            (click)="toggleTag(tag.id)">
+                      {{ tag.name }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+        <div class="card-divider"></div>
+      }
+
+      <!-- ═══ ARTISTES SIMILAIRES ═════════════════════════════════════════════ -->
+      @if (availableArtistScenes().length > 0) {
+        <div class="card-section">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-person-circle"></i> Artistes similaires <span class="optional">(optionnel)</span></h3>
+              @if (selectedArtistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedArtistIds().length }} sélectionné{{ selectedArtistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showArtists.set(!showArtists())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showArtists()" [class.bi-chevron-down]="!showArtists()"></i>
+            </button>
+          </div>
+          @if (showArtists()) {
+            @for (scene of availableArtistScenes(); track scene.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" style="color: var(--text-muted, #888);">{{ scene.name }}</span>
+                <div class="tag-pills">
+                  @for (a of scene.artists; track a.id) {
+                    <button
+                      type="button"
+                      class="tag-pill tag-pill--artist"
+                      [class.selected]="isArtistSelected(a.id)"
+                      (click)="toggleArtist(a.id)"
+                    >{{ a.name }}</button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+        <div class="card-divider"></div>
+      }
+
+      <!-- ═══ PLAYLISTS ═══════════════════════════════════════════════════════ -->
+      @if (auth.isBeatmaker() && playlists().length > 0) {
+        <div class="card-section">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-collection-fill"></i> Playlists</h3>
+              @if (selectedPlaylistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedPlaylistIds().length }} playlist{{ selectedPlaylistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucune</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showPlaylists.set(!showPlaylists())">
+              Gérer
+              <i class="bi" [class.bi-chevron-up]="showPlaylists()" [class.bi-chevron-down]="!showPlaylists()"></i>
+            </button>
+          </div>
+          @if (showPlaylists()) {
+            <div class="playlist-list">
+              @for (pl of playlists(); track pl.id) {
+                <label class="playlist-item">
+                  <input type="checkbox"
+                         [checked]="selectedPlaylistIds().includes(pl.id)"
+                         (change)="togglePlaylist(pl.id)" />
+                  <span class="playlist-item-name">{{ pl.title }}</span>
+                  <span class="playlist-item-count">{{ pl.track_count }} track{{ pl.track_count !== 1 ? 's' : '' }}</span>
+                </label>
+              }
+            </div>
+          }
         </div>
         <div class="card-divider"></div>
       }

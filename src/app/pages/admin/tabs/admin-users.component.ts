@@ -27,6 +27,21 @@ export class AdminUsersComponent implements OnInit {
   tokenType   = signal<'track' | 'topline'>('track');
   tokenAmount = signal(1);
 
+  // Delete / purge modal
+  deleteTarget     = signal<AdminUser | null>(null);
+  deleteSubmitting = signal(false);
+  purgeSubmitting  = signal(false);
+
+  // Resend email
+  resendingId    = signal<number | null>(null);
+  forcingVerifId = signal<number | null>(null);
+
+  // Plan modal
+  planUser       = signal<AdminUser | null>(null);
+  planTarget     = signal<'free' | 'amateur' | 'pro'>('amateur');
+  planSubmitting = signal(false);
+  readonly planOptions: ('free' | 'amateur' | 'pro')[] = ['free', 'amateur', 'pro'];
+
   constructor(private adminSvc: AdminService, private toast: ToastService) {}
 
   ngOnInit(): void { this.load(); }
@@ -67,10 +82,33 @@ export class AdminUsersComponent implements OnInit {
     });
   }
 
-  togglePremium(user: AdminUser): void {
-    this.adminSvc.togglePremium(user.id).subscribe({
-      next: res => { if (res.success) this.load(); },
-      error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
+  openPlanModal(user: AdminUser): void {
+    this.planUser.set(user);
+    const current = user.subscription_plan ?? 'free';
+    // Proposer le plan suivant par défaut (logique ascendante)
+    if (current === 'free')         this.planTarget.set('amateur');
+    else if (current === 'amateur') this.planTarget.set('pro');
+    else                            this.planTarget.set('free');
+  }
+
+  closePlanModal(): void {
+    this.planUser.set(null);
+    this.planSubmitting.set(false);
+  }
+
+  confirmSetPlan(): void {
+    const user = this.planUser();
+    if (!user) return;
+    this.planSubmitting.set(true);
+    this.adminSvc.setPlan(user.id, this.planTarget()).subscribe({
+      next: res => {
+        this.planSubmitting.set(false);
+        if (res.success) { this.closePlanModal(); this.load(); }
+      },
+      error: err => {
+        this.planSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur changement de plan.' });
+      },
     });
   }
 
@@ -92,6 +130,99 @@ export class AdminUsersComponent implements OnInit {
       },
       error: (err: any) => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
     });
+  }
+
+  resendVerification(user: AdminUser): void {
+    this.resendingId.set(user.id);
+    this.adminSvc.resendVerificationEmail(user.id).subscribe({
+      next: res => {
+        this.resendingId.set(null);
+        if (res.success) this.toast.showToast({ level: 'success', message: `Email de vérification renvoyé à ${user.email}.` });
+      },
+      error: err => {
+        this.resendingId.set(null);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors du renvoi.' });
+      },
+    });
+  }
+
+  forceVerifyEmail(user: AdminUser): void {
+    this.forcingVerifId.set(user.id);
+    this.adminSvc.forceVerifyEmail(user.id).subscribe({
+      next: res => {
+        this.forcingVerifId.set(null);
+        if (res.success) {
+          this.toast.showToast({ level: 'success', message: `Email de ${user.username} marqué comme vérifié.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.forcingVerifId.set(null);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la vérification forcée.' });
+      },
+    });
+  }
+
+  openDeleteModal(user: AdminUser): void {
+    this.deleteTarget.set(user);
+  }
+
+  confirmDelete(): void {
+    const user = this.deleteTarget();
+    if (!user) return;
+    this.deleteSubmitting.set(true);
+    this.adminSvc.deleteUser(user.id).subscribe({
+      next: res => {
+        this.deleteSubmitting.set(false);
+        if (res.success) {
+          this.deleteTarget.set(null);
+          this.toast.showToast({ level: 'success', message: `Compte de ${user.username} supprimé.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.deleteSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la suppression.' });
+      },
+    });
+  }
+
+  purgeNow(): void {
+    const user = this.deleteTarget();
+    if (!user) return;
+    this.purgeSubmitting.set(true);
+    this.adminSvc.purgeUserNow(user.id).subscribe({
+      next: res => {
+        this.purgeSubmitting.set(false);
+        if (res.success) {
+          this.deleteTarget.set(null);
+          this.toast.showToast({ level: 'success', message: `Compte de ${user.username} anonymisé immédiatement.` });
+          this.load();
+        }
+      },
+      error: err => {
+        this.purgeSubmitting.set(false);
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la purge.' });
+      },
+    });
+  }
+
+  daysUntilPurge(deletedAt: string | null): number | null {
+    if (!deletedAt) return null;
+    const purgeDate = new Date(deletedAt).getTime() + 30 * 86_400_000;
+    return Math.max(0, Math.ceil((purgeDate - Date.now()) / 86_400_000));
+  }
+
+  daysRemaining(expiresAt: string | null): number | null {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 86_400_000));
+  }
+
+  planLabel(plan: 'free' | 'amateur' | 'pro' | null): string {
+    if (plan === 'amateur') return 'Amateur';
+    if (plan === 'pro')     return 'Pro';
+    return 'Free';
   }
 
   imgUrl(path: string): string {

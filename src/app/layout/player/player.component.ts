@@ -9,13 +9,15 @@ import {
   effect,
   signal,
   computed,
+  untracked,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import WaveSurfer from 'wavesurfer.js';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
+import { AuthService } from '../../services/auth.service';
 import { MixOrderContext } from '../../services/player.service';
 import { environment } from '../../../environments/environment';
 
@@ -33,11 +35,17 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
 
   player   = inject(PlayerService);
   trackSvc = inject(TrackService);
+  auth     = inject(AuthService);
+  private router = inject(Router);
 
   /** Whether the player is in track_detail context (viewingTrack is set). */
   isDetailContext    = computed(() => this.player.viewingTrack() !== null);
   /** Whether the player is showing a mix order reference/preview. */
   isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
+
+  /** Always true: buildAudioUrl() only ever uses stream_url (preview).
+   *  full_stream_url requires an Authorization header that <audio> cannot send. */
+  isPreview = computed(() => !!this.player.currentTrack());
 
   /** True when the currently playing track IS the viewing track → actions work directly. */
   isViewingTrackLoaded = computed(() => {
@@ -50,13 +58,38 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   private pendingAction: 'download' | 'rec' | null = null;
 
   private wavesurfer: WaveSurfer | null = null;
+  // Dernière URL chargée dans WaveSurfer — évite les rechargements quand seul
+  // le contexte change (ex: viewingTrack s'active sur le même track en lecture).
+  private _lastLoadedUrl = '';
+  private _lastLoadedTrackId = 0;
 
   constructor() {
     effect(() => {
       const track = this.player.currentTrack();
       if (!track || !this.wavesurfer) return;
       const url = this.player.buildAudioUrl(track);
-      if (url) this.wavesurfer.load(url);
+      if (!url) return;
+      if (url === this._lastLoadedUrl) {
+        // Même URL → WaveSurfer ne recharge pas, 'ready' ne refirend pas.
+        // Si play() a posé playOnReady, on joue directement.
+        if (this.player.playOnReady) {
+          this.player.playOnReady = false;
+          this.player.audioEl.play().catch(err => console.warn('PlayerComponent: play() direct failed', err));
+        }
+        return;
+      }
+      // Même track en cours de lecture, URL différente → changement de contexte
+      // (ex: viewingTrack effacé en quittant track-detail). Ne pas recharger pour
+      // ne pas couper la lecture. On met à jour la référence silencieusement.
+      if (track.id > 0
+          && track.id === this._lastLoadedTrackId
+          && untracked(() => this.player.isPlaying())) {
+        this._lastLoadedUrl = url;
+        return;
+      }
+      this._lastLoadedUrl = url;
+      this._lastLoadedTrackId = track.id;
+      this.wavesurfer.load(url);
     });
   }
 
@@ -86,13 +119,15 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       this.player.seek(newTime);
     });
 
-    // Fix race condition: effect() in constructor may have fired before
-    // ngAfterViewInit (this.wavesurfer was null → early return → no load).
-    // If a track is already queued, load it now that WaveSurfer is ready.
+    // Fix race condition: effect() fires before ngAfterViewInit (wavesurfer null → skip).
     const pending = this.player.currentTrack();
     if (pending && this.player.playOnReady) {
       const url = this.player.buildAudioUrl(pending);
-      if (url) this.wavesurfer.load(url);
+      if (url && url !== this._lastLoadedUrl) {
+        this._lastLoadedUrl = url;
+        this._lastLoadedTrackId = pending.id;
+        this.wavesurfer.load(url);
+      }
     }
   }
 
@@ -109,6 +144,10 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   // ── Contextual actions ───────────────────────────────────────────────────
 
   onDownloadClick(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login']);
+      return;
+    }
     if (this.isViewingTrackLoaded()) {
       this.doDownload();
     } else {
@@ -118,6 +157,10 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   onRecClick(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login']);
+      return;
+    }
     if (this.isViewingTrackLoaded()) {
       this.player.recRequested.update(n => n + 1);
     } else {

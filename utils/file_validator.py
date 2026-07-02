@@ -345,12 +345,14 @@ def validate_specific_audio_format(file, expected_format):
         return False, f"Erreur lors de la validation : {str(e)}"
 
 
-def validate_stems_archive(file):
+def validate_stems_archive(file, require_primary=False):
     """
-    Valider une archive de stems (doit contenir uniquement des fichiers FLAC)
+    Valider une archive de stems (ZIP ou RAR contenant des fichiers audio).
 
     Args:
-        file: Objet FileStorage de Flask (archive ZIP ou RAR)
+        file           : Objet FileStorage de Flask
+        require_primary: Si True, vérifie la présence d'un *_current.* ou *_master.*
+                         (mode stems-seuls — FL Studio convention)
 
     Returns:
         tuple: (is_valid, error_message)
@@ -360,16 +362,19 @@ def validate_stems_archive(file):
     if not is_valid:
         return False, error_msg
 
-    # Taille minimum pour stems (pistes FLAC separees)
+    # Taille minimum pour stems
     file.seek(0, os.SEEK_END)
     size = file.tell()
     file.seek(0)
     if size < FileValidator.MIN_STEMS_SIZE:
         size_mb = size / (1024 * 1024)
-        return False, f"Archive de stems trop petite ({size_mb:.1f} MB). Minimum 40 MB attendu pour des pistes FLAC"
+        return False, f"Archive de stems trop petite ({size_mb:.1f} MB). Minimum 5 MB attendu"
 
     # Sauvegarder temporairement l'archive pour l'inspecter
     import tempfile
+
+    # Formats audio acceptés dans les stems (FL Studio exporte en WAV, parfois MP3 ou FLAC)
+    ALLOWED_STEM_EXTENSIONS = {'.wav', '.mp3', '.flac', '.aiff', '.aif'}
 
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
@@ -393,18 +398,32 @@ def validate_stems_archive(file):
             else:
                 return False, "Type d'archive non reconnu"
 
-            # Vérifier que tous les fichiers sont des FLAC (ignorer les dossiers)
-            audio_files = [f for f in filenames if not f.endswith('/') and not f.startswith('__MACOSX')]
+            # Ignorer les dossiers et métadonnées macOS
+            all_files = [f for f in filenames if not f.endswith('/') and not f.startswith('__MACOSX')]
+
+            if len(all_files) == 0:
+                return False, "L'archive est vide"
+
+            # Compter les fichiers audio (WAV, MP3, FLAC…)
+            audio_files = [
+                f for f in all_files
+                if Path(f).suffix.lower() in ALLOWED_STEM_EXTENSIONS
+            ]
 
             if len(audio_files) == 0:
-                return False, "L'archive ne contient aucun fichier audio"
+                return False, "L'archive ne contient aucun fichier audio (WAV, MP3, FLAC attendu)"
 
-            non_flac_files = [f for f in audio_files if not f.lower().endswith('.flac')]
+            if require_primary:
+                has_current = any('_current.' in Path(n).name.lower() for n in audio_files)
+                has_master  = any('_master.'  in Path(n).name.lower() for n in audio_files)
+                if not (has_current or has_master):
+                    return False, (
+                        "L'archive ne contient pas de fichier '*_current.*' ni '*_master.*'. "
+                        "FL Studio génère automatiquement ce fichier lors d'un export ZIP — "
+                        "vérifiez votre export ou ajoutez un fichier MP3 / WAV séparément."
+                    )
 
-            if non_flac_files:
-                return False, f"L'archive contient des fichiers non-FLAC : {', '.join(non_flac_files[:3])}"
-
-            return True, f"Archive de stems valide ({len(audio_files)} fichiers FLAC)"
+            return True, f"Archive de stems valide ({len(audio_files)} fichiers audio)"
 
     except zipfile.BadZipFile:
         return False, "Archive ZIP corrompue"
@@ -416,7 +435,7 @@ def validate_stems_archive(file):
         # Nettoyer le fichier temporaire
         try:
             os.unlink(tmp_file.name)
-        except:
+        except Exception:
             pass
 
 

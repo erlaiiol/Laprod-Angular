@@ -1,6 +1,7 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Track } from './track.service';
+import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 
 /** Contexte d'une commande de mixage en cours de lecture dans le player. */
@@ -38,8 +39,15 @@ export class PlayerService {
   playOnReady = false;
 
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   private tracksApiUrl  = `${environment.apiUrl}/api/tracks`;
   private favoritesUrl  = `${environment.apiUrl}/api/favorites`;
+
+  // ── Listen-event tracking ─────────────────────────────────────────────────
+  private _listenStartTime = 0;       // ms timestamp when current track started
+  private _secondsListened = 0;       // seconds actually played (pauses excluded)
+  private _listenInterval: ReturnType<typeof setInterval> | null = null;
+  private _currentSource = 'home';
 
   constructor() {
     this.audioEl.volume = this.volume();
@@ -50,23 +58,39 @@ export class PlayerService {
 
     this.audioEl.ondurationchange = () => {
       this.duration.set(this.audioEl.duration || 0);
+      this._updateMediaSessionPosition();
     };
 
     this.audioEl.onended = () => {
       this.isPlaying.set(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+      // Envoyer l'event d'écoute pour les tracks normaux (pas MixMaster)
+      const track = this.currentTrack();
+      if (track && track.id > 0 && this._listenStartTime > 0) {
+        this._sendListenEvent(track);
+        this._resetListenTimer();
+      }
       // Ne pas auto-avancer sur un audio mix order : l'utilisateur décide lui-même
       if (!this.viewingMixOrder()) {
         this.playNext();
       }
     };
 
-    this.audioEl.onpause = () => this.isPlaying.set(false);
-    this.audioEl.onplay  = () => this.isPlaying.set(true);
+    this.audioEl.onpause = () => {
+      this.isPlaying.set(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    };
+    this.audioEl.onplay  = () => {
+      this.isPlaying.set(true);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    };
 
     // Sync volume signal → audio element
     effect(() => {
       this.audioEl.volume = this.volume();
     });
+
+    this._initMediaSessionHandlers();
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -77,8 +101,19 @@ export class PlayerService {
    * and calls wavesurfer.load(url), then plays on 'ready'.
    * Do NOT set audioEl.src here (race condition with WaveSurfer.load()).
    */
-  play(track: Track): void {
+  play(track: Track, source: string = 'home'): void {
+    // Envoyer l'event du track en cours avant de changer (switch de track)
+    const current = this.currentTrack();
+    if (current && current.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(current);
+      this._resetListenTimer();
+    }
+
     this.playOnReady = true;
+    this._currentSource = source;
+    this._listenStartTime = Date.now();
+    this._secondsListened = 0;
+    this._startListenTimer();
 
     // Do NOT call audioEl.play() here with no src set — it corrupts the
     // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
@@ -87,11 +122,17 @@ export class PlayerService {
     // play() in WaveSurfer's 'ready' callback will be allowed by the browser.
 
     this.currentTrack.set(track);
+    this._updateMediaSession(track);
     // Jouer un beat normal efface le contexte mix order (et inversement)
     this.viewingMixOrder.set(null);
     // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
     if (track.id > 0 && localStorage.getItem('access_token')) {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
+        .subscribe({ error: () => {} });
+    }
+    // Vue de lecture — fire-and-forget, pas d'auth requise
+    if (track.id > 0) {
+      this.http.post(`${environment.apiUrl}/api/tracks/track/${track.id}/view`, { source: 'player' })
         .subscribe({ error: () => {} });
     }
   }
@@ -123,8 +164,16 @@ export class PlayerService {
   /**
    * Joue un audio de commande de mixage (Blob URL JWT) et affiche le statut dans le player.
    * blobUrl doit être un `URL.createObjectURL(blob)` créé par le composant appelant.
+   * NE démarre PAS le timer d'écoute (id=0, pas de recommandation).
    */
   playMixAudio(blobUrl: string, ctx: MixOrderContext): void {
+    // Sauvegarder l'écoute du track normal en cours avant de passer au mix
+    const current = this.currentTrack();
+    if (current && current.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(current);
+      this._resetListenTimer();
+    }
+
     const track: Track = {
       id:              0,
       title:           `Référence de : ${ctx.orderTitle}`,
@@ -137,15 +186,26 @@ export class PlayerService {
       style:           '',
       price_mp3:       0,
       tags:            [],
-      is_approved:     true,
+      is_approved:         true,
+      playlist_count:      0,
+      first_playlist_image: null,
     };
     this.playOnReady = true;
     this.currentTrack.set(track);
+    this._updateMediaSession(track);
     this.viewingTrack.set(null);
     this.viewingMixOrder.set(ctx);
+    // _listenStartTime reste à 0 : pas de timer pour les mix orders
   }
 
   close(): void {
+    // Envoyer l'event avant de fermer le player
+    const track = this.currentTrack();
+    if (track && track.id > 0 && this._listenStartTime > 0) {
+      this._sendListenEvent(track);
+    }
+    this._resetListenTimer();
+
     this.audioEl.pause();
     this.audioEl.src = '';
     this.currentTrack.set(null);
@@ -176,13 +236,97 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    const url = track.full_stream_url ?? track.stream_url;
+    // Toujours utiliser stream_url (preview) : l'élément <audio> ne peut pas
+    // envoyer de header Authorization, donc full_stream_url (JWT requis) retourne
+    // un 401 silencieux → WaveSurfer 'ready' ne fire jamais → le track ne joue pas.
+    const url = track.stream_url;
     if (!url) return '';
-    // Blob URLs (createObjectURL) et URLs absolues passent tels quels
-    if (url.startsWith('blob:') || url.startsWith('http')) {
-      return url;
-    }
+    if (url.startsWith('blob:') || url.startsWith('http')) return url;
     return `${environment.apiUrl}${url}`;
+  }
+
+  // ── Listen-event internals ────────────────────────────────────────────────
+
+  private _startListenTimer(): void {
+    if (this._listenInterval) {
+      clearInterval(this._listenInterval);
+    }
+    this._listenInterval = setInterval(() => {
+      if (this.isPlaying()) {
+        this._secondsListened++;
+      }
+    }, 1000);
+  }
+
+  private _resetListenTimer(): void {
+    if (this._listenInterval) {
+      clearInterval(this._listenInterval);
+      this._listenInterval = null;
+    }
+    this._listenStartTime = 0;
+    this._secondsListened = 0;
+  }
+
+  private _initMediaSessionHandlers(): void {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play',         () => this.resume());
+    navigator.mediaSession.setActionHandler('pause',        () => this.pause());
+    navigator.mediaSession.setActionHandler('stop',         () => this.close());
+    navigator.mediaSession.setActionHandler('nexttrack',    () => this.playNext());
+    navigator.mediaSession.setActionHandler('seekbackward', (d) => {
+      this.seek(Math.max(0, this.audioEl.currentTime - (d.seekOffset ?? 10)));
+    });
+    navigator.mediaSession.setActionHandler('seekforward', (d) => {
+      this.seek(Math.min(this.audioEl.duration || Infinity, this.audioEl.currentTime + (d.seekOffset ?? 10)));
+    });
+    navigator.mediaSession.setActionHandler('seekto', (d) => {
+      if (d.seekTime != null) this.seek(d.seekTime);
+    });
+  }
+
+  private _updateMediaSession(track: Track): void {
+    if (!('mediaSession' in navigator)) return;
+
+    const artworkUrl = track.image_file
+      ? `${environment.apiUrl}/db_assets/${track.image_file}`
+      : `${window.location.origin}/assets/placeholders/placeholder-track.png`;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  track.title,
+      artist: track.composer_user?.username ?? 'LaProd',
+      album:  'LaProd',
+      artwork: [
+        { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' },
+      ],
+    });
+  }
+
+  private _updateMediaSessionPosition(): void {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    const duration = this.audioEl.duration;
+    if (!duration || !isFinite(duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: this.audioEl.playbackRate,
+        position:     Math.min(this.audioEl.currentTime, duration),
+      });
+    } catch { /* ignore si l'API n'est pas disponible */ }
+  }
+
+  private _sendListenEvent(track: Track): void {
+    if (!localStorage.getItem('access_token')) return;
+    if (this._secondsListened <= 0) return;
+
+    const trackDuration = this.duration() || 0;
+    const body = {
+      duration_listened: this._secondsListened,
+      track_duration:    trackDuration > 0 ? trackDuration : this._secondsListened,
+      source:            this._currentSource,
+    };
+
+    this.http.post(`${this.favoritesUrl}/listening/${track.id}`, body)
+      .subscribe({ error: () => {} });
   }
 
 }

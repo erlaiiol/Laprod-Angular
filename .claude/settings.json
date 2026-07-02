@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -x -q --tb=short)",
+      "Bash(python3 -m pytest tests/ -x -q --tb=short)",
+      "Read(//Users/eliott/.local/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//Users/eliott/**)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(xargs ls -la)"
+    ]
+  }
+}

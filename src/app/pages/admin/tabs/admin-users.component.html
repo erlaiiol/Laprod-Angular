@@ -10,7 +10,7 @@
 } @else if (users().length > 0) {
   <table class="data-table">
     <thead>
-      <tr><th>Avatar</th><th>Nom</th><th>Email</th><th>Rôles</th><th>Tokens</th><th>Statut</th><th>Actions</th></tr>
+      <tr><th>Avatar</th><th>Nom</th><th>Email</th><th>Rôles</th><th>Tokens</th><th>Statut</th><th>Compte</th><th>Actions</th></tr>
     </thead>
     <tbody>
       @for (u of users(); track u.id) {
@@ -18,29 +18,87 @@
           <td><img [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
           <td>
             {{ u.username }}
-            @if (u.is_premium) { <span class="badge-premium">★</span> }
-            @if (u.is_admin)   { <span class="badge-admin">ADMIN</span> }
+            @if (u.is_premium) {
+              <span class="badge-premium" [title]="'Plan ' + planLabel(u.subscription_plan) + ' — expire le ' + fmtDate(u.premium_expires_at)">
+                {{ u.subscription_plan === 'pro' ? '★ Pro' : '★' }}
+              </span>
+            }
+            @if (u.is_admin) { <span class="badge-admin">ADMIN</span> }
           </td>
-          <td class="small">{{ u.email }}</td>
+          <td class="small">
+            {{ u.email }}
+            @if (!u.email_verified) {
+              <span class="acct-chip acct-chip--warn" title="Email non vérifié">✉ non vérifié</span>
+            }
+          </td>
           <td>
-            @if (u.is_beatmaker)                    { <span class="role-chip role-bm">BM</span> }
-            @if (u.is_artist)                       { <span class="role-chip role-art">ART</span> }
-            @if (u.is_mixmaster_engineer)           { <span class="role-chip role-eng">ENG</span> }
-            @if (u.is_certified_producer_arranger)  { <span class="role-chip role-pa">PA</span> }
+            @if (u.is_beatmaker)                      { <span class="role-chip role-bm">BM</span> }
+            @if (u.is_artist)                         { <span class="role-chip role-art">ART</span> }
+            @if (u.is_mixmaster_engineer)             { <span class="role-chip role-eng">MX</span> }
+            @if (u.is_certified_master_engineer)      { <span class="role-chip role-mst">MST</span> }
+            @if (u.is_certified_producer_arranger)    { <span class="role-chip role-pa">P/A</span> }
           </td>
           <td class="small">Track: {{ u.upload_track_tokens }}<br>Topline: {{ u.topline_tokens }}</td>
           <td><span class="status-chip" [class.active]="u.account_status === 'active'">{{ u.account_status }}</span></td>
+          <td class="small">
+            @if (!u.email_verified) {
+              <span class="acct-chip acct-chip--warn">Email</span>
+            }
+            @if (!u.user_type_selected) {
+              <span class="acct-chip acct-chip--warn">Profil</span>
+            }
+            @if (u.email_verified && u.user_type_selected) {
+              <span class="acct-chip acct-chip--ok">OK</span>
+            }
+          </td>
           <td class="actions">
             <button class="btn-icon" [title]="u.account_status === 'active' ? 'Désactiver' : 'Activer'" (click)="toggleStatus(u)">
               <i class="bi" [class.bi-person-check]="u.account_status !== 'active'" [class.bi-person-dash]="u.account_status === 'active'"></i>
             </button>
-            <button class="btn-icon" title="Toggle Beatmaker"  (click)="toggleRole(u, 'beatmaker')"><i class="bi bi-music-note"></i></button>
-            <button class="btn-icon" title="Toggle Artiste"    (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
-            <button class="btn-icon" title="Toggle Engineer"   (click)="toggleRole(u, 'engineer')"><i class="bi bi-headphones"></i></button>
+            <button class="btn-icon" [class.btn-icon--cert-on]="u.is_beatmaker"
+                    [title]="u.is_beatmaker ? 'Révoquer Beatmaker' : 'Certifier Beatmaker'"
+                    (click)="toggleRole(u, 'beatmaker')"><i class="bi bi-music-note"></i></button>
+            <button class="btn-icon" [class.btn-icon--cert-on]="u.is_artist"
+                    [title]="u.is_artist ? 'Révoquer Artiste' : 'Certifier Artiste'"
+                    (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
+            <span class="cert-group" title="Certifications engineer">
+              <button class="btn-icon btn-cert" [class.btn-cert--on]="u.is_mixmaster_engineer"
+                      [title]="u.is_mixmaster_engineer ? 'Révoquer Mix' : 'Certifier Mix Engineer'"
+                      (click)="toggleRole(u, 'engineer')">MX</button>
+              <button class="btn-icon btn-cert" [class.btn-cert--on]="u.is_certified_master_engineer"
+                      [disabled]="!u.is_mixmaster_engineer"
+                      [title]="u.is_certified_master_engineer ? 'Révoquer Master' : 'Certifier Master'"
+                      (click)="toggleRole(u, 'master')">MST</button>
+              <button class="btn-icon btn-cert" [class.btn-cert--on]="u.is_certified_producer_arranger"
+                      [disabled]="!u.is_mixmaster_engineer"
+                      [title]="u.is_certified_producer_arranger ? 'Révoquer P/A' : 'Certifier Producteur/Arrangeur'"
+                      (click)="toggleRole(u, 'producer_arranger')">P/A</button>
+            </span>
             <button class="btn-icon" title="Tokens Track"      (click)="openTokenModal(u, 'track')"><i class="bi bi-plus-circle"></i> T</button>
             <button class="btn-icon" title="Tokens Topline"    (click)="openTokenModal(u, 'topline')"><i class="bi bi-plus-circle"></i> TL</button>
-            <button class="btn-icon" [title]="u.is_premium ? 'Retirer premium' : 'Activer premium'" (click)="togglePremium(u)">
-              <i class="bi" [class.bi-star-fill]="!u.is_premium" [class.bi-star]="u.is_premium"></i>
+            <button class="btn-icon btn-icon--plan" title="Gérer l'abonnement" (click)="openPlanModal(u)">
+              <i class="bi bi-patch-check"></i>
+            </button>
+            @if (!u.email_verified) {
+              <button class="btn-icon btn-icon--warn"
+                      [disabled]="resendingId() === u.id"
+                      title="Renvoyer l'email de vérification"
+                      (click)="resendVerification(u)">
+                <i class="bi" [class.bi-envelope-arrow-up]="resendingId() !== u.id"
+                              [class.bi-hourglass-split]="resendingId() === u.id"></i>
+              </button>
+            }
+            @if (!u.email_verified || u.account_status === 'pending_completion') {
+              <button class="btn-icon btn-icon--ok"
+                      [disabled]="forcingVerifId() === u.id"
+                      [title]="!u.email_verified ? 'Forcer la vérification email' : 'Activer le compte (email déjà vérifié)'"
+                      (click)="forceVerifyEmail(u)">
+                <i class="bi" [class.bi-person-check-fill]="forcingVerifId() !== u.id"
+                              [class.bi-hourglass-split]="forcingVerifId() === u.id"></i>
+              </button>
+            }
+            <button class="btn-icon btn-icon--danger" title="Supprimer le compte" (click)="openDeleteModal(u)">
+              <i class="bi bi-trash3"></i>
             </button>
           </td>
         </tr>
@@ -65,6 +123,153 @@
         <button class="btn-secondary" (click)="tokenUser.set(null)">Annuler</button>
         <button class="btn-primary"   (click)="submitTokens()">Ajouter</button>
       </div>
+    </div>
+  </div>
+}
+
+<!-- Delete confirmation modal -->
+@if (deleteTarget()) {
+  <div class="modal-backdrop" (click)="deleteTarget.set(null)">
+    <div class="modal modal--danger" (click)="$event.stopPropagation()">
+      <div class="plan-modal-header">
+        <h3><i class="bi bi-exclamation-triangle-fill"></i>
+          @if (deleteTarget()!.account_status === 'pending_deletion') { Compte en attente de purge }
+          @else { Supprimer le compte }
+        </h3>
+        <button class="btn-icon-close" (click)="deleteTarget.set(null)"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      @if (deleteTarget()!.account_status === 'pending_deletion') {
+        <!-- Compte déjà marqué → afficher le délai restant + purge immédiate -->
+        <p class="modal-sub">
+          Le compte de <strong>{{ deleteTarget()!.username }}</strong> est en attente d'anonymisation RGPD.
+        </p>
+        <div class="delete-warning">
+          <i class="bi bi-clock-history"></i>
+          @if (daysUntilPurge(deleteTarget()!.deleted_at) === 0) {
+            Purge automatique prévue cette nuit.
+          } @else {
+            Purge automatique dans environ <strong>{{ daysUntilPurge(deleteTarget()!.deleted_at) }} jour(s)</strong>.
+          }
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="deleteTarget.set(null)">Fermer</button>
+          <button class="btn-danger" [disabled]="purgeSubmitting()" (click)="purgeNow()" title="Anonymiser immédiatement sans attendre 30 jours">
+            @if (purgeSubmitting()) { <span class="btn-spinner"></span> Purge… }
+            @else { <i class="bi bi-lightning-fill"></i> Purger maintenant (test) }
+          </button>
+        </div>
+      } @else {
+        <!-- Compte actif → demander confirmation de suppression RGPD -->
+        <p class="modal-sub">
+          Tu es sur le point de demander la suppression RGPD du compte de
+          <strong>{{ deleteTarget()!.username }}</strong>
+          ({{ deleteTarget()!.email }}).
+        </p>
+        <div class="delete-warning">
+          <i class="bi bi-shield-lock-fill"></i>
+          Le compte sera immédiatement bloqué. Les données personnelles seront anonymisées
+          automatiquement dans <strong>30 jours</strong> (conformité RGPD).
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="deleteTarget.set(null)">Annuler</button>
+          <button class="btn-danger" [disabled]="deleteSubmitting()" (click)="confirmDelete()">
+            @if (deleteSubmitting()) { <span class="btn-spinner"></span> Traitement… }
+            @else { <i class="bi bi-trash3"></i> Demander la suppression }
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Plan modal -->
+@if (planUser()) {
+  <div class="modal-backdrop" (click)="closePlanModal()">
+    <div class="modal modal--plan" (click)="$event.stopPropagation()">
+
+      <div class="plan-modal-header">
+        <h3><i class="bi bi-patch-check"></i> Gérer l'abonnement</h3>
+        <button class="btn-icon-close" (click)="closePlanModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <p class="modal-sub">
+        Utilisateur&nbsp;: <strong>{{ planUser()!.username }}</strong>
+        &nbsp;·&nbsp; {{ planUser()!.email }}
+      </p>
+
+      <!-- Infos abonnement actuel -->
+      @if (planUser()!.is_premium) {
+        <div class="plan-current-block"
+             [class.plan-current-block--stripe]="planUser()!.premium_source === 'stripe'"
+             [class.plan-current-block--admin]="planUser()!.premium_source === 'admin'">
+          <div class="plan-current-row">
+            <span class="plan-current-label">Plan actuel</span>
+            <span class="plan-badge plan-badge--{{ planUser()!.subscription_plan }}">
+              {{ planLabel(planUser()!.subscription_plan) }}
+            </span>
+          </div>
+
+          @if (planUser()!.premium_source === 'stripe') {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-credit-card"></i> Payé via Stripe</span>
+              <strong class="plan-price">{{ planUser()!.premium_price_paid != null ? (planUser()!.premium_price_paid! | number:'1.2-2') + ' €' : '—' }}</strong>
+            </div>
+          } @else if (planUser()!.premium_source === 'admin') {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-shield-check"></i> Accordé par admin</span>
+            </div>
+          }
+
+          @if (planUser()!.premium_expires_at) {
+            <div class="plan-current-row">
+              <span class="plan-current-label"><i class="bi bi-clock"></i> Expire le</span>
+              <span>{{ fmtDate(planUser()!.premium_expires_at) }}
+                @if (daysRemaining(planUser()!.premium_expires_at) !== null) {
+                  &nbsp;<em class="plan-days-left">({{ daysRemaining(planUser()!.premium_expires_at) }} j restants)</em>
+                }
+              </span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="plan-current-block plan-current-block--free">
+          <span class="plan-current-label">Plan actuel : </span>
+          <span class="plan-badge plan-badge--free">Free</span>
+        </div>
+      }
+
+      <!-- Sélecteur du nouveau plan -->
+      <div class="plan-select-section">
+        <p class="plan-select-label">Nouveau plan à appliquer (30 jours à compter de maintenant)</p>
+        <div class="plan-select-options">
+          @for (opt of planOptions; track opt) {
+            <label class="plan-option" [class.plan-option--selected]="planTarget() === opt">
+              <input type="radio" name="plan" [value]="opt"
+                     [checked]="planTarget() === opt"
+                     (change)="planTarget.set(opt)">
+              <span class="plan-option-label plan-badge plan-badge--{{ opt }}">{{ planLabel(opt) }}</span>
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- Avertissement si déjà payé et qu'on change -->
+      @if (planUser()!.premium_source === 'stripe' && planTarget() !== planUser()!.subscription_plan) {
+        <div class="plan-warning">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Cet utilisateur a payé son abonnement. Êtes-vous sûr de vouloir modifier son plan ?
+        </div>
+      }
+
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="closePlanModal()">Annuler</button>
+        <button class="btn-primary" [disabled]="planSubmitting()" (click)="confirmSetPlan()">
+          @if (planSubmitting()) { <span class="btn-spinner"></span> Envoi… }
+          @else { Confirmer }
+        </button>
+      </div>
+
     </div>
   </div>
 }

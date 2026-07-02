@@ -4,11 +4,12 @@ Favorites API — toggle, check, listening history (JWT)
 from flask import Blueprint, jsonify, request as flask_request
 from flask_jwt_extended import jwt_required, verify_jwt_in_request
 from sqlalchemy import select
-from extensions import db, csrf
-from models import Favorite, ListeningHistory, Track
+from extensions import db, csrf, limiter
+from models import Favorite, ListenEvent, ListeningHistory, Track
 from serializers import ok, err
 from datetime import datetime
 from utils.auth_helpers import require_user
+from utils.recommendation_service import invalidate_user_vector_cache
 
 favorites_api_bp = Blueprint('favorites_api', __name__, url_prefix='/api/favorites')
 
@@ -28,10 +29,12 @@ def toggle_favorite(track_id, current_user):
     if existing:
         db.session.delete(existing)
         db.session.commit()
+        invalidate_user_vector_cache(current_user.id)
         return ok({'action': 'removed', 'is_favorite': False})
     else:
         db.session.add(Favorite(user_id=current_user.id, track_id=track_id))
         db.session.commit()
+        invalidate_user_vector_cache(current_user.id)
         return ok({'action': 'added', 'is_favorite': True})
 
 
@@ -90,6 +93,7 @@ def check_favorite(track_id):
 @favorites_api_bp.route('/listening/<int:track_id>', methods=['POST'])
 @jwt_required()
 @csrf.exempt
+@limiter.exempt
 @require_user
 def add_listening_history(track_id, current_user):
     """Enregistre une écoute. Garde les 10 dernières entrées uniques."""
@@ -120,6 +124,24 @@ def add_listening_history(track_id, current_user):
             )
             for entry in oldest:
                 db.session.delete(entry)
+
+    # Enregistrer un ListenEvent si le client fournit les données de durée
+    body = flask_request.get_json(silent=True) or {}
+    duration_listened = body.get('duration_listened', 0)
+    track_duration = body.get('track_duration', 0)
+    source = body.get('source', 'home')
+
+    if duration_listened > 0 and track_duration > 0:
+        ratio = min(duration_listened / track_duration, 1.0)
+        db.session.add(ListenEvent(
+            user_id=current_user.id,
+            track_id=track_id,
+            duration_listened=float(duration_listened),
+            track_duration=float(track_duration),
+            completion_ratio=ratio,
+            source=source,
+        ))
+        invalidate_user_vector_cache(current_user.id)
 
     db.session.commit()
     return ok()

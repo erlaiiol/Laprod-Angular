@@ -1,10 +1,14 @@
 import hashlib
 import enum
+from decimal import Decimal, ROUND_HALF_UP
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, time, timedelta
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, and_, or_, func
+from sqlalchemy.ext.hybrid import hybrid_property
+
+_TWO_PLACES = Decimal('0.01')
 
 class User(UserMixin, db.Model):
     """Modèle utilisateur avec système de rôles et Stripe Connect"""
@@ -68,19 +72,29 @@ class User(UserMixin, db.Model):
     #  SYSTÈME MIX/MASTER
     is_mixmaster_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Certifié par admin
     is_certified_producer_arranger = db.Column(db.Boolean, default=False, nullable=False)  # Certifié producteur/arrangeur (intervention artistique)
-    mixmaster_reference_price = db.Column(db.Float, nullable=True)  # Prix de référence (base 100% pour calcul des services)
-    mixmaster_price_min = db.Column(db.Float, nullable=True)  # Prix minimum (entre 35% et 80% du prix référence : paliers 35/55/80)
+    mixmaster_reference_price = db.Column(db.Numeric(10, 2), nullable=True)  # Prix de référence (base 100% pour calcul des services)
+    mixmaster_price_min       = db.Column(db.Numeric(10, 2), nullable=True)  # Prix minimum (entre 35% et 80% du prix référence : paliers 35/55/80)
     mixmaster_bio = db.Column(db.Text, nullable=True)  # Description de ses compétences
     mixmaster_sample_raw = db.Column(db.String(200), nullable=True)  # Audio brut exemple
     mixmaster_sample_processed = db.Column(db.String(200), nullable=True)  # Audio traité exemple
     mixmaster_sample_submitted = db.Column(db.Boolean, default=False, nullable=False)  # A soumis échantillon?
     producer_arranger_request_submitted = db.Column(db.Boolean, default=False, nullable=False)  # A demandé certification producteur/arrangeur?
+    # is_mixmaster_engineer = "Certified Mix Engineer" validé par admin (samples de mixage).
+    # is_certified_master_engineer = spécialisation mastering (sample admin OU abonnement Pro).
+    is_certified_master_engineer = db.Column(db.Boolean, default=False, nullable=False)
+    master_sample_raw = db.Column(db.String(200), nullable=True)       # Audio brut mastering (soumission admin)
+    master_sample_processed = db.Column(db.String(200), nullable=True) # Audio masterisé (soumission admin)
+    master_sample_submitted = db.Column(db.Boolean, default=False, nullable=False)  # En attente de validation admin
 
-
-    # PREMIUM
-    is_premium = db.Column(db.Boolean, default=False, nullable=False)
-    premium_since = db.Column(db.DateTime, nullable=True)
-    premium_expires_at = db.Column(db.DateTime, nullable=True)
+    # ABONNEMENT
+    # subscription_plan : 'free' | 'amateur' | 'pro'
+    # is_premium est un hybrid_property dérivé (rétrocompatibilité totale)
+    subscription_plan    = db.Column(db.String(20),  nullable=False, default='free')
+    premium_since        = db.Column(db.DateTime,    nullable=True)
+    premium_expires_at   = db.Column(db.DateTime,    nullable=True)
+    # 'stripe' = souscription payée | 'admin' = accordé manuellement | None = jamais eu
+    premium_source       = db.Column(db.String(20),  nullable=True)
+    premium_price_paid   = db.Column(db.Numeric(10, 2), nullable=True)
 
     #  SYSTÈME DE TOKENS POUR UPLOAD DE BEATS
     upload_track_tokens = db.Column(db.Integer, default=20)  # Nombre de beats uploadables
@@ -94,7 +108,7 @@ class User(UserMixin, db.Model):
     preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
 
     # Relations
-    tracks = db.relationship('Track', backref='composer_user', lazy=True, cascade='all, delete-orphan')
+    tracks = db.relationship('Track', foreign_keys='Track.composer_id', backref='composer_user', lazy=True, cascade='all, delete-orphan')
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='buyer_user', lazy=True)
     notifications = db.relationship('Notification', back_populates='recipient_user', lazy=True, cascade='all, delete-orphan')
@@ -112,37 +126,54 @@ class User(UserMixin, db.Model):
 
     @property
     def is_premium_active(self):
-        """Vérifie si l'utilisateur a un abonnement premium actif
-
-        Returns:
-            bool: True si premium actif (sans expiration OU pas encore expiré)
-        """
-        if not self.is_premium:
+        """True si abonnement amateur ou pro en cours (non expiré)."""
+        if self.subscription_plan == 'free':
             return False
         return self.premium_expires_at is None or self.premium_expires_at >= datetime.now()
+
+    @hybrid_property
+    def is_premium(self):
+        """Rétrocompatibilité — True si is_premium_active."""
+        return self.is_premium_active
+
+    @is_premium.expression
+    def is_premium(cls):
+        return and_(
+            cls.subscription_plan != 'free',
+            or_(cls.premium_expires_at.is_(None), cls.premium_expires_at >= func.now())
+        )
+
+    @property
+    def is_pro(self):
+        """True si abonnement Pro en cours."""
+        return self.subscription_plan == 'pro' and self.is_premium_active
+
+    @property
+    def can_do_mastering(self):
+        """True si certifié master par admin OU abonnement Pro actif."""
+        return self.is_certified_master_engineer or self.is_pro
 
     
     # TRACKS ALLOW UPLOAD METHODS
 
 
     def _reset_daily_uploads(self):
-        """Réinitialise les tokens d'upload quotidiennement si nécessaire
+        """Réinitialise les tokens d'upload quotidiennement si nécessaire.
 
-        Ajoute des tokens cumulables selon le statut:
-        - Free: +1/jour jusqu'à 2 tokens max
-        - Premium: +5/jour jusqu'à 15 tokens max
-
-        Appelée automatiquement par can_upload_track()
+        - Free    : +1/jour, cap 2
+        - Amateur : +5/jour, cap 15
+        - Pro     : +10/jour, cap 30
         """
         today = date.today()
         if self.last_upload_reset < today:
-            # Premium: +5 tokens/jour (cap 15)
-            if self.is_premium_active and self.upload_track_tokens < 15:
-                self.upload_track_tokens = min(15, self.upload_track_tokens + 5)
-            # Free: +1 token/jour (cap 3)
-            elif not self.is_premium and self.upload_track_tokens < 2:
-                self.upload_track_tokens = min(2, self.upload_track_tokens + 1)
-
+            if self.subscription_plan == 'pro' and self.is_premium_active:
+                cap, gain = 30, 10
+            elif self.subscription_plan == 'amateur' and self.is_premium_active:
+                cap, gain = 15, 5
+            else:
+                cap, gain = 2, 1
+            if self.upload_track_tokens < cap:
+                self.upload_track_tokens = min(cap, self.upload_track_tokens + gain)
             self.last_upload_reset = today
 
     def can_upload_track(self):
@@ -165,11 +196,12 @@ class User(UserMixin, db.Model):
         if self.upload_track_tokens > 0:
             return True, f"✓ {self.upload_track_tokens} token(s) restant(s)"
 
-        # Message différent selon le statut
-        if self.is_premium_active:
+        if self.subscription_plan == 'pro' and self.is_premium_active:
+            return False, "Plus de tokens. Recharge demain (+10 tokens)."
+        elif self.is_premium_active:
             return False, "Plus de tokens. Recharge demain (+5 tokens)."
         else:
-            return False, "Plus de tokens. Recharge demain (+1 token) ou passez Premium."
+            return False, "Plus de tokens. Recharge demain (+1 token) ou passez LaProd+."
 
     def consume_upload_token(self):
         """Consomme un token d'upload après validation réussie
@@ -219,49 +251,39 @@ class User(UserMixin, db.Model):
         self.upload_track_tokens = (self.upload_track_tokens or 0) + additional_tokens
 
     def apply_premium_tokens(self):
-        """Monte immédiatement les tokens au plafond premium lors d'une activation ou d'un renouvellement.
+        """Monte immédiatement les tokens au plafond du plan actif (activation / renouvellement).
 
-        Sans cette méthode, un utilisateur qui achète le premium avec 1 token restant
-        devrait attendre le lendemain (upload) ou la semaine suivante (toplines)
-        pour bénéficier de ses avantages.
-
-        Upload : amené à 15 si inférieur (plafond premium).
-        Toplines : amené à 50 si inférieur (plafond premium).
-        Les dates de reset sont mises à aujourd'hui pour éviter un double-crédit au prochain cycle.
+        - Amateur : upload cap 15, topline cap 50
+        - Pro     : upload cap 30, topline cap 200
         """
         today = date.today()
-
-        if self.upload_track_tokens < 15:
-            self.upload_track_tokens = 15
+        upload_cap, topline_cap = (30, 200) if self.subscription_plan == 'pro' else (15, 50)
+        if self.upload_track_tokens < upload_cap:
+            self.upload_track_tokens = upload_cap
             self.last_upload_reset = today
-
-        if self.topline_tokens < 50:
-            self.topline_tokens = 50
+        if self.topline_tokens < topline_cap:
+            self.topline_tokens = topline_cap
             self.last_topline_reset = today
 
     # TOPLINE ALLOW UPLOAD METHODS
 
     def _reset_weekly_toplines(self):
-        """Réinitialise les tokens de toplines chaque semaine
+        """Réinitialise les tokens de toplines chaque semaine.
 
-        Ajoute des tokens cumulables selon le statut:
-        - Free: +5/semaine jusqu'à 5 tokens max
-        - Premium: +50/semaine jusqu'à 50 tokens max
-
-        Appelée automatiquement par can_submit_topline()
+        - Free    : +5/semaine, cap 5
+        - Amateur : +50/semaine, cap 50
+        - Pro     : +200/semaine, cap 200
         """
         today = date.today()
-        # Reset si au moins 7 jours se sont écoulés
         if self.last_topline_reset + timedelta(days=7) <= today:
-            # Premium: +50 tokens/semaine (cap 50)
-            if self.is_premium_active:
-                if self.topline_tokens < 50:
-                    self.topline_tokens = min(50, self.topline_tokens + 50)
-            # Free: +5 tokens/semaine (cap 5)
+            if self.subscription_plan == 'pro' and self.is_premium_active:
+                cap, gain = 200, 200
+            elif self.subscription_plan == 'amateur' and self.is_premium_active:
+                cap, gain = 50, 50
             else:
-                if self.topline_tokens < 5:
-                    self.topline_tokens = min(5, self.topline_tokens + 5)
-
+                cap, gain = 5, 5
+            if self.topline_tokens < cap:
+                self.topline_tokens = min(cap, self.topline_tokens + gain)
             self.last_topline_reset = today
 
     @property
@@ -439,6 +461,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True, nullable=False)
     color = db.Column(db.String(7), nullable=True, default='#6b7280')  # Couleur hexadécimale
+    description = db.Column(db.Text, nullable=True)
     tags = db.relationship('Tag', back_populates='category_obj')
 
     def __repr__(self):
@@ -464,6 +487,25 @@ track_tag = db.Table('track_tag',
 )
 
 
+class SimilarArtist(db.Model):
+    """Artiste de référence — liste gérée par l'admin, associée aux tracks par les beatmakers."""
+    __tablename__ = 'similar_artist'
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(64), unique=True, nullable=False)
+    scene      = db.Column(db.String(32), nullable=False, default='')
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def __repr__(self):
+        return f'<SimilarArtist {self.name}>'
+
+
+# Table association N:M entre Track et SimilarArtist
+track_similar_artist = db.Table('track_similar_artist',
+    db.Column('track_id',  db.Integer, db.ForeignKey('track.id',          ondelete='CASCADE'), primary_key=True),
+    db.Column('artist_id', db.Integer, db.ForeignKey('similar_artist.id', ondelete='CASCADE'), primary_key=True),
+)
+
+
 class Track(db.Model):
     """Modèle Track avec multi-formats et pourcentage SACEM"""
     __tablename__ = "track"
@@ -483,9 +525,9 @@ class Track(db.Model):
     image_file = db.Column(db.String(200), nullable=True)
     
     # Prix par format
-    price_mp3 = db.Column(db.Float, default=9.99, nullable=False)
-    price_wav = db.Column(db.Float, default=19.99, nullable=False)
-    price_stems = db.Column(db.Float, default=49.99, nullable=False)
+    price_mp3   = db.Column(db.Numeric(10, 2), default=Decimal('9.99'),  nullable=False)
+    price_wav   = db.Column(db.Numeric(10, 2), default=Decimal('19.99'), nullable=False)
+    price_stems = db.Column(db.Numeric(10, 2), default=Decimal('49.99'), nullable=False)
     
     #  POURCENTAGE SACEM - ce que le compositeur garde (l'acheteur reçoit 100 - sacem_percentage)
     sacem_percentage_composer = db.Column(db.Integer, default=50, nullable=False)  # Entre 0 et 100
@@ -500,13 +542,32 @@ class Track(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     approved_at = db.Column(db.DateTime, nullable=True)
     
-    # V2 SOON
-    # available_for_exclusivity = db.Column(db.Boolean, default=True, nullable=False)
-    
+    # Prix des droits de contrat (Integer, nullable → null = utiliser le défaut plateforme)
+    contract_price_exclusive      = db.Column(db.Integer, nullable=True)  # défaut: 150
+    contract_price_duration_3y    = db.Column(db.Integer, nullable=True)  # défaut: 5
+    contract_price_duration_5y    = db.Column(db.Integer, nullable=True)  # défaut: 10
+    contract_price_duration_10y   = db.Column(db.Integer, nullable=True)  # défaut: 15
+    contract_price_lifetime       = db.Column(db.Integer, nullable=True)  # défaut: 50
+    contract_price_mechanical     = db.Column(db.Integer, nullable=True)  # défaut: 30
+    contract_price_public_show    = db.Column(db.Integer, nullable=True)  # défaut: 40
+    contract_price_arrangement    = db.Column(db.Integer, nullable=True)  # défaut: 10
+    contract_price_territory_eu   = db.Column(db.Integer, nullable=True)  # défaut: 5
+    contract_price_territory_world = db.Column(db.Integer, nullable=True) # défaut: 10
+
+    # Analyse IA — BPM/gamme/style détectés automatiquement, en attente de validation
+    is_ai_suggested = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+
+    # Exclusivité vendue
+    is_exclusive_sold  = db.Column(db.Boolean, default=False, nullable=False)
+    exclusive_sold_at  = db.Column(db.DateTime, nullable=True)
+    exclusive_buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
     # Relations
-    tags = db.relationship('Tag', secondary='track_tag', backref='tracks')
+    tags             = db.relationship('Tag',           secondary='track_tag',          backref='tracks')
+    similar_artists  = db.relationship('SimilarArtist', secondary='track_similar_artist', backref='tracks')
     toplines = db.relationship('Topline', backref='track', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='track', lazy=True)
+    exclusive_buyer = db.relationship('User', foreign_keys=[exclusive_buyer_id])
 
     __table_args__ = (
         CheckConstraint('price_mp3 >= 0', name='ck_track_price_mp3_positive'),
@@ -553,8 +614,34 @@ class Track(db.Model):
 
     def __repr__(self):
         return f"<Track {self.title} by {self.composer_user.username}>"
-    
 
+
+# ── Playlists ─────────────────────────────────────────────────────────────────
+
+playlist_track = db.Table(
+    'playlist_track',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlist.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('track_id',    db.Integer, db.ForeignKey('track.id',    ondelete='CASCADE'), primary_key=True),
+    db.Column('position',    db.Integer, default=0),
+    db.Column('added_at',    db.DateTime, default=datetime.now),
+)
+
+
+class Playlist(db.Model):
+    __tablename__ = 'playlist'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    beatmaker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title        = db.Column(db.String(200), nullable=False)
+    image_file   = db.Column(db.String(200), nullable=True)
+    created_at   = db.Column(db.DateTime, default=datetime.now)
+
+    beatmaker = db.relationship('User', backref=db.backref('playlists', cascade='all, delete-orphan'))
+    tracks    = db.relationship('Track', secondary=playlist_track, backref='playlists',
+                                order_by=playlist_track.c.position)
+
+    def __repr__(self):
+        return f"<Playlist '{self.title}' by user#{self.beatmaker_id}>"
 
 
 class Topline(db.Model):
@@ -584,34 +671,54 @@ class Purchase(db.Model):
     
     # Informations achat
     format_purchased = db.Column(db.String(20), nullable=False)  # 'mp3', 'wav', 'stems'
-    price_paid = db.Column(db.Float, nullable=False)  # Prix total payé (track + contrat)
-    buyer_name = db.Column(db.String(200), nullable=False)  # Pour le contrat
-    
+    price_paid       = db.Column(db.Numeric(10, 2), nullable=False)   # Prix total payé (track + contrat)
+    buyer_name       = db.Column(db.String(200), nullable=False)       # Pour le contrat
+
     #  RÉPARTITION FINANCIÈRE
-    contract_price = db.Column(db.Float, default=0, nullable=False)  # Prix du contrat uniquement
-    track_price = db.Column(db.Float, nullable=False)  # Prix du track uniquement
-    platform_fee = db.Column(db.Float, nullable=False)  # Commission plateforme (10%)
-    composer_revenue = db.Column(db.Float, nullable=False)  # Ce que reçoit le compositeur (90%)
+    contract_price   = db.Column(db.Numeric(10, 2), default=Decimal('0'), nullable=False)  # Prix du contrat uniquement
+    track_price      = db.Column(db.Numeric(10, 2), nullable=False)   # Prix du track uniquement
+    platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
+    composer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit le compositeur (90%)
     
     # Stripe
     stripe_payment_intent_id = db.Column(db.String(200), unique=True, nullable=False)
     stripe_transfer_id = db.Column(db.String(200), nullable=True)  # ID du transfert au compositeur
-    
+
     # Contrat généré
     contract_file = db.Column(db.String(200), nullable=True)
-    
+
+    # ── LIFECYCLE DE LICENCE (ajouté v2) ────────────────────────────────────
+    is_exclusive   = db.Column(db.Boolean, default=False, nullable=False)
+    duration_years = db.Column(db.Integer, nullable=True)        # 3 | 5 | 10 | None (lifetime/streaming)
+    is_lifetime    = db.Column(db.Boolean, default=False, nullable=False)
+    territory      = db.Column(db.String(100), nullable=True)
+    expires_at     = db.Column(db.DateTime, nullable=True)       # None si lifetime ou streaming seul
+    license_status = db.Column(db.String(50), default='active', nullable=False)
+                     # 'active' | 'expired' | 'renewed' | 'cancelled'
+
+    # Auto-référence pour les renouvellements
+    renewed_from_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+    renewed_to_id   = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+
+    renewed_from = db.relationship('Purchase', foreign_keys=[renewed_from_id], remote_side='Purchase.id',
+                                   backref=db.backref('renewed_to_purchase', uselist=False))
+
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-        
+
     __table_args__ = (
-    CheckConstraint('price_paid >= 0', name='ck_purchase_price_positive'),
-    CheckConstraint('platform_fee >= 0', name='ck_purchase_fee_positive'),
-    CheckConstraint('composer_revenue >= 0', name='ck_purchase_revenue_positive'),
+        CheckConstraint('price_paid >= 0', name='ck_purchase_price_positive'),
+        CheckConstraint('platform_fee >= 0', name='ck_purchase_fee_positive'),
+        CheckConstraint('composer_revenue >= 0', name='ck_purchase_revenue_positive'),
+        db.Index('idx_purchase_license_status', 'license_status'),
+        db.Index('idx_purchase_buyer_track', 'buyer_id', 'track_id'),
     )
 
-    def calculate_fees(self, total_amount, platform_commission=0.10):
+    def calculate_fees(self, total_amount, platform_commission=Decimal('0.10')):
         """Calcule la répartition des revenus"""
-        self.platform_fee = round(total_amount * platform_commission, 2)
-        self.composer_revenue = round(total_amount - self.platform_fee, 2)
+        total = Decimal(str(total_amount))
+        commission = Decimal(str(platform_commission))
+        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.composer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
     
     def __repr__(self):
         return f"<Purchase Track#{self.track_id} - {self.format_purchased}>"
@@ -651,22 +758,29 @@ class Contract(db.Model):
     sacem_percentage_buyer = db.Column(db.Integer, nullable=False)  # % acheteur/interprète
     
     price = db.Column(db.Integer, nullable=False)
-    percentage = db.Column(db.Integer, nullable=False)  # Ce champ existe déjà, peut-être redondant ?
-    
+    percentage = db.Column(db.Integer, nullable=False)
+
     signature_place = db.Column(db.String(200), nullable=True)
     signature_date = db.Column(db.String(200), nullable=True)
-    
+
     contract_file = db.Column(db.String(200), nullable=True)
+
+    # ── LIFECYCLE (ajouté v2) ────────────────────────────────────────────────
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
+    status      = db.Column(db.String(50), default='active', nullable=False)
+                  # 'active' | 'expired' | 'renewed' | 'cancelled'
+
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
     # Relations
-    track = db.relationship('Track', foreign_keys=[track_id], backref='contracts')
+    track    = db.relationship('Track', foreign_keys=[track_id], backref='contracts')
     composer = db.relationship('User', foreign_keys=[composer_id], backref='signed_composer_contracts')
-    client = db.relationship('User', foreign_keys=[client_id], backref='signed_client_contracts')
+    client   = db.relationship('User', foreign_keys=[client_id], backref='signed_client_contracts')
+    purchase = db.relationship('Purchase', foreign_keys=[purchase_id], backref=db.backref('contract', uselist=False))
 
     __table_args__ = (
-    CheckConstraint('price >= 0', name='ck_contract_price_positive'),
-    CheckConstraint('percentage >= 0 AND percentage <= 85', name='ck_contract_percentage_valid'),
+        CheckConstraint('price >= 0', name='ck_contract_price_positive'),
+        CheckConstraint('percentage >= 0 AND percentage <= 85', name='ck_contract_percentage_valid'),
     )
 
 class MixMasterRequest(db.Model):
@@ -724,11 +838,11 @@ class MixMasterRequest(db.Model):
 
 
     # Finances
-    total_price = db.Column(db.Float, nullable=False)  # Prix total
-    deposit_amount = db.Column(db.Float, nullable=False)  # Acompte (30%)
-    remaining_amount = db.Column(db.Float, nullable=False)  # Reste à payer (70%)
-    platform_fee = db.Column(db.Float, nullable=False)  # Commission plateforme (10%)
-    engineer_revenue = db.Column(db.Float, nullable=False)  # Ce que reçoit l'engineer
+    total_price      = db.Column(db.Numeric(10, 2), nullable=False)   # Prix total
+    deposit_amount   = db.Column(db.Numeric(10, 2), nullable=False)   # Acompte (30%)
+    remaining_amount = db.Column(db.Numeric(10, 2), nullable=False)   # Reste à payer (70%)
+    platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
+    engineer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit l'engineer
 
     # Stripe - Nouveau système avec Payment Intent
     stripe_payment_intent_id = db.Column(db.String(200), nullable=True)  # ID Payment Intent (autorisation totale)
@@ -794,24 +908,21 @@ class MixMasterRequest(db.Model):
         - Tous les services           : 160%
         - Tous + pistes séparées      : 180%
         """
-        base_price = 0.0
+        base = Decimal('0')
+        ref  = Decimal(str(base_price_max))
 
         if self.service_cleaning:
-            base_price += round(base_price_max * 0.35, 2)
+            base += (ref * Decimal('0.35')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_effects:
-            base_price += round(base_price_max * 0.45, 2)
+            base += (ref * Decimal('0.45')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_mastering:
-            base_price += round(base_price_max * 0.20, 2)
-
-        # Artistique = +60% du reference_price (pas du base_price)
+            base += (ref * Decimal('0.20')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.service_artistic:
-            base_price += round(base_price_max * 0.60, 2)
-
-        # Stems = +20% du reference_price (pas du total)
+            base += (ref * Decimal('0.60')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
         if self.has_separated_stems:
-            base_price += round(base_price_max * 0.20, 2)
+            base += (ref * Decimal('0.20')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
-        return round(base_price, 2)
+        return base.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def calculate_payments(self, platform_commission=0.10):
         """
@@ -820,10 +931,12 @@ class MixMasterRequest(db.Model):
         IMPORTANT: Tous les montants sont arrondis à 2 décimales.
         Stripe supporte les centimes (montants en cents : 7500 = 75.00€).
         """
-        self.deposit_amount = round(self.total_price * 0.30, 2)
-        self.remaining_amount = round(self.total_price - self.deposit_amount, 2)
-        self.platform_fee = round(self.total_price * platform_commission, 2)
-        self.engineer_revenue = round(self.total_price - self.platform_fee, 2)
+        total      = Decimal(str(self.total_price))
+        commission = Decimal(str(platform_commission))
+        self.deposit_amount   = (total * Decimal('0.30')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.remaining_amount = (total - self.deposit_amount).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        self.engineer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_total_transferred_to_engineer(self):
         """
@@ -832,9 +945,9 @@ class MixMasterRequest(db.Model):
         - Acompte initial : 30% × 90% = 27% du total
         - Chaque révision : 10% × 90% = 9% du total
         """
-        deposit_net = round(float(self.deposit_amount or 0) * 0.90, 2)
-        revision_net = round(float(self.total_price or 0) * 0.10 * 0.90 * (self.revision_count or 0), 2)
-        return round(deposit_net + revision_net, 2)
+        deposit_net  = (Decimal(str(self.deposit_amount or 0)) * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        revision_net = (Decimal(str(self.total_price or 0)) * Decimal('0.10') * Decimal('0.90') * (self.revision_count or 0)).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        return (deposit_net + revision_net).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_remaining_for_final_transfer(self):
         """Montant restant à transférer (délégation vers get_final_transfer_amount)"""
@@ -856,7 +969,7 @@ class MixMasterRequest(db.Model):
         Montant NET à transférer à l'engineer pour une révision.
         10% brut × 90% net = 9% du total.
         """
-        return round(float(self.total_price or 0) * 0.10 * 0.90, 2)
+        return (Decimal(str(self.total_price or 0)) * Decimal('0.10') * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_final_transfer_amount(self):
         """
@@ -865,8 +978,8 @@ class MixMasterRequest(db.Model):
         - 1 révision : 60% × 90% = 54%
         - 2 révisions : 50% × 90% = 45%
         """
-        gross_remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
-        return round(float(self.total_price or 0) * gross_remaining_pct * 0.90, 2)
+        gross_remaining_pct = Decimal('0.70') - (Decimal('0.10') * (self.revision_count or 0))
+        return (Decimal(str(self.total_price or 0)) * gross_remaining_pct * Decimal('0.90')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def get_refund_amount(self):
         """
@@ -879,8 +992,8 @@ class MixMasterRequest(db.Model):
         - 1 révision  : remboursement 60% du total
         - 2 révisions : remboursement 50% du total
         """
-        remaining_pct = 0.70 - ((self.revision_count or 0) * 0.10)
-        return round(float(self.total_price or 0) * remaining_pct, 2)
+        remaining_pct = Decimal('0.70') - (Decimal('0.10') * (self.revision_count or 0))
+        return (Decimal(str(self.total_price or 0)) * remaining_pct).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
     def is_expired(self):
         """
@@ -918,12 +1031,12 @@ class PriceChangeRequest(db.Model):
     engineer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     # Prix actuels (avant modification)
-    old_reference_price = db.Column(db.Float, nullable=False)
-    old_price_min = db.Column(db.Float, nullable=False)
+    old_reference_price = db.Column(db.Numeric(10, 2), nullable=False)
+    old_price_min       = db.Column(db.Numeric(10, 2), nullable=False)
 
     # Nouveaux prix demandés
-    new_reference_price = db.Column(db.Float, nullable=False)
-    new_price_min = db.Column(db.Float, nullable=False)
+    new_reference_price = db.Column(db.Numeric(10, 2), nullable=False)
+    new_price_min       = db.Column(db.Numeric(10, 2), nullable=False)
 
     # Statut de la demande
     status = db.Column(db.String(50), default='pending', nullable=False)
@@ -980,6 +1093,57 @@ class ListeningHistory(db.Model):
     def __repr__(self):
         return f"<ListeningHistory User#{self.user_id} - Track#{self.track_id} at {self.listened_at}>"
     
+class ListenEvent(db.Model):
+    """Événement d'écoute enrichi pour l'algorithme de recommandation."""
+    __tablename__ = 'listen_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
+    duration_listened = db.Column(db.Float, nullable=False)   # secondes
+    track_duration = db.Column(db.Float, nullable=False)      # secondes
+    completion_ratio = db.Column(db.Float, nullable=False)    # 0.0–1.0
+    source = db.Column(db.String(32), default='home')         # 'home', 'search', 'profile'
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='listen_events')
+    track = db.relationship('Track', backref='listen_events')
+
+    __table_args__ = (
+        db.Index('ix_listen_event_user', 'user_id'),
+        db.Index('ix_listen_event_track', 'track_id'),
+        db.Index('ix_listen_event_user_created', 'user_id', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<ListenEvent User#{self.user_id} Track#{self.track_id} {self.completion_ratio:.0%}>"
+
+
+class TrackView(db.Model):
+    """Impression de vue sur un track (player ou page détail).
+    user_id nullable → vues anonymes. ip_hash pour dédupliquer les vues uniques."""
+    __tablename__ = 'track_view'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id', ondelete='CASCADE'), nullable=False)
+    user_id  = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    ip_hash  = db.Column(db.String(64), nullable=False)   # SHA-256 tronqué de l'IP
+    source   = db.Column(db.String(32), nullable=False, default='player')  # 'player' | 'detail'
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    track = db.relationship('Track', backref='views')
+    user  = db.relationship('User',  backref='track_views')
+
+    __table_args__ = (
+        db.Index('ix_track_view_track',   'track_id'),
+        db.Index('ix_track_view_user',    'user_id'),
+        db.Index('ix_track_view_ip_date', 'track_id', 'ip_hash', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<TrackView Track#{self.track_id} source={self.source}>"
+
+
 class Notification(db.Model):
     """Rappel des 'nouvelles entrées' pour l'utilisateur
     en particulier pour ce qui concerne les ventes & achats"""
@@ -1293,3 +1457,34 @@ class UserContractValue(db.Model):
         db.UniqueConstraint('contract_id', 'clause_id', name='unique_contract_clause'),
         db.Index('idx_ucv_contract_id', 'contract_id'),
     )
+
+
+class LicenseNotificationLog(db.Model):
+    """Journal de déduplication des notifications planifiées de licences."""
+    __tablename__ = 'license_notification_log'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    purchase_id       = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
+    user_id           = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notification_type = db.Column(db.String(80), nullable=False)
+                        # 'sole_licensee_monthly' | 'expiry_90d' | 'expiry_30d' | 'expiry_7d' | 'expiry_1d'
+    period_key        = db.Column(db.String(30), nullable=False)
+                        # '2026-07' pour mensuel, '2026-07-01-90d' pour rappels d'expiration
+
+    sent_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    purchase = db.relationship('Purchase', foreign_keys=[purchase_id],
+                               backref=db.backref('notification_logs',
+                                                  lazy='dynamic',
+                                                  cascade='all, delete-orphan',
+                                                  passive_deletes=True))
+    user     = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('purchase_id', 'notification_type', 'period_key',
+                            name='uq_license_notif_dedup'),
+        db.Index('idx_license_notif_log', 'purchase_id', 'notification_type', 'period_key'),
+    )
+
+    def __repr__(self):
+        return f"<LicenseNotificationLog purchase={self.purchase_id} type={self.notification_type} period={self.period_key}>"

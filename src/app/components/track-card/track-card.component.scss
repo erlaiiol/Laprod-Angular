@@ -1,33 +1,17 @@
-/* Styles du composant TrackCard uniquement */
 @use 'variables' as v;
 
 :host {
-  --primary-color: #f8f9fa;
-  --card-bg:       #2c3034;
-  --border-color:  #495057;
-  --transition:    all 0.3s ease;
-
   display: block;
-  margin-bottom: 0.75rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
+// ── Layout de base : flex-row (mode liste) ────────────────────────────────────
+
 .track-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: v.$bg-surface;
-  border: 1px solid v.$bg-border;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: var(--transition);
-  cursor: pointer;
-  text-decoration: none;
-  color: inherit;
+  display: flex; flex-direction: row; align-items: center; gap: 1rem;
+  padding: 0.75rem; background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease; cursor: pointer; text-decoration: none; color: inherit;
+  margin-bottom: 0.75rem;
 
   &:hover {
     transform: translateY(-2px);
@@ -36,121 +20,266 @@
   }
 }
 
+// ── Image ─────────────────────────────────────────────────────────────────────
+
 .image-wrapper {
-  position: relative;
-  width: 90px;
-  height: 90px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-  cursor: pointer;
+  position: relative; width: 90px; height: 90px;
+  border-radius: 8px; overflow: hidden; flex-shrink: 0; cursor: pointer;
 }
 
-.music-card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: var(--transition);
-}
+.music-card-img { width: 100%; height: 100%; object-fit: cover; transition: all 0.3s ease; }
 
 .play-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  color: #fff;
+  position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s ease; color: v.$white;
 }
 
-// Show on hover, or always when this track is currently playing
 .image-wrapper:hover .play-overlay,
 .image-wrapper.is-playing .play-overlay { opacity: 1; }
 
-.track-info {
-  flex: 1;
-  min-width: 0;
-}
+// ── Infos texte ───────────────────────────────────────────────────────────────
+
+.track-info { flex: 1; min-width: 0; }
 
 .track-info h6 {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.2rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(73, 80, 87, 0.55);
-  border-radius: 6px;
-  padding: 0.2rem 0.6rem;
-  width: fit-content;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
-  transition: var(--transition);
+  display: flex; align-items: center; gap: 0.4rem;
+  margin-bottom: 0.2rem; background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(v.$bg-border, 0.55); border-radius: 6px;
+  padding: 0.2rem 0.6rem; width: fit-content;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5); transition: all 0.3s ease;
 
-  .track-title {
-    color: var(--primary-color);
-    font-size: 0.95rem;
-  }
+  .track-title { color: v.$off-white; font-size: 0.95rem; }
 }
 
-.track-card:hover .track-info h6 a { color: #fff; filter: brightness(1.4); }
+.track-card:hover .track-info h6 a { color: v.$white; filter: brightness(1.4); }
 
 .badge-pending {
-  font-size: 0.7rem;
-  background: #ffc107;
-  color: #000;
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  font-size: 0.7rem; background: v.$tag-orange; color: v.$black;
+  padding: 0.15rem 0.4rem; border-radius: 4px;
 }
 
 .track-artist {
-  display: block;
-  margin-bottom: 0.15rem;
-
+  display: block; margin-bottom: 0.3rem;
   a {
-    color: #6c757d;
-    text-decoration: none;
-    font-size: 0.82rem;
-    &:hover { color: var(--primary-color); text-decoration: underline; }
+    color: v.$text-muted; text-decoration: none; font-size: 0.82rem;
+    &:hover { color: v.$off-white; text-decoration: underline; }
   }
 }
 
-.track-meta {
-  display: block;
-  color: #6c757d;
-  font-size: 0.75rem;
-  margin-bottom: 0.2rem;
+// ── Footer : tags + prix ──────────────────────────────────────────────────────
+
+.track-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
 }
 
-
 .track-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1; min-width: 0;
+}
+
+.style-chip {
+  padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.72rem;
+  background: v.$black; border: 1px solid v.$off-white;
+  color: v.$off-white; letter-spacing: 0.02em; white-space: nowrap;
 }
 
 .tag {
-  /* background-color, border-color, color : injectés dynamiquement
-     via [style.*] dans le template → darkenColor() de TrackService */
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  border: 1px solid;
-  color: var(--primary-color);
+  padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem;
+  border: 1px solid; color: v.$off-white;
 }
 
-.no-tags { color: #6c757d; font-size: 0.8rem; }
+.tag-more-btn {
+  padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.72rem;
+  background: rgba(v.$text-muted, 0.1); border: 1px solid rgba(v.$text-muted, 0.2);
+  color: v.$text-muted; cursor: pointer; transition: all 0.15s ease;
+  line-height: inherit;
 
-.track-actions { flex-shrink: 0; }
+  &:hover {
+    background: rgba(v.$text-muted, 0.2);
+    color: v.$off-white;
+  }
+
+  &--collapse { font-size: 0.8rem; }
+}
+
+.artist-ref-chip {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.68rem;
+  font-style: italic; color: v.$text-muted;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent; white-space: nowrap;
+  i { font-size: 0.65rem; }
+}
+
+.btn-price {
+  flex-shrink: 0; white-space: nowrap; line-height: inherit;
+  padding: 0.18rem 0.55rem; border-radius: 5px;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  font-size: 0.8rem; font-weight: 700; color: v.$off-white;
+  cursor: pointer; transition: background 0.18s, border-color 0.18s, color 0.18s;
+
+  &:hover {
+    background: v.$primary;
+    border-color: v.$primary;
+    color: #fff;
+  }
+}
+
+// ── Actions (favoris, playlists) ──────────────────────────────────────────────
+
+.track-actions {
+  flex-shrink: 0; display: flex; flex-direction: row; align-items: center; gap: 0.35rem;
+}
+
+.track-playlist-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+
+.track-playlist-label {
+  font-size: 0.6rem; color: v.$text-muted; letter-spacing: 0.04em;
+  text-transform: lowercase; line-height: 1; pointer-events: none;
+}
 
 .btn-favorite {
-  background: none;
-  border: none;
-  color: #6c757d;
-  font-size: 1.4rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  transition: var(--transition);
+  background: none; border: none; color: v.$text-muted;
+  font-size: 1.4rem; cursor: pointer; padding: 0.25rem; transition: all 0.3s ease;
 
-  &:hover { color: #dc3545; transform: scale(1.15); }
+  &:hover { color: v.$tag-red; transform: scale(1.15); }
+}
+
+.btn-quick-action {
+  background: none; border: 1px solid rgba(v.$text-muted, 0.25); border-radius: 5px;
+  color: v.$text-muted; cursor: pointer; padding: 0.25rem 0.4rem;
+  font-size: 0.85rem; line-height: 1; transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.08);
+  }
+
+  &--dl {
+    color: v.$tag-green;
+    border-color: rgba(v.$tag-green, 0.4);
+    &:hover {
+      background: rgba(v.$tag-green, 0.1);
+      border-color: v.$tag-green;
+    }
+  }
+
+  &--rec {
+    color: v.$primary;
+    border-color: rgba(v.$primary, 0.4);
+    &:hover {
+      background: rgba(v.$primary, 0.1);
+      border-color: v.$primary;
+    }
+  }
+}
+
+// ── Mode liste : responsive mobile ────────────────────────────────────────────
+
+@media (max-width: 560px) {
+  .track-card:not(.track-card--gallery) {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    padding: 0.6rem;
+
+    .image-wrapper {
+      width: 70px;
+      height: 70px;
+    }
+
+    .track-info {
+      // Prend le reste de la largeur, sur la même ligne que l'image
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-info h6 { width: 100%; }
+
+    .track-footer {
+      // Tags + prix empilés : prix sur sa propre ligne
+      flex-wrap: wrap;
+      gap: 0.3rem;
+
+      .btn-price {
+        // Occupe toute la largeur → plus visible, pas coincé dans les tags
+        order: -1;
+        align-self: flex-start;
+      }
+    }
+
+    .track-actions {
+      // Passe en dessous de l'image+info, aligné à droite
+      width: 100%;
+      justify-content: flex-end;
+      padding-top: 0.3rem;
+      border-top: 1px solid rgba(v.$bg-border, 0.5);
+    }
+
+    .track-playlist-label { display: none; }
+  }
+}
+
+@media (max-width: 400px) {
+  .track-card:not(.track-card--gallery) {
+    .track-info h6 .track-title { font-size: 0.87rem; }
+
+    .track-footer .btn-price { font-size: 0.76rem; }
+  }
+}
+
+// ── Mode galerie : layout colonne ─────────────────────────────────────────────
+
+.track-card--gallery {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  margin-bottom: 0;
+
+  &:hover { transform: translateY(-3px); }
+
+  .image-wrapper {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .track-info {
+    padding: 0.55rem 0.65rem 0.3rem;
+    flex: 1;
+  }
+
+  .track-info h6 {
+    width: 100%;
+    box-sizing: border-box;
+    .track-title { font-size: 0.87rem; }
+  }
+
+  .track-artist {
+    display: block;
+    font-size: 0.72rem;
+    color: v.$text-muted;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.1rem;
+  }
+
+  .track-footer {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .btn-price { font-size: 0.76rem; padding: 0.14rem 0.45rem; }
+
+  .track-actions {
+    padding: 0 0.65rem 0.55rem;
+    justify-content: flex-end;
+  }
 }

@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 export interface Tag {
   id:       number;
   name:     string;
-  category: { name: string; color: string };  // objet unique (pas un tableau)
+  category: { name: string; color: string; description: string | null };
 }
 
 // Correspond au JSON retourné par get_all_tags() → /filters/tags/all
@@ -31,9 +31,22 @@ export class TagsService {
   private _keys = signal<string[]>([]);
   private _styles = signal<string[]>([])
 
-  tags = this._tags.asReadonly();
-  keys = this._keys.asReadonly();
-  styles = this._styles.asReadonly();
+  tags    = this._tags.asReadonly();
+  keys    = this._keys.asReadonly();
+  styles  = this._styles.asReadonly();
+
+  // Catégories uniques avec description, dans l'ordre d'apparition
+  categories = computed(() => {
+    const seen = new Set<string>();
+    const result: { name: string; color: string; description: string | null }[] = [];
+    for (const tag of this._tags()) {
+      if (!seen.has(tag.category.name)) {
+        seen.add(tag.category.name);
+        result.push(tag.category);
+      }
+    }
+    return result;
+  });
 
   constructor(private http: HttpClient ) {}
 

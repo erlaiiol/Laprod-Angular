@@ -29,10 +29,15 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   activeTab    = signal<Tab>('awaiting');
   actionInProgress = signal<number | null>(null);
 
-  // Upload state
+  // Upload state (mix orders)
   uploadOrderId  = signal<number | null>(null);
   uploadFile     = signal<File | null>(null);
   uploading      = signal(false);
+
+  // Pro preview update
+  uploadPreviewRaw:  File | null = null;
+  uploadPreviewProc: File | null = null;
+  uploadingPreview = false;
 
   // Briefing panel
   expandedOrderId = signal<number | null>(null);
@@ -148,6 +153,39 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   }
 
   cancelUpload(): void { this.uploadOrderId.set(null); this.uploadFile.set(null); }
+
+  // ── Pro preview update ────────────────────────────────────────────────────
+
+  onPreviewFileChange(field: 'raw' | 'proc', event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (field === 'raw') this.uploadPreviewRaw = file;
+    else                 this.uploadPreviewProc = file;
+  }
+
+  submitPreviewUpdate(): void {
+    if (!this.uploadPreviewRaw && !this.uploadPreviewProc) return;
+    this.uploadingPreview = true;
+    const fd = new FormData();
+    if (this.uploadPreviewRaw)  fd.append('sample_raw',       this.uploadPreviewRaw);
+    if (this.uploadPreviewProc) fd.append('sample_processed', this.uploadPreviewProc);
+    this.http.post<any>(
+      `${environment.apiUrl}/api/premium/update-mix-previews`, fd,
+      { headers: { Authorization: `Bearer ${this.auth.getToken()}` } },
+    ).subscribe({
+      next: (res) => {
+        this.uploadingPreview = false;
+        if (res.success) {
+          this.uploadPreviewRaw  = null;
+          this.uploadPreviewProc = null;
+          this.toast.showToast({ level: 'success', message: 'Previews mis à jour.' });
+        }
+      },
+      error: (err) => {
+        this.uploadingPreview = false;
+        if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur lors de la mise à jour.' });
+      },
+    });
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

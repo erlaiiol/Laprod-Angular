@@ -33,7 +33,7 @@
   display: inline-flex; align-items: center; gap: 0.4rem;
   padding: 0.5rem 1rem; background: rgba(251,191,36,0.12);
   border: 1px solid rgba(251,191,36,0.4); border-radius: 8px;
-  font-size: 0.85rem; font-weight: 600; color: #fbbf24;
+  font-size: 0.85rem; font-weight: 600; color: v.$gold;
   cursor: pointer; transition: background 0.15s;
   &:hover:not(:disabled) { background: rgba(251,191,36,0.2); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -61,7 +61,7 @@
 .alert-error {
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
   border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem;
-  color: #fca5a5; margin-bottom: 1rem;
+  color: v.$tag-red-light; margin-bottom: 1rem;
 }
 
 .connect-alert {
@@ -70,7 +70,7 @@
   border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;
   font-size: 0.85rem; color: v.$text-secondary;
 
-  .alert-icon { font-size: 1.4rem; color: #fbbf24; flex-shrink: 0; margin-top: 0.1rem; }
+  .alert-icon { font-size: 1.4rem; color: v.$gold; flex-shrink: 0; margin-top: 0.1rem; }
   .mt-alert { margin-top: 0.75rem; }
 }
 
@@ -149,7 +149,7 @@
 .td-amount {
   font-weight: 700; white-space: nowrap;
   &.credit { color: v.$tag-green; }
-  &.debit  { color: #f87171; }
+  &.debit  { color: v.$tag-red-light; }
 }
 
 // ── Type Badges ───────────────────────────────────────────────────────────────
@@ -159,11 +159,11 @@
   padding: 0.2rem 0.6rem; border-radius: 5px; font-size: 0.75rem; font-weight: 600;
   background: v.$bg-elevated; color: v.$text-secondary;
 
-  &.txn-credit_beat_sale      { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-  &.txn-credit_mixmaster_deposit { background: rgba(59,130,246,0.15); color: #93c5fd; }
-  &.txn-credit_mixmaster_final   { background: rgba(99,102,241,0.15); color: #c4b5fd; }
-  &.txn-withdrawal            { background: rgba(251,191,36,0.12); color: #fcd34d; }
-  &.txn-expiration            { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  &.txn-credit_beat_sale      { background: rgba(16,185,129,0.15); color: v.$tag-green-light; }
+  &.txn-credit_mixmaster_deposit { background: rgba(59,130,246,0.15); color: v.$tag-blue-light; }
+  &.txn-credit_mixmaster_final   { background: rgba(99,102,241,0.15); color: v.$tag-violet-light; }
+  &.txn-withdrawal            { background: rgba(251,191,36,0.12); color: v.$gold-light; }
+  &.txn-expiration            { background: rgba(239,68,68,0.12); color: v.$tag-red-light; }
 }
 
 // ── Status Badges ─────────────────────────────────────────────────────────────
@@ -173,9 +173,9 @@
   padding: 0.2rem 0.6rem; border-radius: 5px; font-size: 0.75rem; font-weight: 600;
 
   &.status-pending     { background: v.$bg-elevated; color: v.$text-muted; }
-  &.status-available   { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-  &.status-transferred { background: rgba(99,102,241,0.15); color: #c4b5fd; }
-  &.status-expired     { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  &.status-available   { background: rgba(16,185,129,0.15); color: v.$tag-green-light; }
+  &.status-transferred { background: rgba(99,102,241,0.15); color: v.$tag-violet-light; }
+  &.status-expired     { background: rgba(239,68,68,0.12); color: v.$tag-red-light; }
 }
 
 // ── Empty State ───────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@
 // ── Global states ─────────────────────────────────────────────────────────────
 
 .state-loading { display: flex; justify-content: center; padding: 4rem 0; }
-.state-error   { text-align: center; padding: 2rem; color: #f87171; }
+.state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
@@ -255,17 +255,17 @@
   background: v.$bg-elevated; border-radius: 8px; padding: 0.65rem 0.9rem;
   font-size: 0.78rem; color: v.$text-secondary; margin-bottom: 0.75rem;
   i { margin-right: 0.35rem; }
-  .text-warning { color: #fbbf24; }
+  .text-warning { color: v.$gold; }
 }
 
 .withdraw-error {
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
-  border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; color: #fca5a5;
+  border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; color: v.$tag-red-light;
 }
 
 .withdraw-success {
   background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);
-  border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #6ee7b7;
+  border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: v.$tag-green-light;
   i { margin-right: 0.4rem; }
 }
 

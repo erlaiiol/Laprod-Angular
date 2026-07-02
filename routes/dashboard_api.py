@@ -47,17 +47,18 @@ def get_beatmaker_dashboard(current_user):
 
     tracks_data = [
         {
-            'id':           t.id,
-            'title':        t.title,
-            'image_file':   t.image_file,
-            'is_approved':  t.is_approved,
-            'created_at':   t.created_at.isoformat(),
+            'id':              t.id,
+            'title':           t.title,
+            'image_file':      t.image_file,
+            'is_approved':     t.is_approved,
+            'is_ai_suggested': getattr(t, 'is_ai_suggested', False),
+            'created_at':      t.created_at.isoformat(),
             'bpm':          t.bpm,
             'key':          t.key,
             'style':        t.style,
-            'price_mp3':    t.price_mp3,
-            'price_wav':    t.price_wav,
-            'price_stems':  t.price_stems,
+            'price_mp3':    float(t.price_mp3)   if t.price_mp3   is not None else None,
+            'price_wav':    float(t.price_wav)   if t.price_wav   is not None else None,
+            'price_stems':  float(t.price_stems) if t.price_stems is not None else None,
             'has_mp3':      bool(t.file_mp3),
             'has_wav':      bool(t.file_wav),
             'has_stems':    bool(t.file_stems),
@@ -75,11 +76,11 @@ def get_beatmaker_dashboard(current_user):
             'track_image':      s.track.image_file if s.track else None,
             'buyer_name':       s.buyer_name,
             'format':           s.format_purchased,
-            'price_paid':       s.price_paid,
-            'track_price':      s.track_price,
-            'contract_price':   s.contract_price,
-            'platform_fee':     s.platform_fee,
-            'composer_revenue': s.composer_revenue,
+            'price_paid':       float(s.price_paid)       if s.price_paid       is not None else None,
+            'track_price':      float(s.track_price)      if s.track_price      is not None else None,
+            'contract_price':   float(s.contract_price)   if s.contract_price   is not None else None,
+            'platform_fee':     float(s.platform_fee)     if s.platform_fee     is not None else None,
+            'composer_revenue': float(s.composer_revenue) if s.composer_revenue is not None else None,
             'created_at':       s.created_at.isoformat(),
         }
         for s in sales
@@ -87,7 +88,7 @@ def get_beatmaker_dashboard(current_user):
 
     return ok({
         'stats': {
-            'total_revenue':   round(total_revenue, 2),
+            'total_revenue':   float(round(total_revenue, 2)),
             'sales_count':     sales_count,
             'tracks_count':    len(tracks),
             'tracks_approved': sum(1 for t in tracks if t.is_approved),
@@ -230,8 +231,10 @@ def get_mix_engineer_dashboard(current_user):
             'price_min':        current_user.mixmaster_price_min,
             'sample_submitted': current_user.mixmaster_sample_submitted,
             'producer_arranger_request_submitted': current_user.producer_arranger_request_submitted,
-            'is_mixmaster_engineer': current_user.is_mixmaster_engineer,
+            'is_mixmaster_engineer':          current_user.is_mixmaster_engineer,
             'is_certified_producer_arranger': current_user.is_certified_producer_arranger,
+            'is_certified_master_engineer':   current_user.is_certified_master_engineer,
+            'master_sample_submitted':        current_user.master_sample_submitted,
         },
         'orders': {
             'awaiting':  [ser_order_full(o, 'engineer') for o in orders if o.status == 'awaiting_acceptance'],

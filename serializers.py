@@ -25,6 +25,7 @@ Usage dans un blueprint :
 """
 
 from flask import jsonify
+from sqlalchemy import func
 
 
 # =============================================================================
@@ -96,6 +97,7 @@ def user_auth(u, notif_count: int = 0) -> dict:
         'upload_track_tokens':   u.upload_track_tokens,
         'topline_tokens':        u.topline_tokens,
         'is_premium':            bool(u.is_premium_active),
+        'subscription_plan':     u.subscription_plan,
         'preferred_tag_category': u.preferred_tag_category,
     }
 
@@ -115,13 +117,23 @@ def user_admin(u, tracks_count: int = 0, contracts_count: int = 0, mm_count: int
         'is_beatmaker':    u.is_beatmaker,
         'is_artist':       u.is_artist,
         'is_mix_engineer': u.is_mix_engineer,
-        'is_mixmaster_engineer':          u.is_mixmaster_engineer,
-        'is_certified_producer_arranger': u.is_certified_producer_arranger,
+        'is_mixmaster_engineer':             u.is_mixmaster_engineer,
+        'is_certified_master_engineer':      u.is_certified_master_engineer,
+        'is_certified_producer_arranger':    u.is_certified_producer_arranger,
         'producer_arranger_request_submitted': u.producer_arranger_request_submitted,
-        'is_premium':          u.is_premium,
-        'upload_track_tokens': u.upload_track_tokens,
-        'topline_tokens':      u.topline_tokens,
-        'created_at':          u.created_at.isoformat() if u.created_at else None,
+        'is_premium':           u.is_premium,
+        'subscription_plan':    u.subscription_plan,
+        'premium_since':        u.premium_since.isoformat()      if u.premium_since      else None,
+        'premium_expires_at':   u.premium_expires_at.isoformat() if u.premium_expires_at else None,
+        'premium_source':       u.premium_source,
+        'premium_price_paid':   float(u.premium_price_paid) if u.premium_price_paid else None,
+        'email_verified':       u.email_verified,
+        'user_type_selected':   u.user_type_selected,
+        'auth_method':          u.oauth_provider or 'local',
+        'upload_track_tokens':  u.upload_track_tokens,
+        'topline_tokens':       u.topline_tokens,
+        'created_at':           u.created_at.isoformat() if u.created_at else None,
+        'deleted_at':           u.deleted_at.isoformat()  if u.deleted_at  else None,
         'tracks_count':    tracks_count,
         'contracts_count': contracts_count,
         'mm_count':        mm_count,
@@ -143,15 +155,26 @@ def tag(t) -> dict:
 
 
 # =============================================================================
+# SimilarArtist serializer
+# =============================================================================
+
+def similar_artist(a) -> dict:
+    return {'id': a.id, 'name': a.name, 'scene': a.scene}
+
+
+# =============================================================================
 # Track serializers
 # =============================================================================
 
-def track_card(t) -> dict:
+def track_card(t, playlist_counts: dict | None = None, playlist_images: dict | None = None) -> dict:
     """
     Card catalogue / player card.
     Shape minimal exposé sur la home page, le catalogue, et le player.
     `composer_user` inclut id + profile_image pour permettre les liens de profil
     sans second appel API.
+
+    playlist_counts et playlist_images sont des dicts pré-calculés (id → valeur)
+    passés par l'appelant pour éviter le N+1. Si absents, les champs valent 0 / None.
     """
     return {
         'id':          t.id,
@@ -169,13 +192,56 @@ def track_card(t) -> dict:
         'created_at':  t.created_at.isoformat() if t.created_at else None,
         'composer_user': user_ref(t.composer_user),
         'tags':          [tag(tg) for tg in t.tags],
+        'similar_artists': [similar_artist(a) for a in (t.similar_artists or [])],
+        # Données playlist (champ toujours présent, 0 / None si non renseigné)
+        'playlist_count':       (playlist_counts or {}).get(t.id, 0),
+        'first_playlist_image': (playlist_images or {}).get(t.id),
     }
+
+
+def playlist_stats_for_tracks(track_ids: list[int]) -> tuple[dict, dict]:
+    """
+    Retourne (counts_dict, first_images_dict) pour une liste de track IDs.
+    Une seule passe SQL par dict, sans N+1.
+    Doit être appelé depuis un contexte Flask avec db disponible.
+    """
+    if not track_ids:
+        return {}, {}
+    from extensions import db
+    from models import playlist_track, Playlist
+
+    counts = dict(
+        db.session.query(playlist_track.c.track_id, func.count(playlist_track.c.playlist_id))
+        .filter(playlist_track.c.track_id.in_(track_ids))
+        .group_by(playlist_track.c.track_id)
+        .all()
+    )
+    subq = (
+        db.session.query(
+            playlist_track.c.track_id,
+            Playlist.image_file,
+            func.row_number().over(
+                partition_by=playlist_track.c.track_id,
+                order_by=playlist_track.c.playlist_id,
+            ).label('rn'),
+        )
+        .join(Playlist, Playlist.id == playlist_track.c.playlist_id)
+        .filter(playlist_track.c.track_id.in_(track_ids))
+        .subquery()
+    )
+    images = dict(
+        db.session.query(subq.c.track_id, subq.c.image_file)
+        .filter(subq.c.rn == 1)
+        .all()
+    )
+    return counts, images
 
 
 def track_detail(t) -> dict:
     """
     Page détail du beat — étend track_card avec les fichiers, SACEM,
     et purchase_count. Les toplines sont ajoutées par le routeur (requête séparée).
+    contract_prices est ajouté par le routeur (nécessite current_app.config).
     """
     return {
         **track_card(t),
@@ -186,7 +252,8 @@ def track_detail(t) -> dict:
         'approved_at': t.approved_at.isoformat() if t.approved_at else None,
         'sacem_percentage_composer': t.sacem_percentage_composer,
         'sacem_percentage_buyer':    t.get_sacem_percentage_buyer(),
-        'purchase_count': t.purchase_count,
+        'purchase_count':    t.purchase_count,
+        'is_exclusive_sold': t.is_exclusive_sold,
     }
 
 
@@ -197,20 +264,23 @@ def track_admin(t) -> dict:
     - `purchase_count` et `approved_at` inclus
     """
     d = {
-        'id':             t.id,
-        'title':          t.title,
-        'bpm':            t.bpm,
-        'key':            t.key,
-        'style':          t.style,
-        'image_file':     t.image_file,
-        'stream_url':     f'/api/stream/tracks/{t.id}/preview',
-        'price_mp3':      float(t.price_mp3)   if t.price_mp3   else None,
-        'price_wav':      float(t.price_wav)   if t.price_wav   else None,
-        'price_stems':    float(t.price_stems) if t.price_stems else None,
-        'is_approved':    t.is_approved,
-        'purchase_count': t.purchase_count,
-        'created_at':     t.created_at.isoformat() if t.created_at else None,
-        'approved_at':    t.approved_at.isoformat() if t.approved_at else None,
+        'id':               t.id,
+        'title':            t.title,
+        'bpm':              t.bpm,
+        'key':              t.key,
+        'style':            t.style,
+        'image_file':       t.image_file,
+        'stream_url':       f'/api/stream/tracks/{t.id}/preview',
+        'price_mp3':        float(t.price_mp3)   if t.price_mp3   else None,
+        'price_wav':        float(t.price_wav)   if t.price_wav   else None,
+        'price_stems':      float(t.price_stems) if t.price_stems else None,
+        'is_approved':      t.is_approved,
+        'is_exclusive_sold': t.is_exclusive_sold,
+        'exclusive_sold_at': t.exclusive_sold_at.isoformat() if t.exclusive_sold_at else None,
+        'exclusive_buyer':  user_ref(t.exclusive_buyer) if t.exclusive_buyer else None,
+        'purchase_count':   t.purchase_count,
+        'created_at':       t.created_at.isoformat() if t.created_at else None,
+        'approved_at':      t.approved_at.isoformat() if t.approved_at else None,
         'composer': user_ref(t.composer_user),
         'tags': [tag(tg) for tg in t.tags],
     }
@@ -247,11 +317,17 @@ def mix_engineer(eng) -> dict:
     Inclut les prix calculés, les slots disponibles, et les URLs d'échantillons.
     """
     from models import MixMasterRequest  # import local pour éviter les imports circulaires
-    ref = eng.mixmaster_reference_price or 0
-    if ref and eng.is_certified_producer_arranger:
-        price_max = round(ref * 1.80, 2)
-    elif ref:
-        price_max = round(ref * 1.20, 2)
+    ref = float(eng.mixmaster_reference_price or 0)
+    if ref:
+        # Services toujours disponibles pour tout mix engineer
+        max_pct = 0.35 + 0.45 + 0.20   # cleaning + effects + stems
+        # Mastering : certifié admin OU abonnement Pro actif
+        if eng.can_do_mastering:
+            max_pct += 0.20
+        # Intervention artistique : certifié producteur/arrangeur
+        if eng.is_certified_producer_arranger:
+            max_pct += 0.60
+        price_max = round(ref * max_pct, 2)
     else:
         price_max = 0
 
@@ -264,12 +340,13 @@ def mix_engineer(eng) -> dict:
         'mixmaster_reference_price':     eng.mixmaster_reference_price,
         'mixmaster_price_min':           eng.mixmaster_price_min,
         'price_max':                     price_max,
-        'is_certified_producer_arranger': eng.is_certified_producer_arranger,
+        'is_certified_producer_arranger':  eng.is_certified_producer_arranger,
+        'is_certified_master_engineer':    eng.is_certified_master_engineer,
+        'subscription_plan':               eng.subscription_plan,
         'sample_raw_url':       f'/{eng.mixmaster_sample_raw}'       if eng.mixmaster_sample_raw       else None,
         'sample_processed_url': f'/{eng.mixmaster_sample_processed}' if eng.mixmaster_sample_processed else None,
         'stripe_ready': bool(
-            eng.stripe_onboarding_complete
-            and eng.mixmaster_reference_price
+            eng.mixmaster_reference_price
             and eng.mixmaster_price_min
         ),
         'active_orders':   active,
@@ -377,6 +454,28 @@ def purchase(p) -> dict:
         'platform_fee':     float(p.platform_fee),
         'created_at':       p.created_at.isoformat() if p.created_at else None,
         'track': track_card(p.track) if p.track else None,
+        # Champs lifecycle licence
+        'is_exclusive':    getattr(p, 'is_exclusive', False),
+        'duration_years':  getattr(p, 'duration_years', None),
+        'is_lifetime':     getattr(p, 'is_lifetime', False),
+        'territory':       getattr(p, 'territory', None),
+        'expires_at':      p.expires_at.isoformat() if getattr(p, 'expires_at', None) else None,
+        'license_status':  getattr(p, 'license_status', 'active'),
+        'contract_url':    f'/api/licenses/{p.id}/contract' if getattr(p, 'contract_file', None) else None,
+    }
+
+
+def purchase_detail(p, include_sole: bool = False) -> dict:
+    """Détail complet d'une licence — vue artiste avec jours restants et sole licensee."""
+    from utils.license_service import compute_days_remaining, is_sole_licensee
+    days = compute_days_remaining(p)
+    sole = is_sole_licensee(p) if include_sole else False
+    return {
+        **purchase(p),
+        'days_remaining':  days,
+        'is_sole_licensee': sole,
+        'renewed_from_id': getattr(p, 'renewed_from_id', None),
+        'renewed_to_id':   getattr(p, 'renewed_to_id', None),
     }
 
 

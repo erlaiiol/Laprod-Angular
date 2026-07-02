@@ -1,0 +1,67 @@
+@use 'variables' as v;
+
+.license-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           .35rem;
+  padding:       .2rem .55rem;
+  border-radius: 999px;
+  font-size:     .72rem;
+  font-weight:   600;
+  border:        1px solid transparent;
+  white-space:   nowrap;
+  letter-spacing: .02em;
+
+  &--lifetime {
+    background: v.$tag-green-dark;
+    border-color: v.$tag-green;
+    color: v.$tag-green-light;
+  }
+
+  &--ok {
+    background: v.$tag-green-dark;
+    border-color: v.$tag-green;
+    color: v.$tag-green-light;
+  }
+
+  &--soon {
+    background: v.$tag-orange-dark;
+    border-color: v.$tag-orange;
+    color: v.$tag-orange-light;
+  }
+
+  &--urgent {
+    background: v.$tag-red-dark;
+    border-color: v.$tag-red;
+    color: v.$tag-red-light;
+    animation: badge-pulse 1.4s ease-in-out infinite;
+  }
+
+  &--expired {
+    background: v.$tag-neutral-dark;
+    border-color: v.$tag-neutral;
+    color: v.$tag-neutral-light;
+  }
+
+  &--renewed {
+    background: v.$tag-blue-dark;
+    border-color: v.$tag-blue;
+    color: v.$tag-blue-light;
+  }
+
+  &--cancelled {
+    background: v.$tag-neutral-dark;
+    border-color: v.$tag-neutral;
+    color: v.$tag-neutral-light;
+  }
+
+  .exclusive-dot {
+    color: v.$gold;
+    font-size: .7rem;
+  }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .55; }
+}

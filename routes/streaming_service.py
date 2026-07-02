@@ -6,13 +6,14 @@ GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
 """
-from flask import Blueprint, current_app, send_file, abort
+from flask import Blueprint, current_app, send_file, abort, make_response
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
+from flask_jwt_extended.exceptions import JWTExtendedException
 from pathlib import Path
 from sqlalchemy import select
 
 from extensions import db, limiter
-from models import Track, Topline, Purchase
+from models import Track, Topline, Purchase, User
 from serializers import err
 from utils.auth_helpers import require_user
 
@@ -40,12 +41,41 @@ _FORMAT_MIME = {
 def _send(relative_path: str, mimetype: str,
           as_attachment: bool = False, download_name: str | None = None):
     """
-    Résout le chemin relatif depuis la racine Flask et sert le fichier.
-    conditional=True active le support Range (seek WaveSurfer / lecture partielle).
+    Sert un fichier depuis db_assets/ après vérification sécurité (path traversal).
+
+    En production (USE_X_ACCEL_REDIRECT=true), retourne un header X-Accel-Redirect
+    pour que nginx serve le fichier directement — le worker Gunicorn est libéré
+    immédiatement au lieu de bloquer pendant toute la durée du stream.
+
+    En dev (défaut), utilise send_file() avec conditional=True (Range requests,
+    seek WaveSurfer).
     """
-    path = Path(current_app.root_path) / relative_path
+    db_assets_root = (Path(current_app.root_path) / 'db_assets').resolve()
+    path = (Path(current_app.root_path) / relative_path).resolve()
+
+    if not path.is_relative_to(db_assets_root):
+        current_app.logger.warning(
+            "[SECURITY] Path traversal bloqué — relative_path=%r résolu en %s",
+            relative_path, path,
+        )
+        abort(403)
+
     if not path.exists():
         abort(404)
+
+    if current_app.config.get('USE_X_ACCEL_REDIRECT'):
+        # Chemin interne nginx : /_protected/<chemin relatif depuis db_assets/>
+        accel_path = '/_protected/' + path.relative_to(db_assets_root).as_posix()
+        response = make_response()
+        response.headers['X-Accel-Redirect'] = accel_path
+        response.headers['Content-Type'] = mimetype
+        if as_attachment and download_name:
+            safe_name = download_name.encode('utf-8').decode('latin-1', errors='replace')
+            response.headers['Content-Disposition'] = (
+                f"attachment; filename*=UTF-8''{download_name}"
+            )
+        return response
+
     return send_file(
         path,
         mimetype=mimetype,
@@ -82,15 +112,17 @@ def stream_track_preview(track_id):
         abort(404)
 
 
-# ── 2. Stream MP3 complet (public, rate-limité, pas d'attachment) ─────────────
+# ── 2. Stream MP3 complet (authentifié, rate-limité, pas d'attachment) ──────────
 
 @streaming_bp.route('/tracks/<int:track_id>/full', methods=['GET'])
-@limiter.limit('120 per minute')
-def stream_track_full(track_id):
+@limiter.limit('60 per minute')
+@jwt_required()
+@require_user
+def stream_track_full(track_id, current_user):
     """
     Sert le MP3 complet d'un track approuvé en streaming pur (sans attachment).
-    Public et rate-limité — l'absence de Content-Disposition empêche le download direct.
-    Le téléchargement payant reste réservé à /download/<format> (JWT + achat vérifié).
+    Requiert un compte — évite l'accès anonyme au fichier payant identique à /download/mp3.
+    Le téléchargement avec contrat reste réservé à /download/<format> (achat vérifié).
     """
     track = db.session.get(Track, track_id)
     if not track or not track.is_approved:
@@ -160,9 +192,12 @@ def stream_topline(topline_id):
         try:
             verify_jwt_in_request()
             current_user_id = int(get_jwt_identity())
-        except Exception:
+            current_user    = db.session.get(User, current_user_id)
+        except (JWTExtendedException, ValueError, TypeError):
             abort(403)
-        if topline.artist_id != current_user_id:
+        is_owner = topline.artist_id == current_user_id
+        is_admin = current_user and getattr(current_user, 'is_admin', False)
+        if not is_owner and not is_admin:
             abort(403)
 
     if not topline.audio_file:

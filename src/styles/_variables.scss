@@ -12,6 +12,7 @@
 // Main colors — vibrant, used as badge border / text accent
 $tag-violet:  #8b5cf6;
 $tag-blue:    #2cfff4;
+$tag-teal:    #2dd4bf;  // teal-400 — userflow steps, info états secondaires
 $tag-red:     #ef4444;
 $tag-orange:  #f97316;
 $tag-green:   #10b981;
@@ -19,7 +20,8 @@ $tag-pink:    #ec4899;
 
 // Light variants — 40% white mix; readable as text on dark surfaces
 $tag-violet-light:  color.mix(#fff, $tag-violet, 40%);  // ≈ #bba8f9
-$tag-blue-light:    color.mix(#fff, $tag-blue,   40%);  // ≈ #8cb3f9
+$tag-blue-light:    color.mix(#fff, $tag-blue,   40%);  // ≈ #8cf9f7
+$tag-teal-light:    color.mix(#fff, $tag-teal,   40%);  // ≈ #99f6e4
 $tag-red-light:     color.mix(#fff, $tag-red,    40%);  // ≈ #f59090
 $tag-orange-light:  color.mix(#fff, $tag-orange, 40%);  // ≈ #faa87a
 $tag-green-light:   color.mix(#fff, $tag-green,  40%);  // ≈ #5dcca2
@@ -29,6 +31,7 @@ $tag-pink-light:    color.mix(#fff, $tag-pink,   40%);  // ≈ #f281b5
 // Badge recipe:  background: $tag-*-dark  /  border: $tag-*  /  color: #fff
 $tag-violet-dark: #150e27;
 $tag-blue-dark:   #0a172b;
+$tag-teal-dark:   #0d2926;
 $tag-red-dark:    #250b0b;
 $tag-orange-dark: #221500;
 $tag-green-dark:  #031f15;
@@ -55,16 +58,26 @@ $text-muted:     #64748b;  // slate-500 — hints, placeholders, disabled
 $white:     #ffffff;
 $off-white: #f3f4f6;  // = $text-primary; alias for clarity
 
-// ── Primary CTA ───────────────────────────────────────────────────────────────
+// ── Primary CTA — Rouge vif ──────────────────────────────────────────────────
 // Use $primary for buttons, links, focus rings, active states.
 // $accent is kept as a backwards-compatibility alias.
-$primary:        #a78bfa;  // violet-400 — main interactive color
-$primary-dark:   #7c3aed;  // violet-600 — hover
-$primary-darker: #6d28d9;  // violet-700 — active / pressed
+// NOTE: rouge vif → texte blanc (#fff) sur fond rouge, et au hover des ghost buttons.
+// NOTE: $tag-violet (#8b5cf6) stays violet — used for content category tags only.
+$primary:        #d52424;  // Rouge vif — acheter, inscription, premium CTAs
+$primary-dark:   #bb0000;  // hover
+$primary-darker: #8c0000;  // active / pressed
 
-$accent:         #a78bfa;  // alias → $primary
-$accent-dark:    #7c3aed;  // alias → $primary-dark
-$accent-darker:  #6d28d9;  // alias → $primary-darker
+$accent:         #d52424;  // alias → $primary
+$accent-dark:    #bb0000;  // alias → $primary-dark
+$accent-darker:  #8c0000;  // alias → $primary-darker
+
+// ── Premium / Gold ────────────────────────────────────────────────────────────
+$gold:       #eab308;  // amber-500 — badge Pro, indicateurs premium
+$gold-light: #fde047;  // amber-300 — hover / accent gold
+$gold-dark:  #161200;  // deep amber bg — badge premium dark
+
+// ── Black ─────────────────────────────────────────────────────────────────────
+$black: #000000;
 
 // ── Format badge palette ─────────────────────────────────────────────────────
 // For track purchase cards (MP3 / WAV / Stems).
@@ -76,4 +89,4 @@ $format-wav-bg:      #022325;
 $format-wav-color:   #00c1cf;   // cyan
 
 $format-stems-bg:    #110420;
-$format-stems-color: #a78bfa;   // violet = $primary
+$format-stems-color: #a78bfa;   // violet (hardcoded — independent of $primary)

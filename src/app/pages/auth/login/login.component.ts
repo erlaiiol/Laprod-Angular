@@ -46,9 +46,10 @@ export class LoginComponent {
       .subscribe({
         next: (res) => {
           if (res.success) {
-            // La navigation est déjà gérée par AuthService.login() via tap()
-            // (→ /select-role si SHOW_SELECT_ROLE, sinon on navigue vers /)
-            if (res.code !== 'SHOW_SELECT_ROLE') {
+            const user = this.authService.currentUser();
+            if (res.code === 'SHOW_SELECT_ROLE' || (user && !user.user_type_selected)) {
+              this.router.navigate(['/select-role']);
+            } else {
               this.router.navigate(['/']);
             }
           } else {

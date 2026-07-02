@@ -1,7 +1,51 @@
 @use 'variables' as v;
 
 .cb-list-page {
+  position: relative;
   max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+
+  &.page-locked {
+    pointer-events: none;
+    user-select: none;
+
+    app-premium-lock {
+      pointer-events: all;
+    }
+  }
+
+}
+
+// ── Guest banner ───────────────────────────────────────────────────────────────
+
+.cb-guest-banner {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: rgba(v.$tag-violet, 0.08);
+  border: 1px solid rgba(v.$tag-violet, 0.25);
+  border-radius: 10px; padding: 0.7rem 1rem;
+  font-size: 0.875rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+
+  i { color: v.$tag-violet; font-size: 1.1rem; }
+  span { flex: 1; color: v.$text-secondary; min-width: 0; }
+}
+
+.cb-guest-banner-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: v.$tag-violet; color: #fff; border-radius: 8px;
+  padding: 0.35rem 0.9rem; font-size: 0.85rem; font-weight: 600;
+  text-decoration: none; white-space: nowrap;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.88; }
+}
+
+.cb-login-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  text-decoration: none;
+}
+
+.cb-guest-list-msg {
+  display: flex; align-items: center; gap: 0.5rem;
+  color: v.$text-muted; font-size: 0.875rem; padding: 1.25rem 0;
+  i { font-size: 0.9rem; }
 }
 
 .cb-list-header {

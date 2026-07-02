@@ -1,39 +1,94 @@
 <div class="sub-tabs">
-  <button [class.active]="trackStatus() === 'pending'"  (click)="setStatus('pending')">En attente ({{ pendingCount() }})</button>
-  <button [class.active]="trackStatus() === 'approved'" (click)="setStatus('approved')">Approuvés ({{ approvedCount() }})</button>
-  <button [class.active]="trackStatus() === 'all'"      (click)="setStatus('all')">Tous</button>
+  <button [class.active]="trackStatus() === 'pending'"   (click)="setStatus('pending')">En attente ({{ pendingCount() }})</button>
+  <button [class.active]="trackStatus() === 'approved'"  (click)="setStatus('approved')">Approuvés ({{ approvedCount() }})</button>
+  <button [class.active]="trackStatus() === 'all'"       (click)="setStatus('all')">Tous</button>
+  <button [class.active]="trackStatus() === 'exclusive'" (click)="setStatus('exclusive')" class="btn-exclusive-tab">
+    <i class="bi bi-star-fill"></i> Exclusivité ({{ exclusiveCount() }})
+  </button>
 </div>
 
 @if (loading()) {
   <div class="loading-row"><span>Chargement…</span></div>
 } @else if (tracks().length > 0) {
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Cover</th><th>Titre</th><th>Beatmaker</th><th>BPM / Clé</th>
-        <th>Prix MP3</th><th>Date</th><th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (t of tracks(); track t.id) {
+
+  <!-- ── Vue normale (pending / approved / all) ────────────────────────── -->
+  @if (trackStatus() !== 'exclusive') {
+    <table class="data-table">
+      <thead>
         <tr>
-          <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
-          <td>{{ t.title }}</td>
-          <td>{{ t.composer?.username ?? '—' }}</td>
-          <td>{{ t.bpm }} / {{ t.key }}</td>
-          <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
-          <td>{{ fmtDate(t.created_at) }}</td>
-          <td class="actions">
-            @if (!t.is_approved) {
-              <button class="btn-success" (click)="approve(t)"><i class="bi bi-check-lg"></i> Approuver</button>
-            }
-            <button class="btn-edit"   (click)="openEdit(t)"><i class="bi bi-pencil"></i></button>
-            <button class="btn-danger" (click)="reject(t)"><i class="bi bi-trash"></i></button>
-          </td>
+          <th>Cover</th><th>Titre</th><th>Beatmaker</th><th>BPM / Clé</th>
+          <th>Prix MP3</th><th>Date</th><th>Actions</th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (t of tracks(); track t.id) {
+          <tr>
+            <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+            <td>
+              {{ t.title }}
+              @if (t.is_exclusive_sold) {
+                <span class="exclusive-tag"><i class="bi bi-star-fill"></i> Vendu excl.</span>
+              }
+            </td>
+            <td>{{ t.composer?.username ?? '—' }}</td>
+            <td>{{ t.bpm }} / {{ t.key }}</td>
+            <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
+            <td>{{ fmtDate(t.created_at) }}</td>
+            <td class="actions">
+              @if (!t.is_approved) {
+                <button class="btn-success" (click)="approve(t)"><i class="bi bi-check-lg"></i> Approuver</button>
+              }
+              <button class="btn-edit"   (click)="openEdit(t)"><i class="bi bi-pencil"></i></button>
+              <button class="btn-danger" (click)="reject(t)"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- ── Vue exclusivité ───────────────────────────────────────────────── -->
+  @if (trackStatus() === 'exclusive') {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Cover</th>
+          <th>Titre</th>
+          <th>Compositeur</th>
+          <th>Acheteur exclusif</th>
+          <th>Prix MP3</th>
+          <th>Vendu le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of tracks(); track t.id) {
+          <tr class="exclusive-row">
+            <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+            <td>
+              <span class="exclusive-tag"><i class="bi bi-star-fill"></i></span>
+              {{ t.title }}
+            </td>
+            <td>{{ t.composer?.username ?? '—' }}</td>
+            <td>
+              @if (t.exclusive_buyer) {
+                <strong>{{ t.exclusive_buyer.username }}</strong>
+              } @else {
+                <span class="text-muted">—</span>
+              }
+            </td>
+            <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
+            <td>{{ fmtDate(t.exclusive_sold_at) }}</td>
+            <td class="actions">
+              <button class="btn-edit" (click)="openEdit(t)"><i class="bi bi-pencil"></i></button>
+              <button class="btn-danger" (click)="reject(t)"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
 } @else {
   <p class="empty">Aucun track.</p>
 }

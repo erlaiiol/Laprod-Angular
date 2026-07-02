@@ -4,7 +4,11 @@
   </div>
 } @else {
 
-<div class="bf-page">
+<div class="bf-page" [class.page-locked]="!isPro()">
+
+  @if (!isPro()) {
+    <app-premium-lock requiredPlan="pro" />
+  }
 
   <!-- Header -->
   <div class="bf-header">
@@ -22,27 +26,14 @@
       </span>
     </div>
     <div class="bf-header-actions">
-      @if (!isFinal()) {
-        <button class="btn-preview" (click)="togglePreview()" [class.active]="showPreview()">
-          <i class="bi bi-eye"></i> Prévisualiser
-        </button>
-      }
-      @if (isFinal()) {
-        <button class="btn-preview" (click)="togglePreview()" [class.active]="showPreview()">
-          <i class="bi bi-eye"></i> Aperçu
-        </button>
-        @if (hasPdf()) {
-          <button class="btn-download" (click)="download()" [disabled]="downloading()">
-            <i class="bi bi-download"></i>
-            {{ downloading() ? 'Téléchargement...' : 'Télécharger le PDF' }}
-          </button>
-        }
-      } @else {
-        <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
-          @if (saving() && !generating()) { Enregistrement... } @else { Enregistrer }
-        </button>
-        <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
-          @if (generating()) { Génération... } @else { Générer le PDF }
+      <button class="btn-preview" (click)="togglePreview()"
+        [class.active]="showPreview()" [class.has-content]="hasAnyClauseText()">
+        <i class="bi bi-eye"></i> {{ isFinal() ? 'Aperçu' : 'Prévisualiser' }}
+      </button>
+      @if (isFinal() && hasPdf()) {
+        <button class="btn-download" (click)="download()" [disabled]="downloading()">
+          <i class="bi bi-download"></i>
+          {{ downloading() ? 'Téléchargement...' : 'Télécharger le PDF' }}
         </button>
       }
     </div>
@@ -52,11 +43,19 @@
 
     <!-- Sidebar navigation -->
     <nav class="bf-sidebar">
-      <button class="bf-nav-item" [class.active]="activeGroup() === 0" (click)="setGroup(0)">
+      <button class="bf-nav-item bf-nav-item--intro" [class.active]="showIntroTab()" (click)="goToIntro()">
+        <span class="bf-art-num bf-art-intro">✦</span>
+        Introduction
+      </button>
+      <button class="bf-nav-item" [class.active]="!showIntroTab() && activeGroup() === 0" (click)="goToParties()">
         <i class="bi bi-people"></i> Parties au contrat
       </button>
       @for (group of groups(); track group.id) {
-        <button class="bf-nav-item" [class.active]="activeGroup() === group.id" (click)="setGroup(group.id)">
+        <button class="bf-nav-item"
+          [class.active]="!showIntroTab() && activeGroup() === group.id"
+          [class.is-complete]="groupCompletionMap()[group.id] === 'complete'"
+          [class.is-incomplete]="groupCompletionMap()[group.id] === 'incomplete'"
+          (click)="setGroup(group.id)">
           @if (articleNumbers()[group.id]) {
             <span class="bf-art-num">{{ articleNumbers()[group.id] }}</span>
           }
@@ -68,8 +67,251 @@
     <!-- Main content -->
     <div class="bf-content">
 
+      <!-- ── Intro tab ──────────────────────────────────────────────────── -->
+      @if (showIntroTab()) {
+        <div class="bf-section bf-intro">
+
+          <div class="bf-section-header">
+            <h2><span class="bf-art-badge bf-art-badge--intro">✦</span> Introduction</h2>
+            <p class="bf-section-desc">Renseignez une fois les informations clés qui seront réutilisables dans vos clauses.</p>
+          </div>
+
+          <!-- Section 1 : Parties (éditeur compact inline) -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-people-fill"></i> Les parties au contrat</h3>
+            <p class="bf-intro-hint">Renseignez l'identité et le rôle de chaque partie. Ces informations alimentent les variables <code>[Contractant 1]</code>, <code>[Rôle 1]</code>, etc.</p>
+
+            @for (p of parties(); track $index) {
+              <div class="bf-intro-party-editor">
+                <div class="bf-intro-party-head">
+                  <span class="bf-intro-party-badge">
+                    @if ($index === 0) {
+                      <i class="bi bi-music-note-beamed"></i> Contractant 1 — Artiste / Titulaire
+                    } @else {
+                      <i class="bi bi-building"></i> Contractant {{ $index + 1 }}
+                    }
+                  </span>
+                  @if (!isFinal()) {
+                    <button type="button" class="bf-intro-party-remove" (click)="removeParty($index)" title="Supprimer cette partie">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  }
+                </div>
+                <div class="bf-intro-party-fields">
+                  <label class="bf-intro-field bf-intro-field--wide">
+                    <span>Rôle dans le contrat <span class="req">*</span></span>
+                    <input type="text" class="bf-input" placeholder="ex : Artiste, Éditeur, Distributeur…"
+                      [value]="p.role"
+                      (input)="updatePartyField($index, 'role', $any($event.target).value)"
+                      [disabled]="isFinal()" />
+                  </label>
+                  @if (p.party_type === 'physical') {
+                    <label class="bf-intro-field">
+                      <span>Prénom</span>
+                      <input type="text" class="bf-input" placeholder="ex : Jean"
+                        [value]="p.first_name ?? ''"
+                        (input)="updatePartyField($index, 'first_name', $any($event.target).value)"
+                        [disabled]="isFinal()" />
+                    </label>
+                    <label class="bf-intro-field">
+                      <span>Nom</span>
+                      <input type="text" class="bf-input" placeholder="ex : Dupont"
+                        [value]="p.last_name ?? ''"
+                        (input)="updatePartyField($index, 'last_name', $any($event.target).value)"
+                        [disabled]="isFinal()" />
+                    </label>
+                  } @else {
+                    <label class="bf-intro-field bf-intro-field--wide">
+                      <span>Dénomination sociale</span>
+                      <input type="text" class="bf-input" placeholder="ex : Label Music SAS"
+                        [value]="p.company_name ?? ''"
+                        (input)="updatePartyField($index, 'company_name', $any($event.target).value)"
+                        [disabled]="isFinal()" />
+                    </label>
+                  }
+                </div>
+                <p class="bf-intro-party-more">
+                  <button type="button" class="bf-inline-link" (click)="goToParties()">Compléter les informations →</button>
+                  <span>(adresse, SIREN, nationalité…)</span>
+                </p>
+              </div>
+            }
+
+            @if (!isFinal()) {
+              <div class="bf-intro-party-add">
+                <button type="button" class="btn-add-party" (click)="addParty('physical')">
+                  <i class="bi bi-person-plus"></i> Personne physique
+                </button>
+                <button type="button" class="btn-add-party" (click)="addParty('company')">
+                  <i class="bi bi-building-plus"></i> Société / Personne morale
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Section 2 : L'œuvre -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-music-note-beamed"></i> L'œuvre concernée</h3>
+            <div class="bf-intro-grid">
+              <label class="bf-intro-field bf-intro-field--wide">
+                <span>Titre de l'œuvre</span>
+                <input type="text" class="bf-input" placeholder="ex : Midnight Drive"
+                  [value]="oeuvreTitle()"
+                  (input)="oeuvreTitle.set($any($event.target).value)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Type</span>
+                <select class="bf-select"
+                  [value]="oeuvreType()"
+                  (change)="oeuvreType.set($any($any($event.target).value))">
+                  <option value="chanson">Chanson</option>
+                  <option value="album">Album</option>
+                  <option value="instrumental">Instrumental</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </label>
+              <label class="bf-intro-field">
+                <span>Code ISRC</span>
+                <input type="text" class="bf-input" placeholder="ex : FR-ABC-23-01234"
+                  [value]="oeuvreIsrc()"
+                  (input)="oeuvreIsrc.set($any($event.target).value)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Année de création</span>
+                <input type="number" class="bf-input" min="1900" max="2099" placeholder="ex : 2024"
+                  [value]="anneeCreation() ?? ''"
+                  (input)="anneeCreation.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Durée de l'œuvre</span>
+                <input type="text" class="bf-input" placeholder="ex : 3 min 42 s"
+                  [value]="dureeOeuvre()"
+                  (input)="dureeOeuvre.set($any($event.target).value)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Début d'exploitation</span>
+                <input type="text" class="bf-input" placeholder="ex : 01/01/2025"
+                  [value]="debutExploitation()"
+                  (input)="debutExploitation.set($any($event.target).value)" />
+              </label>
+              <label class="bf-intro-field">
+                <span>Fin d'exploitation</span>
+                <input type="text" class="bf-input" placeholder="ex : 31/12/2027"
+                  [value]="finExploitation()"
+                  (input)="finExploitation.set($any($event.target).value)" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 3 : Clés financières -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-percent"></i> Clés financières</h3>
+            <div class="bf-intro-grid">
+              <label class="bf-intro-field">
+                <span>% Artiste</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 70"
+                    [value]="pctArtiste() ?? ''"
+                    (input)="pctArtiste.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+              <label class="bf-intro-field">
+                <span>% Éditeur</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 20"
+                    [value]="pctEditeur() ?? ''"
+                    (input)="pctEditeur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+              <label class="bf-intro-field">
+                <span>% Producteur</span>
+                <div class="bf-input-group">
+                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 10"
+                    [value]="pctProducteur() ?? ''"
+                    (input)="pctProducteur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
+                  <span class="bf-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 4 : Résumé du contrat -->
+          @if (activeGroupSummaries().length > 0) {
+            <div class="bf-intro-section">
+              <h3 class="bf-intro-title"><i class="bi bi-list-ul"></i> Ce que couvre ce contrat</h3>
+              <div class="bf-intro-summary">
+                @for (item of activeGroupSummaries(); track item.group.id) {
+                  <div class="bf-intro-summary-item">
+                    <span class="bf-intro-summary-num">Art. {{ item.artNum }}</span>
+                    <div class="bf-intro-summary-info">
+                      <span class="bf-intro-summary-name">{{ item.group.name }}</span>
+                      @if (item.group.description) {
+                        <span class="bf-intro-summary-desc">{{ item.group.description }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Section 5 : Variables disponibles -->
+          <div class="bf-intro-section">
+            <h3 class="bf-intro-title"><i class="bi bi-braces"></i> Variables disponibles</h3>
+            <p class="bf-intro-hint">Utilisez ces raccourcis dans vos clauses. Ils seront remplacés automatiquement.</p>
+            <div class="bf-intro-vars">
+              @for (entry of introVarEntries(); track entry.key) {
+                <div class="bf-intro-var-row" [class.defined]="!!entry.value">
+                  <code class="bf-var-key">{{ entry.key }}</code>
+                  <span class="bf-var-sep">→</span>
+                  @if (entry.value) {
+                    <span class="bf-var-val">{{ entry.value }}</span>
+                  } @else {
+                    <span class="bf-var-empty">non défini</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Section Quick Start banner -->
+          @if (!isFinal()) {
+            <div class="bf-intro-section bf-qs-banner-section">
+              <div class="bf-qs-banner" [class.bf-qs-banner--warn]="!hasKeyInfo()">
+                <div class="bf-qs-banner-left">
+                  @if (hasKeyInfo()) {
+                    <span class="bf-qs-banner-title">
+                      <i class="bi bi-lightning-charge-fill"></i> Prêt à démarrer
+                    </span>
+                    <span class="bf-qs-banner-desc">
+                      Pré-remplissez les clauses essentielles d'une licence numérique avec vos variables.
+                    </span>
+                  } @else {
+                    <span class="bf-qs-banner-title bf-qs-banner-title--warn">
+                      <i class="bi bi-exclamation-triangle-fill"></i> Informations clés manquantes
+                    </span>
+                    <span class="bf-qs-banner-desc">
+                      Pour activer le Quick Start, renseignez le nom des deux parties et le titre de l'œuvre.
+                    </span>
+                  }
+                </div>
+                <button type="button" class="bf-qs-banner-btn" [class.bf-qs-banner-btn--warn]="!hasKeyInfo()" (click)="applyQuickStart()">
+                  @if (hasKeyInfo()) {
+                    Pré-remplir les clauses <i class="bi bi-arrow-right"></i>
+                  } @else {
+                    Compléter les infos clés
+                  }
+                </button>
+              </div>
+            </div>
+          }
+
+        </div>
+
       <!-- ── Parties section ─────────────────────────────────────────────── -->
-      @if (activeGroup() === 0) {
+      } @else if (activeGroup() === 0) {
         <div class="bf-section">
           <div class="bf-section-header">
             <h2>Parties au contrat</h2>
@@ -249,7 +491,10 @@
           @for (clause of activeGroupData()!.clauses; track clause.id) {
             @let lv = getValue(clause.id, clause);
 
-            <div class="bf-clause" [class.disabled]="!lv.is_enabled && !clause.is_required">
+            <div class="bf-clause"
+              [class.disabled]="!lv.is_enabled && !clause.is_required"
+              [class.is-enabled]="lv.is_enabled || clause.is_required"
+              [class.is-filled]="isClauseFilled(clause.id, clause)">
 
               <!-- Clause header: toggle enable / name / tooltip icon -->
               <div class="bf-clause-header">
@@ -341,18 +586,74 @@
                   <!-- text -->
                   @else if (clause.clause_type === 'text') {
                     <input class="bf-input" type="text"
+                      [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
                       [disabled]="isFinal()" />
+                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                      <div class="bf-resolver">
+                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
+                          <div class="bf-resolver-row">
+                            <code class="bf-resolver-bracket">{{ bracket }}</code>
+                            <span class="bf-resolver-arrow">→</span>
+                            @if (resolveVariable(bracket)) {
+                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                            } @else {
+                              <span class="bf-resolver-empty">non défini</span>
+                            }
+                          </div>
+                        }
+                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
+                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                        </button>
+                      </div>
+                    }
+                    @if (!isFinal() && hasAnyIntroVar()) {
+                      <div class="bf-insert-chips">
+                        @for (entry of definedIntroVars(); track entry.key) {
+                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
+                                  [title]="entry.key">{{ entry.value }}</button>
+                        }
+                      </div>
+                    }
                   }
 
                   <!-- textarea -->
                   @else if (clause.clause_type === 'textarea') {
                     <textarea class="bf-textarea"
+                      [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
                       [disabled]="isFinal()"
                       rows="5"></textarea>
+                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                      <div class="bf-resolver">
+                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
+                          <div class="bf-resolver-row">
+                            <code class="bf-resolver-bracket">{{ bracket }}</code>
+                            <span class="bf-resolver-arrow">→</span>
+                            @if (resolveVariable(bracket)) {
+                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                            } @else {
+                              <span class="bf-resolver-empty">non défini</span>
+                            }
+                          </div>
+                        }
+                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
+                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                        </button>
+                      </div>
+                    }
+                    @if (!isFinal() && hasAnyIntroVar()) {
+                      <div class="bf-insert-chips">
+                        @for (entry of definedIntroVars(); track entry.key) {
+                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
+                                  [title]="entry.key">{{ entry.value }}</button>
+                        }
+                      </div>
+                    }
                   }
 
                   <!-- number -->
@@ -477,6 +778,49 @@
           <p class="bf-guide-intro">
             Pré-remplissez les clauses essentielles en un clic, puis affinez manuellement.
           </p>
+          @if (!isFinal()) {
+            <div class="bf-qs-card" [class.bf-qs-card--warn]="!hasKeyInfo()">
+              <div class="bf-qs-card-head">
+                @if (hasKeyInfo()) {
+                  <i class="bi bi-lightning-charge-fill"></i>
+                  Quick Start
+                  <span class="bf-qs-var-badge">{{ definedIntroVars().length }} var.</span>
+                } @else {
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  Quick Start
+                }
+              </div>
+              @if (hasKeyInfo()) {
+                <p class="bf-qs-card-desc">Remplissage automatique depuis vos variables d'introduction.</p>
+                <button type="button" class="bf-qs-card-btn" (click)="applyQuickStart()">
+                  <i class="bi bi-lightning-charge-fill"></i> Lancer le Quick Start
+                </button>
+              } @else {
+                <p class="bf-qs-card-desc bf-qs-card-desc--warn">
+                  Merci de remplir les informations clés dans l'introduction (noms des parties et titre de l'œuvre) avant de lancer le Quick Start.
+                </p>
+                <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro()">
+                  <i class="bi bi-pencil"></i> Compléter l'introduction
+                </button>
+              }
+            </div>
+            <div class="bf-guide-sep"></div>
+
+            @if (fillableCount() > 0) {
+              <div class="bf-fill-card">
+                <div class="bf-fill-card-head">
+                  <i class="bi bi-pencil-fill"></i>
+                  Remplir les exemples
+                  <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
+                </div>
+                <p class="bf-fill-card-desc">Applique les textes d'exemple sur toutes les clauses actives. Personnalisez ensuite.</p>
+                <button type="button" class="bf-fill-card-btn" (click)="fillAllExamples()">
+                  <i class="bi bi-pen-fill"></i> Tout remplir avec les exemples
+                </button>
+              </div>
+              <div class="bf-guide-sep"></div>
+            }
+          }
           @for (preset of presets; track preset.id) {
             <button class="bf-preset-card" (click)="applyPreset(preset.id)" [disabled]="isFinal()">
               <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
@@ -556,15 +900,31 @@
 
   </div>
 
-  <!-- Bottom actions (mobile-friendly duplicate) -->
+  <!-- Bottom actions -->
   @if (!isFinal()) {
     <div class="bf-footer">
-      <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
-        @if (saving() && !generating()) { Enregistrement... } @else { Enregistrer le brouillon }
-      </button>
-      <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
-        @if (generating()) { Génération du PDF... } @else { Générer le PDF }
-      </button>
+      <div class="bf-footer-left">
+        @if (confirmReset()) {
+          <div class="bf-reset-confirm">
+            <button class="btn-reset-do" (click)="resetContract()">
+              <i class="bi bi-check-lg"></i> Confirmer
+            </button>
+            <button class="btn-reset-cancel" (click)="cancelReset()">Annuler</button>
+          </div>
+        } @else {
+          <button class="btn-reset" (click)="resetContract()" [disabled]="saving() || generating()" title="Réinitialiser toutes les clauses">
+            <i class="bi bi-trash"></i>
+          </button>
+        }
+      </div>
+      <div class="bf-footer-right">
+        <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
+          @if (saving() && !generating()) { Enregistrement... } @else { <i class="bi bi-floppy"></i> Enregistrer le brouillon }
+        </button>
+        <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
+          @if (generating()) { <i class="bi bi-hourglass-split"></i> Génération du PDF... } @else { <i class="bi bi-file-earmark-pdf"></i> Générer le PDF }
+        </button>
+      </div>
     </div>
   }
 

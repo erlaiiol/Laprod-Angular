@@ -1,0 +1,7 @@
+<span class="license-badge" [class]="'license-badge--' + urgency">
+  <i class="bi" [class]="icon"></i>
+  {{ label }}
+  @if (isExclusive && urgency !== 'expired' && urgency !== 'cancelled') {
+    <span class="exclusive-dot" title="Exclusivité">★</span>
+  }
+</span>

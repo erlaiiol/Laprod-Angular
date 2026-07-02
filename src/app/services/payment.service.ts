@@ -7,6 +7,7 @@ import { ApiResponse } from './topline.service';
 // ── Request / Response types ──────────────────────────────────────────────────
 
 export interface CheckoutOptions {
+  is_exclusive?:            boolean;
   is_lifetime?:             boolean;
   duration_years?:          number;
   territory?:               'France' | 'Europe' | 'Monde entier';

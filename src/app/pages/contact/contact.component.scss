@@ -1,17 +1,19 @@
+@use 'variables' as v;
+
 .contact-wrapper {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  background: #1a1d20;
+  background: v.$bg-base;
 }
 
 .contact-card {
   width: 100%;
   max-width: 560px;
-  background: #2c3034;
-  border: 1px solid #495057;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
   border-radius: 8px;
   padding: 2rem;
   display: flex;
@@ -25,7 +27,7 @@
   h2 {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #f8f9fa;
+    color: v.$off-white;
     margin: 0 0 0.3rem;
     display: flex;
     align-items: center;
@@ -35,7 +37,7 @@
 
   p {
     font-size: 0.85rem;
-    color: #6c757d;
+    color: v.$tag-neutral;
     margin: 0;
   }
 }
@@ -46,7 +48,7 @@
   border-radius: 6px;
   padding: 0.65rem 1rem;
   font-size: 0.85rem;
-  color: #dc3545;
+  color: v.$tag-red;
 }
 
 .field {
@@ -57,22 +59,22 @@
   label {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #ced4da;
+    color: v.$bg-border-subtle;
   }
 
   input, textarea {
-    background: #1a1d20;
-    border: 1px solid #495057;
+    background: v.$bg-base;
+    border: 1px solid v.$bg-border;
     border-radius: 6px;
-    color: #f8f9fa;
+    color: v.$off-white;
     font-size: 0.9rem;
     padding: 0.55rem 0.75rem;
     width: 100%;
     font-family: inherit;
     transition: border-color 0.2s;
 
-    &:focus { outline: none; border-color: #6ea8fe; }
-    &::placeholder { color: #6c757d; }
+    &:focus { outline: none; border-color: v.$primary-dark; }
+    &::placeholder { color: v.$tag-neutral; }
   }
 
   textarea { resize: vertical; }
@@ -80,11 +82,11 @@
 
 .ref-band {
   background: rgba(108, 117, 125, 0.1);
-  border: 1px solid #495057;
+  border: 1px solid v.$bg-border;
   border-radius: 6px;
   padding: 0.5rem 0.85rem;
   font-size: 0.8rem;
-  color: #adb5bd;
+  color: v.$text-secondary;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -93,7 +95,7 @@
 .btn-submit {
   width: 100%;
   padding: 0.7rem;
-  background: #0d6efd;
+  background: v.$primary;
   border: none;
   border-radius: 6px;
   color: #fff;
@@ -113,7 +115,7 @@
 .contact-hint {
   text-align: center;
   font-size: 0.78rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
   margin: 0;
 }
 
@@ -129,14 +131,14 @@
 
   .success-icon {
     font-size: 3rem;
-    color: #198754;
+    color: v.$tag-green;
   }
 
-  h2 { font-size: 1.3rem; font-weight: 700; color: #f8f9fa; margin: 0; }
+  h2 { font-size: 1.3rem; font-weight: 700; color: v.$off-white; margin: 0; }
 
-  p { font-size: 0.85rem; color: #6c757d; max-width: 400px; margin: 0; }
+  p { font-size: 0.85rem; color: v.$tag-neutral; max-width: 400px; margin: 0; }
 
-  .btn-submit { max-width: 260px; background: transparent; border: 1px solid #495057; color: #adb5bd; font-size: 0.88rem; }
+  .btn-submit { max-width: 260px; background: transparent; border: 1px solid v.$bg-border; color: v.$text-secondary; font-size: 0.88rem; }
 }
 
 /* ── Spinner ──────────────────────────────────────────────────────────────── */

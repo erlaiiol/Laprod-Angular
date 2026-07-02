@@ -52,6 +52,15 @@ Thumbs.db
 *.pem
 
 # ====================================
+# DOCKER - override local uniquement
+# ====================================
+# docker-compose.override.yml est EXCLUSIVEMENT pour le dev local.
+# Il ne doit JAMAIS être déployé sur le serveur (FLASK_ENV: development
+# écraserait la config production et forcerait la récréation de web).
+# Décommente la ligne suivante pour l'exclure totalement du repo :
+# docker-compose.override.yml
+
+# ====================================
 # BASE DE DONNÉES
 # ====================================
 *.db

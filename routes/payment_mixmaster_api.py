@@ -3,6 +3,7 @@ Payment Mixmaster API — Vérification du paiement Stripe après checkout.
 L'artiste est redirigé depuis Stripe vers /mix/payment-success?session_id=...
 Angular appelle ensuite POST /mixmaster-payment/verify avec {session_id}.
 """
+from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
 from extensions import db, csrf
@@ -102,11 +103,8 @@ def verify_payment(current_user):
             engineer_revenue          = 0,
         )
 
-        mm.total_price    = mm.calculate_service_price(engineer.mixmaster_reference_price)
-        mm.deposit_amount = round(mm.total_price * 0.30, 2)
-        mm.remaining_amount = round(mm.total_price - mm.deposit_amount, 2)
-        mm.platform_fee   = round(mm.total_price * 0.10, 2)
-        mm.engineer_revenue = round(mm.total_price - mm.platform_fee, 2)
+        mm.total_price = mm.calculate_service_price(engineer.mixmaster_reference_price)
+        mm.calculate_payments()
 
         # Arborescence complète de l'archive (liste de chemins strings)
         if mm.original_file:

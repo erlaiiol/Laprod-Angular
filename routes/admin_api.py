@@ -39,12 +39,14 @@ POST   /api/admin/tags                          → créer tag
 PUT    /api/admin/tags/<id>                     → modifier tag
 DELETE /api/admin/tags/<id>                     → supprimer tag
 """
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 from pathlib import Path
-from sqlalchemy import select, distinct
+import html as html_lib
+from sqlalchemy import select, distinct, func
+from math import ceil
 import uuid
 import config
 
@@ -56,6 +58,7 @@ from utils.auth_helpers import require_admin
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
+    ListenEvent, SimilarArtist, Topline,
 )
 
 admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/api/admin')
@@ -73,7 +76,7 @@ def get_stats(current_user):
     total_tracks          = db.session.query(Track).count()
 
     total_users      = db.session.query(User).filter_by(account_status='active').count()
-    premium_users    = db.session.query(User).filter_by(is_premium=True, account_status='active').count()
+    premium_users    = db.session.query(User).filter(User.is_premium == True, User.account_status == 'active').count()
     beatmakers_count = db.session.query(User).filter_by(is_beatmaker=True, account_status='active').count()
     artists_count    = db.session.query(User).filter_by(is_artist=True, account_status='active').count()
     engineers_count  = db.session.query(User).filter_by(is_mixmaster_engineer=True, account_status='active').count()
@@ -157,15 +160,19 @@ def get_tracks(current_user):
         query = query.where(Track.is_approved == False)
     elif status == 'approved':
         query = query.where(Track.is_approved == True)
+    elif status == 'exclusive':
+        query = query.where(Track.is_exclusive_sold == True)
 
-    tracks         = db.session.scalars(query).all()
-    pending_count  = db.session.query(Track).filter_by(is_approved=False).count()
-    approved_count = db.session.query(Track).filter_by(is_approved=True).count()
+    tracks          = db.session.scalars(query).all()
+    pending_count   = db.session.query(Track).filter_by(is_approved=False).count()
+    approved_count  = db.session.query(Track).filter_by(is_approved=True).count()
+    exclusive_count = db.session.query(Track).filter_by(is_exclusive_sold=True).count()
 
     return ok({
-        'tracks':        [track_admin(t) for t in tracks],
-        'pending_count':  pending_count,
-        'approved_count': approved_count,
+        'tracks':          [track_admin(t) for t in tracks],
+        'pending_count':    pending_count,
+        'approved_count':   approved_count,
+        'exclusive_count':  exclusive_count,
     })
 
 
@@ -234,6 +241,10 @@ def get_engineers(current_user):
             'is_certified_producer_arranger':    u.is_certified_producer_arranger,
             'producer_arranger_request_submitted': u.producer_arranger_request_submitted,
             'is_mixmaster_engineer':             u.is_mixmaster_engineer,
+            'is_certified_master_engineer':      u.is_certified_master_engineer,
+            'master_sample_raw':                 u.master_sample_raw,
+            'master_sample_processed':           u.master_sample_processed,
+            'master_sample_submitted':           u.master_sample_submitted,
             'created_at':                        u.created_at.isoformat() if u.created_at else None,
         }
 
@@ -257,15 +268,24 @@ def get_engineers(current_user):
         )
     ).all()
 
+    master_pending = db.session.scalars(
+        select(User).where(
+            User.is_mixmaster_engineer == True,
+            User.master_sample_submitted == True,
+            User.is_certified_master_engineer == False,
+        )
+    ).all()
+
     price_requests = db.session.scalars(
         select(PriceChangeRequest).where(PriceChangeRequest.status == 'pending')
         .order_by(PriceChangeRequest.created_at.desc())
     ).all()
 
     return ok({
-        'certified':   [_engineer_admin_dict(u) for u in certified],
-        'pending':     [_engineer_admin_dict(u) for u in pending],
-        'pa_requests': [_engineer_admin_dict(u) for u in pa_requests],
+        'certified':       [_engineer_admin_dict(u) for u in certified],
+        'pending':         [_engineer_admin_dict(u) for u in pending],
+        'pa_requests':     [_engineer_admin_dict(u) for u in pa_requests],
+        'master_pending':  [_engineer_admin_dict(u) for u in master_pending],
         'price_requests': [
             {
                 'id':                      pr.id,
@@ -422,7 +442,7 @@ def search_users(current_user):
 
     users = db.session.scalars(
         select(User)
-        .where(User.username.ilike(f'%{q}%'), User.account_status == 'active')
+        .where(User.username.ilike(f'%{q}%'))
         .limit(10)
     ).all()
 
@@ -473,9 +493,10 @@ def get_categories(current_user):
     for cat in categories:
         tags = db.session.scalars(select(Tag).where(Tag.category_id == cat.id)).all()
         categories_data.append({
-            'id':    cat.id,
-            'name':  cat.name,
-            'color': cat.color if hasattr(cat, 'color') and cat.color else '#6b7280',
+            'id':          cat.id,
+            'name':        cat.name,
+            'color':       cat.color        if hasattr(cat, 'color')        and cat.color        else '#6b7280',
+            'description': cat.description  if hasattr(cat, 'description') and cat.description  else None,
             'tags': [{'id': tag.id, 'name': tag.name} for tag in tags],
         })
 
@@ -507,13 +528,17 @@ def approve_track(track_id, current_user):
     track.is_approved = True
     track.approved_at = datetime.now()
     db.session.commit()
+    current_app.logger.info(
+        "[AUDIT] approve_track — admin=%s (#%d) → track=%r (#%d)",
+        current_user.username, current_user.id, track.title, track_id,
+    )
 
     try:
         email_service.send_track_approved_email(track)
     except Exception as e:
         current_app.logger.warning(f"Email approbation track: {e}")
     try:
-        notification_service.send_track_approved_notification(track)
+        notification_service.notify_track_approved(track)
     except Exception as e:
         current_app.logger.warning(f"Notif approbation track: {e}")
 
@@ -528,12 +553,17 @@ def reject_track(track_id, current_user):
     track = db.get_or_404(Track, track_id)
     title = track.title
 
+    current_app.logger.info(
+        "[AUDIT] reject_track — admin=%s (#%d) → track=%r (#%d)",
+        current_user.username, current_user.id, title, track_id,
+    )
+
     try:
         email_service.send_track_rejected_email(track)
     except Exception:
         pass
     try:
-        notification_service.send_track_rejected_notification(track)
+        notification_service.notify_track_rejected(track)
     except Exception:
         pass
 
@@ -600,6 +630,48 @@ def edit_track(track_id, current_user):
 
 # ── Users (CUD) ───────────────────────────────────────────────────────────────
 
+@admin_api_bp.route('/users/<int:user_id>/resend-verification', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_resend_verification(user_id, current_user):
+    """Admin renvoie l'email de vérification à un utilisateur non vérifié."""
+    user = db.get_or_404(User, user_id)
+    if user.email_verified:
+        return ser_err('Cet utilisateur a déjà vérifié son email.')
+    if not user.email:
+        return ser_err('Cet utilisateur n\'a pas d\'adresse email.')
+    try:
+        email_service.send_verification_email(user)
+    except Exception as e:
+        current_app.logger.error(f'Admin resend verification user #{user_id}: {e}', exc_info=True)
+        return ser_err('Erreur lors de l\'envoi de l\'email.', status=500)
+    return ok(message=f'Email de vérification renvoyé à {user.email}.', level='info')
+
+
+@admin_api_bp.route('/users/<int:user_id>/force-verify-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_force_verify_email(user_id, current_user):
+    """Admin active manuellement le compte : email vérifié + statut actif."""
+    user = db.get_or_404(User, user_id)
+    changes = []
+    if not user.email_verified:
+        user.email_verified = True
+        changes.append('email vérifié')
+    if user.account_status == 'pending_completion':
+        user.account_status = 'active'
+        changes.append('compte activé')
+    if not changes:
+        return ok(message='Compte déjà actif.', level='info')
+    db.session.commit()
+    current_app.logger.info(
+        f'Admin #{current_user.id} a forcé l\'activation de user #{user_id}: {", ".join(changes)}'
+    )
+    return ok(message=f'{", ".join(changes).capitalize()} pour {user.username}.')
+
+
 @admin_api_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @jwt_required()
 @csrf.exempt
@@ -620,6 +692,67 @@ def toggle_user_status(user_id, current_user):
     return ok({'account_status': user.account_status}, message=msg, level='info')
 
 
+# ── RGPD — suppression en deux temps ─────────────────────────────────────────
+
+@admin_api_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_user(user_id, current_user):
+    """
+    Marque le compte pour suppression RGPD.
+    Le compte est immédiatement bloqué (pending_deletion).
+    Les données PII sont anonymisées après 30 jours par le job nuit.
+    """
+    if current_user.id == user_id:
+        return ser_err('Vous ne pouvez pas supprimer votre propre compte.')
+
+    user = db.get_or_404(User, user_id)
+
+    if user.account_status == 'pending_deletion':
+        return ser_err('Ce compte est déjà en attente de suppression.')
+
+    user.account_status = 'pending_deletion'
+    user.deleted_at     = datetime.now(timezone.utc)
+    db.session.commit()
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} a demandé la suppression RGPD du compte #{user_id} ({user.username}).'
+    )
+    return ok(
+        {'account_status': user.account_status},
+        message=f'Compte de {user.username} marqué pour suppression. Les données seront anonymisées dans 30 jours.',
+        level='info',
+    )
+
+
+@admin_api_bp.route('/users/<int:user_id>/purge-now', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def purge_user_now(user_id, current_user):
+    """
+    Anonymise immédiatement le compte sans attendre le délai de 30 jours.
+    Réservé aux admins — utile pour les tests et les demandes urgentes (CNIL).
+    """
+    if current_user.id == user_id:
+        return ser_err('Vous ne pouvez pas purger votre propre compte.')
+
+    user = db.get_or_404(User, user_id)
+
+    if user.account_status not in ('pending_deletion', 'deleted', 'active'):
+        return ser_err('Statut incompatible avec une purge immédiate.')
+
+    from utils.gdpr_purge import anonymize_user
+    username_snapshot = user.username
+    anonymize_user(user, db)
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} a purgé immédiatement le compte #{user_id} ({username_snapshot}).'
+    )
+    return ok(message=f'Compte de {username_snapshot} anonymisé immédiatement.')
+
+
 @admin_api_bp.route('/users/<int:user_id>/toggle-role/<string:role>', methods=['POST'])
 @jwt_required()
 @csrf.exempt
@@ -635,16 +768,31 @@ def toggle_user_role(user_id, role, current_user):
         msg = f'Rôle Interprète {"activé" if user.is_artist else "désactivé"} pour {user.username}.'
     elif role == 'engineer':
         user.is_mixmaster_engineer = not user.is_mixmaster_engineer
-        msg = f'Rôle Engineer {"activé" if user.is_mixmaster_engineer else "désactivé"} pour {user.username}.'
+        if not user.is_mixmaster_engineer:
+            user.is_certified_master_engineer      = False
+            user.is_certified_producer_arranger    = False
+        msg = f'Certification Mix {"accordée" if user.is_mixmaster_engineer else "révoquée"} pour {user.username}.'
+    elif role == 'master':
+        if not user.is_mixmaster_engineer:
+            return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
+        user.is_certified_master_engineer = not user.is_certified_master_engineer
+        msg = f'Certification Master {"accordée" if user.is_certified_master_engineer else "révoquée"} pour {user.username}.'
     elif role == 'producer_arranger':
         if not user.is_mixmaster_engineer:
-            return ser_err(f"{user.username} doit d'abord être Engineer.")
+            return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
         user.is_certified_producer_arranger = not user.is_certified_producer_arranger
-        msg = f'Certification Producteur/Arrangeur {"activée" if user.is_certified_producer_arranger else "désactivée"} pour {user.username}.'
+        msg = f'Certification Producteur/Arrangeur {"accordée" if user.is_certified_producer_arranger else "révoquée"} pour {user.username}.'
     else:
         return ser_err('Rôle invalide.')
 
     db.session.commit()
+
+    try:
+        notification_service.notify_role_changed(user, role, granted=(msg.find('activé') != -1 or msg.find('accordée') != -1))
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif toggle_user_role: {e}')
+
     return ok(message=msg, level='info')
 
 
@@ -665,6 +813,12 @@ def add_track_tokens(user_id, current_user):
         db.session.commit()
     except Exception as e:
         return ser_err(str(e), status=500)
+
+    try:
+        notification_service.notify_tokens_added(user, 'track', tokens)
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif add_track_tokens: {e}')
 
     return ok({'upload_track_tokens': user.upload_track_tokens},
               message=f"{tokens} token(s) d'upload ajouté(s) à {user.username}.", level='info')
@@ -688,6 +842,12 @@ def add_topline_tokens(user_id, current_user):
     except Exception as e:
         return ser_err(str(e), status=500)
 
+    try:
+        notification_service.notify_tokens_added(user, 'topline', tokens)
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif add_topline_tokens: {e}')
+
     return ok({'topline_tokens': user.topline_tokens},
               message=f"{tokens} token(s) de topline ajouté(s) à {user.username}.", level='info')
 
@@ -697,20 +857,102 @@ def add_topline_tokens(user_id, current_user):
 @csrf.exempt
 @require_admin
 def toggle_premium(user_id, current_user):
+    """Toggle rapide free ↔ amateur (comportement admin existant conservé)."""
     user = db.get_or_404(User, user_id)
 
-    if not user.is_premium:
-        user.is_premium             = True
-        user.premium_since          = datetime.now()
-        user.premium_expires_at     = datetime.now() + timedelta(days=30)
-        msg = f'Premium activé pour {user.username} (30 jours).'
+    old_plan = user.subscription_plan
+
+    if not user.is_premium_active:
+        user.subscription_plan  = 'amateur'
+        user.premium_since      = datetime.now()
+        user.premium_expires_at = datetime.now() + timedelta(days=30)
+        new_plan = 'amateur'
+        msg = f'Plan Amateur activé pour {user.username} (30 jours).'
     else:
-        user.is_premium             = False
-        user.premium_expires_at     = datetime.now()
-        msg = f'Premium désactivé pour {user.username}.'
+        user.subscription_plan  = 'free'
+        user.premium_expires_at = datetime.now()
+        new_plan = 'free'
+        msg = f'Abonnement désactivé pour {user.username}.'
 
     db.session.commit()
-    return ok({'is_premium': user.is_premium}, message=msg, level='info')
+
+    try:
+        notification_service.notify_plan_changed(
+            user, new_plan, old_plan,
+            expires_at=user.premium_expires_at,
+            granted_by_admin=True,
+        )
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif toggle_premium: {e}')
+
+    try:
+        email_service.send_plan_changed_email(
+            user, new_plan,
+            expires_at=user.premium_expires_at if new_plan != 'free' else None,
+            granted_by_admin=True,
+        )
+    except Exception as e:
+        current_app.logger.warning(f'Email toggle_premium: {e}')
+
+    return ok({'is_premium': user.is_premium, 'subscription_plan': user.subscription_plan}, message=msg, level='info')
+
+
+@admin_api_bp.route('/users/<int:user_id>/set-plan', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def set_plan(user_id, current_user):
+    """Définit le plan de l'utilisateur : free | amateur | pro (toujours 30 jours)."""
+    import config as _cfg
+    user = db.get_or_404(User, user_id)
+    data = request.get_json(silent=True) or {}
+    plan = data.get('plan', '').lower()
+    if plan not in ('free', 'amateur', 'pro'):
+        return err("Plan invalide. Valeurs : 'free', 'amateur', 'pro'.", 400)
+
+    old_plan = user.subscription_plan
+
+    if plan == 'free':
+        user.subscription_plan  = 'free'
+        user.premium_expires_at = datetime.now()
+        user.premium_source     = None
+        user.premium_price_paid = None
+        msg = f'Plan Free appliqué pour {user.username}.'
+    else:
+        user.subscription_plan  = plan
+        user.premium_since      = datetime.now()
+        user.premium_expires_at = datetime.now() + timedelta(days=_cfg.PREMIUM_DURATION_DAYS)
+        user.premium_source     = 'admin'
+        user.premium_price_paid = None
+        msg = f'Plan {plan.capitalize()} accordé à {user.username} (30 jours).'
+
+    db.session.commit()
+
+    try:
+        notification_service.notify_plan_changed(
+            user, plan, old_plan,
+            expires_at=user.premium_expires_at,
+            granted_by_admin=True,
+        )
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.warning(f'Notif plan_changed: {e}')
+
+    try:
+        email_service.send_plan_changed_email(
+            user, plan,
+            expires_at=user.premium_expires_at if plan != 'free' else None,
+            granted_by_admin=True,
+        )
+    except Exception as e:
+        current_app.logger.warning(f'Email plan_changed: {e}')
+
+    return ok({
+        'is_premium':        user.is_premium,
+        'subscription_plan': user.subscription_plan,
+        'premium_expires_at': user.premium_expires_at.isoformat() if user.premium_expires_at else None,
+    }, message=msg, level='info')
 
 
 # ── Engineers (CUD) ───────────────────────────────────────────────────────────
@@ -957,6 +1199,63 @@ def reject_producer_arranger(user_id, current_user):
     return ok(message=f'Demande Producteur/Arrangeur de {user.username} rejetée.', level='info')
 
 
+# ── Master Engineer ───────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/engineers/<int:user_id>/certify-master', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def certify_master_engineer(user_id, current_user):
+    """Certifie un ingénieur comme 'Master Engineer' (mastering validé par admin)."""
+    user = db.get_or_404(User, user_id)
+    if not user.is_mixmaster_engineer:
+        return ser_err(f"{user.username} doit d'abord être certifié Mix Engineer.")
+    user.is_certified_master_engineer = True
+    db.session.commit()
+    return ok(message=f'{user.username} certifié comme Master Engineer.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/revoke-master', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def revoke_master_engineer(user_id, current_user):
+    """Révoque la certification Master Engineer (admin-granted uniquement)."""
+    user = db.get_or_404(User, user_id)
+    user.is_certified_master_engineer = False
+    db.session.commit()
+    return ok(message=f'Certification Master Engineer de {user.username} révoquée.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/approve-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def approve_master_sample(user_id, current_user):
+    """Approuve l'échantillon mastering → certifie is_certified_master_engineer."""
+    user = db.get_or_404(User, user_id)
+    if not user.master_sample_submitted:
+        return ser_err(f"Aucune soumission mastering en attente pour {user.username}.")
+    user.is_certified_master_engineer = True
+    user.master_sample_submitted      = False
+    db.session.commit()
+    return ok(message=f'{user.username} certifié Master Engineer.', level='info')
+
+
+@admin_api_bp.route('/engineers/<int:user_id>/reject-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def reject_master_sample(user_id, current_user):
+    """Rejette l'échantillon mastering et efface la soumission."""
+    user = db.get_or_404(User, user_id)
+    user.master_sample_submitted  = False
+    user.master_sample_raw        = None
+    user.master_sample_processed  = None
+    db.session.commit()
+    return ok(message=f'Soumission mastering de {user.username} rejetée.', level='info')
+
+
 # ── Contracts (CUD) ───────────────────────────────────────────────────────────
 
 @admin_api_bp.route('/contracts/create', methods=['POST'])
@@ -1050,8 +1349,9 @@ def edit_category(cat_id, current_user):
     cat  = db.get_or_404(Category, cat_id)
     data = request.get_json(silent=True) or {}
 
-    if 'name'  in data: cat.name  = data['name'].strip()
-    if 'color' in data and hasattr(cat, 'color'): cat.color = data['color'].strip()
+    if 'name'        in data: cat.name        = data['name'].strip()
+    if 'color'       in data and hasattr(cat, 'color'):       cat.color       = data['color'].strip()
+    if 'description' in data and hasattr(cat, 'description'): cat.description = data['description'] or None
 
     db.session.commit()
     return ok(message=f'Catégorie "{cat.name}" mise à jour.', level='info')
@@ -1119,6 +1419,69 @@ def delete_tag(tag_id, current_user):
 
 
 # =============================================================================
+# SIMILAR ARTISTS — Admin CRUD
+# =============================================================================
+
+@admin_api_bp.route('/similar-artists', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_similar_artists(current_user):
+    artists = db.session.query(SimilarArtist).order_by(SimilarArtist.scene, SimilarArtist.name).all()
+    by_scene: dict[str, list] = {}
+    for a in artists:
+        by_scene.setdefault(a.scene, []).append({'id': a.id, 'name': a.name})
+    scenes = [{'name': s, 'artists': lst} for s, lst in sorted(by_scene.items())]
+    return ok({'scenes': scenes, 'total': len(artists)})
+
+
+@admin_api_bp.route('/similar-artists', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def create_similar_artist(current_user):
+    data = request.get_json(silent=True) or {}
+    name  = (data.get('name') or '').strip()
+    scene = (data.get('scene') or '').strip()
+    if not name or not scene:
+        return err('Le nom et la scène sont requis.')
+    if db.session.query(SimilarArtist).filter_by(name=name).first():
+        return err(f'L\'artiste "{name}" existe déjà.')
+    artist = SimilarArtist(name=name, scene=scene)
+    db.session.add(artist)
+    db.session.commit()
+    return ok({'id': artist.id, 'name': artist.name, 'scene': artist.scene},
+              message=f'Artiste "{name}" ajouté.')
+
+
+@admin_api_bp.route('/similar-artists/<int:artist_id>', methods=['PUT'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def update_similar_artist(artist_id, current_user):
+    artist = db.get_or_404(SimilarArtist, artist_id)
+    data   = request.get_json(silent=True) or {}
+    if 'name' in data:
+        artist.name  = (data['name'] or '').strip() or artist.name
+    if 'scene' in data:
+        artist.scene = (data['scene'] or '').strip() or artist.scene
+    db.session.commit()
+    return ok({'id': artist.id, 'name': artist.name, 'scene': artist.scene})
+
+
+@admin_api_bp.route('/similar-artists/<int:artist_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_similar_artist(artist_id, current_user):
+    artist = db.get_or_404(SimilarArtist, artist_id)
+    name   = artist.name
+    db.session.delete(artist)
+    db.session.commit()
+    return ok(message=f'Artiste "{name}" supprimé.', level='info')
+
+
+# =============================================================================
 # CONTRACT BUILDER — Admin CRUD (groupes et clauses)
 # =============================================================================
 
@@ -1162,10 +1525,8 @@ def _cb_clause_dto(c) -> dict:
 @admin_api_bp.route('/contract-builder/groups', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def cb_list_groups():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_list_groups(current_user):
     groups = (
         db.session.query(ContractClauseGroup)
         .order_by(ContractClauseGroup.sort_order)
@@ -1177,10 +1538,8 @@ def cb_list_groups():
 @admin_api_bp.route('/contract-builder/groups', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_create_group():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_create_group(current_user):
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -1202,10 +1561,8 @@ def cb_create_group():
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
-def cb_update_group(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_update_group(current_user, group_id):
     g = db.get_or_404(ContractClauseGroup, group_id)
     data = request.get_json(silent=True) or {}
     if 'name' in data:
@@ -1225,10 +1582,8 @@ def cb_update_group(group_id):
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>', methods=['DELETE'])
 @jwt_required()
 @csrf.exempt
-def cb_delete_group(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_delete_group(current_user, group_id):
     g = db.get_or_404(ContractClauseGroup, group_id)
     # Soft delete si des valeurs utilisateur référencent les clauses du groupe
     has_refs = (
@@ -1249,10 +1604,8 @@ def cb_delete_group(group_id):
 @admin_api_bp.route('/contract-builder/groups/reorder', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_reorder_groups():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_reorder_groups(current_user):
     items = request.get_json(silent=True) or []
     for item in items:
         g = db.session.get(ContractClauseGroup, item.get('id'))
@@ -1267,10 +1620,8 @@ def cb_reorder_groups():
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['GET'])
 @jwt_required()
 @csrf.exempt
-def cb_list_clauses(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_list_clauses(current_user, group_id):
     db.get_or_404(ContractClauseGroup, group_id)
     clauses = (
         db.session.query(ContractClause)
@@ -1284,10 +1635,8 @@ def cb_list_clauses(group_id):
 @admin_api_bp.route('/contract-builder/groups/<int:group_id>/clauses', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_create_clause(group_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_create_clause(current_user, group_id):
     db.get_or_404(ContractClauseGroup, group_id)
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
@@ -1328,10 +1677,8 @@ def cb_create_clause(group_id):
 @admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['PUT'])
 @jwt_required()
 @csrf.exempt
-def cb_update_clause(clause_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_update_clause(current_user, clause_id):
     c = db.get_or_404(ContractClause, clause_id)
     data = request.get_json(silent=True) or {}
 
@@ -1374,10 +1721,8 @@ def cb_update_clause(clause_id):
 @admin_api_bp.route('/contract-builder/clauses/<int:clause_id>', methods=['DELETE'])
 @jwt_required()
 @csrf.exempt
-def cb_delete_clause(clause_id):
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_delete_clause(current_user, clause_id):
     c = db.get_or_404(ContractClause, clause_id)
     has_refs = db.session.query(UserContractValue).filter_by(clause_id=clause_id).first()
     if has_refs:
@@ -1389,13 +1734,97 @@ def cb_delete_clause(clause_id):
     return jsonify({'success': True})
 
 
+@admin_api_bp.route('/recommendation-stats', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_recommendation_stats(current_user):
+    """Statistiques de l'algorithme de recommandation — lisibles depuis l'admin."""
+    from collections import defaultdict
+    from extensions import redis_client
+
+    seven_days_ago = datetime.now() - timedelta(days=7)
+
+    total_events = db.session.query(ListenEvent).count()
+    active_users = (
+        db.session.query(distinct(ListenEvent.user_id))
+        .filter(ListenEvent.created_at >= seven_days_ago)
+        .count()
+    )
+
+    # Top keys (par nombre d'écoutes positives)
+    key_counts: dict[str, int] = defaultdict(int)
+    tag_counts: dict[str, int] = defaultdict(int)
+    for ev in db.session.query(ListenEvent).filter(ListenEvent.completion_ratio >= 0.30).all():
+        if ev.track and ev.track.key:
+            key_counts[ev.track.key] += 1
+        if ev.track:
+            for tag in ev.track.tags:
+                tag_counts[tag.name] += 1
+
+    top_keys = sorted(key_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Top corrélations clés depuis Redis
+    top_correlations = []
+    if redis_client:
+        try:
+            for redis_key in redis_client.scan_iter('laprod:reco:key_corr:*'):
+                parts = redis_key.split(':', maxsplit=4)
+                if len(parts) == 5:
+                    prob = float(redis_client.get(redis_key) or 0)
+                    top_correlations.append({
+                        'from': parts[3],
+                        'to': parts[4],
+                        'probability': round(prob, 3),
+                    })
+        except Exception:
+            pass
+    top_correlations.sort(key=lambda x: x['probability'], reverse=True)
+    top_correlations = top_correlations[:20]
+
+    # Top artistes similaires (par écoutes positives)
+    artist_counts: dict[str, int] = defaultdict(int)
+    for ev in db.session.query(ListenEvent).filter(ListenEvent.completion_ratio >= 0.30).all():
+        if ev.track:
+            for a in ev.track.similar_artists:
+                artist_counts[a.name] += 1
+    top_artists = sorted(artist_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Corrélations artiste→artiste depuis Redis
+    artist_correlations = []
+    if redis_client:
+        try:
+            for redis_key in redis_client.scan_iter('laprod:reco:similar_artist_corr:*'):
+                parts = redis_key.split(':', maxsplit=5)
+                if len(parts) == 6:
+                    prob = float(redis_client.get(redis_key) or 0)
+                    artist_correlations.append({
+                        'from': parts[4],
+                        'to': parts[5],
+                        'probability': round(prob, 3),
+                    })
+        except Exception:
+            pass
+    artist_correlations.sort(key=lambda x: x['probability'], reverse=True)
+    artist_correlations = artist_correlations[:20]
+
+    return ok({
+        'total_listen_events': total_events,
+        'active_users_last_7d': active_users,
+        'top_keys': top_keys,
+        'top_tags': top_tags,
+        'top_correlations': top_correlations,
+        'top_artists': top_artists,
+        'artist_correlations': artist_correlations,
+    })
+
+
 @admin_api_bp.route('/contract-builder/clauses/reorder', methods=['POST'])
 @jwt_required()
 @csrf.exempt
-def cb_reorder_clauses():
-    _, err = _require_admin()
-    if err:
-        return err
+@require_admin
+def cb_reorder_clauses(current_user):
     items = request.get_json(silent=True) or []
     for item in items:
         c = db.session.get(ContractClause, item.get('id'))
@@ -1403,3 +1832,205 @@ def cb_reorder_clauses():
             c.sort_order = int(item.get('sort_order', c.sort_order))
     db.session.commit()
     return jsonify({'success': True})
+
+
+@admin_api_bp.route('/send-support-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_send_support_email(current_user):
+    """Envoie un email de support à un utilisateur depuis l'interface admin."""
+    data     = request.get_json(silent=True) or {}
+    to_email = (data.get('email') or '').strip()
+    to_name  = (data.get('name')  or 'utilisateur').strip()
+    subject  = (data.get('subject') or '').strip()
+    body     = (data.get('body')    or '').strip()
+
+    if not to_email or not subject or not body:
+        return ser_err('Destinataire, sujet et corps requis.')
+
+    safe_body = html_lib.escape(body).replace('\n', '<br>')
+    body_html = (
+        f'<div style="font-family:sans-serif;line-height:1.6;color:#1a1a1a">'
+        f'{safe_body}'
+        f'</div>'
+    )
+
+    try:
+        sent = email_service.send_email(
+            subject=subject,
+            recipients=[to_email],
+            text_body=body,
+            html_body=body_html,
+        )
+    except Exception as e:
+        current_app.logger.error(f'Admin support email error: {e}', exc_info=True)
+        return ser_err('Erreur lors de l\'envoi.', status=500)
+
+    if not sent:
+        return ser_err('Erreur lors de l\'envoi.', status=500)
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} ({current_user.username}) a envoyé un email support à {to_email}: "{subject}"'
+    )
+    return ok(message=f'Email envoyé à {to_email}.', level='info')
+
+
+# ── Broadcast email (admin → tous les utilisateurs actifs vérifiés) ──────────
+
+def _broadcast_recipients():
+    """Retourne les users actifs avec email vérifié (excl. admins si souhaité)."""
+    return (
+        User.query
+        .filter(
+            User.account_status.in_(['active', 'pending_completion']),
+            User.email_verified == True,  # noqa: E712
+        )
+        .all()
+    )
+
+
+@admin_api_bp.route('/broadcast-preview', methods=['GET'])
+@jwt_required()
+@require_admin
+def admin_broadcast_preview(current_user):
+    """Retourne le nombre de destinataires éligibles pour un broadcast."""
+    count = (
+        User.query
+        .filter(
+            User.account_status.in_(['active', 'pending_completion']),
+            User.email_verified == True,  # noqa: E712
+        )
+        .count()
+    )
+    return ok(data={'count': count})
+
+
+@admin_api_bp.route('/broadcast-email', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def admin_broadcast_email(current_user):
+    """
+    Envoie un email à tous les utilisateurs actifs avec email vérifié.
+    {username} dans subject/body est substitué par le vrai username de chaque destinataire.
+    """
+    data    = request.get_json(silent=True) or {}
+    subject = (data.get('subject') or '').strip()
+    body    = (data.get('body')    or '').strip()
+
+    if not subject or not body:
+        return ser_err('Sujet et corps requis.')
+
+    recipients = _broadcast_recipients()
+    if not recipients:
+        return ser_err('Aucun destinataire éligible.', status=404)
+
+    sent   = 0
+    errors = 0
+
+    for user in recipients:
+        personal_body    = body.replace('{username}', user.username)
+        personal_subject = subject.replace('{username}', user.username)
+        safe_body  = html_lib.escape(personal_body).replace('\n', '<br>')
+        html_body  = (
+            f'<div style="font-family:sans-serif;line-height:1.6;color:#1a1a1a">'
+            f'{safe_body}'
+            f'</div>'
+        )
+        try:
+            ok_sent = email_service.send_email(
+                subject=personal_subject,
+                recipients=[user.email],
+                text_body=personal_body,
+                html_body=html_body,
+            )
+            if ok_sent:
+                sent += 1
+            else:
+                errors += 1
+        except Exception as e:
+            current_app.logger.warning(
+                f'Broadcast: échec envoi à {user.email}: {e}'
+            )
+            errors += 1
+
+    current_app.logger.info(
+        f'Admin #{current_user.id} ({current_user.username}) a broadcasté "{subject}" '
+        f'→ {sent} envoyés, {errors} erreurs.'
+    )
+
+    if sent == 0:
+        return ser_err(f'Aucun email envoyé ({errors} erreurs).', status=500)
+
+    msg = f'{sent} email(s) envoyé(s).'
+    if errors:
+        msg += f' {errors} échec(s).'
+    return ok(message=msg, data={'sent': sent, 'errors': errors})
+
+
+# ── Toplines (admin) ──────────────────────────────────────────────────────────
+
+@admin_api_bp.route('/toplines', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def get_toplines_admin(current_user):
+    """Liste toutes les toplines avec track, beatmaker et artiste."""
+    page     = max(1, int(request.args.get('page', 1)))
+    per_page = 30
+    published_filter = request.args.get('published', 'all')
+
+    query = select(Topline).order_by(Topline.created_at.desc())
+    if published_filter == 'true':
+        query = query.where(Topline.is_published == True)
+    elif published_filter == 'false':
+        query = query.where(Topline.is_published == False)
+
+    total    = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    toplines = db.session.scalars(query.offset((page - 1) * per_page).limit(per_page)).all()
+
+    def _serialize(tl):
+        track = tl.track
+        artist = tl.artist_user
+        return {
+            'id':           tl.id,
+            'is_published': tl.is_published,
+            'description':  tl.description,
+            'created_at':   tl.created_at.isoformat() if tl.created_at else None,
+            'stream_url':   f'/api/stream/toplines/{tl.id}',
+            'artist': {
+                'id':            artist.id,
+                'username':      artist.username,
+                'profile_image': artist.profile_picture_url or artist.profile_image,
+            } if artist else None,
+            'track': {
+                'id':        track.id,
+                'title':     track.title,
+                'image_file': track.image_file,
+                'beatmaker': {
+                    'id':       track.composer_user.id,
+                    'username': track.composer_user.username,
+                } if track and track.composer_user else None,
+            } if track else None,
+        }
+
+    return ok({
+        'toplines': [_serialize(tl) for tl in toplines],
+        'total':    total,
+        'pages':    ceil(total / per_page) if total else 1,
+        'page':     page,
+    })
+
+
+@admin_api_bp.route('/toplines/<int:topline_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_admin
+def delete_topline_admin(topline_id, current_user):
+    """Supprime une topline (modération)."""
+    tl = db.get_or_404(Topline, topline_id)
+    db.session.delete(tl)
+    db.session.commit()
+    current_app.logger.info(f'Admin #{current_user.id} a supprimé la topline #{topline_id}')
+    return ok(message='Topline supprimée.')

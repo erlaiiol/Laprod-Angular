@@ -78,9 +78,10 @@ def get_my_sales(current_user):
         .all()
     )
 
-    total_revenue = sum(s.composer_revenue for s in sales)
+    from decimal import Decimal
+    total_revenue = sum((s.composer_revenue for s in sales), Decimal('0'))
 
     return ok(data={
         'sales':         [_purchase_dict(s) for s in sales],
-        'total_revenue': round(total_revenue, 2),
+        'total_revenue': float(total_revenue),
     })

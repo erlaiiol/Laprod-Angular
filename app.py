@@ -11,7 +11,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 load_dotenv()
 
 
-def create_app():
+def create_app(test_config=None):
     """Factory pour créer l'application Flask"""
     
     app = Flask(__name__)
@@ -72,7 +72,7 @@ def create_app():
     # Uploads
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['CONTRACTS_FOLDER'] = config.CONTRACTS_FOLDER
-    app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB (pour pistes mixmaster)
+    app.config['MAX_CONTENT_LENGTH'] = 900 * 1024 * 1024  # 900MB (archives stems jusqu'à 800 MB)
     
     # Stripe
     app.config['STRIPE_PUBLIC_KEY'] = config.STRIPE_PUBLIC_KEY
@@ -103,6 +103,11 @@ def create_app():
     app.config['CONTRACT_TERRITORY_EUROPE'] = config.CONTRACT_TERRITORY_EUROPE
     app.config['CONTRACT_TERRITORY_WORLD'] = config.CONTRACT_TERRITORY_WORLD
 
+    # Contract Analyzer — IA Mistral
+    app.config['GROQ_API_KEY']         = config.GROQ_API_KEY
+    app.config['GROQ_MODEL']           = config.GROQ_MODEL
+    app.config['CONTRACT_AI_PROVIDER'] = config.CONTRACT_AI_PROVIDER
+
     # Mail Flask-Mail
     app.config['MAIL_SERVER'] = config.MAIL_SERVER
     app.config['MAIL_PORT'] = config.MAIL_PORT
@@ -129,6 +134,7 @@ def create_app():
     config.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.UPLOAD_FOLDER / 'toplines').mkdir(parents=True, exist_ok=True)
     config.CONTRACTS_FOLDER.mkdir(parents=True, exist_ok=True)
+    config.INVOICES_FOLDER.mkdir(parents=True, exist_ok=True)
     config.IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.IMAGES_FOLDER / 'tracks').mkdir(parents=True, exist_ok=True)
     config.PROFILES_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -137,6 +143,10 @@ def create_app():
     config.MIXMASTER_PREVIEWS_FOLDER.mkdir(parents=True, exist_ok=True)
     config.MIXMASTER_SAMPLES_FOLDER.mkdir(parents=True, exist_ok=True)
     (config.CONTRACTS_FOLDER / 'builder').mkdir(parents=True, exist_ok=True)
+
+    # Surcharges de configuration pour les tests (test_config prend le dessus)
+    if test_config:
+        app.config.update(test_config)
 
     # ============================================
     # INITIALISER LES EXTENSIONS
@@ -218,6 +228,14 @@ def create_app():
                 app.logger.info(f"Contract builder : {n} clause(s) mises à jour avec des exemples.")
             app.logger.info("Contract builder seedé avec succès.")
 
+    @app.cli.command('seed-similar-artists')
+    def seed_similar_artists():
+        """Initialise (ou complète) la liste des artistes similaires."""
+        from utils.similar_artist_seed import run_seed
+        with app.app_context():
+            n = run_seed()
+            app.logger.info(f"Similar artists : {n} artiste(s) ajouté(s).")
+
     @app.cli.command('update-contract-examples')
     def update_contract_examples():
         """Patch example_text sur les clauses existantes qui n'en ont pas encore."""
@@ -267,7 +285,7 @@ def create_app():
     # ============================================
     
     from routes import (
-        premium_bp,
+        premium_api_bp,
         tracks_api_bp,
         tags_filters_api_bp,
         auth_api_bp,
@@ -289,10 +307,15 @@ def create_app():
         job_status_api,
         contract_builder_api_bp,
         contract_analyzer_api_bp,
+        playlist_bp,
+        invoice_api_bp,
+        licenses_api_bp,
     )
+    from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
+    from routes.og_preview import og_preview_bp
 
-    app.register_blueprint(premium_bp)
+    app.register_blueprint(premium_api_bp)
     app.register_blueprint(tracks_api_bp)
     app.register_blueprint(tags_filters_api_bp)
     app.register_blueprint(auth_api_bp)
@@ -315,6 +338,11 @@ def create_app():
     app.register_blueprint(job_status_api)
     app.register_blueprint(contract_builder_api_bp)
     app.register_blueprint(contract_analyzer_api_bp)
+    app.register_blueprint(playlist_bp)
+    app.register_blueprint(invoice_api_bp)
+    app.register_blueprint(recommendation_api_bp)
+    app.register_blueprint(og_preview_bp)
+    app.register_blueprint(licenses_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

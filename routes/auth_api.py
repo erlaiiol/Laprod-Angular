@@ -111,7 +111,7 @@ def ping():
 
 
 @auth_api_bp.route('/login', methods=['POST'])
-@limiter.limit('5 per minute')
+@limiter.limit('25 per minute')
 @csrf.exempt
 def login():
 
@@ -157,7 +157,11 @@ def login():
         return err('Veuillez vérifier votre email avant de vous connecter.', level='warning',
                    code='SHOW_EMAIL_CONFIRMATION_LINK', data={'confirmation_email': user.email}, status=403)
 
-    # Compte supprimé ou banni (jamais pending_completion ici : déjà géré ci-dessus)
+    # Compte en cours de suppression RGPD ou déjà supprimé
+    if user.account_status == 'pending_deletion':
+        return err('Ce compte est en cours de suppression. Contactez le support si vous pensez qu\'il s\'agit d\'une erreur.', status=403)
+
+    # Compte désactivé / banni (jamais pending_completion ici : déjà géré ci-dessus)
     if user.account_status not in ('active', 'pending_completion'):
         current_app.logger.debug('utilisateur supprimé ou désactivé')
         return err('Compte désactivé ou suspendu.', status=403)
@@ -225,6 +229,7 @@ def logout():
 
 
 @auth_api_bp.route('/register', methods=['POST'])
+@limiter.limit('25 per hour')
 @csrf.exempt
 def register_user():
 
@@ -352,6 +357,8 @@ def verify_email():
         return ok(message='Email déjà vérifié. Vous pouvez vous connecter.', level='info', code='ALREADY_VERIFIED')
 
     user.email_verified = True
+    if user.account_status == 'pending_completion':
+        user.account_status = 'active'
     db.session.commit()
 
     return ok(message='Email vérifié ! Vous pouvez maintenant vous connecter.')
@@ -359,7 +366,7 @@ def verify_email():
 
 @auth_api_bp.route('/resend-verification', methods=['POST'])
 @csrf.exempt
-@limiter.limit('3 per hour')
+@limiter.limit('25 per hour')
 def resend_verification():
     """Renvoie l'email de vérification pour un compte non vérifié.
     Accepte 'identifier' (username ou email) ou 'email' pour la rétrocompatibilité.
@@ -550,6 +557,68 @@ def submit_mixmaster_sample(current_user):
     return ok(message='Candidature soumise ! Notre équipe évaluera votre travail.', level='info')
 
 
+@auth_api_bp.route('/submit-master-sample', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def submit_master_sample(current_user):
+    """Soumet un échantillon mastering pour la certification is_certified_master_engineer."""
+    if not current_user.is_mixmaster_engineer:
+        return err('Certification Mix Engineer requise pour soumettre un échantillon mastering.', status=403)
+
+    raw_file       = request.files.get('sample_raw')
+    processed_file = request.files.get('sample_processed')
+
+    if not raw_file or not processed_file or \
+       raw_file.filename == '' or processed_file.filename == '':
+        return err('Les deux fichiers audio sont requis (brut et masterisé).', status=422)
+
+    allowed_ext = {'wav', 'mp3'}
+
+    def _allowed(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_ext
+
+    if not _allowed(raw_file.filename) or not _allowed(processed_file.filename):
+        return err('Format non autorisé (.wav ou .mp3 uniquement).', status=422)
+
+    MAX_SIZE = 50 * 1024 * 1024
+
+    def _check_size(f):
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+        return size <= MAX_SIZE
+
+    if not _check_size(raw_file) or not _check_size(processed_file):
+        return err('Fichier trop volumineux (max 50 MB).', status=422)
+
+    try:
+        folder = Path(config.UPLOAD_FOLDER) / 'master_samples'
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        raw_name  = f"{current_user.id}_{ts}_raw_{secure_filename(raw_file.filename)}"
+        proc_name = f"{current_user.id}_{ts}_processed_{secure_filename(processed_file.filename)}"
+
+        raw_file.save(folder / raw_name)
+        processed_file.save(folder / proc_name)
+
+        raw_path  = Path('db_assets', 'master_samples', raw_name).as_posix()
+        proc_path = Path('db_assets', 'master_samples', proc_name).as_posix()
+
+        current_user.master_sample_raw        = raw_path
+        current_user.master_sample_processed  = proc_path
+        current_user.master_sample_submitted  = True
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'submit_master_sample error: {e}', exc_info=True)
+        return err('Erreur serveur.', status=500)
+
+    current_app.logger.info(f'Master sample submitted by user #{current_user.id}')
+    return ok(message='Candidature mastering soumise ! Notre équipe évaluera votre travail.', level='info')
+
+
 @auth_api_bp.route('/google/login')
 @csrf.exempt
 def google_login():
@@ -594,7 +663,15 @@ def google_callback():
                 .first())
 
         if user:
-            if picture and getattr(user, 'profile_picture_url', None) != picture:
+            # Ne restaure l'URL Google que si l'utilisateur n'a PAS uploadé
+            # de photo personnalisée. Un upload custom efface profile_picture_url
+            # (cf. edit_profile) — on ne doit jamais l'écraser en retour.
+            _has_custom_image = (
+                user.profile_image
+                and user.profile_image != 'images/default_profile.png'
+                and user.profile_image.startswith('images/profiles/')
+            )
+            if picture and not _has_custom_image and getattr(user, 'profile_picture_url', None) != picture:
                 user.profile_picture_url = picture
                 db.session.commit()
 
@@ -623,7 +700,7 @@ def google_callback():
 
             return redirect(f'{angular_base}/oauth-callback?code={code}')
 
-        current_app.logger.debug(f'user: {user}, authorize_access_token ?: {token}, resp ? {resp}.')
+        current_app.logger.debug('[OAuth] google_callback — google_id inconnu, passage au cas 2 (email lookup)')
 
         # ── CAS 2 : google_id inconnu (exclut les comptes soft-deleted) ────────
         user_by_email = (db.session.query(User)
@@ -634,9 +711,16 @@ def google_callback():
         if user_by_email:
             if user_by_email.oauth_provider is None:
                 # Lier le compte classique à Google
-                user_by_email.google_id           = google_id
-                user_by_email.oauth_provider      = 'google'
-                user_by_email.profile_picture_url = picture
+                user_by_email.google_id      = google_id
+                user_by_email.oauth_provider = 'google'
+                # N'écrase pas une photo personnalisée déjà uploadée
+                _has_custom = (
+                    user_by_email.profile_image
+                    and user_by_email.profile_image != 'images/default_profile.png'
+                    and user_by_email.profile_image.startswith('images/profiles/')
+                )
+                if picture and not _has_custom:
+                    user_by_email.profile_picture_url = picture
                 user_by_email.email_verified      = user_by_email.email_verified or email_verified
                 if user_by_email.email_verified:
                     user_by_email.account_status = 'active'
@@ -733,6 +817,7 @@ def token_exchange():
 
 @auth_api_bp.route('/refresh', methods=['POST'])
 @csrf.exempt
+@limiter.limit('30 per minute')
 @jwt_required(refresh=True)
 def jwt_token_refresh():
     user_id = int(get_jwt_identity())

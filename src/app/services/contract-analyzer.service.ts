@@ -14,6 +14,16 @@ export interface ContractSection {
   negotiation_tip:  string | null;
 }
 
+export interface CriticalArticle {
+  article_ref:        string;
+  title:              string;
+  excerpt:            string;
+  risk:               'risque' | 'critique';
+  legal_analysis:     string;
+  legal_references:   string[];
+  negotiation_levers: string[];
+}
+
 export interface MissingClause {
   name:        string;
   importance:  'Essentielle' | 'Importante' | 'Recommandée';
@@ -26,6 +36,7 @@ export interface ContractAnalysis {
   risk_level:           string;
   summary:              string;
   detected_parties:     { role: string; name: string }[];
+  critical_articles:    CriticalArticle[];
   sections:             ContractSection[];
   missing_clauses:      MissingClause[];
   positive_points:      string[];

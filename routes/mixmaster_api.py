@@ -78,9 +78,17 @@ def _generate_telephone_preview(audio_segment: AudioSegment) -> AudioSegment:
 @mixmaster_api_bp.route('/engineers', methods=['GET'])
 @csrf.exempt
 def get_engineers():
-    """Liste des ingénieurs certifiés (public)."""
+    """Liste des ingénieurs certifiés (public).
+    Filtre : prix définis + Stripe onboarding complet → profil commandable.
+    """
+    # Seuls les ingénieurs avec leurs prix configurés sont affichés.
+    # Stripe Connect (payout) est indépendant : les gains s'accumulent en wallet.
     engineers = db.session.scalars(
-        select(User).where(User.is_mixmaster_engineer == True).order_by(User.username)
+        select(User).where(
+            User.is_mixmaster_engineer == True,
+            User.mixmaster_reference_price.is_not(None),
+            User.mixmaster_price_min.is_not(None),
+        ).order_by(User.username)
     ).all()
     return ok({'engineers': [mix_engineer(e) for e in engineers]})
 
@@ -230,6 +238,9 @@ def create_order(engineer_id, current_user):
         if min_pct >= 100: service_mastering = True
         if min_pct >= 160 and engineer.is_certified_producer_arranger:
             service_artistic = True
+
+    if service_mastering and not engineer.can_do_mastering:
+        return ser_err("Cet ingénieur n'est pas certifié pour le mastering.", status=403)
 
     if not any([service_cleaning, service_effects, service_artistic, service_mastering]):
         return ser_err('Sélectionnez au moins un service.', level='warning')
@@ -591,6 +602,14 @@ def accept_order(order_id, current_user):
 
     if order.status != 'awaiting_acceptance':
         return ser_err('Cette commande a déjà été traitée.', level='warning')
+
+    # Verrou de sérialisation sur la ligne de l'ingénieur (SELECT … FOR UPDATE).
+    # Deux acceptations concurrentes de cet ingénieur s'attendent mutuellement ici :
+    # la seconde re-vérifie le compteur après que la première a commité,
+    # évitant de dépasser la limite de 5 mix actifs.
+    db.session.execute(
+        select(User).where(User.id == current_user.id).with_for_update()
+    )
 
     if not MixMasterRequest.can_accept_more_requests(current_user.id):
         return ser_err('Vous avez déjà 5 mix/master en cours.', level='warning')

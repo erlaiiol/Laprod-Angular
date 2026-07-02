@@ -18,7 +18,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 5rem 0;
-  color: #6c757d;
+  color: v.$tag-neutral;
   font-size: 0.9rem;
 }
 
@@ -30,7 +30,7 @@
   border: 1px solid rgba(220, 53, 69, 0.35);
   border-radius: 8px;
   padding: 0.85rem 1.1rem;
-  color: #dc3545;
+  color: v.$tag-red;
   font-size: 0.88rem;
   display: flex;
   align-items: center;
@@ -45,7 +45,7 @@
   border: 1px solid rgba(25, 135, 84, 0.35);
   border-radius: 8px;
   padding: 0.85rem 1.1rem;
-  color: #198754;
+  color: v.$tag-green;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #f8f9fa;
+    color: v.$off-white;
     font-size: 0.85rem;
     transition: background 0.15s;
     backdrop-filter: blur(4px);
@@ -144,15 +144,15 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.78rem;
-  color: #6c757d;
+  color: v.$tag-neutral;
   text-decoration: none;
   padding: 0.25rem 0.6rem;
-  border: 1px solid #3d4449;
+  border: 1px solid v.$bg-border;
   border-radius: 4px;
   transition: color 0.15s, border-color 0.15s;
   flex-shrink: 0;
 
-  &:hover { color: #f8f9fa; border-color: #6c757d; }
+  &:hover { color: v.$off-white; border-color: v.$tag-neutral; }
 }
 
 .page-label {
@@ -186,7 +186,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6c757d;
+  color: v.$tag-neutral;
   margin: 0;
 
   .optional {
@@ -207,14 +207,14 @@
   label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: #adb5bd;
+    color: v.$text-secondary;
   }
 
   input, select {
     background: v.$bg-elevated;
     border: 1px solid v.$bg-border-subtle;
     border-radius: 6px;
-    color: #f8f9fa;
+    color: v.$off-white;
     font-size: 0.88rem;
     padding: 0.5rem 0.7rem;
     width: 100%;
@@ -222,10 +222,19 @@
     transition: border-color 0.2s;
 
     &:focus { outline: none; border-color: v.$tag-violet; }
-    &::placeholder { color: #495057; }
+    &::placeholder { color: v.$bg-border; }
   }
 
-  select option { background: v.$bg-surface; }
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.25rem;
+
+    option { background: v.$bg-surface; }
+  }
 }
 
 .row-2 {
@@ -255,17 +264,23 @@
   font-weight: 500;
   border: 1px solid v.$bg-border-subtle;
   background: transparent;
-  color: #6c757d;
+  color: v.$tag-neutral;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 
-  &:hover { border-color: var(--tag-color, v.$tag-violet); color: #f8f9fa; }
+  &:hover { border-color: var(--tag-color, v.$tag-violet); color: v.$off-white; }
 
   &.selected {
     border-color: var(--tag-color, v.$tag-violet);
     color: var(--tag-color, v.$tag-violet);
     background: color-mix(in srgb, var(--tag-color, v.$tag-violet) 12%, transparent);
   }
+}
+
+.tag-pill--artist {
+  font-style: italic;
+  &:hover { border-color: rgba(255,255,255,0.3); color: v.$off-white; font-style: normal; }
+  &.selected { border-color: v.$text-secondary; color: v.$off-white; background: rgba(255,255,255,0.08); font-style: normal; }
 }
 
 /* ── Fichiers audio/images ──────────────────────────────────────────────────── */
@@ -291,7 +306,7 @@
 
   > i {
     font-size: 1.15rem;
-    color: #6c757d;
+    color: v.$tag-neutral;
     flex-shrink: 0;
     width: 20px;
     text-align: center;
@@ -304,8 +319,8 @@
     font-size: 0.82rem;
     min-width: 0;
 
-    strong   { color: #ced4da; font-weight: 600; }
-    em       { font-style: normal; color: #6c757d; font-size: 0.75rem; }
+    strong   { color: v.$bg-border-subtle; font-weight: 600; }
+    em       { font-style: normal; color: v.$tag-neutral; font-size: 0.75rem; }
     .file-name { color: v.$tag-violet; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 
@@ -345,10 +360,187 @@
   border-top-color: transparent;
   animation: spin 0.7s linear infinite;
 }
-.spinner    { width: 20px; height: 20px; border: 2px solid #6c757d; border-top-color: transparent; }
+.spinner    { width: 20px; height: 20px; border: 2px solid v.$tag-neutral; border-top-color: transparent; }
 .spinner-sm { width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Licence price section (collapsible) ─────────────────────────────────── */
+
+.license-price-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             0.75rem;
+  flex-wrap:       wrap;
+}
+
+.license-price-left {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  flex-wrap:   wrap;
+
+  .section-title { margin: 0; }
+}
+
+.price-badge {
+  display:       inline-flex;
+  align-items:   center;
+  border-radius: 20px;
+  font-size:     0.68rem;
+  font-weight:   600;
+  padding:       0.12rem 0.55rem;
+
+  &--standard {
+    background: rgba(108, 117, 125, 0.1);
+    border:     1px solid rgba(108, 117, 125, 0.25);
+    color:      v.$tag-neutral;
+  }
+
+  &--custom {
+    background: color-mix(in srgb, v.$tag-violet 10%, transparent);
+    border:     1px solid color-mix(in srgb, v.$tag-violet 35%, transparent);
+    color:      v.$tag-violet-light;
+  }
+}
+
+.btn-toggle-prices {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.28rem 0.7rem;
+  background:    transparent;
+  border:        1px solid v.$bg-border-subtle;
+  border-radius: 6px;
+  color:         v.$tag-neutral;
+  font-size:     0.75rem;
+  font-weight:   500;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: v.$tag-violet; color: v.$bg-border-subtle; }
+}
+
+.license-price-subheader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             0.75rem;
+  flex-wrap:       wrap;
+}
+
+.section-hint {
+  font-size: 0.73rem;
+  color:     v.$tag-neutral;
+  margin:    0;
+}
+
+.btn-standard-prices {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.22rem 0.6rem;
+  background:    transparent;
+  border:        1px solid v.$bg-border;
+  border-radius: 5px;
+  color:         v.$tag-neutral;
+  font-size:     0.72rem;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: v.$tag-violet; color: v.$text-secondary; }
+}
+
+.contract-prices-grid {
+  display:               grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:                   0.65rem;
+
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+/* ── Tags ────────────────────────────────────────────────────────────────────── */
+
+.tag-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.tag-group-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tag-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-pill {
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid v.$bg-border;
+  background: transparent;
+  color: v.$text-secondary;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+
+  &.selected {
+    border-color: var(--tag-color, v.$tag-neutral);
+    background: color-mix(in srgb, var(--tag-color, v.$tag-neutral) 18%, transparent);
+    color: var(--tag-color, #fff);
+  }
+
+  &:hover:not(.selected) {
+    border-color: v.$tag-neutral;
+    color: v.$bg-border-subtle;
+  }
+}
+
+/* ── Playlists ───────────────────────────────────────────────────────────────── */
+
+.playlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid v.$bg-surface;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { border-color: v.$bg-border; background: rgba(255,255,255,0.03); }
+
+  input[type="checkbox"] { accent-color: v.$primary; flex-shrink: 0; cursor: pointer; }
+}
+
+.playlist-item-name {
+  flex: 1;
+  font-size: 0.88rem;
+  color: v.$bg-border-subtle;
+}
+
+.playlist-item-count {
+  font-size: 0.78rem;
+  color: v.$tag-neutral;
+}
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 

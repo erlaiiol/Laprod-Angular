@@ -11,9 +11,13 @@ export interface MixEngineerPublic {
   username:                     string;
   profile_image:                string | null;
   mixmaster_bio:                string | null;
-  mixmaster_reference_price:    number;
-  mixmaster_price_min:          number;
-  is_certified_producer_arranger: boolean;
+  mixmaster_reference_price:    number | null;
+  mixmaster_price_min:          number | null;
+  price_max:                    number;
+  stripe_ready:                 boolean;
+  is_certified_producer_arranger:  boolean;
+  is_certified_master_engineer:    boolean;
+  subscription_plan:               'free' | 'amateur' | 'pro';
   sample_raw_url:               string | null;
   sample_processed_url:         string | null;
   active_orders:                number;

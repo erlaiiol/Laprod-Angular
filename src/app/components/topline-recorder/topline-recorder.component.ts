@@ -53,6 +53,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
+  private recordingMimeType = '';
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -69,9 +70,31 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {}
 
+  private detectMimeType(): string {
+    const preferred = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4',
+    ];
+    if (typeof MediaRecorder === 'undefined') return '';
+    for (const type of preferred) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return '';
+  }
+
   async startRecording(): Promise<void> {
     this.errorMsg.set(null);
     this.player.pause();
+
+    if (typeof MediaRecorder === 'undefined') {
+      this.errorMsg.set('Votre navigateur ne prend pas en charge l\'enregistrement audio. Mettez à jour Safari ou utilisez Chrome.');
+      this.cdr.markForCheck();
+      return;
+    }
+
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     } catch {
@@ -97,9 +120,13 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     // Beat playback
     this.player.play(this.track as any);
 
-    // MediaRecorder
+    // MediaRecorder — détection du format supporté par le navigateur
     this.chunks = [];
-    this.mediaRecorder = new MediaRecorder(this.micStream);
+    this.recordingMimeType = this.detectMimeType();
+    const recorderOptions: MediaRecorderOptions = this.recordingMimeType
+      ? { mimeType: this.recordingMimeType }
+      : {};
+    this.mediaRecorder = new MediaRecorder(this.micStream, recorderOptions);
     this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.mediaRecorder.onstop = () => this.onRecordingStop();
     this.mediaRecorder.start(100);
@@ -158,9 +185,11 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.state.set('processing');
     this.cdr.markForCheck();
 
-    const blob = new Blob(this.chunks, { type: 'audio/webm' });
-    const fd   = new FormData();
-    fd.append('voice_file',   blob, 'voice.webm');
+    const mimeType = this.recordingMimeType || 'audio/webm';
+    const ext      = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const blob     = new Blob(this.chunks, { type: mimeType });
+    const fd       = new FormData();
+    fd.append('voice_file',   blob, `voice.${ext}`);
     fd.append('track_id',     String(this.track.id));
     fd.append('use_autotune', String(this.useAutotune));
     if (this.description) fd.append('description', this.description);
@@ -213,6 +242,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
           full_stream_url: null,
           image_file:    this.track.image_file,
           bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
+          playlist_count: 0, first_playlist_image: null,
         });
         this.loadingAudio.set(false);
         this.cdr.markForCheck();

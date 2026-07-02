@@ -156,8 +156,8 @@ def get_template():
 @csrf.exempt
 def create_contract():
     user = _get_user()
-    if not user.is_premium_active:
-        return _err('Cette fonctionnalité est réservée aux membres Premium.', status=403)
+    if not user.is_pro:
+        return _err('Le Contract Builder est réservé au plan Pro LaProd+.', status=403)
 
     data  = request.get_json(silent=True) or {}
     title = (data.get('title') or '').strip()

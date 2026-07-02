@@ -11,6 +11,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 //        └── service Angular qui effectue les requêtes HTTP (fetch côté navigateur)
 
 import { Observable, tap } from 'rxjs';
+import { ApiResponse } from './topline.service';
 // Observable = "promesse améliorée" de RxJS.
 // Représente une valeur qui arrivera dans le futur (la réponse HTTP).
 // Le composant s'y abonne avec .subscribe().
@@ -28,6 +29,8 @@ import { environment } from '../../environments/environment';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Correspond au dict Python construit dans get_tracks() → tracks_data.append({...})
+export interface SimilarArtistEntry { id: number; name: string; scene: string; }
+
 export interface Track {
   id:            number;
   title:         string;
@@ -39,8 +42,13 @@ export interface Track {
   style:         string;
   price_mp3:     number;
   tags:            { id: number, name: string; category: string; color: string }[];  // tableau d'objets
-  is_approved:     boolean;
+  similar_artists?: SimilarArtistEntry[];
+  is_approved:      boolean;
+  is_ai_suggested?: boolean;
   full_stream_url: string | null;
+  // Données playlist (toujours présentes dans les listings, 0 / null si absent)
+  playlist_count:       number;
+  first_playlist_image: string | null;
 }
 
 // Correspond au JSON global retourné par jsonify({...}) dans get_tracks()
@@ -67,28 +75,46 @@ export interface PublishedTopline {
   artist_user:  { username: string; profile_image: string | null };
 }
 
+export interface ContractPrices {
+  exclusive:       number;
+  duration_3y:     number;
+  duration_5y:     number;
+  duration_10y:    number;
+  lifetime:        number;
+  mechanical:      number;
+  public_show:     number;
+  arrangement:     number;
+  territory_eu:    number;
+  territory_world: number;
+}
+
 export interface TrackDetail extends Track {
-  created_at:    string | null;
-  price_wav:     number | null;
-  price_stems:   number | null;
-  file_wav:      string | null;
-  file_stems:    string | null;
-  composer_user: { id: number; username: string; profile_image: string | null };
-  toplines:      PublishedTopline[];
-  my_toplines:   PublishedTopline[];
+  created_at:        string | null;
+  price_wav:         number | null;
+  price_stems:       number | null;
+  file_wav:          string | null;
+  file_stems:        string | null;
+  composer_user:     { id: number; username: string; profile_image: string | null };
+  toplines:          PublishedTopline[];
+  my_toplines:       PublishedTopline[];
+  contract_prices?:  ContractPrices;
+  is_exclusive_sold?: boolean;
 }
 
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)
 // Chaque champ ici correspond à un request.args.get('...') dans get_tracks()
 export interface TrackFilters {
-  search?:   string;
-  bpm_min?:  number;
-  bpm_max?:  number;
-  keys?:     string;
-  styles?:   string; 
-  tags?:     string;
-  page?:     number;
-  per_page?: number;
+  search?:             string;
+  bpm_min?:            number;
+  bpm_max?:            number;
+  keys?:               string;
+  styles?:             string;
+  tags?:               string;
+  similar_artist_ids?: string;
+  tag_category?:       string;
+  page?:               number;
+  per_page?:           number;
+  sort?:               'recent' | 'recommended';
 }
 
 
@@ -175,6 +201,23 @@ export class TrackService {
     const params = excludeId ? `?exclude_id=${excludeId}` : '';
     return this.http.get<{ success: boolean; data: { track: Track } }>(
       `${this.tracksApiUrl}/random${params}`
+    );
+  }
+
+
+  // ── Enregistrement d'une vue (fire-and-forget) ──────────────────────────
+
+  recordView(trackId: number, source: 'player' | 'detail'): void {
+    this.http.post(`${this.tracksApiUrl}/track/${trackId}/view`, { source }).subscribe({
+      error: () => {}  // silencieux — analytics non bloquants
+    });
+  }
+
+  // ── Stats de vues pour le beatmaker connecté ────────────────────────────
+
+  getViewStats(): Observable<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>> {
+    return this.http.get<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>>(
+      `${this.tracksApiUrl}/my/view-stats`
     );
   }
 

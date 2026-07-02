@@ -1,10 +1,10 @@
 """
 Blueprint STRIPE CONNECT API — JSON API pour l'onboarding Stripe Connect (frontend Angular)
 
-GET   /api/stripe/status        → Statut du compte Connect de l'utilisateur
-POST  /api/stripe/setup-url     → Crée ou récupère l'URL d'onboarding
-POST  /api/stripe/dashboard-url → Lien vers l'Express Dashboard Stripe
-POST  /api/stripe/refresh       → Rafraîchit le statut depuis Stripe
+GET   /api/stripe-connect/status        → Statut du compte Connect de l'utilisateur
+POST  /api/stripe-connect/setup-url     → Crée ou récupère l'URL d'onboarding
+POST  /api/stripe-connect/dashboard-url → Lien vers l'Express Dashboard Stripe
+POST  /api/stripe-connect/refresh       → Rafraîchit le statut depuis Stripe
 """
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
@@ -22,7 +22,7 @@ from utils.auth_helpers import require_user
 stripe_connect_api_bp = Blueprint('stripe_connect_api', __name__, url_prefix='/api/stripe-connect')
 
 
-# ── GET /api/stripe/status ─────────────────────────────────────────────────────
+# ── GET /api/stripe-connect/status ────────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/status', methods=['GET'])
 @jwt_required()
@@ -36,7 +36,7 @@ def get_status(current_user):
     })
 
 
-# ── POST /api/stripe/setup-url ─────────────────────────────────────────────────
+# ── POST /api/stripe-connect/setup-url ────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/setup-url', methods=['POST'])
 @jwt_required()
@@ -47,7 +47,7 @@ def get_setup_url(current_user):
     Crée un compte Stripe Connect si nécessaire, puis retourne l'URL d'onboarding.
 
     Corps JSON (optionnel) : { "return_url": str, "refresh_url": str }
-    Par défaut pointe vers /wallet dans l'Angular.
+    Par défaut pointe vers /wallet dans Angular.
     """
     if not (current_user.is_beatmaker or current_user.is_mix_engineer):
         return err(
@@ -67,11 +67,9 @@ def get_setup_url(current_user):
                     result.get('message', 'Erreur création compte.'),
                     code='STRIPE_ERROR', status=500,
                 )
-            # create_connect_account commit déjà l'account_id sur user
 
-        account_link = create_account_link(current_user, return_url=return_url, refresh_url=refresh_url)
-        url = account_link.get('url') if isinstance(account_link, dict) else account_link.url
-
+        # create_account_link returns a URL string directly, raises StripeError on failure
+        url = create_account_link(current_user, return_url=return_url, refresh_url=refresh_url)
         return ok(data={'url': url})
 
     except Exception as e:
@@ -79,7 +77,7 @@ def get_setup_url(current_user):
         return err(str(e), code='STRIPE_ERROR', status=500)
 
 
-# ── POST /api/stripe/dashboard-url ────────────────────────────────────────────
+# ── POST /api/stripe-connect/dashboard-url ────────────────────────────────────
 
 @stripe_connect_api_bp.route('/dashboard-url', methods=['POST'])
 @jwt_required()
@@ -91,15 +89,15 @@ def get_dashboard_url(current_user):
         return err('Compte Stripe Connect non configuré.', code='NOT_FOUND', status=404)
 
     try:
-        link = create_dashboard_link(current_user.stripe_account_id)
-        url  = link.get('url') if isinstance(link, dict) else link.url
+        # create_dashboard_link takes account_id (str) and returns a URL string
+        url = create_dashboard_link(current_user.stripe_account_id)
         return ok(data={'url': url})
     except Exception as e:
         current_app.logger.error(f"Erreur dashboard Stripe: {e}", exc_info=True)
         return err(str(e), code='STRIPE_ERROR', status=500)
 
 
-# ── POST /api/stripe/refresh ───────────────────────────────────────────────────
+# ── POST /api/stripe-connect/refresh ──────────────────────────────────────────
 
 @stripe_connect_api_bp.route('/refresh', methods=['POST'])
 @jwt_required()
@@ -111,10 +109,11 @@ def refresh_status(current_user):
         return err('Compte Stripe non configuré.', code='NOT_FOUND', status=404)
 
     try:
+        # check_account_status takes account_id (str) and returns a status dict
         status_data = check_account_status(current_user.stripe_account_id)
-        if isinstance(status_data, dict):
-            current_user.stripe_onboarding_complete = status_data.get('onboarding_complete', False)
-            current_user.stripe_account_status      = status_data.get('status', 'pending')
+
+        current_user.stripe_onboarding_complete = status_data['onboarding_complete']
+        current_user.stripe_account_status      = status_data['status']
         db.session.commit()
 
         return ok(data={

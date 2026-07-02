@@ -1,0 +1,337 @@
+@use 'variables' as v;
+@use 'sass:map';
+
+// ── Color map ─────────────────────────────────────────────────────────────────
+
+$flow-colors: (
+  "violet": (base: v.$primary,       bg: rgba(v.$primary, 0.1),       border: rgba(v.$primary, 0.25)),
+  "green":  (base: v.$tag-green,     bg: rgba(v.$tag-green, 0.1),     border: rgba(v.$tag-green, 0.25)),
+  "cyan":   (base: v.$tag-blue,      bg: rgba(v.$tag-blue, 0.1),      border: rgba(v.$tag-blue, 0.25)),
+  "orange": (base: v.$tag-orange,    bg: rgba(v.$tag-orange, 0.1),    border: rgba(v.$tag-orange, 0.25)),
+  "pink":   (base: v.$tag-pink,      bg: rgba(v.$tag-pink, 0.1),      border: rgba(v.$tag-pink, 0.25)),
+  "indigo": (base: v.$tag-violet,    bg: rgba(v.$tag-violet, 0.1),    border: rgba(v.$tag-violet, 0.25)),
+  "teal":   (base: v.$tag-teal,      bg: rgba(v.$tag-teal, 0.1),      border: rgba(v.$tag-teal, 0.25)),
+);
+
+// ── Trigger button ────────────────────────────────────────────────────────────
+
+.uf-trigger {
+  position: fixed;
+  bottom: 6.5rem; // above player (80px)
+  right: 1.1rem;
+  z-index: 1060; // above navbar and all its overlays (1040/1050)
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  color: v.$text-muted;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+  padding: 0;
+
+  &:hover {
+    border-color: v.$primary;
+    color: v.$primary;
+    background: rgba(v.$primary, 0.07);
+    box-shadow: 0 0 0 4px rgba(v.$primary, 0.08);
+  }
+
+  &--hidden {
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  &--new {
+    border-color: rgba(v.$primary, 0.6);
+    color: v.$primary;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 2px solid v.$primary;
+      animation: uf-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+      pointer-events: none;
+    }
+  }
+}
+
+.uf-trigger__svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+@keyframes uf-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  80%  { transform: scale(1.65); opacity: 0; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+
+// ── Backdrop ──────────────────────────────────────────────────────────────────
+
+.uf-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1070; // above navbar (1040) and its dropdown (1050)
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: uf-fade 0.2s ease forwards;
+}
+
+@keyframes uf-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+
+.uf-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(440px, 100vw);
+  background: v.$bg-surface;
+  border-left: 1px solid v.$bg-border;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: uf-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes uf-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+// ── Panel header ──────────────────────────────────────────────────────────────
+
+.uf-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid v.$bg-border;
+  flex-shrink: 0;
+}
+
+.uf-panel__title {
+  flex: 1;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: v.$text-primary;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  i { color: v.$primary; }
+}
+
+.uf-panel__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: v.$text-muted;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  transition: color 0.12s, background 0.12s;
+
+  &:hover {
+    color: v.$text-primary;
+    background: v.$bg-elevated;
+  }
+}
+
+// ── Panel intro ───────────────────────────────────────────────────────────────
+
+.uf-panel__intro {
+  font-size: 0.76rem;
+  color: v.$text-muted;
+  margin: 0;
+  padding: 0.65rem 1.1rem 0.4rem;
+  flex-shrink: 0;
+}
+
+// ── Scrollable content ────────────────────────────────────────────────────────
+
+.uf-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0.65rem 1.5rem;
+
+  &::-webkit-scrollbar        { width: 4px; }
+  &::-webkit-scrollbar-track  { background: transparent; }
+  &::-webkit-scrollbar-thumb  { background: v.$bg-border; border-radius: 2px; }
+}
+
+// ── Flow list ─────────────────────────────────────────────────────────────────
+
+.uf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+// ── Flow item ─────────────────────────────────────────────────────────────────
+
+.uf-flow {
+  border: 1px solid v.$bg-border;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.18s;
+
+  &--open { border-color: v.$bg-border-subtle; }
+}
+
+.uf-flow__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.8rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+
+  &:hover { background: v.$bg-elevated; }
+}
+
+// ── Flow icon (generated per color) ──────────────────────────────────────────
+
+.uf-flow__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+
+  @each $name, $props in $flow-colors {
+    &--#{$name} {
+      background: map.get($props, "bg");
+      color: map.get($props, "base");
+    }
+  }
+}
+
+.uf-flow__meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.uf-flow__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: v.$text-primary;
+  line-height: 1.3;
+}
+
+.uf-flow__preview {
+  font-size: 0.71rem;
+  color: v.$text-muted;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uf-flow__chevron {
+  font-size: 0.7rem;
+  color: v.$text-muted;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+
+  .uf-flow--open & {
+    transform: rotate(90deg);
+    color: v.$text-secondary;
+  }
+}
+
+// ── Flow body ─────────────────────────────────────────────────────────────────
+
+.uf-flow__body {
+  padding: 0.65rem 0.8rem 0.8rem;
+  border-top: 1px solid v.$bg-border;
+  background: v.$bg-base;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.uf-tagline {
+  font-size: 0.78rem;
+  color: v.$text-secondary;
+  margin: 0;
+  font-style: italic;
+}
+
+// ── Steps ─────────────────────────────────────────────────────────────────────
+
+.uf-steps {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+
+  li {
+    font-size: 0.78rem;
+    color: v.$text-secondary;
+    line-height: 1.55;
+
+    &::marker {
+      color: v.$primary;
+      font-weight: 700;
+    }
+  }
+}
+
+.uf-inline-link {
+  color: v.$primary;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover { text-decoration: underline; }
+}
+
+// ── CTA ───────────────────────────────────────────────────────────────────────
+
+.uf-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.33rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+  align-self: flex-start;
+  transition: filter 0.12s;
+
+  &:hover { filter: brightness(1.12); }
+
+  @each $name, $props in $flow-colors {
+    &--#{$name} {
+      background: map.get($props, "bg");
+      color: map.get($props, "base");
+      border: 1px solid map.get($props, "border");
+    }
+  }
+}

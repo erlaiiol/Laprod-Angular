@@ -8,6 +8,7 @@
   // Tag colors — main (vibrant)
   --tag-violet:  #{v.$tag-violet};
   --tag-blue:    #{v.$tag-blue};
+  --tag-teal:    #{v.$tag-teal};
   --tag-red:     #{v.$tag-red};
   --tag-orange:  #{v.$tag-orange};
   --tag-green:   #{v.$tag-green};
@@ -16,6 +17,7 @@
   // Tag colors — light (40% white mix)
   --tag-violet-light:  #{v.$tag-violet-light};
   --tag-blue-light:    #{v.$tag-blue-light};
+  --tag-teal-light:    #{v.$tag-teal-light};
   --tag-red-light:     #{v.$tag-red-light};
   --tag-orange-light:  #{v.$tag-orange-light};
   --tag-green-light:   #{v.$tag-green-light};
@@ -24,6 +26,7 @@
   // Tag colors — dark tinted backgrounds
   --tag-violet-dark:  #{v.$tag-violet-dark};
   --tag-blue-dark:    #{v.$tag-blue-dark};
+  --tag-teal-dark:    #{v.$tag-teal-dark};
   --tag-red-dark:     #{v.$tag-red-dark};
   --tag-orange-dark:  #{v.$tag-orange-dark};
   --tag-green-dark:   #{v.$tag-green-dark};
@@ -50,13 +53,21 @@
   --white:     #{v.$white};
   --off-white: #{v.$off-white};
 
-  // Primary CTA — violet; $accent kept as alias
+  // Primary CTA — cyan électrique; $accent kept as alias
   --primary:        #{v.$primary};
   --primary-dark:   #{v.$primary-dark};
   --primary-darker: #{v.$primary-darker};
   --accent:         #{v.$accent};
   --accent-dark:    #{v.$accent-dark};
   --accent-darker:  #{v.$accent-darker};
+
+  // Premium / Gold
+  --gold:       #{v.$gold};
+  --gold-light: #{v.$gold-light};
+  --gold-dark:  #{v.$gold-dark};
+
+  // Black
+  --black: #{v.$black};
 
   // Format badge palette (track purchase cards)
   --format-mp3-bg:      #{v.$format-mp3-bg};
@@ -157,20 +168,20 @@ img { max-width: 100%; }
 .lp-badge-pink     { @include m.badge(v.$tag-pink,    v.$tag-pink-dark); }
 .lp-badge-violet   { @include m.badge(v.$tag-violet,  v.$tag-violet-dark); }
 .lp-badge-neutral  { @include m.badge(v.$tag-neutral, v.$tag-neutral-dark); }
-// "Premium" / featured — violet
-.lp-badge-premium  { @include m.badge(v.$tag-violet,  v.$tag-violet-dark); }
+// "Premium" / featured — cyan CTA sur fond navy sombre
+.lp-badge-premium  { @include m.badge(v.$primary, v.$tag-blue-dark); }
 
 // ── Button overrides ──────────────────────────────────────────────────────────
 //
 // Ghost pattern: black bg + white border at rest → fills with color on hover.
 // Overrides Bootstrap's filled buttons with our premium look.
 //
-.btn-success  { @include m.btn-ghost(v.$tag-green,   #000); }  // green fill → dark text
+.btn-success  { @include m.btn-ghost(v.$tag-green,  #000); }
 .btn-info     { @include m.btn-ghost(v.$tag-blue); }
 .btn-warning  { @include m.btn-ghost(v.$tag-orange); }
 .btn-danger   { @include m.btn-ghost(v.$tag-red); }
-.btn-primary  { @include m.btn-ghost(v.$tag-violet); }
+.btn-primary  { @include m.btn-ghost(v.$primary); }
 .btn-secondary{ @include m.btn-ghost(v.$tag-neutral); }
 
-// "Premium" — violet, for CTAs without a Bootstrap semantic equivalent
-.btn-premium  { @include m.btn-ghost(v.$tag-violet); }
+// "Premium" — CTA principal LaProd
+.btn-premium  { @include m.btn-ghost(v.$primary); }

@@ -1,4 +1,8 @@
-<div class="ca-page">
+<div class="ca-page" [class.page-locked]="isLoggedIn() && !isPremium()">
+
+  @if (isLoggedIn() && !isPremium()) {
+    <app-premium-lock requiredPlan="amateur" />
+  }
 
   <div class="ca-header">
     <h1><i class="bi bi-shield-check"></i> Analyse de contrat</h1>
@@ -7,22 +11,146 @@
 
   <!-- ── Phase upload ────────────────────────────────────────────────────── -->
   @if (phase() === 'upload') {
-    <div class="ca-drop-zone"
-      [class.drag-over]="dragOver()"
-      (dragover)="onDragover($event)"
-      (dragleave)="onDragleave()"
-      (drop)="onDrop($event)">
-      <i class="bi bi-file-earmark-arrow-up ca-drop-icon"></i>
-      <p class="ca-drop-label">Glissez votre contrat ici</p>
-      <p class="ca-drop-sub">ou cliquez pour sélectionner un fichier</p>
-      <label class="btn-upload">
-        <i class="bi bi-folder2-open"></i> Parcourir
-        <input type="file" accept=".pdf" (change)="onFileInput($event)" style="display:none" />
-      </label>
-      <p class="ca-drop-hint">PDF uniquement · max 10 Mo</p>
-      @if (fileError()) {
-        <p class="ca-file-error"><i class="bi bi-exclamation-triangle"></i> {{ fileError() }}</p>
-      }
+    @if (!isLoggedIn()) {
+      <!-- Visiteur : zone de connexion + demo en dessous -->
+      <div class="ca-drop-zone ca-drop-zone--guest">
+        <i class="bi bi-person-lock ca-drop-icon"></i>
+        <p class="ca-drop-label">Analysez votre contrat musical</p>
+        <p class="ca-drop-sub">Connectez-vous pour glisser votre contrat et obtenir une analyse juridique complète.</p>
+        <a routerLink="/login" class="btn-upload">
+          <i class="bi bi-box-arrow-in-right"></i> Se connecter
+        </a>
+        <p class="ca-drop-hint">PDF uniquement · max 10 Mo · analyse en 30–60 s</p>
+      </div>
+    } @else {
+      <div class="ca-drop-zone"
+        [class.drag-over]="dragOver()"
+        (dragover)="onDragover($event)"
+        (dragleave)="onDragleave()"
+        (drop)="onDrop($event)">
+        <i class="bi bi-file-earmark-arrow-up ca-drop-icon"></i>
+        <p class="ca-drop-label">Glissez votre contrat ici</p>
+        <p class="ca-drop-sub">ou cliquez pour sélectionner un fichier</p>
+        <label class="btn-upload">
+          <i class="bi bi-folder2-open"></i> Parcourir
+          <input type="file" accept=".pdf" (change)="onFileInput($event)" style="display:none" />
+        </label>
+        <p class="ca-drop-hint">PDF uniquement · max 10 Mo</p>
+        @if (fileError()) {
+          <p class="ca-file-error"><i class="bi bi-exclamation-triangle"></i> {{ fileError() }}</p>
+        }
+      </div>
+    }
+  }
+
+  <!-- ── Demo visiteur ────────────────────────────────────────────────────── -->
+  @if (!isLoggedIn() && phase() === 'upload') {
+    @let a = demoAnalysis;
+    <div class="ca-demo-banner">
+      <i class="bi bi-eye"></i>
+      Exemple d'analyse — connectez-vous pour analyser votre propre contrat
+    </div>
+
+    <div class="ca-result">
+      <div class="ca-result-topbar">
+        <span class="ca-contract-type"><i class="bi bi-file-earmark-text"></i> {{ a.contract_type }}</span>
+      </div>
+      <div class="ca-result-grid">
+        <div class="ca-sidebar">
+          <div class="ca-score-card">
+            <div class="ca-score-ring score-bad">
+              <span class="ca-score-number">{{ a.overall_score }}</span>
+              <span class="ca-score-label">/100</span>
+            </div>
+            <div class="ca-score-info">
+              <span class="ca-risk-badge risk-élevé">Risque élevé</span>
+              <p class="ca-score-desc">Score de protection de l'artiste</p>
+            </div>
+          </div>
+          <div class="ca-info-card">
+            <h3><i class="bi bi-people"></i> Parties</h3>
+            @for (party of a.detected_parties; track $index) {
+              <div class="ca-party-row">
+                <span class="ca-party-role">{{ party.role }}</span>
+                <span class="ca-party-name">{{ party.name }}</span>
+              </div>
+            }
+          </div>
+          <div class="ca-info-card">
+            <h3><i class="bi bi-card-text"></i> Résumé</h3>
+            <p class="ca-summary">{{ a.summary }}</p>
+          </div>
+          @if (a.positive_points.length > 0) {
+            <div class="ca-info-card">
+              <h3><i class="bi bi-check-circle"></i> Points positifs</h3>
+              <div class="ca-chips">
+                @for (p of a.positive_points; track $index) {
+                  <span class="ca-chip good">{{ p }}</span>
+                }
+              </div>
+            </div>
+          }
+          @if (a.missing_clauses.length > 0) {
+            <div class="ca-info-card">
+              <h3><i class="bi bi-exclamation-circle"></i> Clauses manquantes</h3>
+              @for (mc of a.missing_clauses; track $index) {
+                <div class="ca-missing-clause">
+                  <span class="ca-missing-name">{{ mc.name }}</span>
+                  <span class="ca-importance importance-{{ mc.importance.toLowerCase() }}">{{ mc.importance }}</span>
+                  <p class="ca-missing-exp">{{ mc.explanation }}</p>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <div class="ca-main">
+          @if (a.critical_articles.length > 0) {
+            <div class="ca-critical-block">
+              <h2 class="ca-critical-title">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Points critiques à examiner en priorité
+              </h2>
+              @for (art of a.critical_articles; track $index) {
+                <div class="ca-section-card risk-border-{{ art.risk }}">
+                  <div class="ca-section-header">
+                    <span class="ca-risk-dot risk-dot-{{ art.risk }}"></span>
+                    <span class="ca-article-ref">{{ art.article_ref }}</span>
+                    <span class="ca-section-title">{{ art.title }}</span>
+                    <span class="ca-risk-tag risk-tag-{{ art.risk }}">{{ riskLabel(art.risk) }}</span>
+                  </div>
+                  <div class="ca-section-body">
+                    @if (art.excerpt) {
+                      <blockquote class="ca-excerpt">« {{ art.excerpt }} »</blockquote>
+                    }
+                    <p class="ca-explanation ca-legal-analysis">{{ art.legal_analysis }}</p>
+                    @if (art.legal_references.length > 0) {
+                      <div class="ca-legal-refs">
+                        @for (ref of art.legal_references; track $index) {
+                          <span class="ca-legal-ref"><i class="bi bi-book"></i> {{ ref }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          <h2 class="ca-sections-title">Analyse clause par clause</h2>
+          @for (section of a.sections; track $index) {
+            <div class="ca-section-card risk-border-{{ section.risk }}">
+              <div class="ca-section-header">
+                <span class="ca-risk-dot risk-dot-{{ section.risk }}"></span>
+                <span class="ca-section-title">{{ section.title }}</span>
+                <span class="ca-risk-tag risk-tag-{{ section.risk }}">{{ riskLabel(section.risk) }}</span>
+              </div>
+            </div>
+          }
+          <div class="ca-career-card">
+            <h3><i class="bi bi-person-check"></i> Conseil de carrière</h3>
+            <p>{{ a.career_advice }}</p>
+          </div>
+        </div>
+      </div>
     </div>
   }
 
@@ -117,6 +245,57 @@
 
         <!-- ── Colonne droite : sections analysées ─────────────────────── -->
         <div class="ca-main">
+
+          <!-- Articles critiques -->
+          @if (a.critical_articles.length > 0) {
+            <div class="ca-critical-block">
+              <h2 class="ca-critical-title">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Points critiques à examiner en priorité
+              </h2>
+
+              @for (art of a.critical_articles; track $index) {
+                <div class="ca-section-card risk-border-{{ art.risk }}"
+                  (click)="toggleCritical(art)"
+                  [class.expanded]="selectedCritical() === art">
+                  <div class="ca-section-header">
+                    <span class="ca-risk-dot risk-dot-{{ art.risk }}"></span>
+                    <span class="ca-article-ref">{{ art.article_ref }}</span>
+                    <span class="ca-section-title">{{ art.title }}</span>
+                    <span class="ca-risk-tag risk-tag-{{ art.risk }}">{{ riskLabel(art.risk) }}</span>
+                    <i class="bi" [class.bi-chevron-down]="selectedCritical() !== art"
+                                  [class.bi-chevron-up]="selectedCritical() === art"></i>
+                  </div>
+
+                  @if (selectedCritical() === art) {
+                    <div class="ca-section-body">
+                      @if (art.excerpt) {
+                        <blockquote class="ca-excerpt">« {{ art.excerpt }} »</blockquote>
+                      }
+                      <p class="ca-explanation ca-legal-analysis">{{ art.legal_analysis }}</p>
+                      @if (art.legal_references.length > 0) {
+                        <div class="ca-legal-refs">
+                          @for (ref of art.legal_references; track $index) {
+                            <span class="ca-legal-ref"><i class="bi bi-book"></i> {{ ref }}</span>
+                          }
+                        </div>
+                      }
+                      @if (art.negotiation_levers.length > 0) {
+                        <div class="ca-levers">
+                          <p class="ca-levers-title"><i class="bi bi-tools"></i> Points à négocier</p>
+                          <ul class="ca-levers-list">
+                            @for (lever of art.negotiation_levers; track $index) {
+                              <li>{{ lever }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
 
           <h2 class="ca-sections-title">Analyse clause par clause</h2>
 

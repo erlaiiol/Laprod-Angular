@@ -12,8 +12,12 @@ echo "=== LaProd - Démarrage ==="
 
 # Migrations et création admin : tournent en tant qu'appuser via gosu
 echo ">>> Migrations base de données..."
-gosu appuser uv run flask db upgrade
+gosu appuser uv run flask db upgrade heads
 echo ">>> Migrations OK"
+
+echo ">>> Seed contract builder (no-op si déjà peuplé)..."
+gosu appuser uv run flask seed-contract-builder
+echo ">>> Seed OK"
 
 echo ">>> Création du compte admin..."
 gosu appuser uv run python -c "

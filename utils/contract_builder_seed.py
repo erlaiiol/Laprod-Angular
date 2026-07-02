@@ -46,11 +46,12 @@ def run_seed() -> None:
        tooltip_short="Décrivez le contexte général du contrat et les intentions communes.",
        tooltip_long="Le préambule expose la volonté des parties et peut servir à interpréter le contrat en cas de litige. Il n'est pas juridiquement contraignant en lui-même mais oriente l'interprétation des clauses.",
        example=(
-           "Les soussignés, d'une part [Prénom Nom], auteur-compositeur, demeurant [adresse], "
-           "ci-après dénommé « l'Auteur », et d'autre part [Dénomination sociale], société [forme juridique] "
-           "au capital de [montant] euros, dont le siège social est situé [adresse], immatriculée au RCS de "
-           "[ville] sous le numéro SIREN [numéro], représentée par [Nom du représentant légal] en sa qualité "
-           "de [titre], ci-après dénommée « l'Éditeur », ont convenu des dispositions suivantes."
+           "[Contractant 1], en qualité de [Rôle 1], ci-après dénommé(e) « le [Rôle 1] », "
+           "et [Contractant 2], en qualité de [Rôle 2], ci-après dénommé(e) « le [Rôle 2] », "
+           "ont convenu, d'un commun accord, de formaliser les conditions d'exploitation de "
+           "l'œuvre musicale intitulée [l'Œuvre], aux fins et dans les limites définies par "
+           "le présent contrat. Les parties déclarent avoir pris connaissance de l'ensemble "
+           "des dispositions ci-après et en accepter les termes sans réserve."
        ))
     _c(g, "Historique de collaboration", "textarea", sort_order=1, enabled_by_default=False,
        tooltip_short="Précisez si une collaboration antérieure existe entre les parties.")
@@ -80,10 +81,13 @@ def run_seed() -> None:
     _c(g, "Finalité et description", "textarea", sort_order=1,
        tooltip_short="Décrivez précisément l'objet et les finalités commerciales du contrat.",
        example=(
-           "Le présent contrat a pour objet de définir les conditions dans lesquelles l'Auteur concède à l'Éditeur "
-           "le droit d'exploiter l'Œuvre désignée à l'article [X], dans les limites territoriales, pour la durée et "
-           "selon les modalités précisées ci-après. Cette exploitation s'inscrit dans le cadre du développement de la "
-           "carrière artistique de l'Auteur et de la promotion de l'Œuvre sur l'ensemble des marchés concernés."
+           "Le présent contrat a pour objet de définir les conditions dans lesquelles "
+           "[Contractant 1], en qualité de [Rôle 1], concède à [Contractant 2], en qualité "
+           "de [Rôle 2], le droit d'exploiter l'œuvre musicale intitulée [l'Œuvre], dans les "
+           "limites territoriales, pour la durée et selon les modalités précisées aux articles "
+           "suivants. Cette exploitation s'inscrit dans le cadre du développement de la "
+           "carrière artistique de [Contractant 1] et de la promotion de [l'Œuvre] sur "
+           "l'ensemble des marchés couverts par le présent accord."
        ))
 
     # ── 3 — Désignation des œuvres ────────────────────────────────────────────
@@ -94,10 +98,12 @@ def run_seed() -> None:
     _c(g, "Description de l'œuvre", "textarea", sort_order=1,
        tooltip_short="Description artistique, genre, durée, caractéristiques de l'œuvre.",
        example=(
-           "L'Œuvre faisant l'objet du présent contrat est une composition musicale originale, dont les paroles et la musique "
-           "ont été intégralement composées par l'Auteur. Elle se présente sous la forme d'un enregistrement phonographique "
-           "d'une durée approximative de [durée], réalisé en [année], et livrée sous format WAV 24 bits / 44,1 kHz "
-           "accompagnée des stems multipistes, du visuel de pochette et des métadonnées complètes."
+           "L'œuvre faisant l'objet du présent contrat est une composition musicale originale "
+           "intitulée [l'Œuvre], créée en [année de création], d'une durée de [durée de l'œuvre], "
+           "dont les droits d'auteur appartiennent à [Contractant 1]. Elle est identifiée par "
+           "le code ISRC [ISRC] et livrée sous format WAV 24 bits / 44,1 kHz, accompagnée des "
+           "stems multipistes, du visuel de pochette haute résolution et des métadonnées "
+           "complètes conformes aux standards DDEX."
        ))
     _c(g, "Code ISWC", "text", sort_order=2, enabled_by_default=False,
        tooltip_short="Identifiant international de l'œuvre musicale (composition).",
@@ -185,10 +191,11 @@ def run_seed() -> None:
        tooltip_long="Un contrat exclusif confère à l'exploitant le droit d'être le seul à exploiter l'œuvre. Cette clause a une valeur commerciale élevée et doit être compensée en conséquence.",
        legal_ref="Art. L131-3 CPI",
        example=(
-           "L'Auteur concède à l'Éditeur une exclusivité totale sur l'ensemble des droits d'exploitation de l'Œuvre "
-           "définis au présent contrat, pour tous territoires et pour toute la durée du présent accord. Pendant cette période, "
-           "l'Auteur s'engage à ne pas concéder à un tiers le droit d'exploiter l'Œuvre, directement ou indirectement, "
-           "sous quelque forme que ce soit."
+           "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble "
+           "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les "
+           "territoires couverts et pour toute la durée du présent accord. Pendant cette période, "
+           "[Contractant 1] s'engage à ne pas concéder à un tiers le droit d'exploiter [l'Œuvre], "
+           "directement ou indirectement, sous quelque forme que ce soit."
        ))
     _c(g, "Exclusivité partielle (périmètre)", "textarea", sort_order=1, enabled_by_default=False,
        tooltip_short="Précisez si l'exclusivité est limitée à un territoire, un support ou une période.")
@@ -325,11 +332,13 @@ def run_seed() -> None:
     _c(g, "Procédure d'audit", "textarea", sort_order=3, enabled_by_default=False,
        tooltip_short="Délais, coûts et procédure pour l'exercice du droit d'audit.",
        example=(
-           "L'Auteur ou son mandataire dûment habilité pourra, après notification écrite adressée à l'Éditeur avec un "
-           "préavis minimum de trente (30) jours, procéder à la vérification des livres de compte et documents comptables "
-           "afférents à l'exploitation de l'Œuvre. Cet audit ne pourra être effectué qu'une seule fois par exercice "
-           "comptable. Les frais d'audit seront à la charge de l'Auteur, sauf si l'audit révèle un écart supérieur à 5 % "
-           "en défaveur de l'Auteur, auquel cas les frais seront supportés par l'Éditeur."
+           "[Contractant 1] ou son mandataire dûment habilité pourra, après notification écrite "
+           "adressée à [Contractant 2] avec un préavis minimum de trente (30) jours, procéder à "
+           "la vérification des livres de compte et documents comptables afférents à l'exploitation "
+           "de [l'Œuvre]. Cet audit ne pourra être effectué qu'une seule fois par exercice "
+           "comptable. Les frais d'audit seront à la charge de [Contractant 1], sauf si l'audit "
+           "révèle un écart supérieur à 5 % en défaveur de [Contractant 1], auquel cas ils seront "
+           "supportés par [Contractant 2]."
        ))
 
     # ── 17 — Garanties et PI ──────────────────────────────────────────────────
@@ -490,10 +499,12 @@ def run_seed() -> None:
     _c(g, "Effets et délais de résiliation", "textarea", sort_order=6,
        tooltip_short="Précisez les effets de la résiliation : retrait des plateformes, maintien des créances, délai de préavis.",
        example=(
-           "En cas de résiliation du présent contrat, pour quelque cause que ce soit, l'Éditeur s'engage à retirer l'Œuvre "
-           "de l'ensemble des plateformes de distribution dans un délai de trente (30) jours ouvrés à compter de la "
-           "notification de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. L'Auteur "
-           "conserve le droit de percevoir les royalties afférentes aux exploitations intervenues avant la date de résiliation effective."
+           "En cas de résiliation du présent contrat, pour quelque cause que ce soit, "
+           "[Contractant 2] s'engage à retirer [l'Œuvre] de l'ensemble des plateformes de "
+           "distribution dans un délai de trente (30) jours ouvrés à compter de la notification "
+           "de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. "
+           "[Contractant 1] conserve le droit de percevoir les royalties afférentes aux "
+           "exploitations intervenues avant la date de résiliation effective."
        ))
 
     # ── 27 — Réversion des droits ─────────────────────────────────────────────
@@ -503,20 +514,25 @@ def run_seed() -> None:
        tooltip_long="La réversion des droits est une clause majeure dans les contrats d'artiste. Elle garantit à l'auteur de récupérer ses droits si l'exploitant n'assume plus ses obligations.",
        legal_ref="Art. L132-17 CPI",
        example=(
-           "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause que ce soit, l'ensemble des "
-           "droits concédés par l'Auteur seront automatiquement et de plein droit révertis à ce dernier, sans formalité ni indemnité."
+           "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause "
+           "que ce soit, l'ensemble des droits concédés par [Contractant 1] seront automatiquement "
+           "et de plein droit révertis à ce dernier, sans formalité ni indemnité. [Contractant 2] "
+           "s'engage à prendre toutes les mesures nécessaires pour que ces droits soient "
+           "effectivement libérés dans les meilleurs délais."
        ))
     _c(g, "Récupération des masters", "toggle", sort_order=1, enabled_by_default=False,
        tooltip_short="L'auteur récupère les fichiers masters à la fin du contrat.")
     _c(g, "Conditions de réversion", "textarea", sort_order=2,
        tooltip_short="Délais, procédures et conditions pour la mise en œuvre de la réversion.",
        example=(
-           "Les droits concédés par l'Auteur seront automatiquement révertis à ce dernier dans les cas suivants : "
-           "(i) si l'Éditeur n'a pas procédé à la première exploitation commerciale de l'Œuvre dans les dix-huit (18) mois "
-           "suivant la livraison des masters définitifs ; "
-           "(ii) si l'Œuvre cesse d'être disponible à la vente ou à l'écoute sur l'ensemble des plateformes de streaming "
-           "principales (Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; "
-           "(iii) en cas de liquidation judiciaire de l'Éditeur."
+           "Les droits concédés par [Contractant 1] seront automatiquement révertis dans les "
+           "cas suivants : (i) si [Contractant 2] n'a pas procédé à la première exploitation "
+           "commerciale de [l'Œuvre] avant le [début d'exploitation] convenu ou dans les "
+           "dix-huit (18) mois suivant la livraison des masters définitifs ; (ii) si [l'Œuvre] "
+           "cesse d'être disponible à l'écoute sur les principales plateformes de streaming "
+           "(Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; "
+           "(iii) en cas de liquidation judiciaire de [Contractant 2] ; (iv) à l'échéance "
+           "du [fin d'exploitation] si aucun renouvellement n'a été signé."
        ))
 
     # ── 28 — Cession et sous-licence ─────────────────────────────────────────
@@ -607,11 +623,12 @@ def run_seed() -> None:
 # Kept in sync with the examples defined in run_seed() above.
 _EXAMPLES: dict[str, str] = {
     "Contexte et volonté des parties": (
-        "Les soussignés, d'une part [Prénom Nom], auteur-compositeur, demeurant [adresse], "
-        "ci-après dénommé « l'Auteur », et d'autre part [Dénomination sociale], société [forme juridique] "
-        "au capital de [montant] euros, dont le siège social est situé [adresse], immatriculée au RCS de "
-        "[ville] sous le numéro SIREN [numéro], représentée par [Nom du représentant légal] en sa qualité "
-        "de [titre], ci-après dénommée « l'Éditeur », ont convenu des dispositions suivantes."
+        "[Contractant 1], en qualité de [Rôle 1], ci-après dénommé(e) « le [Rôle 1] », "
+        "et [Contractant 2], en qualité de [Rôle 2], ci-après dénommé(e) « le [Rôle 2] », "
+        "ont convenu, d'un commun accord, de formaliser les conditions d'exploitation de "
+        "l'œuvre musicale intitulée [l'Œuvre], aux fins et dans les limites définies par "
+        "le présent contrat. Les parties déclarent avoir pris connaissance de l'ensemble "
+        "des dispositions ci-après et en accepter les termes sans réserve."
     ),
     "Glossaire des termes": (
         "Aux fins du présent contrat, les termes ci-après auront la signification suivante : "
@@ -623,25 +640,31 @@ _EXAMPLES: dict[str, str] = {
         "« Streaming » désigne la mise à disposition à la demande de l'Œuvre sur les plateformes de musique dématérialisée."
     ),
     "Finalité et description": (
-        "Le présent contrat a pour objet de définir les conditions dans lesquelles l'Auteur concède à l'Éditeur "
-        "le droit d'exploiter l'Œuvre désignée à l'article [X], dans les limites territoriales, pour la durée et "
-        "selon les modalités précisées ci-après. Cette exploitation s'inscrit dans le cadre du développement de la "
-        "carrière artistique de l'Auteur et de la promotion de l'Œuvre sur l'ensemble des marchés concernés."
+        "Le présent contrat a pour objet de définir les conditions dans lesquelles "
+        "[Contractant 1], en qualité de [Rôle 1], concède à [Contractant 2], en qualité "
+        "de [Rôle 2], le droit d'exploiter l'œuvre musicale intitulée [l'Œuvre], du "
+        "[début d'exploitation] au [fin d'exploitation], dans les limites territoriales et "
+        "selon les modalités précisées aux articles suivants. Cette exploitation s'inscrit "
+        "dans le cadre du développement de la carrière artistique de [Contractant 1] et "
+        "de la promotion de [l'Œuvre] sur l'ensemble des marchés couverts par le présent accord."
     ),
     "Titre de l'œuvre": "ex : « Nuit Électrique » — titre tel qu'il sera commercialisé",
     "Description de l'œuvre": (
-        "L'Œuvre faisant l'objet du présent contrat est une composition musicale originale, dont les paroles et la musique "
-        "ont été intégralement composées par l'Auteur. Elle se présente sous la forme d'un enregistrement phonographique "
-        "d'une durée approximative de [durée], réalisé en [année], et livrée sous format WAV 24 bits / 44,1 kHz "
-        "accompagnée des stems multipistes, du visuel de pochette et des métadonnées complètes."
+        "L'œuvre faisant l'objet du présent contrat est une composition musicale originale "
+        "intitulée [l'Œuvre], créée en [année de création], d'une durée de [durée de l'œuvre], "
+        "dont les droits d'auteur appartiennent à [Contractant 1]. Elle est identifiée par "
+        "le code ISRC [ISRC] et livrée sous format WAV 24 bits / 44,1 kHz, accompagnée des "
+        "stems multipistes, du visuel de pochette haute résolution et des métadonnées "
+        "complètes conformes aux standards DDEX."
     ),
     "Code ISWC": "ex : T-123.456.789-0 (à obtenir auprès de la SACEM après dépôt)",
     "Code ISRC": "ex : FRZ012345678 (code à 12 caractères attribué par le producteur phonographique)",
     "Exclusivité totale": (
-        "L'Auteur concède à l'Éditeur une exclusivité totale sur l'ensemble des droits d'exploitation de l'Œuvre "
-        "définis au présent contrat, pour tous territoires et pour toute la durée du présent accord. Pendant cette période, "
-        "l'Auteur s'engage à ne pas concéder à un tiers le droit d'exploiter l'Œuvre, directement ou indirectement, "
-        "sous quelque forme que ce soit."
+        "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble "
+        "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les "
+        "territoires couverts et pour toute la durée du présent accord. Pendant cette période, "
+        "[Contractant 1] s'engage à ne pas concéder à un tiers le droit d'exploiter [l'Œuvre], "
+        "directement ou indirectement, sous quelque forme que ce soit."
     ),
     "Exceptions à l'exclusivité": (
         "Par dérogation à la clause d'exclusivité, l'Auteur se réserve expressément le droit d'exploiter ses œuvres "
@@ -674,11 +697,13 @@ _EXAMPLES: dict[str, str] = {
         "les dépenses de promotion et de marketing, les frais juridiques engagés par l'Éditeur, et les coûts de distribution."
     ),
     "Procédure d'audit": (
-        "L'Auteur ou son mandataire dûment habilité pourra, après notification écrite adressée à l'Éditeur avec un "
-        "préavis minimum de trente (30) jours, procéder à la vérification des livres de compte et documents comptables "
-        "afférents à l'exploitation de l'Œuvre. Cet audit ne pourra être effectué qu'une seule fois par exercice "
-        "comptable. Les frais d'audit seront à la charge de l'Auteur, sauf si l'audit révèle un écart supérieur à 5 % "
-        "en défaveur de l'Auteur, auquel cas les frais seront supportés par l'Éditeur."
+        "[Contractant 1] ou son mandataire dûment habilité pourra, après notification écrite "
+        "adressée à [Contractant 2] avec un préavis minimum de trente (30) jours, procéder à "
+        "la vérification des livres de compte et documents comptables afférents à l'exploitation "
+        "de [l'Œuvre]. Cet audit ne pourra être effectué qu'une seule fois par exercice "
+        "comptable. Les frais d'audit seront à la charge de [Contractant 1], sauf si l'audit "
+        "révèle un écart supérieur à 5 % en défaveur de [Contractant 1], auquel cas ils seront "
+        "supportés par [Contractant 2]."
     ),
     "Limitation de responsabilité": (
         "La responsabilité de chaque partie au titre du présent contrat est limitée aux dommages directs et prévisibles. "
@@ -700,22 +725,29 @@ _EXAMPLES: dict[str, str] = {
         "gouvernementales ou réglementaires imprévues rendant impossible l'exécution des obligations contractuelles."
     ),
     "Effets et délais de résiliation": (
-        "En cas de résiliation du présent contrat, pour quelque cause que ce soit, l'Éditeur s'engage à retirer l'Œuvre "
-        "de l'ensemble des plateformes de distribution dans un délai de trente (30) jours ouvrés à compter de la "
-        "notification de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. L'Auteur "
-        "conserve le droit de percevoir les royalties afférentes aux exploitations intervenues avant la date de résiliation effective."
+        "En cas de résiliation du présent contrat, pour quelque cause que ce soit, "
+        "[Contractant 2] s'engage à retirer [l'Œuvre] de l'ensemble des plateformes de "
+        "distribution dans un délai de trente (30) jours ouvrés à compter de la notification "
+        "de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. "
+        "[Contractant 1] conserve le droit de percevoir les royalties afférentes aux "
+        "exploitations intervenues avant la date de résiliation effective."
     ),
     "Retour automatique des droits": (
-        "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause que ce soit, l'ensemble des "
-        "droits concédés par l'Auteur seront automatiquement et de plein droit révertis à ce dernier, sans formalité ni indemnité."
+        "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause "
+        "que ce soit, l'ensemble des droits concédés par [Contractant 1] seront automatiquement "
+        "et de plein droit révertis à ce dernier, sans formalité ni indemnité. [Contractant 2] "
+        "s'engage à prendre toutes les mesures nécessaires pour que ces droits soient "
+        "effectivement libérés dans les meilleurs délais."
     ),
     "Conditions de réversion": (
-        "Les droits concédés par l'Auteur seront automatiquement révertis à ce dernier dans les cas suivants : "
-        "(i) si l'Éditeur n'a pas procédé à la première exploitation commerciale de l'Œuvre dans les dix-huit (18) mois "
-        "suivant la livraison des masters définitifs ; "
-        "(ii) si l'Œuvre cesse d'être disponible à la vente ou à l'écoute sur l'ensemble des plateformes de streaming "
-        "principales (Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; "
-        "(iii) en cas de liquidation judiciaire de l'Éditeur."
+        "Les droits concédés par [Contractant 1] seront automatiquement révertis dans les "
+        "cas suivants : (i) si [Contractant 2] n'a pas procédé à la première exploitation "
+        "commerciale de [l'Œuvre] avant le [début d'exploitation] convenu ou dans les "
+        "dix-huit (18) mois suivant la livraison des masters définitifs ; (ii) si [l'Œuvre] "
+        "cesse d'être disponible à l'écoute sur les principales plateformes de streaming "
+        "(Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; "
+        "(iii) en cas de liquidation judiciaire de [Contractant 2] ; (iv) à l'échéance "
+        "du [fin d'exploitation] si aucun renouvellement n'a été signé."
     ),
     "Ordre de priorité des annexes": (
         "En cas de contradiction entre le corps du présent contrat et ses annexes, les stipulations du corps du contrat "
@@ -973,12 +1005,12 @@ _EXAMPLES: dict[str, str] = {
 
 
 def update_examples() -> int:
-    """Patch example_text on existing clauses that don't have one yet."""
+    """Patch example_text on existing clauses (overwrites any existing value)."""
     updated = 0
     for name, text in _EXAMPLES.items():
         rows = (
             db.session.query(ContractClause)
-            .filter(ContractClause.name == name, ContractClause.example_text.is_(None))
+            .filter(ContractClause.name == name)
             .all()
         )
         for row in rows:

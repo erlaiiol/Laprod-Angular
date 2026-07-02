@@ -1,0 +1,100 @@
+<div class="sample-page">
+  <div class="sample-card">
+
+    @if (!auth.isLoggedIn() || !auth.currentUser()?.roles?.is_mixmaster_engineer) {
+      <div class="gate-block">
+        <i class="bi bi-lock-fill"></i>
+        <h2>Accès réservé</h2>
+        <p>Vous devez être certifié <strong>Mix Engineer</strong> pour soumettre une candidature mastering.</p>
+        <a routerLink="/" class="btn-secondary">Retour à l'accueil</a>
+      </div>
+    } @else if (success()) {
+      <div class="success-block">
+        <i class="bi bi-patch-check-fill success-icon"></i>
+        <h2>Candidature soumise !</h2>
+        <p>Notre équipe va évaluer vos fichiers mastering. Vous serez notifié dès qu'une décision sera prise.</p>
+        <button class="btn-primary" (click)="goHome()">Retour à l'accueil</button>
+      </div>
+    } @else {
+      <h1 class="page-title">
+        <i class="bi bi-broadcast"></i>
+        Certification Master Engineer
+      </h1>
+      <p class="page-subtitle">
+        Soumettez un exemple de votre travail de mastering pour obtenir la certification
+        <strong>Master Engineer</strong>. Fournissez un fichier audio brut (non masterisé)
+        et sa version masterisée afin que notre équipe puisse évaluer votre travail.
+      </p>
+
+      <div class="what-is-block">
+        <h3>Qu'est-ce que la certification Master Engineer ?</h3>
+        <ul>
+          <li>Accès au service <strong>Mastering final</strong> sur LaProd+</li>
+          <li>Badge <span class="badge-master-preview"><i class="bi bi-patch-check-fill"></i> Certifié Master</span> visible sur votre profil</li>
+          <li>Les artistes peuvent vous commander un mastering en complément du mix</li>
+        </ul>
+        <p class="note">
+          <i class="bi bi-info-circle"></i>
+          Les abonnés <strong>LaProd+ Pro</strong> peuvent proposer le mastering sans certification,
+          mais le badge certifié renforce la confiance des artistes.
+        </p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()">
+
+        @if (error()) {
+          <div class="error-block">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            {{ error() }}
+          </div>
+        }
+
+        <div class="field-group">
+          <label>
+            Fichier audio brut <span class="req">*</span>
+            <span class="hint">La piste originale non masterisée (.wav ou .mp3, max 50 MB)</span>
+          </label>
+          <input
+            type="file"
+            accept=".wav,.mp3"
+            (change)="onFileChange('raw', $event)"
+            [disabled]="loading()"
+          >
+          @if (rawFile()) {
+            <span class="file-selected"><i class="bi bi-check-circle-fill"></i> {{ rawFile()!.name }}</span>
+          }
+        </div>
+
+        <div class="field-group">
+          <label>
+            Fichier audio masterisé <span class="req">*</span>
+            <span class="hint">La même piste après mastering (.wav ou .mp3, max 50 MB)</span>
+          </label>
+          <input
+            type="file"
+            accept=".wav,.mp3"
+            (change)="onFileChange('processed', $event)"
+            [disabled]="loading()"
+          >
+          @if (processedFile()) {
+            <span class="file-selected"><i class="bi bi-check-circle-fill"></i> {{ processedFile()!.name }}</span>
+          }
+        </div>
+
+        <button
+          type="submit"
+          class="btn-primary btn-submit"
+          [disabled]="!canSubmit()"
+        >
+          @if (loading()) {
+            <span class="spinner"></span> Envoi en cours…
+          } @else {
+            <i class="bi bi-send-fill"></i> Soumettre ma candidature
+          }
+        </button>
+
+      </form>
+    }
+
+  </div>
+</div>

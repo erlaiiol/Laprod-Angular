@@ -20,17 +20,18 @@
         <div class="form-error">{{ error() }}</div>
       }
 
+      <!-- ── Banner protection ───────────────────────────────────────────── -->
+      <div class="upload-protection-note">
+        <i class="bi bi-shield-lock-fill"></i>
+        <span>LaProd insère automatiquement des tags "purchase your track" sur votre preview pour protéger votre beat. Durée limitée à 1:30 d'écoute pour les artistes (sauf en cas d'achat) — impossible à voler, impossible à récupérer sans achat.</span>
+      </div>
+
       <!-- ── Informations ─────────────────────────────────────────────────── -->
-      <div class="section-card">
+      <div class="section-card section-card--info">
         <h3 class="section-title">Informations</h3>
 
         <div class="field">
-          <label for="title">
-            Titre *
-            <span class="tooltip-icon" title="Inutile d'ajouter des tags dans le titre comme 'purchase your track today' — LaProd les insère automatiquement sur la preview pour protéger votre beat contre le vol.">
-              <i class="bi bi-info-circle"></i>
-            </span>
-          </label>
+          <label for="title">Titre *</label>
           <input
             type="text" id="title"
             placeholder="Nom de votre beat"
@@ -40,43 +41,84 @@
 
         <div class="row-2">
           <div class="field">
-            <label for="bpm">BPM *</label>
-            <input
-              type="number" id="bpm" min="60" max="220"
-              placeholder="ex. 140"
-              [ngModel]="bpm()" (ngModelChange)="bpm.set($event ? +$event : null)"
-            />
+            <div class="field-label-row">
+              <label for="bpm">BPM {{ autoBpm() ? '' : '*' }}</label>
+              <button type="button" class="btn-auto-detect"
+                      [class.btn-auto-detect--active]="autoBpm()"
+                      (click)="autoBpm.set(!autoBpm())">
+                <i class="bi bi-magic"></i>
+                {{ autoBpm() ? 'Manuel' : 'Détecter auto' }}
+              </button>
+            </div>
+            @if (autoBpm()) {
+              <div class="auto-pending-badge"><i class="bi bi-cpu"></i> IA détectera après upload</div>
+            } @else {
+              <input
+                type="number" id="bpm" min="60" max="220"
+                placeholder="ex. 140"
+                [ngModel]="bpm()" (ngModelChange)="bpm.set($event ? +$event : null)"
+              />
+            }
           </div>
 
           <div class="field">
-            <label for="key">Gamme *</label>
-            <select id="key" [ngModel]="key()" (ngModelChange)="key.set($event)">
-              <option value="">Choisir une gamme</option>
-              @for (k of availableKeys; track k) {
-                <option [value]="k">{{ k }}</option>
-              }
-            </select>
+            <div class="field-label-row">
+              <label for="key">Gamme {{ autoKey() ? '' : '*' }}</label>
+              <button type="button" class="btn-auto-detect"
+                      [class.btn-auto-detect--active]="autoKey()"
+                      (click)="autoKey.set(!autoKey())">
+                <i class="bi bi-magic"></i>
+                {{ autoKey() ? 'Manuel' : 'Détecter auto' }}
+              </button>
+            </div>
+            @if (autoKey()) {
+              <div class="auto-pending-badge"><i class="bi bi-cpu"></i> IA détectera après upload</div>
+            } @else {
+              <select id="key" [ngModel]="key()" (ngModelChange)="key.set($event)">
+                <option value="">Choisir une gamme</option>
+                @for (k of availableKeys; track k) {
+                  <option [value]="k">{{ k }}</option>
+                }
+              </select>
+            }
           </div>
         </div>
 
         <div class="field">
-          <label for="style">Style *</label>
-          <input id="style"
-                 type="text"
-                 list="style-suggestions"
-                 placeholder="Ex: Trap, R&B, Afrobeats…"
-                 [ngModel]="style()"
-                 (ngModelChange)="style.set($event)">
-          <datalist id="style-suggestions">
-            @for (s of availableStyles(); track s) {
-              <option [value]="s"></option>
-            }
-          </datalist>
+          <div class="field-label-row">
+            <label for="style">Style {{ autoStyle() ? '' : '*' }}</label>
+            <button type="button" class="btn-auto-detect"
+                    [class.btn-auto-detect--active]="autoStyle()"
+                    (click)="autoStyle.set(!autoStyle())">
+              <i class="bi bi-magic"></i>
+              {{ autoStyle() ? 'Manuel' : 'Détecter auto' }}
+            </button>
+          </div>
+          @if (autoStyle()) {
+            <div class="auto-pending-badge"><i class="bi bi-cpu"></i> Suggéré depuis votre catalogue après upload</div>
+          } @else {
+            <input id="style"
+                   type="text"
+                   list="style-suggestions"
+                   placeholder="Ex: Trap, R&B, Afrobeats…"
+                   [ngModel]="style()"
+                   (ngModelChange)="style.set($event)">
+            <datalist id="style-suggestions">
+              @for (s of availableStyles(); track s) {
+                <option [value]="s"></option>
+              }
+            </datalist>
+          }
         </div>
+
+        <p class="section-hint">
+          <i class="bi bi-info-circle"></i>
+          Les métadonnées clés de votre production. BPM, gamme et style permettent à notre algorithme de la positionner précisément dans les résultats de recherche.
+        </p>
       </div>
 
       <!-- ── Prix & SACEM ─────────────────────────────────────────────────── -->
-      <div class="section-card">
+      <div class="section-card section-card--price">
         <h3 class="section-title">Prix & SACEM</h3>
 
         <div class="row-3">
@@ -111,26 +153,369 @@
           />
           <span class="field-hint">Maximum 85 % — le reste revient à l'acheteur</span>
         </div>
+
+        <p class="section-hint">
+          <i class="bi bi-info-circle"></i>
+          Fixez le prix de votre production et votre part SACEM. Si vous ne savez pas, laissez 50% — c'est le taux standard. Il varie généralement entre 15 et 50% selon votre notoriété et le nombre de collaborateurs.
+        </p>
+      </div>
+
+      <!-- ── Prix des droits de licence ──────────────────────────────────── -->
+      @if (auth.isPremium()) {
+        <div class="section-card">
+
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title">Prix des droits de licence</h3>
+              @if (hasCustomPrices()) {
+                <span class="price-badge price-badge--custom">Personnalisé</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Prix standards</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices"
+                    (click)="showCustomPrices.set(!showCustomPrices())">
+              Personnaliser
+              <i class="bi" [class.bi-chevron-up]="showCustomPrices()"
+                            [class.bi-chevron-down]="!showCustomPrices()"></i>
+            </button>
+          </div>
+
+          @if (showCustomPrices()) {
+            <div class="license-price-subheader">
+              <p class="section-hint">Ces prix s'appliquent aux contrats générés pour ce track.</p>
+              <button type="button" class="btn-standard-prices" (click)="applyStandardPrices()">
+                <i class="bi bi-arrow-repeat"></i> Prix standards
+              </button>
+            </div>
+            <div class="contract-prices-grid">
+              <div class="field">
+                <label>Exclusivité (€)</label>
+                <input type="number" name="cpExclusive" min="0" max="9999" step="1"
+                       [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Durée 3 ans (€)</label>
+                <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
+                       [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Durée 5 ans (€)</label>
+                <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
+                       [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Durée 10 ans (€)</label>
+                <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
+                       [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>À vie (€)</label>
+                <input type="number" name="cpLifetime" min="0" max="9999" step="1"
+                       [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Reproduction mécanique (€)</label>
+                <input type="number" name="cpMechanical" min="0" max="9999" step="1"
+                       [ngModel]="cpMechanical()" (ngModelChange)="cpMechanical.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Représentation publique (€)</label>
+                <input type="number" name="cpPublicShow" min="0" max="9999" step="1"
+                       [ngModel]="cpPublicShow()" (ngModelChange)="cpPublicShow.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Droit d'arrangement (€)</label>
+                <input type="number" name="cpArrangement" min="0" max="9999" step="1"
+                       [ngModel]="cpArrangement()" (ngModelChange)="cpArrangement.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Territoire Europe (€)</label>
+                <input type="number" name="cpTerritoryEu" min="0" max="9999" step="1"
+                       [ngModel]="cpTerritoryEu()" (ngModelChange)="cpTerritoryEu.set(+$event)" />
+              </div>
+              <div class="field">
+                <label>Territoire monde entier (€)</label>
+                <input type="number" name="cpTerritoryWorld" min="0" max="9999" step="1"
+                       [ngModel]="cpTerritoryWorld()" (ngModelChange)="cpTerritoryWorld.set(+$event)" />
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="section-card section-card--locked">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title section-title--locked">Prix des droits de licence</h3>
+            </div>
+            <span class="locked-badge"><i class="bi bi-lock-fill"></i> Premium uniquement</span>
+          </div>
+          <div class="locked-grid">
+            @for (label of ['Exclusivité', 'Durée 3 ans', 'Durée 5 ans', 'Durée 10 ans', 'À vie',
+                            'Reproduction mécanique', 'Représentation publique', "Droit d'arrangement",
+                            'Territoire Europe', 'Territoire monde entier']; track label) {
+              <div class="field field--locked">
+                <label>{{ label }} (€)</label>
+                <div class="locked-input">—</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ── Aperçu acheteur ──────────────────────────────────────────────── -->
+      <div class="section-card">
+        <div class="license-price-header">
+          <div class="license-price-left">
+            <h3 class="section-title"><i class="bi bi-eye"></i> Aperçu acheteur</h3>
+            <span class="price-badge price-badge--standard">Ce que verra l'acheteur</span>
+          </div>
+          <button type="button" class="btn-toggle-prices"
+                  (click)="showPreview.set(!showPreview())">
+            {{ showPreview() ? 'Réduire' : 'Voir la simulation' }}
+            <i class="bi" [class.bi-chevron-up]="showPreview()"
+                          [class.bi-chevron-down]="!showPreview()"></i>
+          </button>
+        </div>
+
+        @if (showPreview()) {
+          <div class="preview-body">
+
+            <!-- Format -->
+            <div class="preview-group">
+              <span class="preview-group-label">Format</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'mp3'"
+                        (click)="previewFormat.set('mp3')">
+                  MP3 <span>{{ priceMp3().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'wav'"
+                        (click)="previewFormat.set('wav')">
+                  WAV <span>{{ priceWav().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'stems'"
+                        (click)="previewFormat.set('stems')">
+                  Stems <span>{{ priceStems().toFixed(2) }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Durée -->
+            <div class="preview-group">
+              <span class="preview-group-label">Durée du contrat</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'stream'"
+                        (click)="previewDuration.set('stream')">
+                  Streaming seul <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '3'"
+                        (click)="previewDuration.set('3')">
+                  3 ans <span>+{{ cpDuration3y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '5'"
+                        (click)="previewDuration.set('5')">
+                  5 ans <span>+{{ cpDuration5y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '10'"
+                        (click)="previewDuration.set('10')">
+                  10 ans <span>+{{ cpDuration10y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'lifetime'"
+                        (click)="previewDuration.set('lifetime')">
+                  À vie <span>+{{ cpLifetime() }}€</span>
+                </button>
+              </div>
+              <p class="duration-info">Le streaming est toujours inclus à vie. La durée indiquée s'applique aux autres droits (reproduction, diffusion publique…). « Streaming seul » = aucun autre droit.</p>
+            </div>
+
+            <!-- Territoire -->
+            <div class="preview-group">
+              <span class="preview-group-label">Territoire</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'France'"
+                        (click)="previewTerritory.set('France')">
+                  France <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Europe'"
+                        (click)="previewTerritory.set('Europe')">
+                  Europe <span>+{{ cpTerritoryEu() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Monde entier'"
+                        (click)="previewTerritory.set('Monde entier')">
+                  Monde entier <span>+{{ cpTerritoryWorld() }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Droits -->
+            <div class="preview-group">
+              <span class="preview-group-label">Droits supplémentaires</span>
+              <div class="preview-rights">
+                <label class="preview-right">
+                  <input type="checkbox"
+                         [ngModel]="previewExclusive()"
+                         (ngModelChange)="previewExclusive.set($event)" />
+                  <span>Exclusivité</span>
+                  <strong class="preview-right-price">+{{ cpExclusive() }}€</strong>
+                </label>
+
+                <label class="preview-right" [class.auto-included]="previewMechanicalAutoIncluded()">
+                  <input type="checkbox"
+                         [disabled]="previewMechanicalAutoIncluded()"
+                         [ngModel]="previewMechanical() || previewMechanicalAutoIncluded()"
+                         (ngModelChange)="!previewMechanicalAutoIncluded() && previewMechanical.set($event)" />
+                  <span>Reproduction mécanique</span>
+                  @if (previewMechanicalAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpMechanical() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right" [class.auto-included]="previewPublicShowAutoIncluded()">
+                  <input type="checkbox"
+                         [disabled]="previewPublicShowAutoIncluded()"
+                         [ngModel]="previewPublicShow() || previewPublicShowAutoIncluded()"
+                         (ngModelChange)="!previewPublicShowAutoIncluded() && previewPublicShow.set($event)" />
+                  <span>Représentation publique</span>
+                  @if (previewPublicShowAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpPublicShow() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right">
+                  <input type="checkbox"
+                         [ngModel]="previewArrangement()"
+                         (ngModelChange)="previewArrangement.set($event)" />
+                  <span>Droit d'arrangement</span>
+                  <strong class="preview-right-price">+{{ cpArrangement() }}€</strong>
+                </label>
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div class="preview-total-row">
+              <span>Total estimé</span>
+              <strong>{{ previewTotal().toFixed(2) }}€</strong>
+            </div>
+
+          </div>
+        }
       </div>
 
       <!-- ── Tags ─────────────────────────────────────────────────────────── -->
       @if (tagGroups().length > 0) {
-        <div class="section-card">
-          <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
-          @for (group of tagGroups(); track group.name) {
-            <div class="tag-group">
-              <span class="tag-group-name" [style.color]="group.color">{{ group.name }}</span>
-              <div class="tag-pills">
-                @for (tag of group.tags; track tag.id) {
-                  <button
-                    type="button"
-                    class="tag-pill"
-                    [class.selected]="isTagSelected(tag.id)"
-                    [style.--tag-color]="group.color"
-                    (click)="toggleTag(tag.id)"
-                  >{{ tag.name }}</button>
-                }
+        <div class="section-card section-card--tags">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title">Tags <span class="optional">(optionnel)</span></h3>
+              @if (selectedTagIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedTagIds().length }} sélectionné{{ selectedTagIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun tag</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showTags.set(!showTags())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showTags()" [class.bi-chevron-down]="!showTags()"></i>
+            </button>
+          </div>
+          @if (showTags()) {
+            @for (group of tagGroups(); track group.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" [style.color]="group.color">{{ group.name }}</span>
+                <div class="tag-pills">
+                  @for (tag of group.tags; track tag.id) {
+                    <button
+                      type="button"
+                      class="tag-pill"
+                      [class.selected]="isTagSelected(tag.id)"
+                      [style.--tag-color]="group.color"
+                      (click)="toggleTag(tag.id)"
+                    >{{ tag.name }}</button>
+                  }
+                </div>
               </div>
+            }
+          }
+          <p class="section-hint">
+            <i class="bi bi-info-circle"></i>
+            Ne les sous-estimez pas. C'est ce qui permet à un artiste cherchant « quelque chose de triste et expérimental avec de la guitare » de trouver votre beat. Par ailleurs, LaProd collabore avec un laboratoire de recherche scientifique en acoustique musicale — vos tags contribuent directement à cette recherche.
+          </p>
+        </div>
+      }
+
+      <!-- ── Artistes similaires ─────────────────────────────────────────── -->
+      @if (availableArtistScenes().length > 0) {
+        <div class="section-card section-card--tags">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-person-circle"></i> Artistes similaires <span class="optional">(optionnel)</span></h3>
+              @if (selectedArtistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedArtistIds().length }} sélectionné{{ selectedArtistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showArtists.set(!showArtists())">
+              Choisir
+              <i class="bi" [class.bi-chevron-up]="showArtists()" [class.bi-chevron-down]="!showArtists()"></i>
+            </button>
+          </div>
+          @if (showArtists()) {
+            @for (scene of availableArtistScenes(); track scene.name) {
+              <div class="tag-group">
+                <span class="tag-group-name" style="color: var(--text-muted, #888);">{{ scene.name }}</span>
+                <div class="tag-pills">
+                  @for (a of scene.artists; track a.id) {
+                    <button
+                      type="button"
+                      class="tag-pill tag-pill--artist"
+                      [class.selected]="isArtistSelected(a.id)"
+                      (click)="toggleArtist(a.id)"
+                    >{{ a.name }}</button>
+                  }
+                </div>
+              </div>
+            }
+          }
+          <p class="section-hint">
+            <i class="bi bi-info-circle"></i>
+            Indiquez les artistes auxquels vous pensiez en créant ce beat. Cela aide les artistes à trouver votre son par référence.
+          </p>
+        </div>
+      }
+
+      <!-- ── Playlists ─────────────────────────────────────────────────────── -->
+      @if (auth.isBeatmaker() && playlists().length > 0) {
+        <div class="section-card">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-collection-fill"></i> Playlists</h3>
+              @if (selectedPlaylistIds().length > 0) {
+                <span class="price-badge price-badge--custom">{{ selectedPlaylistIds().length }} playlist{{ selectedPlaylistIds().length > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucune</span>
+              }
+            </div>
+            <button type="button" class="btn-toggle-prices" (click)="showPlaylists.set(!showPlaylists())">
+              Ajouter
+              <i class="bi" [class.bi-chevron-up]="showPlaylists()" [class.bi-chevron-down]="!showPlaylists()"></i>
+            </button>
+          </div>
+          @if (showPlaylists()) {
+            <div class="playlist-list">
+              @for (pl of playlists(); track pl.id) {
+                <label class="playlist-item">
+                  <input type="checkbox"
+                         [checked]="selectedPlaylistIds().includes(pl.id)"
+                         (change)="togglePlaylist(pl.id)" />
+                  <span class="playlist-item-name">{{ pl.title }}</span>
+                  <span class="playlist-item-count">{{ pl.track_count }} track{{ pl.track_count !== 1 ? 's' : '' }}</span>
+                </label>
+              }
             </div>
           }
         </div>
@@ -138,13 +523,13 @@
 
       <!-- ── Fichiers ──────────────────────────────────────────────────────── -->
       <div class="section-card">
-        <h3 class="section-title">Fichiers audio</h3>
+        <h3 class="section-title">Fichiers audio <span class="optional">— MP3, WAV ou archive stems</span></h3>
 
         <div class="file-field">
           <label class="file-label">
             <i class="bi bi-file-earmark-music-fill"></i>
             <span>
-              <strong>Fichier MP3 *</strong>
+              <strong>Fichier MP3</strong> <em class="opt">recommandé</em>
               @if (fileMp3()) {
                 <em class="file-name">{{ fileMp3()!.name }}</em>
               } @else {
@@ -159,7 +544,7 @@
           <label class="file-label">
             <i class="bi bi-file-earmark-music"></i>
             <span>
-              <strong>Fichier WAV</strong> <em class="opt">optionnel</em>
+              <strong>Fichier WAV</strong> <em class="opt">optionnel — suffisant sans MP3 (plus long à àjouter)</em>
               @if (fileWav()) {
                 <em class="file-name">{{ fileWav()!.name }}</em>
               } @else {
@@ -174,25 +559,28 @@
           <label class="file-label">
             <i class="bi bi-file-earmark-zip"></i>
             <span>
-              <strong>Archive stems</strong> <em class="opt">optionnel</em>
+              <strong>Archive stems</strong> <em class="opt">optionnel — suffisant sans MP3/WAV (très long à ajouter)</em>
               @if (fileStems()) {
                 <em class="file-name">{{ fileStems()!.name }}</em>
               } @else {
-                <em>Cliquer pour sélectionner (.zip/.rar)</em>
+                <em>Cliquer pour sélectionner (.zip/.rar) — export FL Studio accepté</em>
               }
             </span>
             <input type="file" accept=".zip,.rar" (change)="onFileSelected($event, 'stems')" />
           </label>
         </div>
+        @if (stemsOnly()) {
+          <p class="section-hint section-hint--warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Sans MP3 ni WAV, votre archive doit contenir un fichier <strong>*_current.*</strong> (ou <strong>*_master.*</strong> en fallback) — FL Studio génère automatiquement ce fichier lors d'un export ZIP. L'upload sera refusé autrement.
+          </p>
+        }
 
         <div class="file-field">
           <label class="file-label">
             <i class="bi bi-image"></i>
             <span>
               <strong>Image de couverture</strong> <em class="opt">optionnel</em>
-              <span class="tooltip-icon" title="Si vous n'ajoutez pas de cover, une image par défaut sera générée automatiquement.">
-                <i class="bi bi-info-circle"></i>
-              </span>
               @if (fileImage()) {
                 <em class="file-name">{{ fileImage()!.name }}</em>
               } @else {
@@ -201,6 +589,10 @@
             </span>
             <input type="file" accept="image/*" (change)="onFileSelected($event, 'image')" />
           </label>
+          <p class="section-hint">
+            <i class="bi bi-magic"></i>
+            Sans cover, une image sera générée automatiquement : couleur de fond selon la gamme, titre centré et logo du site en filigrane.
+          </p>
         </div>
       </div>
 
@@ -216,6 +608,14 @@
           <i class="bi bi-cloud-arrow-up-fill"></i> Uploader le beat
         }
       </button>
+
+      @if (submitErrors().length) {
+        <ul class="submit-errors">
+          @for (err of submitErrors(); track err) {
+            <li><i class="bi bi-exclamation-circle-fill"></i> {{ err }}</li>
+          }
+        </ul>
+      }
 
   </div>
 </div>

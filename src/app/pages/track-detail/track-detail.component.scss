@@ -114,6 +114,24 @@
   color:         v.$text-primary;
 }
 
+// ── Artistes similaires ──────────────────────────────────────────────────────
+
+.similar-artists-row {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.35rem; margin-top: 0.6rem;
+}
+
+.similar-artists-label {
+  font-size: 0.75rem; color: v.$text-muted; margin-right: 0.15rem;
+  i { margin-right: 0.2rem; }
+}
+
+.artist-chip {
+  padding: 0.12rem 0.5rem; border-radius: 12px; font-size: 0.78rem;
+  font-style: italic; color: v.$text-secondary;
+  border: 1px solid v.$bg-border; background: v.$bg-surface;
+}
+
 // ── Purchase ─────────────────────────────────────────────────────────────────
 
 .purchase-section {
@@ -166,10 +184,10 @@
 .btn-buy {
   display:         inline-block;
   padding:         0.5rem 1.25rem;
-  background:      #000;
+  background:      v.$black;
   color:           v.$white;
   border-radius:   6px;
-  border:          1px solid #fff;
+  border:          1px solid v.$white;
   text-decoration: none;
   font-size:       0.85rem;
   font-weight:     700;
@@ -219,6 +237,23 @@
   text-decoration:  none;
 
   &:hover { background-color: v.$tag-orange; border-color: v.$tag-orange-dark; }
+}
+
+.btn-playlist {
+  background-color: v.$bg-elevated;
+  border:           1px solid v.$tag-neutral;
+  color:            v.$text-primary;
+  border-radius:    6px;
+  padding:          0.25rem 0.5rem;
+  font-size:        0.75rem;
+  font-weight:      600;
+  cursor:           pointer;
+  display:          inline-flex;
+  align-items:      center;
+  gap:              0.3rem;
+  transition:       background-color 0.15s;
+
+  &:hover { background-color: v.$tag-neutral; }
 }
 
 .btn-record {
@@ -315,23 +350,23 @@
 }
 
 .btn-topline-unpublish {
-  background:   rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.3);
-  color:        #c4b5fd;
+  background:   rgba(v.$tag-violet, 0.1);
+  border-color: rgba(v.$tag-violet, 0.3);
+  color:        v.$tag-violet-light;
 
   &:hover {
-    background:   rgba(139, 92, 246, 0.22);
-    border-color: rgba(139, 92, 246, 0.6);
+    background:   rgba(v.$tag-violet, 0.22);
+    border-color: rgba(v.$tag-violet, 0.6);
   }
 }
 
 .btn-topline-delete {
-  background:   rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
-  color:        #fca5a5;
+  background:   rgba(v.$tag-red, 0.1);
+  border-color: rgba(v.$tag-red, 0.3);
+  color:        v.$tag-red-light;
 
   &:hover {
-    background:   rgba(239, 68, 68, 0.22);
-    border-color: rgba(239, 68, 68, 0.6);
+    background:   rgba(v.$tag-red, 0.22);
+    border-color: rgba(v.$tag-red, 0.6);
   }
 }

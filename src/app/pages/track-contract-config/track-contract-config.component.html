@@ -1,0 +1,533 @@
+@if (loading()) {
+  <div class="state-loading">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+}
+
+@if (error() && !loading()) {
+  <div class="state-error">{{ error() }}</div>
+}
+
+@if (track() && !loading()) {
+  <div class="contract-page">
+
+    <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────── -->
+    <aside class="contract-sidebar">
+      <img class="sidebar-cover"
+           [src]="getImageUrl(track()!.image_file)"
+           [alt]="track()!.title"
+           onerror="this.src='assets/placeholders/placeholder-track.png'">
+
+      <!-- .sidebar-info wraps text so the mobile flex row works correctly -->
+      <div class="sidebar-info">
+        <h2 class="sidebar-title">{{ track()!.title }}</h2>
+        <p class="sidebar-artist">{{ track()!.composer_user.username }}</p>
+        <div class="format-badge {{ format() }}">{{ formatLabel() }}</div>
+
+        <div class="sidebar-meta">
+          <span>{{ track()!.bpm }} BPM</span>
+          <span>{{ track()!.key }}</span>
+          <span>{{ track()!.style }}</span>
+        </div>
+      </div>
+
+      <!-- Live price box -->
+      <div class="price-box">
+        <div class="price-box-total">{{ totalPrice().toFixed(2) }}€</div>
+        <div class="price-box-label">Total TTC</div>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT FORM ───────────────────────────────────────────────── -->
+    <main class="contract-form">
+      <h1><i class="bi bi-file-earmark-text"></i> Configuration de votre licence</h1>
+
+      <!-- ── Mode Toggle ─────────────────────────────────────────────── -->
+      <div class="mode-bar">
+        <div class="mode-toggle" [class.mode-toggle--advanced]="mode() === 'advanced'">
+          <div class="mode-toggle__indicator"></div>
+          <button type="button" class="mode-btn" [class.active]="mode() === 'quick'"
+                  (click)="setMode('quick')">
+            <i class="bi bi-lightning-charge-fill"></i> Rapide
+          </button>
+          <button type="button" class="mode-btn" [class.active]="mode() === 'advanced'"
+                  (click)="setMode('advanced')">
+            <i class="bi bi-sliders"></i> Avancé
+          </button>
+        </div>
+        <p class="mode-tagline">
+          @if (mode() === 'quick') {
+            Prix minimum garanti · zéro configuration
+          } @else {
+            Personnalisez chaque option selon votre projet
+          }
+        </p>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           MODE RAPIDE — résumé des choix automatiques + tooltips
+           ═══════════════════════════════════════════════════════════════ -->
+      @if (mode() === 'quick') {
+        <div class="quick-summary">
+          <div class="qs-header">
+            <i class="bi bi-lightning-charge-fill qs-header__icon"></i>
+            <div>
+              <strong>Mode Rapide activé</strong>
+              <span>Les options les plus abordables ont été sélectionnées pour toi. Tu peux passer en Avancé à tout moment pour personnaliser.</span>
+            </div>
+          </div>
+
+          <ul class="qs-list">
+
+            <li class="qs-item qs-item--ok">
+              <i class="bi bi-check-circle-fill"></i>
+              <div class="qs-item__body">
+                <strong>Streaming perpétuel · inclus</strong>
+                <span>Spotify, Deezer, Apple Music, YouTube, TikTok, réseaux sociaux…</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  Le droit de <strong>streaming est inclus à vie</strong> dans toutes les formules sans exception. Il te permet de diffuser ton morceau sur toutes les plateformes musicales et réseaux sociaux, sans limite de durée. C'est le droit de base qui garantit l'existence de ton projet en ligne.
+                </div>
+              </span>
+            </li>
+
+            <li class="qs-item qs-item--ok">
+              <i class="bi bi-check-circle-fill"></i>
+              <div class="qs-item__body">
+                <strong>Durée : streaming seul · à vie · +0€</strong>
+                <span>Les autres droits (CD, concerts…) ne sont pas accordés — uniquement le streaming.</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  La durée <strong>"Streaming seul"</strong> signifie que tu obtiens un droit de streaming perpétuel mais <em>aucun</em> autre droit temporel. Pour ajouter des droits sur une durée déterminée (3, 5, 10 ans) ou à vie pour les autres usages, passe en mode Avancé.
+                </div>
+              </span>
+            </li>
+
+            <li class="qs-item qs-item--ok">
+              <i class="bi bi-check-circle-fill"></i>
+              <div class="qs-item__body">
+                <strong>Territoire : France · +0€</strong>
+                <span>Exploitation autorisée sur le territoire français uniquement.</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  Le territoire <strong>France</strong> est la zone sans surcoût. Si ton morceau génère des revenus hors de France — via un label étranger, un sync international, ou des ventes sur des plateformes avec distribution globale contractuelle — tu auras besoin d'étendre la licence. Pour la plupart des projets indépendants français, c'est largement suffisant pour démarrer.
+                </div>
+              </span>
+            </li>
+
+            <li class="qs-item qs-item--off">
+              <i class="bi bi-x-circle"></i>
+              <div class="qs-item__body">
+                <strong>Reproduction mécanique · non incluse</strong>
+                <span>Pressage de CDs, vinyles et téléchargement payant non couverts.</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  La reproduction mécanique est requise pour <strong>vendre physiquement</strong> ton morceau : pressage de CDs, de vinyles, de cassettes, ou vente en téléchargement payant (iTunes, Beatport, Bandcamp payant…). Pour la grande majorité des artistes qui se lancent sur les plateformes de streaming, ce droit n'est pas prioritaire. Il est automatiquement inclus au-delà de {{ (199.99).toFixed(2) }}€.
+                </div>
+              </span>
+            </li>
+
+            <li class="qs-item qs-item--off">
+              <i class="bi bi-x-circle"></i>
+              <div class="qs-item__body">
+                <strong>Diffusion publique · non incluse</strong>
+                <span>Concerts, TV, radio, lieux publics (bars, restaurants…) non couverts.</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  La diffusion publique est obligatoire si tu prévois de <strong>performer en live</strong> avec ce beat, de le faire passer en radio ou TV, ou de l'utiliser dans un lieu public (bar, restaurant, salle de sport, événement commercial…). Si tu n'as pas de concert ni de diffusion radio prévus à court terme, ce n'est pas urgent — tu pourras racheter une licence étendue plus tard. Il est inclus automatiquement au-delà de {{ (74.99).toFixed(2) }}€.
+                </div>
+              </span>
+            </li>
+
+            <li class="qs-item qs-item--off">
+              <i class="bi bi-x-circle"></i>
+              <div class="qs-item__body">
+                <strong>Arrangement / Adaptation · non inclus</strong>
+                <span>Le beat doit être utilisé tel quel, sans modification de sa structure musicale.</span>
+              </div>
+              <span class="has-tip" tabindex="0">
+                <i class="bi bi-info-circle"></i>
+                <div class="tip tip--left">
+                  Sans ce droit, tu ne peux pas modifier la <strong>structure musicale</strong> du beat : changer l'intro, ré-arranger les accords, faire un remix officiel ou l'adapter pour une comédie musicale. Pour l'immense majorité des artistes qui posent simplement des textes sur un beat sans toucher à la production, ce droit est inutile. Active-le en mode Avancé si tu comptes faire un remix ou adapter la composition.
+                </div>
+              </span>
+            </li>
+
+          </ul>
+
+          <p class="qs-footer">
+            <i class="bi bi-arrow-right-circle"></i>
+            Passe en <strong>Avancé</strong> si tu planifies des concerts, une sortie internationale, ou si tu veux modifier le beat.
+          </p>
+        </div>
+      }
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           MODE AVANCÉ — presets de démarrage rapide
+           ═══════════════════════════════════════════════════════════════ -->
+      @if (mode() === 'advanced') {
+        <div class="qs-strip">
+          <p class="qs-label"><i class="bi bi-lightning-charge-fill"></i> Sélection rapide</p>
+          <div class="qs-grid">
+            @for (p of presets; track p.key) {
+              <button type="button"
+                      class="qs-card"
+                      [class.qs-card--active]="activePreset() === p.key"
+                      [class.qs-card--popular]="p.popular"
+                      (click)="applyPreset(p)">
+                @if (p.popular) {
+                  <span class="qs-popular-badge">Populaire</span>
+                }
+                <i class="bi" [ngClass]="p.icon"></i>
+                <span class="qs-name">{{ p.name }}</span>
+                <span class="qs-tagline">{{ p.tagline }}</span>
+              </button>
+            }
+          </div>
+          <p class="qs-hint">Sélectionnez un profil ou personnalisez chaque option ci-dessous.</p>
+        </div>
+      }
+
+      <!-- ── Parties au contrat (always shown) ─────────────────────── -->
+      <section class="form-section">
+        <h3>Parties au contrat</h3>
+        <div class="parties-row">
+          <div>
+            <span class="parties-label">Compositeur</span>
+            <span class="parties-value">{{ track()!.composer_user.username }}</span>
+          </div>
+          <div>
+            <span class="parties-label">Acheteur</span>
+            <span class="parties-value">{{ auth.currentUser()?.username ?? '—' }}</span>
+          </div>
+        </div>
+        <div class="sacem-row">
+          <span class="sacem-label">Répartition SACEM</span>
+          <div class="sacem-bar">
+            <div class="sacem-composer" [style.width.%]="sacemComposer()">
+              Compositeur {{ sacemComposer() }}%
+            </div>
+            <div class="sacem-buyer" [style.width.%]="sacemBuyer()">
+              Acheteur {{ sacemBuyer() }}%
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           MODE AVANCÉ uniquement — droits, durée, territoire
+           ═══════════════════════════════════════════════════════════════ -->
+      @if (mode() === 'advanced') {
+
+        <!-- Droits d'exploitation -->
+        <section class="form-section">
+          <h3>Droits d'exploitation</h3>
+
+          <div class="info-box">
+            <i class="bi bi-info-circle"></i>
+            Le <strong>streaming</strong> est toujours inclus.
+            La <strong>reproduction mécanique</strong> est offerte au-delà de 199.99€.
+            La <strong>diffusion publique</strong> est offerte au-delà de 74.99€.
+          </div>
+
+          <label class="right-item always-on">
+            <input type="checkbox" checked disabled>
+            <div>
+              <span class="right-name">Streaming</span>
+              <span class="right-desc">Spotify, Apple Music, YouTube…</span>
+            </div>
+            <span class="right-badge included">Inclus</span>
+          </label>
+
+          <label class="right-item" [class.auto-included]="mechanicalAutoIncluded()" [class.rights-locked]="streamOnly()">
+            <input type="checkbox"
+                   [checked]="!streamOnly() && (mechanicalAutoIncluded() || rightMechanical())"
+                   [disabled]="mechanicalAutoIncluded() || streamOnly()"
+                   (change)="rightMechanical.set($any($event.target).checked)">
+            <div>
+              <span class="right-name">Reproduction mécanique</span>
+              <span class="right-desc">CD, vinyles, téléchargements</span>
+            </div>
+            @if (mechanicalAutoIncluded()) {
+              <span class="right-badge included">Inclus auto</span>
+            } @else {
+              <span class="right-badge optional">+{{ prices().mechanical }}€</span>
+            }
+          </label>
+
+          <label class="right-item" [class.auto-included]="publicShowAutoIncluded()" [class.rights-locked]="streamOnly()">
+            <input type="checkbox"
+                   [checked]="!streamOnly() && (publicShowAutoIncluded() || rightPublicShow())"
+                   [disabled]="publicShowAutoIncluded() || streamOnly()"
+                   (change)="rightPublicShow.set($any($event.target).checked)">
+            <div>
+              <span class="right-name">Diffusion publique</span>
+              <span class="right-desc">Concerts, TV, radio, lieux publics</span>
+            </div>
+            @if (publicShowAutoIncluded()) {
+              <span class="right-badge included">Inclus auto</span>
+            } @else {
+              <span class="right-badge optional">+{{ prices().publicShow }}€</span>
+            }
+          </label>
+
+          <label class="right-item" [class.rights-locked]="streamOnly()">
+            <input type="checkbox"
+                   [checked]="!streamOnly() && rightArrangement()"
+                   [disabled]="streamOnly()"
+                   (change)="rightArrangement.set($any($event.target).checked)">
+            <div>
+              <span class="right-name">Arrangement / Adaptation</span>
+              <span class="right-desc">Modification de la structure, remix</span>
+            </div>
+            <span class="right-badge optional">+{{ prices().arrangement }}€</span>
+          </label>
+
+          @if (streamOnly()) {
+            <p class="rights-hint">
+              <i class="bi bi-arrow-down-circle"></i>
+              Veuillez indiquer une durée de licence ci-dessous pour activer ces droits d'exploitation.
+            </p>
+          }
+        </section>
+
+        <!-- Durée -->
+        <section class="form-section">
+          <h3>Durée de la licence</h3>
+          <div class="info-box info-info">
+            <i class="bi bi-info-circle"></i>
+            <span>
+              Le <strong>streaming est toujours inclus à vie</strong>, quelle que soit l'option choisie.
+              La durée indiquée ci-dessous s'applique uniquement aux <strong>autres droits</strong>
+              (reproduction mécanique, diffusion publique, arrangement…).<br>
+              <em>« Streaming seul »</em> = streaming perpétuel, aucun autre droit accordé.
+            </span>
+          </div>
+          <div class="duration-group">
+            <button type="button"
+                    class="duration-btn stream-btn"
+                    [class.selected]="!isLifetime() && duration() === 'stream'"
+                    (click)="setDuration('stream')">
+              Streaming seul · à vie
+              <span class="btn-fee">+0€</span>
+            </button>
+            @for (opt of [['3','3 ans'],['5','5 ans'],['10','10 ans']]; track opt[0]) {
+              <button type="button"
+                      class="duration-btn"
+                      [class.selected]="!isLifetime() && duration() === opt[0]"
+                      (click)="setDuration($any(opt[0]))">
+                {{ opt[1] }}
+                <span class="btn-fee">+{{ $any(prices().duration)[opt[0]] }}€</span>
+              </button>
+            }
+            <button type="button"
+                    class="duration-btn lifetime-btn"
+                    [class.selected]="isLifetime()"
+                    (click)="toggleLifetime()">
+              À vie + 70 ans
+              <span class="btn-fee">+{{ prices().duration.lifetime }}€</span>
+            </button>
+          </div>
+          <p class="duration-selected">
+            Durée sélectionnée : <strong>{{ durationLabel() }}</strong>
+            <span class="fee-badge">+{{ durationFee() }}€</span>
+          </p>
+        </section>
+
+        <!-- Territoire -->
+        <section class="form-section">
+          <h3>Territoire d'exploitation</h3>
+          <div class="radio-group">
+            @for (opt of [['France','France'],['Europe','Europe'],['Monde entier','Monde entier']]; track opt[0]) {
+              <label class="radio-item" [class.selected]="territory() === opt[0]">
+                <input type="radio" name="territory" [value]="opt[0]"
+                       [ngModel]="territory()" (ngModelChange)="territory.set($any($event))">
+                {{ opt[1] }}
+                <span class="btn-fee">+{{ $any(prices().territory)[opt[0]] }}€</span>
+              </label>
+            }
+          </div>
+        </section>
+
+      }
+
+      <!-- ── Licence exclusive (always shown when available) ──────────── -->
+      @if (!track()?.is_exclusive_sold) {
+        <section class="form-section exclusive-section">
+          <h3><i class="bi bi-star-fill"></i> Licence exclusive</h3>
+          <div class="info-box info-exclusive">
+            <i class="bi bi-info-circle"></i>
+            <span>
+              En achetant l'exclusivité, vous devenez le <strong>seul et unique acquéreur</strong>
+              de ce beat. Il sera immédiatement retiré de la vente pour tous les autres acheteurs.
+            </span>
+          </div>
+          <label class="right-item">
+            <input type="checkbox"
+                   [checked]="rightExclusive()"
+                   (change)="rightExclusive.set($any($event.target).checked)">
+            <div>
+              <span class="right-name">Achat exclusif</span>
+              <span class="right-desc">Droits exclusifs · beat retiré de la vente après achat</span>
+            </div>
+            <span class="right-badge exclusive-badge">+{{ prices().exclusive }}€</span>
+          </label>
+        </section>
+      }
+
+      <!-- ── Informations de facturation (always shown) ─────────────── -->
+      <section class="form-section">
+        <h3>Informations de facturation</h3>
+        <div class="billing-row">
+          <div class="form-field">
+            <label>Adresse (optionnel)</label>
+            <input type="text"
+                   [ngModel]="buyerAddress()"
+                   (ngModelChange)="buyerAddress.set($event)"
+                   placeholder="Votre adresse complète">
+          </div>
+          <div class="form-field">
+            <label>Email</label>
+            <input type="email" [value]="auth.currentUser()?.email ?? ''" readonly>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Récapitulatif prix (always shown) ─────────────────────── -->
+      <div class="price-breakdown">
+        <h3>Récapitulatif</h3>
+        <div class="breakdown-row">
+          <span>Prix de base ({{ formatLabel() }})</span>
+          <strong>{{ basePrice().toFixed(2) }}€</strong>
+        </div>
+        @if (exclusiveFee() > 0) {
+          <div class="breakdown-row breakdown-row--exclusive">
+            <span><i class="bi bi-star-fill"></i> Licence exclusive</span>
+            <strong>+{{ prices().exclusive }}€</strong>
+          </div>
+        }
+        <div class="breakdown-row">
+          <span>Durée : {{ durationLabel() }}</span>
+          <strong>+{{ durationFee() }}€</strong>
+        </div>
+        @if (territoryFee() > 0) {
+          <div class="breakdown-row">
+            <span>Territoire : {{ territory() }}</span>
+            <strong>+{{ territoryFee() }}€</strong>
+          </div>
+        }
+        @if (arrangementFee() > 0) {
+          <div class="breakdown-row">
+            <span>Arrangement / Adaptation</span>
+            <strong>+{{ prices().arrangement }}€</strong>
+          </div>
+        }
+        @if (mechanicalFee() > 0) {
+          <div class="breakdown-row">
+            <span>Reproduction mécanique</span>
+            <strong>+{{ prices().mechanical }}€</strong>
+          </div>
+        }
+        @if (publicShowFee() > 0) {
+          <div class="breakdown-row">
+            <span>Diffusion publique</span>
+            <strong>+{{ prices().publicShow }}€</strong>
+          </div>
+        }
+        <hr>
+        <div class="breakdown-total-row">
+          <span>Total TTC</span>
+          <span class="total-price">{{ totalPrice().toFixed(2) }}€</span>
+        </div>
+      </div>
+
+      <!-- SACEM notice -->
+      <div class="sacem-notice">
+        <i class="bi bi-exclamation-circle"></i>
+        Il est vivement conseillé d'accompagner ce contrat des démarches habituelles auprès de la
+        <a href="https://www.sacem.fr" target="_blank" rel="noopener">SACEM</a>.
+        Le contrat PDF sera automatiquement généré après le paiement.
+      </div>
+
+      <!-- ── Mentions légales (obligation d'information précontractuelle) ── -->
+      <div class="legal-notice">
+        <h4 class="legal-notice__title">
+          <i class="bi bi-shield-check"></i> Conditions légales de la licence
+        </h4>
+        <ul class="legal-notice__list">
+          <li>
+            <strong>Droits moraux permanents (art. L.121-1 CPI) :</strong>
+            Le compositeur conserve ses droits moraux en permanence. Ces droits sont inaliénables et imprescriptibles.
+          </li>
+          <li>
+            <strong>Retour des droits à l'expiration :</strong>
+            À l'échéance de la durée choisie, les droits patrimoniaux concédés reviennent automatiquement au compositeur.
+            Aucun renouvellement tacite n'est prévu.
+          </li>
+          <li>
+            <strong>Liberté de re-licence du compositeur :</strong>
+            Le compositeur peut licencier de nouveau cette composition après expiration, sans délai, y compris exclusivement à un tiers.
+          </li>
+          <li>
+            <strong>Vos enregistrements restent valides :</strong>
+            Les œuvres que vous réalisez pendant la période de licence restent valides après expiration.
+            Vous ne pourrez pas créer de nouvelles exploitations commerciales de cette composition au-delà de la date d'expiration.
+          </li>
+          @if (rightExclusive()) {
+            <li class="legal-notice__exclusive">
+              <i class="bi bi-star-fill"></i>
+              <strong>Fin de l'exclusivité :</strong>
+              L'exclusivité prend fin à l'échéance indiquée. La composition redevient alors automatiquement disponible à la vente.
+            </li>
+          }
+        </ul>
+        <label class="legal-notice__accept">
+          <input type="checkbox"
+                 [checked]="legalAccepted()"
+                 (change)="legalAccepted.set($any($event.target).checked)">
+          <span>J'ai lu et j'accepte les conditions légales de cette licence</span>
+        </label>
+      </div>
+
+      @if (error()) {
+        <div class="form-error">{{ error() }}</div>
+      }
+
+      <!-- ── Actions ────────────────────────────────────────────────── -->
+      <div class="form-actions">
+        <a [routerLink]="['/track', track()!.id]" class="btn-back">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+        <button class="btn-confirm"
+                [class.btn-confirm--quick]="mode() === 'quick'"
+                [class.btn-confirm--login]="!auth.isLoggedIn()"
+                (click)="onConfirm()"
+                [disabled]="paying() || (!auth.isLoggedIn() ? false : !legalAccepted())">
+          @if (paying()) {
+            <span class="spinner-border spinner-border-sm me-2"></span> Redirection…
+          } @else if (!auth.isLoggedIn()) {
+            <i class="bi bi-person-fill"></i> Se connecter pour acheter
+          } @else {
+            <i class="bi bi-lock-fill"></i> Confirmer et payer — {{ totalPrice().toFixed(2) }}€
+          }
+        </button>
+      </div>
+
+    </main>
+
+  </div>
+}
+
+@if (!track() && !loading() && !error()) {
+  <div class="state-error">Track introuvable.</div>
+}

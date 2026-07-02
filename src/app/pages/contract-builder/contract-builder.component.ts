@@ -1,18 +1,24 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { ContractBuilderService, ContractSummary } from '../../services/contract-builder.service';
 import { ToastService } from '../../services/toast.service';
+import { AuthService } from '../../services/auth.service';
+import { PremiumLockComponent } from '../../components/premium-lock/premium-lock.component';
 
 @Component({
   selector: 'app-contract-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule, PremiumLockComponent],
   templateUrl: './contract-builder.component.html',
   styleUrl: './contract-builder.component.scss',
 })
 export class ContractBuilderComponent implements OnInit {
+
+  private auth = inject(AuthService);
+  readonly isPro      = this.auth.isPro;
+  readonly isLoggedIn = this.auth.isLoggedIn;
 
   loading   = signal(false);
   creating  = signal(false);
@@ -26,7 +32,7 @@ export class ContractBuilderComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.load();
+    if (this.isLoggedIn()) this.load();
   }
 
   load(): void {

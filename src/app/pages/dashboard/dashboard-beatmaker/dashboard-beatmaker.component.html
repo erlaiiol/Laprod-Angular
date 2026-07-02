@@ -53,6 +53,15 @@
         <i class="bi bi-bag-check"></i> Ventes
         <span class="tab-count">{{ data()!.sales.length }}</span>
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'playlists'" (click)="setTab('playlists')">
+        <i class="bi bi-collection-play"></i> Playlists
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'licenses'" (click)="setTab('licenses')">
+        <i class="bi bi-file-earmark-lock2"></i> Licences vendues
+        @if (soldLicenses()) {
+          <span class="tab-count">{{ soldLicenses()!.licenses.length }}</span>
+        }
+      </button>
     </div>
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
@@ -69,7 +78,8 @@
         <div class="tracks-list">
           @for (track of data()!.tracks; track track.id) {
             <div class="track-row">
-              <img class="track-cover" [src]="imgUrl(track.image_file)" [alt]="track.title">
+              <img class="track-cover" [src]="imgUrl(track.image_file)" [alt]="track.title"
+                   onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
               <div class="track-info">
                 <a [routerLink]="['/track', track.id]" class="track-title">{{ track.title }}</a>
                 <div class="track-meta">
@@ -92,6 +102,24 @@
                   }
                 </span>
                 <span class="sales-count"><i class="bi bi-bag"></i> {{ track.sales_count }} vente(s)</span>
+                @if (!viewStatsLoading()) {
+                  <span class="view-count" title="Vues totales / uniques">
+                    <i class="bi bi-eye"></i>
+                    {{ viewStatFor(track.id).total_views }}
+                    <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
+                  </span>
+                }
+                @if (track.is_ai_suggested) {
+                  <div class="ai-suggestion-row">
+                    <span class="ai-badge"><i class="bi bi-magic"></i> Suggestions IA</span>
+                    <button class="btn-validate-ai" (click)="validateSuggestion(track.id)">
+                      Valider
+                    </button>
+                    <a class="btn-edit-ai" [routerLink]="['/edit-track', track.id]">
+                      Modifier
+                    </a>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -137,6 +165,184 @@
             </tbody>
           </table>
         </div>
+      }
+    }
+
+    <!-- ── Tab : Playlists ────────────────────────────────────────────────── -->
+    @if (activeTab() === 'playlists') {
+      <div class="playlists-tab">
+
+        <div class="pl-tab-header">
+          <h3>Mes playlists</h3>
+          @if (!showCreateForm()) {
+            <button class="btn-secondary btn-sm" (click)="showCreateForm.set(true)">
+              <i class="bi bi-plus"></i> Nouvelle playlist
+            </button>
+          }
+        </div>
+
+        @if (showCreateForm()) {
+          <div class="create-form">
+            <label class="create-image-picker" [class.has-image]="newImagePreview()">
+              @if (newImagePreview()) {
+                <img [src]="newImagePreview()" alt="aperçu" />
+              } @else {
+                <i class="bi bi-camera-fill"></i>
+                <span>Image</span>
+              }
+              <input type="file" accept="image/*" (change)="onCreateImageSelected($event)" />
+            </label>
+            <div class="create-fields">
+              <input [(ngModel)]="newTitle" placeholder="Titre de la playlist" maxlength="200"
+                     (keydown.enter)="createPlaylist()">
+              <div class="create-actions">
+                <button class="btn-primary btn-sm" (click)="createPlaylist()"
+                        [disabled]="!newTitle.trim() || creating()">
+                  @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
+                </button>
+                <button class="btn-ghost btn-sm" (click)="cancelCreate()">Annuler</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (playlistsLoading()) {
+          <div class="state-loading"><div class="spinner"></div></div>
+        } @else if (playlists().length === 0) {
+          <div class="empty-state">
+            <i class="bi bi-collection-play"></i>
+            <p>Aucune playlist pour l'instant.</p>
+          </div>
+        } @else {
+          <div class="pl-grid">
+            @for (pl of playlists(); track pl.id) {
+              <div class="pl-dash-card">
+                <div class="pl-cover-wrap">
+                  <a [routerLink]="['/playlist', pl.id]">
+                    <img class="pl-dash-img"
+                         [src]="imgUrl(pl.image_file)"
+                         onerror="this.src='assets/placeholders/placeholder-track.png'"
+                         alt="">
+                  </a>
+                  @if (imageUpdatingId() === pl.id) {
+                    <div class="pl-cover-spinner"><i class="bi bi-arrow-repeat spin"></i></div>
+                  } @else {
+                    <label class="pl-cover-camera" title="Changer l'image">
+                      <i class="bi bi-camera-fill"></i>
+                      <input type="file" accept="image/*" (change)="onPlaylistImageSelected(pl, $event)" />
+                    </label>
+                  }
+                </div>
+                <div class="pl-dash-info">
+                  @if (editingId() === pl.id) {
+                    <div class="rename-inline">
+                      <input [(ngModel)]="editTitle" maxlength="200"
+                             (keydown.enter)="saveRename(pl)"
+                             (keydown.escape)="cancelRename()">
+                      <button class="btn-primary btn-sm" (click)="saveRename(pl)"
+                              [disabled]="!editTitle.trim() || renameSaving()">
+                        @if (renameSaving()) { <i class="bi bi-arrow-repeat spin"></i> } @else { OK }
+                      </button>
+                      <button class="btn-ghost btn-sm" (click)="cancelRename()">✕</button>
+                    </div>
+                  } @else {
+                    <a class="pl-dash-title" [routerLink]="['/playlist', pl.id]">{{ pl.title }}</a>
+                  }
+                  <span class="pl-dash-count">{{ pl.track_count }} track(s)</span>
+                </div>
+                <div class="pl-dash-actions">
+                  <a class="btn-icon" title="Gérer les tracks"
+                     [routerLink]="['/playlist', pl.id]"
+                     [queryParams]="{ edit: 1 }">
+                    <i class="bi bi-collection-play"></i>
+                  </a>
+                  <button class="btn-icon" title="Renommer" (click)="startRename(pl)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn-icon btn-icon--danger" title="Supprimer" (click)="deletePlaylist(pl)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    }
+
+    <!-- ── Licences vendues ──────────────────────────────────────────────────── -->
+    @if (activeTab() === 'licenses') {
+      @if (soldLicensesLoading()) {
+        <div class="state-loading"><div class="spinner"></div></div>
+      } @else if (!soldLicenses()) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Cliquez sur l'onglet pour charger vos licences.</p>
+        </div>
+      } @else if (soldLicenses()!.licenses.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-lock2"></i>
+          <p>Aucune licence vendue pour l'instant.</p>
+        </div>
+      } @else {
+
+        <!-- Revenus totaux licences -->
+        <div class="license-revenue-banner">
+          <i class="bi bi-cash-stack"></i>
+          <span>Revenus licences totaux : <strong>{{ soldLicenses()!.total_revenue.toFixed(2) }}€</strong></span>
+          @if (soldLicenses()!.exclusive.length > 0) {
+            <span class="exclusive-count">
+              <i class="bi bi-star-fill"></i>
+              {{ soldLicenses()!.exclusive.length }} exclusive(s)
+            </span>
+          }
+        </div>
+
+        <!-- Filtres -->
+        <div class="license-filters">
+          <button class="filter-btn" [class.active]="licenseFilter() === 'all'" (click)="licenseFilter.set('all')">
+            Toutes ({{ soldLicenses()!.licenses.length }})
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'active'" (click)="licenseFilter.set('active')">
+            Actives
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'expired'" (click)="licenseFilter.set('expired')">
+            Expirées
+          </button>
+          <button class="filter-btn" [class.active]="licenseFilter() === 'exclusive'" (click)="licenseFilter.set('exclusive')">
+            <i class="bi bi-star-fill"></i> Exclusives
+          </button>
+        </div>
+
+        <!-- Liste -->
+        <div class="sold-licenses-list">
+          @for (l of filteredLicenses(); track l.id) {
+            <div class="sold-license-row">
+              <div class="sold-license-info">
+                <a [routerLink]="['/track', l.track_id]" class="sold-license-track">{{ l.track_title }}</a>
+                <span class="sold-license-buyer">
+                  <i class="bi bi-person"></i> {{ l.buyer_username }}
+                </span>
+              </div>
+              <div class="sold-license-meta">
+                <span class="fmt-badge fmt-{{ l.format }}">{{ formatLabel(l.format) }}</span>
+                @if (l.territory) {
+                  <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
+                }
+                <span class="sold-license-date">{{ formatDate(l.created_at) }}</span>
+              </div>
+              <app-license-badge
+                [licenseStatus]="l.license_status"
+                [isLifetime]="l.is_lifetime"
+                [expiresAt]="l.expires_at"
+                [isExclusive]="l.is_exclusive">
+              </app-license-badge>
+              <span class="sold-license-revenue">+{{ l.composer_revenue.toFixed(2) }}€</span>
+            </div>
+          }
+        </div>
+
       }
     }
 

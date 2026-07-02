@@ -12,6 +12,10 @@
     Prod/Arr
     @if (paRequests().length > 0) { <span class="badge">{{ paRequests().length }}</span> }
   </button>
+  <button [class.active]="activeTab() === 'master'"    (click)="setActiveTab('master')">
+    Master
+    @if (masterPending().length > 0) { <span class="badge">{{ masterPending().length }}</span> }
+  </button>
   <button [class.active]="activeTab() === 'direct'"    (click)="setActiveTab('direct')">
     <i class="bi bi-lightning-fill"></i> Direct
   </button>
@@ -63,6 +67,7 @@
         <strong>{{ e.username }}</strong>
         <span class="small">Réf : {{ e.mixmaster_reference_price }}€ · Min : {{ e.mixmaster_price_min }}€</span>
         @if (e.is_certified_producer_arranger) { <span class="badge-pa">Producteur/Arrangeur</span> }
+        @if (e.is_certified_master_engineer) { <span class="badge-master">Certifié Master</span> }
       </div>
       <div class="engineer-actions">
         @if (priceEditId() === e.id) {
@@ -75,6 +80,11 @@
           <button class="btn-danger" (click)="revoke(e)"><i class="bi bi-slash-circle"></i> Révoquer</button>
           @if (e.is_certified_producer_arranger) {
             <button class="btn-danger" (click)="revokePA(e)">Révoquer PA</button>
+          }
+          @if (e.is_certified_master_engineer) {
+            <button class="btn-danger" (click)="revokeMaster(e)">Révoquer Master</button>
+          } @else {
+            <button class="btn-success" (click)="certifyMaster(e)"><i class="bi bi-patch-check"></i> Certifier Master</button>
           }
         }
       </div>
@@ -116,6 +126,37 @@
       <div class="engineer-actions">
         <button class="btn-success" (click)="approvePA(e)"><i class="bi bi-check-lg"></i> Approuver</button>
         <button class="btn-danger"  (click)="rejectPA(e)"><i class="bi bi-x-lg"></i> Rejeter</button>
+      </div>
+    </div>
+  }
+}
+
+<!-- Demandes de certification Master Engineer -->
+@if (activeTab() === 'master') {
+  @if (!loading() && masterPending().length === 0) {
+    <p class="empty">Aucune demande de certification Master Engineer.</p>
+  }
+  @for (e of masterPending(); track e.id) {
+    <div class="engineer-card">
+      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <div class="engineer-info">
+        <strong>{{ e.username }}</strong>
+        <span class="small">{{ e.email }}</span>
+        <span class="small badge-certified-sm"><i class="bi bi-patch-check-fill"></i> Mix Engineer certifié</span>
+        @if (e.master_sample_raw || e.master_sample_processed) {
+          <div class="sample-links">
+            @if (e.master_sample_raw) {
+              <a [href]="imgUrl(e.master_sample_raw)" target="_blank">Sample brut (mastering)</a>
+            }
+            @if (e.master_sample_processed) {
+              <a [href]="imgUrl(e.master_sample_processed)" target="_blank">Sample masterisé</a>
+            }
+          </div>
+        }
+      </div>
+      <div class="engineer-actions">
+        <button class="btn-success" (click)="approveMasterSample(e)"><i class="bi bi-check-lg"></i> Certifier Master</button>
+        <button class="btn-danger"  (click)="rejectMasterSample(e)"><i class="bi bi-x-lg"></i> Rejeter</button>
       </div>
     </div>
   }

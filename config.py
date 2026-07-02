@@ -49,6 +49,13 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 # ferme sa propre connexion PostgreSQL. Légèrement plus lent mais entièrement sûr.
 # En développement on garde le pool standard pour les performances.
 import os as _os
+# X-Accel-Redirect : nginx sert les fichiers directement après auth Flask.
+# Activer en production (FLASK_ENV=production ou USE_X_ACCEL_REDIRECT=true).
+USE_X_ACCEL_REDIRECT = (
+    _os.environ.get('USE_X_ACCEL_REDIRECT', '').lower() == 'true'
+    or _os.environ.get('FLASK_ENV') == 'production'
+)
+
 if _os.environ.get('FLASK_ENV') == 'production':
     from sqlalchemy.pool import NullPool
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -98,7 +105,7 @@ ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MAX_AUDIO_SIZE = 100 * 1024 * 1024  # 100 MB
 MIN_MP3_SIZE = 1.2 * 1024 * 1024    # 1.2 MB (~1min10 en 128kbps, anti-snippet)
 MIN_WAV_SIZE = 10 * 1024 * 1024     # 10 MB (~1min en 44.1kHz/16bit stereo)
-MIN_STEMS_SIZE = 40 * 1024 * 1024   # 40 MB (archive de pistes FLAC separees)
+MIN_STEMS_SIZE = 5 * 1024 * 1024    # 5 MB (archive de pistes stems)
 MAX_IMAGE_SIZE = 5 * 1024 * 1024    # 5 MB
 MAX_TOPLINE_SIZE = 5 * 1024 * 1024  # 5 MB (force MP3 pour toplines)
 MAX_ARCHIVE_SIZE = 800 * 1024 * 1024 # 800 MB pour les archives (mixmasterrequest)
@@ -152,6 +159,13 @@ CONTRACT_TERRITORY_WORLD = 10
 
 
 # ============================================
+# CONTRACT ANALYZER — IA (Groq)
+# ============================================
+GROQ_API_KEY         = os.environ.get('GROQ_API_KEY')
+GROQ_MODEL           = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
+CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'groq')
+
+# ============================================
 # SACEM CONFIGURATION
 # ============================================
 SACEM_URL = "https://www.sacem.fr"
@@ -167,6 +181,7 @@ Pour plus d'informations, consultez www.sacem.fr
 # Tous les chemins sont des objets Path (pathlib)
 UPLOAD_FOLDER = BASE_DIR / 'db_assets' / 'audio'
 CONTRACTS_FOLDER = BASE_DIR / 'db_assets' / 'contracts'
+INVOICES_FOLDER  = BASE_DIR / 'db_assets' / 'invoices'
 IMAGES_FOLDER = BASE_DIR / 'db_assets' / 'images'
 PROFILES_FOLDER = BASE_DIR / 'db_assets' / 'images' / 'profiles'
 
@@ -211,15 +226,19 @@ MIXMASTER_ALLOWED_EXTENSIONS = {'wav', 'zip', 'rar', 'mp3'}
 
 
 # ============================================
-# PREMIUM
+# PREMIUM — deux plans LaProd+
 # ============================================
-PREMIUM_PRICE = 1.99  # Prix en euros pour 30 jours de premium
-PREMIUM_DURATION_DAYS = 30  # Durée du premium en jours
+PREMIUM_AMATEUR_PRICE = 1.99   # Plan Amateur — 30 jours
+PREMIUM_PRO_PRICE     = 19.99  # Plan Pro/Label — 30 jours
+PREMIUM_DURATION_DAYS = 30
+PREMIUM_PRICE = PREMIUM_AMATEUR_PRICE  # alias rétrocompat (ancienne valeur)
 
 # ============================================
 # ENVIRONNEMENT
 # ============================================
-ENV = os.environ.get('FLASK_ENV', 'development')
+# Fail-safe : si FLASK_ENV non défini, on suppose la production (jamais exposer le debug par défaut)
+_env_raw = os.environ.get('FLASK_ENV')
+ENV   = _env_raw if _env_raw in ('development', 'production') else 'production'
 DEBUG = ENV == 'development'
 
 # ============================================
