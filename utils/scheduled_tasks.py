@@ -1,9 +1,10 @@
 """
-Tâches planifiées pour le cycle de vie des licences.
+Tâches planifiées pour le cycle de vie des licences et de la plateforme.
 
-run_contract_expiry_update(app)   → Quotidien à 0h : expire les licences échues + libère exclusivités
-run_expiry_notifications(app)     → Quotidien à 8h : rappels 90/30/7/1 jours avant expiration
+run_contract_expiry_update(app)      → Quotidien à 0h : expire les licences échues + libère exclusivités
+run_expiry_notifications(app)        → Quotidien à 8h : rappels 90/30/7/1 jours avant expiration
 run_sole_licensee_notifications(app) → 1er du mois à 9h : "vous êtes le seul licencié"
+run_stripe_reminder_job(app)         → Chaque lundi à 9h : rappel Stripe Connect aux non-configurés
 """
 from datetime import date
 
@@ -97,3 +98,38 @@ def run_sole_licensee_notifications(app):
                 app.logger.error(f"[scheduler] email sole_licensee purchase #{p.id}: {exc}")
 
         app.logger.info(f"[scheduler] run_sole_licensee_notifications : {total} notification(s) envoyée(s)")
+
+
+def run_stripe_reminder_job(app):
+    """
+    Chaque lundi à 9h.
+    Envoie un rappel in-app aux beatmakers et mix engineers qui n'ont pas encore
+    finalisé leur onboarding Stripe Connect.
+    Dédupliqué dans notify_stripe_connect_reminder() : pas de doublon si une notif
+    non lue de ce type existe depuis moins de 7 jours.
+    """
+    with app.app_context():
+        from extensions import db
+        from models import User
+        from utils.notification_service import notify_stripe_connect_reminder
+
+        users = User.query.filter(
+            (User.is_beatmaker == True) | (User.is_mix_engineer == True),
+            User.stripe_onboarding_complete == False,
+            User.user_type_selected == True,
+        ).all()
+
+        sent = 0
+        for user in users:
+            try:
+                notif = notify_stripe_connect_reminder(user.id)
+                if notif:
+                    db.session.commit()
+                    sent += 1
+                else:
+                    db.session.rollback()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[scheduler] stripe_reminder user #{user.id}: {exc}")
+
+        app.logger.info(f"[scheduler] run_stripe_reminder_job : {sent}/{len(users)} rappel(s) envoyé(s)")

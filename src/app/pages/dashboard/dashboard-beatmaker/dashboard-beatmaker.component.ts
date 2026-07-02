@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Router } from '@angular/router';
@@ -13,6 +13,7 @@ import { ToastService } from '../../../services/toast.service';
 import { PlaylistService, Playlist } from '../../../services/playlist.service';
 import { LicenseService, ComposerLicense, ComposerLicensesData } from '../../../services/license.service';
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
+import { UploadStatusService } from '../../../services/upload-status.service';
 import { environment } from '../../../../environments/environment';
 
 export interface TrackViewStat {
@@ -60,14 +61,31 @@ export class DashboardBeatmakerComponent implements OnInit {
   soldLicensesLoading = signal(false);
   licenseFilter       = signal<'all' | 'active' | 'expired' | 'exclusive'>('all');
 
-  readonly auth        = inject(AuthService);
-  private dashboardSvc = inject(DashboardService);
-  private trackSvc     = inject(TrackService);
-  private cudTrackSvc  = inject(CudTrackService);
-  private router       = inject(Router);
-  private toast        = inject(ToastService);
-  private playlistSvc  = inject(PlaylistService);
-  private licenseSvc   = inject(LicenseService);
+  readonly auth          = inject(AuthService);
+  private dashboardSvc   = inject(DashboardService);
+  private trackSvc       = inject(TrackService);
+  private cudTrackSvc    = inject(CudTrackService);
+  private router         = inject(Router);
+  private toast          = inject(ToastService);
+  private playlistSvc    = inject(PlaylistService);
+  private licenseSvc     = inject(LicenseService);
+  private uploadStatusSvc = inject(UploadStatusService);
+
+  constructor() {
+    // Quand le worker d'upload termine (toast de progression), rafraîchir
+    // automatiquement la liste des beats sans que l'utilisateur recharge la page.
+    effect(() => {
+      const status  = this.uploadStatusSvc.status();
+      const trackId = this.uploadStatusSvc.trackId();
+      if (status !== 'done' || !trackId) return;
+
+      untracked(() => {
+        this.dashboardSvc.getBeatmakerDashboard().subscribe({
+          next: (res) => { if (res.success) this.data.set(res.data!); },
+        });
+      });
+    });
+  }
 
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }

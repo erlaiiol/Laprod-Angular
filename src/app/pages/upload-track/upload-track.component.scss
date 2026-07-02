@@ -54,6 +54,32 @@
   }
 }
 
+/* ── Banner Stripe Connect ────────────────────────────────────────────────── */
+
+.stripe-setup-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(v.$warning, 0.08);
+  border: 1px solid rgba(v.$warning, 0.3);
+  border-left: 3px solid v.$warning;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: v.$text-secondary;
+
+  i { color: v.$warning; font-size: 1rem; flex-shrink: 0; }
+  span { flex: 1; }
+
+  .stripe-setup-link {
+    white-space: nowrap;
+    font-weight: 600;
+    color: v.$warning;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
 /* ── Banner protection ────────────────────────────────────────────────────── */
 
 .upload-protection-note {

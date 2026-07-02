@@ -48,6 +48,7 @@ export interface User {
     instagram?: string | null,
     twitter?:   string | null,
     youtube?:   string | null,
+    stripe_onboarding_complete?: boolean,
 }
 
 

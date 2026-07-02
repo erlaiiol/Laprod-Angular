@@ -98,10 +98,11 @@ def user_auth(u, notif_count: int = 0) -> dict:
         'topline_tokens':        u.topline_tokens,
         'is_premium':            bool(u.is_premium_active),
         'subscription_plan':     u.subscription_plan,
-        'preferred_tag_category': u.preferred_tag_category,
+        'preferred_tag_category':   u.preferred_tag_category,
         'instagram': u.instagram,
         'twitter':   u.twitter,
         'youtube':   u.youtube,
+        'stripe_onboarding_complete': bool(u.stripe_onboarding_complete),
     }
 
 
