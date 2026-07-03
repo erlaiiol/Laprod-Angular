@@ -50,6 +50,23 @@
   }
 }
 
+// ── Container tracks — compact (grille dense 2-5 colonnes) ──────────────────
+
+#tracks-container.tracks-compact {
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+
+  .state-loading,
+  .state-error,
+  .state-empty { grid-column: 1 / -1; }
+
+  @media (max-width: 900px) { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 640px) { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+  @media (max-width: 480px) { grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
+}
+
 // ── Container tracks — liste (défaut) ────────────────────────────────────────
 
 #tracks-container {
@@ -95,6 +112,13 @@
   border-radius: 8px;
 }
 
+// ── Animation d'entrée staggerée ─────────────────────────────────────────────
+
+@keyframes lp-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 // ── Landing hero (première visite, visiteur anonyme) ─────────────────────────
 
 .lp-landing {
@@ -117,6 +141,21 @@
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
+
+  // Stagger: chaque enfant direct animate au chargement
+  > * { animation: lp-fade-up 0.55s v.$ease-out both; }
+  > *:nth-child(1) { animation-delay: 0s; }
+  > *:nth-child(2) { animation-delay: 0.08s; }
+  > *:nth-child(3) { animation-delay: 0.15s; }
+  > *:nth-child(4) { animation-delay: 0.2s; }
+  > *:nth-child(5) { animation-delay: 0.25s; }
+  > *:nth-child(6) { animation-delay: 0.3s; }
+  > *:nth-child(7) { animation-delay: 0.35s; }
+  > *:nth-child(8) { animation-delay: 0.4s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    > * { animation: none; }
+  }
 }
 
 .lp-landing__logo {
@@ -229,6 +268,34 @@
   @include m.btn-primary;
   padding: 0.75rem 1.75rem;
   font-size: 0.95rem;
+}
+
+// ── Teaser app mobile ─────────────────────────────────────────────────────────
+
+.lp-app-teaser {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: v.$text-muted;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: v.$radius-pill;
+  padding: 0.35rem 1rem;
+  margin-top: -0.25rem;
+
+  i { color: v.$text-secondary; font-size: 0.85rem; }
+  strong { color: v.$text-secondary; }
+}
+
+// ── Contenu onglets — s'anime à chaque switch ─────────────────────────────────
+
+.lp-landing__sub,
+.lp-landing__bullets,
+.lp-landing__features {
+  animation: lp-fade-up 0.3s v.$ease-out both;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
 }
 
 // CTA secondaire — ghost pur : fond noir + liseret blanc → rouge au hover

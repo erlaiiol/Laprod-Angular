@@ -45,12 +45,18 @@
       </div>
 
       <button class="btn btn-outline-light btn-sm flex-shrink-0 btn-filter-toggle"
+              [class.btn-filter-toggle--active]="hasActiveFilters()"
               (click)="toggleFilters()"
               title="Filtres avancés (BPM, gamme, style, tags)">
         <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
         </svg>
-        <span class="d-none d-lg-inline ms-1">Filtrer les tracks</span>
+        <span class="d-none d-lg-inline ms-1">
+          Filtrer les beats
+          @if (hasActiveFilters()) {
+            <span class="btn-filter-badge">{{ selectedKeys().length + selectedStyles().length + selectedTags().length + selectedSimilarArtists().length + (bpmMin() ? 1 : 0) + (bpmMax() ? 1 : 0) }}</span>
+          }
+        </span>
       </button>
     </div>
 
@@ -66,13 +72,13 @@
         <li class="nav-item">
           <a class="nav-link" [routerLink]="['/']" (click)="resetFilters()"
              routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-            <i class="bi bi-music-note-list"></i> Beats
+            <i class="bi bi-music-note-beamed"></i> Beats
           </a>
         </li>
 
         <li class="nav-item">
           <a class="nav-link" [routerLink]="['/mix/engineers']" routerLinkActive="active">
-            <i class="bi bi-sliders"></i> Mix/Master
+            <i class="bi bi-sliders"></i> Mix & Master
           </a>
         </li>
 
@@ -99,18 +105,31 @@
 
           @if (isBeatmaker()) {
             <li class="nav-item">
-              <a class="nav-link" [routerLink]="['/upload-track']" routerLinkActive="active">
-                <i class="bi bi-cloud-upload"></i> Publier un beat
+              <a class="nav-link nav-link--publish" [routerLink]="['/upload-track']" routerLinkActive="active">
+                <i class="bi bi-cloud-upload"></i> Publier
               </a>
             </li>
           }
 
+          <!-- Cloche notifications -->
+          <li class="nav-item">
+            <a class="nav-link nav-notif-btn" [routerLink]="['/notifications']"
+               routerLinkActive="active" title="Notifications">
+              <i class="bi bi-bell"></i>
+              @if (notifCount() > 0) {
+                <span class="notif-dot">{{ notifCount() }}</span>
+              }
+            </a>
+          </li>
+
+          <!-- Avatar dropdown — tout ce qui est "mon espace" -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button"
+            <a class="nav-link nav-user-toggle dropdown-toggle" href="#" role="button"
                data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-speedometer2"></i> Mes Espaces
+              <span class="nav-avatar">{{ userInitial() }}</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+
               @if (isBeatmaker()) {
                 <li>
                   <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
@@ -132,66 +151,58 @@
                   </a>
                 </li>
               }
+
               <li><hr class="dropdown-divider"></li>
+
+              <li>
+                <a class="dropdown-item" [routerLink]="['/profile', username()]" routerLinkActive="active">
+                  <i class="bi bi-person"></i> Mon profil
+                </a>
+              </li>
               <li>
                 <a class="dropdown-item" [routerLink]="['/purchases']" routerLinkActive="active">
-                  <i class="bi bi-bag-check"></i> Mes Achats
+                  <i class="bi bi-bag-check"></i> Mes achats
                 </a>
               </li>
               @if (isBeatmaker() || isMixEngineer()) {
                 <li>
                   <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
-                    <i class="bi bi-wallet2"></i> Mes Gains
+                    <i class="bi bi-wallet2"></i> Mes gains
                   </a>
                 </li>
               }
-            </ul>
-          </li>
 
-          <li class="nav-item">
-            <a class="nav-link" [routerLink]="['/profile', username()]" routerLinkActive="active">
-              <i class="bi bi-person-circle"></i> Profil
-            </a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link position-relative" [routerLink]="['/notifications']" routerLinkActive="active">
-              <i class="bi bi-bell"></i>
-              @if (notifCount() > 0) {
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                      style="font-size: 0.6rem;">
-                  {{ notifCount() }}
-                </span>
+              @if (isAdmin()) {
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" [routerLink]="['/admin']" routerLinkActive="active">
+                    <i class="bi bi-shield-lock"></i> Administration
+                  </a>
+                </li>
               }
-            </a>
-          </li>
 
-          @if (isAdmin()) {
-            <li class="nav-item">
-              <a class="nav-link" [routerLink]="['/admin']" routerLinkActive="active">
-                <i class="bi bi-shield-lock"></i>
-                <span class="badge bg-danger">Admin</span>
-              </a>
-            </li>
-          }
+              <li><hr class="dropdown-divider"></li>
 
-          <li class="nav-item">
-            <a class="nav-link" (click)="logout()" [routerLink]="'/login'" routerLinkActive="active">
-              <i class="bi bi-box-arrow-right"></i> Déconnexion
-            </a>
+              <li>
+                <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+                  <i class="bi bi-box-arrow-right"></i> Déconnexion
+                </a>
+              </li>
+
+            </ul>
           </li>
 
         } @else {
 
           <li class="nav-item">
             <a class="nav-link" [routerLink]="['/login']" routerLinkActive="active">
-              <i class="bi bi-box-arrow-in-right"></i> Connexion
+              Connexion
             </a>
           </li>
 
           <li class="nav-item">
             <a class="nav-link nav-link--register" [routerLink]="['/register']" routerLinkActive="active">
-              <i class="bi bi-person-plus-fill"></i> S'inscrire
+              Commencer gratuitement
             </a>
           </li>
 

@@ -4,16 +4,18 @@
 // ── Bottom Player ─────────────────────────────────────────────────────────────
 
 .bottom-player {
-  position:   fixed;
-  bottom:     0;
-  left:       0;
-  right:      0;
-  z-index:    v.$z-player;
-  background: v.$bg-base;
-  border-top: 1px solid v.$glass-border;
-  color:      v.$text-primary;
-  padding:    0 16px 0 12px;
-  transition: transform v.$dur-slow v.$ease-out;
+  position:       fixed;
+  bottom:         0;
+  left:           0;
+  right:          0;
+  z-index:        v.$z-player;
+  background:     v.$bg-base;
+  border-top:     1px solid v.$glass-border;
+  color:          v.$text-primary;
+  padding:        0 16px env(safe-area-inset-bottom) 12px;
+  overflow:       hidden;
+  box-sizing:     border-box;
+  transition:     transform v.$dur-slow v.$ease-out;
 
   // Verre léger — le contenu défile derrière la barre fixe
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
@@ -237,46 +239,56 @@
   text-transform: uppercase;
 }
 
-// ── "Voir les détails du beat" — bouton secondaire home ──────────────────────
+// ── "Chante dessus" — HERO topline CTA catalogue ─────────────────────────────
 
-.btn-track-detail {
+.btn-topline-nav {
   display:         inline-flex;
   align-items:     center;
-  gap:             5px;
-  padding:         5px 10px 5px 9px;
-  background:      transparent;
-  color:           v.$text-secondary;
-  border:          1px solid v.$bg-border-subtle;
-  border-radius:   20px;
-  font-size:       0.72rem;
-  font-weight:     500;
+  gap:             7px;
+  padding:         5px 12px 5px 10px;
+  background:      v.$gradient-primary;
+  color:           v.$white;
+  border:          none;
+  border-radius:   v.$radius-sm;
+  font-size:       0.76rem;
+  font-weight:     700;
   cursor:          pointer;
   white-space:     nowrap;
   text-decoration: none;
-  transition:      background 0.18s, border-color 0.18s, color 0.18s;
-
-  svg { flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
+  box-shadow:      v.$glow-primary-sm;
+  transition:      box-shadow v.$dur-base v.$ease-out,
+                   transform  v.$dur-base v.$ease-spring,
+                   filter     v.$dur-base v.$ease-out;
 
   &:hover {
-    background:   v.$bg-elevated;
-    border-color: v.$bg-border;
-    color:        v.$text-primary;
-    svg { opacity: 1; }
+    color:      v.$white;
+    box-shadow: v.$glow-primary;
+    transform:  translateY(-1px);
+    filter:     brightness(1.07);
   }
+
+  &:active { transform: scale(0.97); box-shadow: v.$glow-primary-sm; }
 }
 
-.btn-track-detail__text {
-  // visible desktop, masqué mobile
+.btn-topline-nav__icon {
+  font-size:  0.9rem;
+  flex-shrink: 0;
+  // Légère animation pour attirer l'œil (réduite par prefers-reduced-motion)
+  animation: mic-breathe 2.4s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
 }
 
-.btn-detail-sub {
-  font-size:   0.6rem;
-  font-weight: 600;
-  color:       v.$primary;
-  opacity:     0.85;
+@keyframes mic-breathe {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(0.88); }
+}
+
+.btn-topline-sub {
+  font-size:      0.6rem;
+  font-weight:    600;
+  color:          rgba(255, 255, 255, 0.75);
   letter-spacing: 0.02em;
-
-  i { font-size: 0.55rem; }
 }
 
 // ── Download + REC — contexte track-detail ────────────────────────────────────
@@ -350,17 +362,48 @@
   background:    v.$tag-red-dark;
   color:         v.$tag-red-light;
   border:        1px solid rgba(v.$tag-red, 0.35);
-  border-radius: 8px;
+  border-radius: v.$radius-sm;
   cursor:        pointer;
   white-space:   nowrap;
   letter-spacing: 0.02em;
-  transition:    background 0.18s, border-color 0.18s, box-shadow 0.18s;
+  transition:    background v.$dur-base v.$ease-out,
+                 border-color v.$dur-base v.$ease-out,
+                 box-shadow v.$dur-base v.$ease-out,
+                 transform v.$dur-base v.$ease-spring;
 
   &:hover {
     background:   rgba(v.$tag-red, 0.22);
     border-color: v.$tag-red;
     box-shadow:   0 0 10px rgba(v.$tag-red, 0.2);
     .btn-action-free--rec { opacity: 1; }
+  }
+
+  // ── Variante hero — gradient + glow, topline comme CTA principal ──────────
+  &--hero {
+    background: v.$gradient-primary;
+    color:      v.$white;
+    border:     none;
+    box-shadow: v.$glow-primary-sm;
+    padding:    7px 14px 7px 11px;
+
+    .btn-action-label          { font-size: 0.8rem; color: v.$white; }
+    .btn-action-free--rec      { color: rgba(255, 255, 255, 0.78); opacity: 1; }
+    .btn-action-free--login    { color: rgba(255, 255, 255, 0.7);  opacity: 1; }
+
+    &:hover {
+      background:   v.$gradient-primary; // override parent
+      border-color: transparent;
+      box-shadow:   v.$glow-primary;
+      transform:    translateY(-1px);
+      filter:       brightness(1.07);
+    }
+
+    &:active { transform: scale(0.97); }
+
+    .rec-dot {
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
   }
 }
 
@@ -370,12 +413,14 @@
   flex-shrink:   0;
   border-radius: 50%;
   background:    v.$tag-red;
-  animation:     pulse-rec 1.2s ease-in-out infinite;
+  animation:     pulse-rec 1.4s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; opacity: 1; }
 }
 
 @keyframes pulse-rec {
   0%, 100% { opacity: 1;   transform: scale(1); }
-  50%       { opacity: 0.3; transform: scale(0.7); }
+  50%       { opacity: 0.35; transform: scale(0.65); }
 }
 
 // ── Volume + Next ────────────────────────────────────────────────────────────
@@ -539,17 +584,18 @@
 @media (max-width: 600px) {
 
   .bottom-player {
-    padding:    0 8px 8px 8px;
+    padding:    0 8px calc(10px + env(safe-area-inset-bottom)) 8px;
     // Ombre plus marquée → le player "flotte" visuellement, moins noyé
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
   }
 
   .player-content {
-    flex-wrap:   wrap;
-    height:      auto;
-    gap:         0;
-    padding-top: 8px;
-    align-items: center;
+    flex-wrap:      wrap;
+    height:         auto;
+    gap:            0;
+    padding-top:    10px;
+    padding-bottom: 4px;
+    align-items:    center;
   }
 
   // Rangée 1
@@ -557,8 +603,10 @@
     flex:      1 1 auto;
     width:     auto;
     min-width: 0;
+    max-width: calc(100% - 120px);
     order:     1;
     gap:       8px;
+    overflow:  hidden;
   }
 
   .player-right {
@@ -593,20 +641,26 @@
   .player-artist { font-size: 0.66rem; }
   .preview-tag   { font-size: 0.52rem; padding: 1px 4px; }
 
-  // Boutons detail + download : icône seule sur mobile (texte masqué)
+  // Topline nav catalogue : garder compact (icône + texte court)
+  .btn-topline-nav {
+    padding: 5px 10px 5px 8px;
+    gap:     5px;
+    font-size: 0.7rem;
+  }
+  .btn-topline-sub { display: none; }
+
+  // Download catalogue : icône seule
   .btn-free-dl {
     padding: 5px 8px;
     gap:     4px;
   }
-  .btn-free-dl__text     { display: none; }
+  .btn-free-dl__text { display: none; }
 
-  .btn-track-detail {
-    padding: 5px 8px;
-    gap:     4px;
+  // Boutons detail context : compacts mais lisibles
+  .btn-rec--hero {
+    padding: 5px 10px 5px 8px;
+    gap:     5px;
   }
-  .btn-track-detail__text { display: none; }
-
-  // Boutons download/rec contexte detail : garder label court
   .btn-download,
   .btn-rec {
     padding: 5px 9px;

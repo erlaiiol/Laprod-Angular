@@ -58,8 +58,8 @@ export class HomeComponent implements OnInit {
   showOnboarding  = signal(false);
   showHero        = signal(false);
   heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
-  displayMode     = signal<'list' | 'gallery'>(
-    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery') ?? 'gallery'
+  displayMode     = signal<'list' | 'gallery' | 'compact'>(
+    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'
   );
 
   // Pagination
@@ -130,7 +130,7 @@ export class HomeComponent implements OnInit {
     return value.toLocaleString('fr-FR');
   }
 
-  setDisplayMode(mode: 'list' | 'gallery'): void {
+  setDisplayMode(mode: 'list' | 'gallery' | 'compact'): void {
     this.displayMode.set(mode);
     localStorage.setItem('laprod_display_mode', mode);
   }

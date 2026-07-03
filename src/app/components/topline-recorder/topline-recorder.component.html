@@ -28,45 +28,90 @@
     <!-- ── IDLE ────────────────────────────────────────────────────────────── -->
     @if (state() === 'idle') {
       <div class="recorder-idle">
-        <div class="recorder-options">
-          <label class="option-toggle">
-            <input type="checkbox" [(ngModel)]="useAutotune">
-            <span>Auto-tune <small>({{ track.key }})</small></span>
-          </label>
-          <label class="option-toggle">
-            <input type="checkbox" [(ngModel)]="useMonitor">
-            <span>Monitoring <small>(m'entendre en direct)</small></span>
-          </label>
-        </div>
-        <div class="description-field">
-          <label>Description <small>(optionnel)</small></label>
-          <input type="text" maxlength="200" [(ngModel)]="description"
-                 placeholder="Décrivez votre topline…">
-        </div>
-        @if (auth.currentUser()?.topline_tokens === 0) {
-          <div class="token-exhausted">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            Plus de tokens disponibles. Vous en recevrez
-            @if (auth.currentUser()?.is_premium) { 50 } @else { 5 }
-            lors du prochain renouvellement hebdomadaire.
-          </div>
-        }
-        <button class="btn-start-rec"
-                (click)="startRecording()"
-                [disabled]="auth.currentUser()?.topline_tokens === 0">
-          <span class="rec-dot-btn"></span> Démarrer l'enregistrement
-        </button>
 
-        <div class="recorder-tips">
-          <p class="tips-title"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
-          <ul>
-            <li><strong>Beat en fond</strong> — le beat joue pendant l'enregistrement, chantez par-dessus.</li>
-            <li><strong>Monitoring</strong> — si activé, vous vous entendez en temps réel (~10 ms de latence). Utilisez un casque pour éviter le larsen.</li>
-            <li><strong>Auto-tune</strong> — correction de justesse appliquée après l'enregistrement selon la gamme {{ track.key }}.</li>
-            <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }}s · maximum {{ MAX_SECONDS }}s ({{ formatTimer(MAX_SECONDS) }}).</li>
-            <li><strong>Preview</strong> — écoutez le mix voix+beat avant de publier ou supprimer.</li>
-          </ul>
-        </div>
+        @if (!calibrating()) {
+          <div class="recorder-options">
+            <label class="option-toggle">
+              <input type="checkbox" [(ngModel)]="useAutotune">
+              <span>Auto-tune <small>({{ track.key }})</small></span>
+            </label>
+            <label class="option-toggle">
+              <input type="checkbox" [(ngModel)]="useMonitor">
+              <span>Monitoring <small>(m'entendre en direct)</small></span>
+            </label>
+          </div>
+          <div class="description-field">
+            <label>Description <small>(optionnel)</small></label>
+            <input type="text" maxlength="200" [(ngModel)]="description"
+                   placeholder="Décrivez votre topline…">
+          </div>
+          @if (auth.currentUser()?.topline_tokens === 0) {
+            <div class="token-exhausted">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Plus de tokens disponibles. Vous en recevrez
+              @if (auth.currentUser()?.is_premium) { 50 } @else { 5 }
+              lors du prochain renouvellement hebdomadaire.
+            </div>
+          }
+          <button class="btn-start-rec"
+                  (click)="startRecording()"
+                  [disabled]="auth.currentUser()?.topline_tokens === 0">
+            <span class="rec-dot-btn"></span> Démarrer l'enregistrement
+          </button>
+
+          <!-- Calibration row -->
+          <div class="calib-row">
+            @if (isBluetooth()) {
+              <span class="calib-device-badge">
+                <i class="bi bi-headphones"></i> Bluetooth
+              </span>
+            }
+            @if (calibResult() !== null) {
+              <span class="calib-status">
+                <i class="bi bi-check2-circle"></i> Calibré : {{ calibResult() }}ms
+              </span>
+              <button class="calib-link calib-link--muted" (click)="resetCalibration()">Réinitialiser</button>
+              <span class="calib-dot">·</span>
+            }
+            <button class="calib-link" (click)="startCalibration()">
+              {{ calibResult() !== null ? 'Recalibrer' : 'Calibrer la latence audio' }}
+            </button>
+          </div>
+
+          <div class="recorder-tips">
+            <p class="tips-title"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
+            <ul>
+              <li><strong>Beat en fond</strong> — le beat joue pendant l'enregistrement, chantez par-dessus.</li>
+              <li><strong>Monitoring</strong> — si activé, vous vous entendez en temps réel (~10 ms de latence). Utilisez un casque pour éviter le larsen.</li>
+              <li><strong>Auto-tune</strong> — correction de justesse appliquée après l'enregistrement selon la gamme {{ track.key }}.</li>
+              <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }}s · maximum {{ MAX_SECONDS }}s ({{ formatTimer(MAX_SECONDS) }}).</li>
+              <li><strong>Preview</strong> — écoutez le mix voix+beat avant de publier ou supprimer.</li>
+            </ul>
+          </div>
+
+        } @else {
+
+          <!-- ── Calibration sub-view ───────────────────────────────────────── -->
+          <div class="calib-overlay">
+            <div class="calib-overlay-header">
+              <p class="calib-overlay-title">
+                <i class="bi bi-soundwave"></i> Calibration latence audio
+              </p>
+              <button class="calib-cancel-btn" (click)="cancelCalibration()">Annuler</button>
+            </div>
+            <p class="calib-overlay-instructions">
+              Tapez le bouton en rythme avec les sons que vous <strong>entendez</strong>.<br>
+              <small>2 sons de préparation, puis {{ CALIB_BEATS }} sons à tapper.</small>
+            </p>
+            <div class="calib-beat-ring" [class.calib-beat-active]="calibBeat()"></div>
+            <p class="calib-counter">{{ calibTapCount() }} / {{ CALIB_BEATS }}</p>
+            <button class="calib-tap-btn" (click)="onCalibTap()">TAP</button>
+            <p class="calib-overlay-tip">
+              Tapez juste quand vous entendez le son, pas avant.
+            </p>
+          </div>
+
+        }
       </div>
     }
 

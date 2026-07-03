@@ -36,7 +36,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   errorMsg      = signal<string | null>(null);
   resultTopline = signal<PublishedTopline | null>(null);
   isPublished   = signal(false);
-  loadingAudio  = signal(false);
+  loadingAudio   = signal(false);
+  calibrating    = signal(false);
+  calibTapCount  = signal(0);
+  calibResult    = signal<number | null>(null);
+  calibBeat      = signal(false);
+  isBluetooth    = signal(false);
 
   useAutotune  = false;
   useMonitor   = false;
@@ -69,7 +74,32 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private recordingTooShort  = false;
   private _latencyHintMs     = 0;
 
-  ngAfterViewInit(): void {}
+  private _calibCtx:       AudioContext | null = null;
+  private _calibBeatTimes: number[] = [];
+  private _calibTapTimes:  number[] = [];
+  readonly CALIB_BEATS           = 8;
+  private readonly _CALIB_LEAD_IN = 2;
+  private readonly _CALIB_BPM     = 90;
+
+  ngAfterViewInit(): void {
+    this._initLatencyHint();
+  }
+
+  private async _initLatencyHint(): Promise<void> {
+    const saved = parseInt(localStorage.getItem('laprod_latency_ms') ?? '', 10);
+    if (saved > 0 && saved <= 500) {
+      this.calibResult.set(saved);
+      this._latencyHintMs = saved;
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const BT_RE = /bluetooth|airpod|galaxy\s*bud|jabra|bose\b|sennheiser|jbl\b|beats\s|powerbeats|wireless/i;
+      if (devices.filter(d => d.kind === 'audioinput').some(d => BT_RE.test(d.label))) {
+        this.isBluetooth.set(true);
+      }
+    } catch { /* ignore */ }
+    this.cdr.markForCheck();
+  }
 
   private detectMimeType(): string {
     const preferred = [
@@ -115,20 +145,27 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       await this.audioCtx.resume();
     }
 
-    // Mesurer la latence de rendu audio hardware AVANT de lancer la lecture.
-    // outputLatency = délai entre le buffer audio et le haut-parleur/casque.
-    // baseLatency   = latence minimale du graphe Web Audio.
-    // L'utilisateur chante en réponse à ce qu'il entend, donc sa voix est
-    // (outputLatency + baseLatency) ms "en avance" sur le beat dans sa tête,
-    // mais (outputLatency + baseLatency) ms "en retard" dans le fichier fusionné.
-    // On transmet ce hint au serveur pour qu'il rogne le début de la voix.
-    const outputLatency = (this.audioCtx as any).outputLatency ?? 0;
-    const baseLatency   = (this.audioCtx as any).baseLatency   ?? 0;
-    let latencyHintMs   = Math.round((outputLatency + baseLatency) * 1000);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) latencyHintMs = Math.max(latencyHintMs, 80); // iOS sous-estime souvent
-    latencyHintMs = Math.min(latencyHintMs, 500);           // plancher de sécurité
-    this._latencyHintMs = latencyHintMs;
+    // Detect Bluetooth from actual mic track label (more reliable than enumerateDevices)
+    const trackLabel = this.micStream!.getAudioTracks()[0]?.label ?? '';
+    const BT_RE = /bluetooth|airpod|galaxy\s*bud|jabra|bose\b|sennheiser|jbl\b|beats\s|powerbeats|wireless/i;
+    if (BT_RE.test(trackLabel)) this.isBluetooth.set(true);
+    const isBT = this.isBluetooth();
+
+    // Prefer saved calibration; otherwise estimate from AudioContext latency values.
+    // The user sings in response to what they *hear* (delayed by outputLatency + BT codec),
+    // so their voice arrives late in the merged file by that same amount.
+    const savedCalib = parseInt(localStorage.getItem('laprod_latency_ms') ?? '', 10);
+    if (savedCalib > 0 && savedCalib <= 500) {
+      this._latencyHintMs = savedCalib;
+    } else {
+      const outputLatency = (this.audioCtx as any).outputLatency ?? 0;
+      const baseLatency   = (this.audioCtx as any).baseLatency   ?? 0;
+      let latencyHintMs   = Math.round((outputLatency + baseLatency) * 1000);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isBT)       latencyHintMs = Math.max(latencyHintMs, 150); // Bluetooth A2DP floor
+      else if (isIOS) latencyHintMs = Math.max(latencyHintMs, 80);  // iOS under-reports
+      this._latencyHintMs = Math.min(latencyHintMs, 500);
+    }
 
     const source  = this.audioCtx.createMediaStreamSource(this.micStream);
     this.analyser = this.audioCtx.createAnalyser();
@@ -393,8 +430,124 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     return `${m}:${(s % 60).toString().padStart(2, '0')}`;
   }
 
+  // ── Calibration ──────────────────────────────────────────────────────────────
+
+  startCalibration(): void {
+    if (this._calibCtx || this.calibrating()) return;
+    this._calibBeatTimes = [];
+    this._calibTapTimes  = [];
+    this.calibTapCount.set(0);
+
+    try {
+      this._calibCtx = new AudioContext();
+    } catch {
+      this.errorMsg.set('Impossible d\'accéder au contexte audio pour la calibration.');
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.calibrating.set(true);
+    this.cdr.markForCheck();
+
+    const ctx        = this._calibCtx;
+    const intervalS  = 60 / this._CALIB_BPM;
+    const totalBeats = this._CALIB_LEAD_IN + this.CALIB_BEATS;
+    const startTime  = ctx.currentTime + 0.15;
+
+    for (let i = 0; i < totalBeats; i++) {
+      const beatTime = startTime + i * intervalS;
+
+      // Schedule audio click
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = i < this._CALIB_LEAD_IN ? 660 : 880;
+      gain.gain.setValueAtTime(0, beatTime);
+      gain.gain.linearRampToValueAtTime(0.35, beatTime + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.055);
+      osc.start(beatTime);
+      osc.stop(beatTime + 0.055);
+
+      // Schedule visual flash
+      const visualDelay = Math.max(0, (beatTime - ctx.currentTime) * 1000);
+      setTimeout(() => {
+        if (!this.calibrating()) return;
+        this.calibBeat.set(true);
+        this.cdr.markForCheck();
+        setTimeout(() => { this.calibBeat.set(false); this.cdr.markForCheck(); }, 90);
+      }, visualDelay);
+
+      // Track beat times (only measure beats, not lead-in)
+      if (i >= this._CALIB_LEAD_IN) {
+        this._calibBeatTimes.push(beatTime);
+      }
+    }
+
+    // Auto-finish after last beat + 1 grace beat
+    const finishAfterMs = (startTime - ctx.currentTime + (totalBeats + 0.8) * intervalS) * 1000;
+    setTimeout(() => { if (this.calibrating()) this._finishCalibration(); }, finishAfterMs);
+  }
+
+  onCalibTap(): void {
+    if (!this._calibCtx || !this.calibrating()) return;
+    this._calibTapTimes.push(this._calibCtx.currentTime);
+    const count = this._calibTapTimes.length;
+    this.calibTapCount.set(count);
+    this.cdr.markForCheck();
+    if (count >= this.CALIB_BEATS) this._finishCalibration();
+  }
+
+  private _finishCalibration(): void {
+    if (!this.calibrating()) return;
+    this.calibrating.set(false);
+
+    const taps  = this._calibTapTimes;
+    const beats = this._calibBeatTimes;
+
+    if (taps.length >= 3) {
+      const offsets: number[] = [];
+      for (let i = 0; i < Math.min(taps.length, beats.length); i++) {
+        offsets.push((taps[i] - beats[i]) * 1000);
+      }
+      offsets.sort((a, b) => a - b);
+      const mid    = Math.floor(offsets.length / 2);
+      const median = offsets.length % 2 === 0
+        ? (offsets[mid - 1] + offsets[mid]) / 2
+        : offsets[mid];
+      const result = Math.max(0, Math.min(500, Math.round(median)));
+      this.calibResult.set(result);
+      this._latencyHintMs = result;
+      localStorage.setItem('laprod_latency_ms', String(result));
+    }
+
+    this._calibCtx?.close();
+    this._calibCtx      = null;
+    this._calibBeatTimes = [];
+    this._calibTapTimes  = [];
+    this.cdr.markForCheck();
+  }
+
+  cancelCalibration(): void {
+    if (!this.calibrating()) return;
+    this.calibrating.set(false);
+    this._calibCtx?.close();
+    this._calibCtx      = null;
+    this._calibBeatTimes = [];
+    this._calibTapTimes  = [];
+    this.cdr.markForCheck();
+  }
+
+  resetCalibration(): void {
+    localStorage.removeItem('laprod_latency_ms');
+    this.calibResult.set(null);
+    this._latencyHintMs = 0;
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.clearTimerAndMic();
+    this.cancelCalibration();
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }

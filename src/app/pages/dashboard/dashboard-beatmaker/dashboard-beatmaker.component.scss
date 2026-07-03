@@ -68,10 +68,10 @@
   padding: 0.55rem 1rem; background: none; border: none;
   border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0;
   font-size: 0.85rem; font-weight: 600; color: v.$text-secondary;
-  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
   margin-bottom: -1px;
 
-  &.active { color: v.$text-primary; border-bottom-color: v.$tag-violet; }
+  &.active { background: v.$off-white; color: v.$bg-base; border-bottom-color: transparent; }
   &:not(.active):hover { color: v.$text-primary; }
 }
 
@@ -245,7 +245,7 @@
 
 .tab-btn--link {
   text-decoration: none;
-  &.active { color: v.$text-primary; border-bottom-color: v.$tag-violet; }
+  &.active { background: v.$off-white; color: v.$bg-base; border-bottom-color: transparent; }
 }
 
 .tab-btn--beta {

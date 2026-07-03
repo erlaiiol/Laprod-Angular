@@ -19,12 +19,14 @@ import hashlib
 import shutil
 import config
 import uuid as _uuid
+import json
 
 from extensions import db, limiter, csrf, redis_client
 from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist, Purchase
 from helpers import generate_track_image
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
+from utils.search import normalize_search_term, extract_bpm, fuzzy_name_matches, split_search_words
 from utils.crud_helpers import (
     get_or_404, require_ownership,
     handle_route_exceptions, commit_or_rollback,
@@ -199,25 +201,53 @@ def get_tracks():
         tags_param     = request.args.get('tags', '').strip()
         tag_category   = request.args.get('tag_category', '').strip()
 
-        # Échapper les caractères spéciaux SQL LIKE
+        # Conserver la version brute pour les helpers avant l'escape SQL LIKE
+        search_raw = search
         search = search.replace('%', '\\%').replace('_', '\\_')
 
         if search:
-            search_conditions = [
-                Track.title.ilike(f'%{search}%'),
-                Track.composer_user.has(User.username.ilike(f'%{search}%')),
-                Track.style.ilike(f'%{search}%'),
-                Track.key.ilike(f'%{search}%'),
-                Track.tags.any(Tag.name.ilike(f'%{search}%')),
-            ]
-            # BPM : si le terme est un entier dans la plage valide
-            try:
-                bpm_val = int(search.replace('\\%', '').replace('\\_', ''))
-                if 40 <= bpm_val <= 250:
-                    search_conditions.append(Track.bpm == bpm_val)
-            except ValueError:
-                pass
-            track_query = track_query.where(or_(*search_conditions))
+            # ── Recherche BPM pure : '140', '140bpm', '140 bpm' ─────────────
+            # Quand toute la saisie est un nombre (intention BPM), on applique
+            # UNIQUEMENT la plage ±7 — pas de conditions textuelles qui feraient
+            # remonter des beats hors-BPM portant "140" dans un tag ou un titre.
+            bpm_val = extract_bpm(search_raw)
+            if bpm_val:
+                track_query = track_query.where(Track.bpm.between(bpm_val - 7, bpm_val + 7))
+
+            else:
+                # ── Recherche textuelle générale ──────────────────────────────
+                search_conditions = [
+                    Track.title.ilike(f'%{search}%'),
+                    Track.composer_user.has(User.username.ilike(f'%{search}%')),
+                    Track.style.ilike(f'%{search}%'),
+                    Track.key.ilike(f'%{search}%'),
+                    Track.tags.any(Tag.name.ilike(f'%{search}%')),
+                    Track.similar_artists.any(SimilarArtist.name.ilike(f'%{search}%')),
+                ]
+
+                # Mot-par-mot + fuzzy — délégués à utils.search
+                words = split_search_words(search_raw)
+                if words:
+                    for word in words:
+                        search_conditions.append(Track.tags.any(Tag.name.ilike(f'%{word}%')))
+                        search_conditions.append(
+                            Track.similar_artists.any(SimilarArtist.name.ilike(f'%{word}%'))
+                        )
+
+                    all_tag_names    = db.session.execute(select(Tag.name)).scalars().all()
+                    all_artist_names = db.session.execute(select(SimilarArtist.name)).scalars().all()
+
+                    fuzzy_tags    = fuzzy_name_matches(words, all_tag_names)
+                    fuzzy_artists = fuzzy_name_matches(words, all_artist_names)
+
+                    if fuzzy_tags:
+                        search_conditions.append(Track.tags.any(Tag.name.in_(fuzzy_tags)))
+                    if fuzzy_artists:
+                        search_conditions.append(
+                            Track.similar_artists.any(SimilarArtist.name.in_(fuzzy_artists))
+                        )
+
+                track_query = track_query.where(or_(*search_conditions))
 
         if bpm_min is not None:
             track_query = track_query.where(Track.bpm >= bpm_min)
@@ -258,27 +288,58 @@ def get_tracks():
 
         sort = request.args.get('sort', 'recent')
 
-        if sort == 'recommended' and user_id:
-            from utils.recommendation_service import build_user_vector, score_track as _score
-            all_matching = db.session.execute(
-                track_query.order_by(Track.created_at.desc()).limit(300)
-            ).scalars().all()
-            total = len(all_matching)
+        # ── Recommandations personnalisées — cache-first ──────────────────────
+        # Chemin rapide : lecture d'une liste d'IDs pré-calculés (TTL 30 min).
+        # Sur cache miss : retour immédiat "recent" + enqueue calcul en fond.
+        if sort == 'recommended' and user_id and redis_client:
+            result_key = f'laprod:reco:result:{user_id}'
             try:
-                vec = build_user_vector(user_id)
-                all_matching.sort(key=lambda t: _score(t, vec), reverse=True)
+                cached = redis_client.get(result_key)
+                if cached:
+                    all_ids = json.loads(cached)
+                    total   = len(all_ids)
+                    page_ids = all_ids[(page - 1) * per_page: page * per_page]
+                    if page_ids:
+                        id_rank = {tid: idx for idx, tid in enumerate(page_ids)}
+                        rows = db.session.execute(
+                            select(Track).options(
+                                selectinload(Track.tags).selectinload(Tag.category_obj),
+                                selectinload(Track.composer_user),
+                                selectinload(Track.similar_artists),
+                            ).where(Track.id.in_(page_ids))
+                        ).scalars().all()
+                        tracks = sorted(rows, key=lambda t: id_rank.get(t.id, 999))
+                    else:
+                        tracks = []
+                    pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
+                    return ok({
+                        'tracks': [track_card(t, pl_counts, pl_images) for t in tracks],
+                        'pagination': {
+                            'page':        page,
+                            'per_page':    per_page,
+                            'total':       total,
+                            'pages':       max(1, (total + per_page - 1) // per_page),
+                        },
+                        'personalized': True,
+                    })
             except Exception as exc:
-                current_app.logger.warning(f'reco sort fallback: {exc}')
-            start  = (page - 1) * per_page
-            tracks = all_matching[start:start + per_page]
-        else:
-            tracks = db.session.execute(
-                track_query.order_by(Track.created_at.desc())
-                .offset((page - 1) * per_page)
-                .limit(per_page)
-            ).scalars().all()
-            count_query = track_query.with_only_columns(func.count()).order_by(None)
-            total = db.session.execute(count_query).scalar()
+                current_app.logger.warning(f'[reco] Lecture cache échouée : {exc}')
+
+            # Cache miss — enqueue calcul en fond, fallback tri récent
+            try:
+                q = Queue(connection=redis_client)
+                q.enqueue('tasks.recommendation.compute_recommendations', user_id, job_timeout=60)
+            except Exception as exc:
+                current_app.logger.debug(f'[reco] Impossible d\'enqueuer : {exc}')
+
+        # ── Tri récent (défaut) + fallback recommandation ─────────────────────
+        tracks = db.session.execute(
+            track_query.order_by(Track.created_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        ).scalars().all()
+        count_query = track_query.with_only_columns(func.count()).order_by(None)
+        total = db.session.execute(count_query).scalar()
 
         pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
         return ok({

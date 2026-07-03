@@ -24,7 +24,7 @@
     transition: color 0.15s;
 
     &:hover { color: v.$text-primary; }
-    &.active { color: v.$tag-violet; border-bottom-color: v.$tag-violet; font-weight: 600; }
+    &.active { background: v.$off-white; color: v.$bg-base; border-bottom-color: transparent; font-weight: 600; }
   }
 }
 
@@ -36,8 +36,8 @@
     color: v.$text-secondary; padding: 0.35rem 0.85rem; font-size: 0.8rem; cursor: pointer;
     display: flex; align-items: center; gap: 0.35rem;
 
-    &:hover { border-color: v.$tag-violet; }
-    &.active { background: v.$tag-violet-dark; border-color: v.$tag-violet; color: v.$text-primary; font-weight: 600; }
+    &:hover { border-color: v.$bg-border-subtle; }
+    &.active { background: v.$off-white; border-color: transparent; color: v.$bg-base; font-weight: 600; }
   }
 }
 

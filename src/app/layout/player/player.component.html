@@ -55,7 +55,19 @@
         @if (!isDetailContext() && !isMixOrderContext()) {
           <div class="player-catalog-actions">
             @if (player.currentTrack()?.id) {
-              <!-- Télécharger la preview -->
+
+              <!-- HERO : Topline CTA — killer feature, gratuite -->
+              <a class="btn-topline-nav"
+                 [routerLink]="['/track', player.currentTrack()!.id]"
+                 title="Chante sur ce beat — topline 100% gratuite, autotune intégré, sans logiciel">
+                <i class="bi bi-mic-fill btn-topline-nav__icon"></i>
+                <span class="btn-action-inner">
+                  <span class="btn-action-label">Chante dessus</span>
+                  <span class="btn-topline-sub">topline · gratuite</span>
+                </span>
+              </a>
+
+              <!-- Secondaire : télécharger la preview -->
               <a class="btn-free-dl"
                  [routerLink]="['/track', player.currentTrack()!.id]"
                  title="Télécharger la preview gratuitement">
@@ -65,26 +77,9 @@
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span class="btn-free-dl__text">Télécharger</span>
-                <span class="btn-free-dl__badge">GRATUIT</span>
+                <span class="btn-free-dl__badge">MP3</span>
               </a>
-              <!-- Voir les détails + hint topline -->
-              <a class="btn-track-detail"
-                 [routerLink]="['/track', player.currentTrack()!.id]"
-                 title="Voir les détails du beat">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span class="btn-action-inner btn-track-detail__text">
-                  <span class="btn-action-label">Détails</span>
-                  <span class="btn-detail-sub">
-                    <i class="bi bi-mic-fill"></i> topline
-                  </span>
-                </span>
-              </a>
+
             }
           </div>
         }
@@ -93,31 +88,33 @@
         @if (isDetailContext()) {
           <div class="player-context-actions">
 
+            <!-- HERO : Topline — placée en premier, c'est la raison d'être du player -->
+            <button class="btn-rec btn-rec--hero" (click)="onRecClick()">
+              <span class="rec-dot rec-dot--pulse"></span>
+              <span class="btn-action-inner">
+                @if (auth.isLoggedIn()) {
+                  <span class="btn-action-label">Enregistre ta topline</span>
+                  <span class="btn-action-free btn-action-free--rec">gratuit · autotune intégré</span>
+                } @else {
+                  <span class="btn-action-label">Essaie la topline</span>
+                  <span class="btn-action-free btn-action-free--login">gratuit · connexion rapide</span>
+                }
+              </span>
+            </button>
+
+            <!-- Secondaire : télécharger la preview -->
             <button class="btn-download" (click)="onDownloadClick()"
                     [title]="auth.isLoggedIn() ? 'Télécharger la preview gratuitement' : 'Connexion requise'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+                   stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
               <span class="btn-action-inner">
-                <span class="btn-action-label">Télécharger</span>
+                <span class="btn-action-label">Preview</span>
                 @if (auth.isLoggedIn()) {
                   <span class="btn-action-free">gratuit</span>
-                } @else {
-                  <span class="btn-action-free btn-action-free--login">connexion</span>
-                }
-              </span>
-            </button>
-
-            <button class="btn-rec" (click)="onRecClick()"
-                    [title]="auth.isLoggedIn() ? 'Enregistrer une topline gratuitement' : 'Connexion requise'">
-              <span class="rec-dot"></span>
-              <span class="btn-action-inner">
-                <span class="btn-action-label">Topline</span>
-                @if (auth.isLoggedIn()) {
-                  <span class="btn-action-free btn-action-free--rec">gratuite</span>
                 } @else {
                   <span class="btn-action-free btn-action-free--login">connexion</span>
                 }
