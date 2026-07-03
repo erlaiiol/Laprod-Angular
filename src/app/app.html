@@ -9,9 +9,11 @@
 <app-player></app-player>
 <app-userflow></app-userflow>
 
-<!-- Bouton premium fixe -->
-<a routerLink="/premium" class="premium-fab" title="Découvrir LaProd+">
-  <div class="premium-fab__diamond">
-    <img src="/db_assets/main/premiumlogo.png" alt="LaProd+" class="premium-fab__img" />
-  </div>
-</a>
+<!-- Bouton premium fixe — masqué si l'utilisateur est déjà abonné -->
+@if (!auth.currentUser()?.is_premium) {
+  <a routerLink="/premium" class="premium-fab" title="Découvrir LaProd+">
+    <div class="premium-fab__diamond">
+      <img src="/db_assets/main/premiumlogo.png" alt="LaProd+" class="premium-fab__img" />
+    </div>
+  </a>
+}
