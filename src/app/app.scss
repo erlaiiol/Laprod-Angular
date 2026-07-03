@@ -8,7 +8,7 @@
 
 .premium-fab {
   position: fixed;
-  bottom: 9.8rem; // au-dessus du bouton userflow (6.5rem) et du player (5rem)
+  bottom: 9.8rem;
   right: 1.1rem;
   z-index: v.$z-fab;
   width: 36px;
@@ -49,4 +49,14 @@
   object-fit: cover;
   transform: translate(-50%, -50%) rotate(-45deg);
   display: block;
+}
+
+// ── Mobile : player à 2 rangées + safe-area ───────────────────────────────────
+// Le player mobile fait ~98px (Android) à ~132px (iPhone avec home indicator).
+// Les FABs doivent tenir compte de env(safe-area-inset-bottom).
+
+@media (max-width: 600px) {
+  .premium-fab {
+    bottom: calc(11rem + env(safe-area-inset-bottom));
+  }
 }

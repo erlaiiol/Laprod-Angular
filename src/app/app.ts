@@ -20,7 +20,7 @@ import { UserflowComponent } from './components/userflow/userflow.component';
 export class App implements OnInit {
   protected readonly title = signal('Laprod-Angular');
 
-  private auth     = inject(AuthService);
+  readonly auth    = inject(AuthService);
   private notifSvc = inject(NotificationService);
   private router   = inject(Router);
 

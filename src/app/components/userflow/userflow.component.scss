@@ -17,7 +17,7 @@ $flow-colors: (
 
 .uf-trigger {
   position: fixed;
-  bottom: 6.5rem; // above player (80px)
+  bottom: 6.5rem;
   right: 1.1rem;
   z-index: 1060; // above navbar and all its overlays (1040/1050)
   width: 36px;
@@ -333,5 +333,13 @@ $flow-colors: (
       color: map.get($props, "base");
       border: 1px solid map.get($props, "border");
     }
+  }
+}
+
+// ── Mobile : remonte les FABs au-dessus du player 2 rangées + safe-area ───────
+
+@media (max-width: 600px) {
+  .uf-trigger {
+    bottom: calc(7.5rem + env(safe-area-inset-bottom));
   }
 }

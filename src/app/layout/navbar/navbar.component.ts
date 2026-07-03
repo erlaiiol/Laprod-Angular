@@ -153,6 +153,9 @@ export class NavbarComponent implements OnInit {
       similarArtists: this.selectedSimilarArtists(),
     });
     this.closeFilters();
+    if (this.router.url.split('?')[0] !== '/') {
+      this.router.navigate(['/']);
+    }
   }
 
   resetFilters(): void {

@@ -299,8 +299,10 @@ details.filter-accordion[open] .filter-accordion-arrow {
   }
 
   &.active {
-    color: v.$off-white !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+    color: v.$bg-base !important;
+    background: v.$white !important;
+
+    i.bi { color: v.$bg-base; }
   }
 }
 
