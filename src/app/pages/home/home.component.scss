@@ -54,6 +54,7 @@
 
 #tracks-container.tracks-compact {
   max-width: 1200px;
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;

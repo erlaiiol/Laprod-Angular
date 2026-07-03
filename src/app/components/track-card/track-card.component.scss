@@ -255,8 +255,8 @@
 
   .image-wrapper {
     width: 100%;
-    height: unset;        // annule le height: 90px du mode liste
-    aspect-ratio: 1 / 1;
+    height: 0;            // annule le height: 90px du mode liste
+    padding-bottom: 100%; // 100% de la largeur parente → carré garanti cross-browser
     border-radius: v.$radius-sm v.$radius-sm 0 0;
     overflow: hidden;
     flex-shrink: 0;
