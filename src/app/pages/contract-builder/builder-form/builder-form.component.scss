@@ -162,18 +162,18 @@
   border-left: 3px solid transparent;
   transition: color 0.12s, background 0.12s;
   &:hover { color: v.$text-primary; background: v.$bg-elevated; }
-  &.active { color: v.$tag-blue; border-left-color: v.$tag-blue; font-weight: 600; background: v.$bg-elevated; }
+  &.active { background: v.$off-white; color: v.$bg-base; border-left-color: v.$off-white; font-weight: 600; }
 
   &.is-complete {
     color: v.$text-primary;
     .bf-art-num { background: v.$tag-blue-dark; border-color: v.$tag-blue; color: v.$tag-blue; }
-    &.active { color: v.$tag-blue; border-left-color: v.$tag-blue; }
+    &.active { background: v.$off-white; color: v.$bg-base; border-left-color: v.$tag-green; }
   }
 
   &.is-incomplete {
     color: v.$text-muted;
     .bf-art-num { background: rgba(v.$tag-orange, 0.12); border-color: rgba(v.$tag-orange, 0.4); color: v.$tag-orange; }
-    &.active { color: v.$tag-orange; border-left-color: v.$tag-orange; }
+    &.active { background: v.$off-white; color: v.$bg-base; border-left-color: v.$tag-orange; }
   }
 }
 

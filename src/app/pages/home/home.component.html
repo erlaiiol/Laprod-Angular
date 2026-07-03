@@ -21,6 +21,13 @@
       [class.layout-btn--active]="displayMode() === 'gallery'"
       (click)="setDisplayMode('gallery')"
       title="Vue galerie">
+      <i class="bi bi-grid-fill"></i>
+    </button>
+    <button
+      class="layout-btn"
+      [class.layout-btn--active]="displayMode() === 'compact'"
+      (click)="setDisplayMode('compact')"
+      title="Vue compacte — idéal sur mobile">
       <i class="bi bi-grid-3x3-gap-fill"></i>
     </button>
   </div>
@@ -31,25 +38,25 @@
 
     <div class="lp-landing__header">
       <img src="/db_assets/main/logo.png" class="lp-landing__logo" alt="LaProd">
-      <h1 class="lp-landing__title">Le marché musical<br><span>qui te respecte.</span></h1>
+      <h1 class="lp-landing__title">Crée. Vends.<br><span>Sans compromis.</span></h1>
 
       <!-- ── Onglets rôle ─────────────────────────────────────────────────── -->
       <div class="lp-landing__tabs">
         <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'artiste'"
                 (click)="heroTab.set('artiste')">
-          <i class="bi bi-mic-fill"></i> Artiste
+          Artiste
         </button>
         <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'beatmaker'"
                 (click)="heroTab.set('beatmaker')">
-          <i class="bi bi-sliders"></i> Beatmaker
+          Beatmaker
         </button>
         <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'ingenieur'"
                 (click)="heroTab.set('ingenieur')">
-          <i class="bi bi-equalizer-fill"></i> Ingénieur
+          Mix Engineer
         </button>
         <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'producteur'"
                 (click)="heroTab.set('producteur')">
-          <i class="bi bi-file-earmark-text-fill"></i> Producteur
+          Producteur
         </button>
       </div>
 
@@ -163,11 +170,16 @@
 
       <div class="lp-landing__actions">
         <a routerLink="/register" class="lp-btn-cta">
-          <i class="bi bi-person-plus-fill"></i> S'inscrire gratuitement
+          Commencer gratuitement
         </a>
         <button class="lp-btn-explore" (click)="dismissHero()">
-          Explorer les beats <i class="bi bi-arrow-right"></i>
+          Parcourir le catalogue <i class="bi bi-arrow-right"></i>
         </button>
+      </div>
+
+      <div class="lp-app-teaser">
+        <i class="bi bi-phone-fill"></i>
+        Application iOS & Android — <strong>bientôt disponible</strong>
       </div>
     </div>
 
@@ -184,35 +196,37 @@
 
     <!-- ── Workflow — comment ça marche ────────────────────────────────────── -->
     <div class="lp-workflow">
-      <h2 class="lp-workflow__title" lpReveal>Comment ça marche</h2>
+      <h2 class="lp-workflow__title" lpReveal>Simple comme ça.</h2>
       <div class="lp-workflow__steps">
         <div class="lp-step" lpReveal>
           <span class="lp-step__num">1</span>
-          <h3>Trouve ton beat</h3>
-          <p>Filtre par BPM, tonalité et style. Écoute librement, enregistre ta topline directement sur l'instru avant d'acheter.</p>
+          <h3>Explore. Écoute.</h3>
+          <p>Filtre par BPM, tonalité et style. Enregistre ta topline directement sur le beat avant d'acheter quoi que ce soit.</p>
         </div>
         <div class="lp-step" lpReveal [lpRevealDelay]="120">
           <span class="lp-step__num">2</span>
-          <h3>Signe un contrat clair</h3>
+          <h3>Signe en confiance.</h3>
           <p>Chaque licence est expliquée noir sur blanc : droits, exclusivité, SACEM. Tu sais exactement ce que tu achètes.</p>
         </div>
         <div class="lp-step" lpReveal [lpRevealDelay]="240">
           <span class="lp-step__num">3</span>
-          <h3>Récupère tes fichiers</h3>
+          <h3>Télécharge. Crée.</h3>
           <p>Paiement sécurisé, versé directement au créateur. MP3, WAV ou stems disponibles immédiatement dans ton espace.</p>
         </div>
       </div>
     </div>
 
     <div class="lp-manifesto" lpReveal>
-      <strong>Une rémunération juste pour chaque créateur. Un marché géré par ses acteurs, pas par des intermédiaires.</strong>
-      <p>LaProd est pensé par et pour ceux qui aiment la musique — pas seulement ceux qui en ont fait un business juteux et déshumanisé.</p>
+      <strong>Ta musique. Tes droits. Ton prix.</strong>
+      <p>LaProd connecte artistes et créateurs sans intermédiaire. Pas de commission cachée, pas de contrat opaque — juste de la musique et des transactions qui te respectent.</p>
     </div>
 
   </section>
 }
 
-<div id="tracks-container" [class.tracks-gallery]="displayMode() === 'gallery'">
+<div id="tracks-container"
+     [class.tracks-gallery]="displayMode() === 'gallery'"
+     [class.tracks-compact]="displayMode() === 'compact'">
 
   @if (loading()) {
     <div class="state-loading">
@@ -238,7 +252,9 @@
   }
 
   @for (track of tracks(); track track.id) {
-    <app-track-card [track]="track" [galleryMode]="displayMode() === 'gallery'" />
+    <app-track-card [track]="track"
+                    [galleryMode]="displayMode() === 'gallery'"
+                    [compactMode]="displayMode() === 'compact'" />
   }
 
 </div>

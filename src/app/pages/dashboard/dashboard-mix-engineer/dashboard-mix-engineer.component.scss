@@ -86,13 +86,13 @@
   padding: 0.55rem 0.9rem; background: none; border: none;
   border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0;
   font-size: 0.83rem; font-weight: 600; color: v.$text-secondary;
-  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
   margin-bottom: -1px;
-  &.active { color: v.$text-primary; border-bottom-color: v.$tag-blue; }
+  &.active { background: v.$off-white; color: v.$bg-base; border-bottom-color: transparent; }
   &:not(.active):hover { color: v.$text-primary; }
 }
 
-.tab-btn--link { text-decoration: none; &.active { color: v.$text-primary; border-bottom-color: v.$tag-blue; } }
+.tab-btn--link { text-decoration: none; &.active { background: v.$off-white; color: v.$bg-base; border-bottom-color: transparent; } }
 .tab-btn--beta { pointer-events: none; opacity: 0.5; }
 .tab-beta-badge {
   font-size: 0.65rem; font-weight: 700;

@@ -116,19 +116,16 @@
 
 /* ── Sections ─────────────────────────────────────────────────────────────── */
 
+// G — cards avec élévation + edge-highlight, sans border-left coloré (daté)
 .section-card {
-  background: v.$bg-surface;
-  border: 1px solid v.$bg-border;
-  border-left: 3px solid v.$bg-border;
-  border-radius: 8px;
-  padding: 1.25rem 1.5rem;
-  display: flex;
+  background:    v.$bg-surface;
+  border:        1px solid v.$bg-border;
+  border-radius: v.$radius-lg;
+  padding:       1.25rem 1.5rem;
+  display:       flex;
   flex-direction: column;
-  gap: 1rem;
-
-  &.section-card--info  { border-left-color: v.$primary; }
-  &.section-card--price { border-left-color: v.$tag-green; }
-  &.section-card--tags  { border-left-color: v.$tag-violet; }
+  gap:           1rem;
+  box-shadow:    v.$shadow-sm, v.$edge-highlight;
 }
 
 .section-title {
@@ -151,10 +148,11 @@
   flex-direction: column;
   gap: 0.3rem;
 
+  // E — labels lisibles (v.$bg-border-subtle est une couleur de bordure, pas de texte)
   label {
     font-size: 0.82rem;
     font-weight: 600;
-    color: v.$bg-border-subtle;
+    color: v.$text-secondary;
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -174,21 +172,27 @@
     align-items: center;
     justify-content: space-between;
 
-    label { font-size: 0.82rem; font-weight: 600; color: v.$bg-border-subtle; }
+    label { font-size: 0.82rem; font-weight: 600; color: v.$text-secondary; }
   }
 
+  // F — inputs plus contrastés + focus ring rouge
   input, select {
-    background: v.$bg-base;
-    border: 1px solid v.$bg-border;
-    border-radius: 6px;
-    color: v.$off-white;
-    font-size: 0.9rem;
-    padding: 0.55rem 0.75rem;
-    width: 100%;
+    background:  v.$bg-elevated;
+    border:      1px solid rgba(255, 255, 255, 0.1);
+    border-radius: v.$radius-sm;
+    color:       v.$off-white;
+    font-size:   0.9rem;
+    padding:     0.55rem 0.75rem;
+    width:       100%;
     font-family: inherit;
-    transition: border-color 0.2s;
+    transition:  border-color 0.2s, box-shadow 0.2s;
 
-    &:focus { outline: none; border-color: v.$primary-dark; }
+    &::placeholder { color: rgba(255, 255, 255, 0.28); }
+    &:focus {
+      outline:      none;
+      border-color: v.$primary;
+      box-shadow:   0 0 0 3px rgba(v.$primary, 0.15);
+    }
   }
 
   select {
@@ -284,18 +288,24 @@
 /* ── Fichiers ─────────────────────────────────────────────────────────────── */
 
 .file-field {
+  // H — file zone avec hover tint primaire
   .file-label {
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    background: v.$bg-base;
-    border: 1px solid v.$bg-border;
-    border-radius: 6px;
+    background: v.$bg-elevated;
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    border-radius: v.$radius-sm;
     padding: 0.7rem 1rem;
     cursor: pointer;
-    transition: border-color 0.15s;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 
-    &:hover { border-color: v.$primary-dark; }
+    &:hover {
+      border-color: v.$primary;
+      border-style: solid;
+      background:   rgba(v.$primary, 0.05);
+      box-shadow:   0 0 0 3px rgba(v.$primary, 0.1);
+    }
 
     > i {
       font-size: 1.3rem;
@@ -627,7 +637,7 @@
   gap:         0.5rem;
   cursor:      pointer;
   font-size:   0.83rem;
-  color:       v.$bg-border-subtle;
+  color:       v.$text-secondary;
 
   input[type="checkbox"] {
     width:  15px;
@@ -706,7 +716,7 @@
 .playlist-item-name {
   flex: 1;
   font-size: 0.88rem;
-  color: v.$bg-border-subtle;
+  color: v.$text-secondary;
 }
 
 .playlist-item-count {

@@ -5,6 +5,7 @@
 -->
 <div class="track-card"
      [class.track-card--gallery]="galleryMode"
+     [class.track-card--compact]="compactMode"
      [routerLink]="['/track', track.id]">
 
   <!-- Image + overlay play/pause -->
@@ -17,6 +18,9 @@
       class="music-card-img"
       loading="lazy"
       onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
+    @if (compactMode) {
+      <div class="tc-price-badge">{{ formatPrice(track.price_mp3) }}</div>
+    }
     <div class="play-overlay">
       @if (isThisTrackPlaying()) {
         <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">

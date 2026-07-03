@@ -1,6 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 
 import { TagsService, Tag } from '../../services/tags.service';
 import { FilterStateService } from '../../services/filter-state.service';
@@ -36,6 +36,16 @@ export class NavbarComponent implements OnInit {
   private notifSvc          = inject(NotificationService);
   private similarArtistsSvc = inject(SimilarArtistsService);
 
+  private router = inject(Router);
+
+  hasActiveFilters = computed(() =>
+    this.selectedKeys().length > 0 ||
+    this.selectedStyles().length > 0 ||
+    this.selectedTags().length > 0 ||
+    this.selectedSimilarArtists().length > 0 ||
+    !!this.bpmMin() || !!this.bpmMax()
+  );
+
   constructor(
     private tagsService:        TagsService,
     private filterStateService: FilterStateService,
@@ -66,6 +76,7 @@ export class NavbarComponent implements OnInit {
   isAdmin       = computed(() => this.authService.isAdmin());
   isPremium     = computed(() => this.authService.isPremium());
   username      = computed(() => this.authService.currentUser()?.username || '');
+  userInitial   = computed(() => (this.authService.currentUser()?.username || '?').charAt(0).toUpperCase());
   notifCount    = computed(() => this.notifSvc.unreadCount());
   isLoggedIn    = computed(() => this.authService.isLoggedIn());
 
@@ -166,6 +177,9 @@ export class NavbarComponent implements OnInit {
       tags:           this.selectedTags(),
       similarArtists: this.selectedSimilarArtists(),
     });
+    if (this.router.url.split('?')[0] !== '/') {
+      this.router.navigate(['/']);
+    }
   }
 
   toggleFilters(): void { this.filtersOpen.set(!this.filtersOpen()); }

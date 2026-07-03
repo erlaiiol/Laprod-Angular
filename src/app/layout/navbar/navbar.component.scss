@@ -24,6 +24,33 @@
 }
 
 
+/* ── Bouton filtre actif ───────────────────────────────────────────────────── */
+
+.btn-filter-toggle--active {
+  background: rgba(v.$primary, 0.12) !important;
+  border-color: rgba(v.$primary, 0.5) !important;
+  color: v.$primary !important;
+}
+
+// Neutralise le focus bleu Bootstrap sur le bouton filtre et le toggler mobile
+.btn-filter-toggle,
+.navbar-toggler {
+  &:focus, &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+  }
+}
+
+.btn-filter-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: v.$primary; color: v.$white;
+  font-size: 0.6rem; font-weight: 700;
+  border-radius: v.$radius-pill;
+  margin-left: 4px; vertical-align: middle;
+}
+
+
 /* ── Popover backdrop ──────────────────────────────────────────────────────── */
 
 .popover-backdrop {
@@ -35,7 +62,8 @@
 /* ── Popover de filtres ────────────────────────────────────────────────────── */
 
 .filters-popover {
-  position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
+  position: fixed; top: 0; right: -360px; width: 340px;
+  height: 100vh; height: 100dvh;
   background: v.$bg-surface; border-left: 1px solid v.$bg-border;
   z-index: v.$z-drawer; display: flex; flex-direction: column;
   transition: right v.$dur-slow v.$ease-in-out; overflow: hidden;
@@ -194,7 +222,10 @@ details.filter-accordion[open] .filter-accordion-arrow {
 
 .filters-footer {
   display: flex; justify-content: flex-end; gap: 0.5rem;
-  padding: 1rem 1.25rem; border-top: 1px solid v.$bg-border;
+  padding: 1rem 1.25rem;
+  padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  border-top: 1px solid v.$bg-border;
+  flex-shrink: 0;
 }
 
 // ── Contrats Pro — section premium dans le dropdown ──────────────────────────
@@ -231,8 +262,25 @@ details.filter-accordion[open] .filter-accordion-arrow {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.875rem;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
 
   i.bi { font-size: 0.9rem; line-height: 1; flex-shrink: 0; }
+
+  // Neutralise le bleu Bootstrap au clic et au focus
+  &:active, &:focus, &:focus-visible {
+    color: rgba(255, 255, 255, 0.95) !important;
+    outline: none;
+    box-shadow: none;
+  }
+
+  // Onglet actif (routerLinkActive="active") — fond blanc, texte sombre
+  &.active {
+    color: v.$bg-base !important;
+    background: v.$white !important;
+
+    i.bi { color: v.$bg-base; }
+  }
 }
 
 .navbar-nav .dropdown-item {
@@ -242,6 +290,106 @@ details.filter-accordion[open] .filter-accordion-arrow {
   font-size: 0.875rem;
 
   i.bi { font-size: 0.875rem; line-height: 1; flex-shrink: 0; width: 1rem; text-align: center; }
+
+  // Neutralise le bleu Bootstrap dans les dropdowns
+  &:active, &:focus, &:focus-visible {
+    color: v.$off-white !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    outline: none;
+  }
+
+  &.active {
+    color: v.$off-white !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
+// ── Lien "Publier" — léger accent sans être un CTA plein ─────────────────────
+
+.nav-link--publish {
+  color: v.$text-secondary !important;
+  font-weight: 500;
+  transition: color v.$dur-base v.$ease-out;
+
+  i { color: v.$primary; opacity: 0.85; }
+
+  &:hover { color: v.$off-white !important; i { opacity: 1; } }
+
+  // Quand actif, pas de fond blanc — juste texte blanc (sinon l'icône rouge disparaît)
+  &.active {
+    color: v.$off-white !important;
+    background: transparent !important;
+    i { color: v.$primary; opacity: 1; }
+  }
+}
+
+// ── Cloche notifications ───────────────────────────────────────────────────────
+
+.nav-notif-btn {
+  position: relative;
+  padding-right: 0.65rem !important;
+}
+
+.notif-dot {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  background: v.$primary;
+  color: v.$white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: v.$radius-pill;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+// ── Avatar utilisateur ─────────────────────────────────────────────────────────
+
+.nav-user-toggle {
+  padding: 0 0.25rem !important;
+
+  // Masquer la flèche Bootstrap sur le toggle avatar
+  &.dropdown-toggle::after { display: none; }
+}
+
+.nav-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: v.$gradient-primary;
+  color: v.$white;
+  font-family: v.$font-display;
+  font-size: 0.8rem;
+  font-weight: v.$weight-bold;
+  flex-shrink: 0;
+  box-shadow: v.$glow-primary-sm;
+  transition: box-shadow v.$dur-base v.$ease-out, transform v.$dur-base v.$ease-spring;
+
+  .nav-user-toggle:hover & {
+    box-shadow: v.$glow-primary;
+    transform: scale(1.06);
+  }
+}
+
+// ── Dropdown item déconnexion ──────────────────────────────────────────────────
+
+.dropdown-item--danger {
+  color: v.$tag-red-light !important;
+
+  i { color: v.$tag-red; }
+
+  &:hover, &:focus {
+    background: rgba(v.$tag-red, 0.12) !important;
+    color: v.$white !important;
+  }
 }
 
 // ── Bouton S'inscrire — CTA visible pour visiteurs anonymes ──────────────────

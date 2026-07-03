@@ -31,6 +31,7 @@ export class TrackCardComponent {
 
   @Input() track!: Track;
   @Input() galleryMode = false;
+  @Input() compactMode = false;
 
   private trackService  = inject(TrackService);
   private playerService = inject(PlayerService);

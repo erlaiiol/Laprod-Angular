@@ -18,13 +18,31 @@ from sqlalchemy.orm import selectinload
 from extensions import db, redis_client
 from models import Favorite, ListenEvent, Purchase, Track
 
-VECTOR_CACHE_TTL = 600  # 10 minutes
+VECTOR_CACHE_TTL = 600    # 10 minutes
+RESULT_CACHE_KEY  = 'laprod:reco:result:{}'
 
 
 def invalidate_user_vector_cache(user_id: int) -> None:
+    """Invalide le vecteur utilisateur ET le cache résultat (les deux sont liés)."""
     if redis_client:
         try:
-            redis_client.delete(f'laprod:reco:vector:{user_id}')
+            redis_client.delete(
+                f'laprod:reco:vector:{user_id}',
+                RESULT_CACHE_KEY.format(user_id),
+            )
+        except Exception:
+            pass
+
+
+def invalidate_reco_result_cache(user_id: int) -> None:
+    """
+    Invalide uniquement le cache résultat (liste d'IDs recommandés).
+    À appeler après un achat, un favori ou un événement d'écoute significatif
+    pour que la prochaine requête déclenche un recalcul en fond.
+    """
+    if redis_client:
+        try:
+            redis_client.delete(RESULT_CACHE_KEY.format(user_id))
         except Exception:
             pass
 
