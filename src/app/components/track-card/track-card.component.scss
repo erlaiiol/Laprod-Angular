@@ -254,10 +254,22 @@
   &:hover { transform: translateY(-2px); }
 
   .image-wrapper {
-    width: 100%; height: auto; aspect-ratio: 1 / 1;
+    width: 100%;
+    height: unset;        // annule le height: 90px du mode liste
+    aspect-ratio: 1 / 1;
     border-radius: v.$radius-sm v.$radius-sm 0 0;
+    overflow: hidden;
     flex-shrink: 0;
     position: relative;
+  }
+
+  .music-card-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
   }
 
   .tc-price-badge {
