@@ -28,6 +28,10 @@
                class="form-control form-control-sm"
                placeholder="Titre, beatmaker, tag, BPM, style..."
                title="Recherche par titre, beatmaker, tag, BPM, style ou gamme — appuyez sur Entrée"
+               enterkeyhint="search"
+               autocomplete="off"
+               autocorrect="off"
+               spellcheck="false"
                [value]="search()"
                (input)="search.set($any($event.target).value)"
                (keyup.enter)="onSearchEnter()">
