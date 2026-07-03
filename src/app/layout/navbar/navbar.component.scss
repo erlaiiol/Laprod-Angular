@@ -400,7 +400,8 @@ details.filter-accordion[open] .filter-accordion-arrow {
   background: v.$gradient-primary !important;
   color: v.$white !important;
   border-radius: v.$radius-sm;
-  padding: 0.3rem 0.85rem !important;
+  padding-left:  0.9rem !important;
+  padding-right: 0.9rem !important;
   font-weight: 700;
   transition: box-shadow v.$dur-base v.$ease-out, filter v.$dur-base v.$ease-out;
 
