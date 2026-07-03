@@ -255,8 +255,7 @@
 
   .image-wrapper {
     width: 100%;
-    height: 0;            // annule le height: 90px du mode liste
-    padding-bottom: 100%; // 100% de la largeur parente → carré garanti cross-browser
+    height: auto;
     border-radius: v.$radius-sm v.$radius-sm 0 0;
     overflow: hidden;
     flex-shrink: 0;
@@ -264,10 +263,10 @@
   }
 
   .music-card-img {
-    position: absolute;
-    inset: 0;
+    display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     object-position: center center;
   }
