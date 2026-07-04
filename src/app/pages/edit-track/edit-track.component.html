@@ -377,6 +377,27 @@
 
       <div class="card-divider"></div>
 
+      <!-- ═══ AUDIT QUALITÉ ═══════════════════════════════════════════════════ -->
+      <div class="card-section">
+        <h3 class="section-title">Audit qualité</h3>
+        <app-track-quality-score
+          [title]="title()"
+          [bpm]="bpm()"
+          [key]="key()"
+          [style]="style()"
+          [tagCount]="selectedTagIds().length"
+          [similarCount]="selectedArtistIds().length"
+          [hasImage]="!!track()?.image_file || !!fileImage()"
+          [hasWav]="!!track()?.file_wav || !!fileWav()"
+          [hasStems]="!!track()?.file_stems || !!fileStems()"
+          [priceMp3]="priceMp3()"
+          [priceWav]="priceWav()"
+          [priceStems]="priceStems()"
+        />
+      </div>
+
+      <div class="card-divider"></div>
+
       <!-- ═══ SUBMIT ══════════════════════════════════════════════════════════ -->
       <div class="card-footer">
         <button type="submit" class="btn-submit" [disabled]="submitting()">

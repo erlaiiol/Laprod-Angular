@@ -9,6 +9,7 @@ import { Playlist, PlaylistService } from '../../services/playlist.service';
 import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
+import { TrackQualityScoreComponent } from '../../components/track-quality-score/track-quality-score.component';
 
 interface TagGroup {
   name:  string;
@@ -18,7 +19,7 @@ interface TagGroup {
 
 @Component({
   selector: 'app-edit-track',
-  imports: [ CommonModule, RouterModule, FormsModule],
+  imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent],
   templateUrl: './edit-track.component.html',
   styleUrl: './edit-track.component.scss',
 })

@@ -651,15 +651,18 @@ class Topline(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
-    artist_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
+    artist_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)   # nullable : guest
+    guest_session_id = db.Column(db.String(36), nullable=True, index=True)       # UUID localStorage guest
+    guest_expires_at = db.Column(db.DateTime, nullable=True)                     # TTL 24h pour purge
+
     audio_file = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     is_published = db.Column(db.Boolean, default=False, nullable=False)
-    
+
     def __repr__(self):
-        return f"<Topline by {self.artist_user.username} on Track#{self.track_id}>"
+        name = self.artist_user.username if self.artist_id else f"guest:{self.guest_session_id}"
+        return f"<Topline by {name} on Track#{self.track_id}>"
 
 
 class Purchase(db.Model):
@@ -1489,3 +1492,45 @@ class LicenseNotificationLog(db.Model):
 
     def __repr__(self):
         return f"<LicenseNotificationLog purchase={self.purchase_id} type={self.notification_type} period={self.period_key}>"
+
+
+class UserNotificationLog(db.Model):
+    """Journal de déduplication des notifications planifiées utilisateur (re-engagement, etc.)."""
+    __tablename__ = 'user_notification_log'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    user_id           = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notification_type = db.Column(db.String(80), nullable=False)
+    period_key        = db.Column(db.String(30), nullable=False)
+    sent_at           = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'notification_type', 'period_key',
+                            name='uq_user_notif_dedup'),
+        db.Index('idx_user_notif_log', 'user_id', 'notification_type'),
+    )
+
+    def __repr__(self):
+        return f"<UserNotificationLog user={self.user_id} type={self.notification_type} period={self.period_key}>"
+
+
+class TestimonialRequest(db.Model):
+    """Demandes de témoignages soumises par les utilisateurs (feature flag DEV)."""
+    __tablename__ = 'testimonial_request'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    email        = db.Column(db.String(120), nullable=False)
+    role         = db.Column(db.String(30), nullable=True)   # 'beatmaker', 'artist', 'mix_engineer'
+    message      = db.Column(db.Text, nullable=False)
+    rating       = db.Column(db.Integer, nullable=True)      # 1-5
+    is_verified  = db.Column(db.Boolean, default=False, nullable=False)
+    is_published = db.Column(db.Boolean, default=False, nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    def __repr__(self):
+        return f"<TestimonialRequest id={self.id} email={self.email} published={self.is_published}>"

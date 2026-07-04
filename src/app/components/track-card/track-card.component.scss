@@ -95,6 +95,12 @@
   border: 1px solid; color: v.$off-white;
 }
 
+.tag--clickable, .style-chip, .artist-ref-chip--clickable {
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+  &:hover { filter: brightness(1.25); transform: translateY(-1px); }
+}
+
 .tag-more-btn {
   padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.72rem;
   background: rgba(v.$text-muted, 0.1); border: 1px solid rgba(v.$text-muted, 0.2);

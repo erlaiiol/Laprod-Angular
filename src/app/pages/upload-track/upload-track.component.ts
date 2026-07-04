@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -29,6 +29,8 @@ interface TagGroup {
   styleUrl:    './upload-track.component.scss',
 })
 export class UploadTrackComponent implements OnInit {
+
+  @ViewChild('ytSection') ytSectionRef?: ElementRef<HTMLElement>;
 
   readonly DEFAULT_CONTRACT_PRICES = {
     exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
@@ -241,6 +243,13 @@ export class UploadTrackComponent implements OnInit {
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
+    effect(() => {
+      if (this.uploadDone()) {
+        setTimeout(() => {
+          this.ytSectionRef?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -348,6 +357,10 @@ export class UploadTrackComponent implements OnInit {
 
   goHome(): void {
     this.router.navigate(['/dashboard/beatmaker']);
+  }
+
+  goToTracks(): void {
+    this.router.navigate(['/']);
   }
 
   onSubmit(): void {

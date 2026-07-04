@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
-import { authGuard }  from './guards/auth.guard';
-import { adminGuard } from './guards/admin.guard';
+import { authGuard }          from './guards/auth.guard';
+import { adminGuard }         from './guards/admin.guard';
+import { testimonialsGuard }  from './guards/testimonials.guard';
+import { TestimonialsComponent } from './pages/testimonials/testimonials.component';
 
 // Pages (smart — fetch des données)
 import { HomeComponent }           from './pages/home/home.component';
@@ -63,6 +65,7 @@ export const routes: Routes = [
   { path: 'profile/:username',             component: ProfileComponent },
   { path: 'notifications',                 component: NotificationsComponent,           canActivate: [authGuard] },
   { path: 'contact',                       component: ContactComponent },
+  { path: 'temoignages',                   component: TestimonialsComponent,            canActivate: [testimonialsGuard] },
   { path: 'dashboard/beatmaker',           component: DashboardBeatmakerComponent,      canActivate: [authGuard] },
   { path: 'dashboard/artist',              component: DashboardArtistComponent,         canActivate: [authGuard] },
   { path: 'dashboard/mix-engineer',        component: DashboardMixEngineerComponent,    canActivate: [authGuard] },

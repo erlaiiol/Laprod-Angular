@@ -19,6 +19,8 @@
     "@angular/router": "^21.2.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
+    "chart.js": "^4.5.1",
+    "ng2-charts": "^10.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "wavesurfer.js": "^7.12.5"

@@ -53,11 +53,13 @@
     <div class="track-footer">
       <div class="track-tags">
         @if (track.style) {
-          <span class="style-chip">{{ track.style }}</span>
+          <span class="style-chip" (click)="onStyleClick(track.style, $event)" title="Filtrer par style : {{ track.style }}">{{ track.style }}</span>
         }
         @if (showArtists() && track.similar_artists?.length) {
           @for (a of (showAllArtists() ? track.similar_artists! : track.similar_artists!.slice(0, 2)); track a.id) {
-            <span class="artist-ref-chip">
+            <span class="artist-ref-chip artist-ref-chip--clickable"
+                  (click)="onArtistClick(a.name, $event)"
+                  title="Filtrer par {{ a.name }}">
               {{ a.name }}
             </span>
           }
@@ -77,10 +79,12 @@
         } @else {
           @for (tag of visibleTags(); track tag.name) {
             <span
-              class="tag"
+              class="tag tag--clickable"
               [attr.data-category]="tag.category"
               [style.background-color]="tagBgColor(tag.color)"
-              [style.border-color]="tagBorderColor(tag.color)">
+              [style.border-color]="tagBorderColor(tag.color)"
+              (click)="onTagClick(tag.name, $event)"
+              title="Filtrer par #{{ tag.name }}">
               #{{ tag.name }}
             </span>
           }
@@ -98,7 +102,9 @@
             </button>
           }
           @if (track.similar_artists?.length) {
-            <span class="artist-ref-chip">
+            <span class="artist-ref-chip artist-ref-chip--clickable"
+                  (click)="onArtistClick(track.similar_artists![0].name, $event)"
+                  title="Filtrer par {{ track.similar_artists![0].name }}">
               <i class="bi bi-person-circle"></i>{{ track.similar_artists![0].name }}
             </span>
           }

@@ -12,6 +12,8 @@ import { RouterModule, Router } from '@angular/router';
 import { Track, TrackService } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
+import { FilterStateService } from '../../services/filter-state.service';
+import { ToastService } from '../../services/toast.service';
 import { FavoriteButtonComponent } from '../favorite-button/favorite-button.component';
 import { PlaylistButtonComponent } from '../playlist-button/playlist-button.component';
 import { ShareButtonComponent } from '../share-button/share-button.component';
@@ -36,6 +38,8 @@ export class TrackCardComponent {
   private trackService  = inject(TrackService);
   private playerService = inject(PlayerService);
   private authService   = inject(AuthService);
+  private filterState   = inject(FilterStateService);
+  private toast         = inject(ToastService);
   private router        = inject(Router);
 
   showAllTags     = signal(false);
@@ -72,6 +76,24 @@ export class TrackCardComponent {
   toggleArtists(event: MouseEvent): void {
     event.stopPropagation();
     this.showAllArtists.update(v => !v);
+  }
+
+  onTagClick(tagName: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.filterState.addTag(tagName)) return;
+    this.toast.showToast({ level: 'info', message: `#${tagName} ajouté aux filtres` });
+  }
+
+  onStyleClick(style: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.filterState.addStyle(style)) return;
+    this.toast.showToast({ level: 'info', message: `Style « ${style} » ajouté aux filtres` });
+  }
+
+  onArtistClick(name: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.filterState.addSimilarArtist(name)) return;
+    this.toast.showToast({ level: 'info', message: `Artiste « ${name} » ajouté aux filtres` });
   }
 
   getImageUrl(): string {

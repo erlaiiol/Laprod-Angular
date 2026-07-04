@@ -1,0 +1,73 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+
+<h2 style="color: #e94560; margin: 0 0 8px; font-size: 22px;">
+  Vos fans vous attendent 🎹
+</h2>
+<p style="color: #aabbcc; margin: 0 0 24px; font-size: 15px;">
+  Cela fait une semaine que vous n'avez pas uploadé de beat. C'est le bon moment pour rappeler à vos auditeurs que vous êtes actif.
+</p>
+
+<!-- Bloc stats -->
+{% if track_count > 0 %}
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+  <tr>
+    <td style="background: #0f3460; border-radius: 8px; padding: 16px 20px; text-align: center;">
+      <span style="color: #e94560; font-size: 28px; font-weight: bold;">{{ track_count }}</span>
+      <br>
+      <span style="color: #8899aa; font-size: 13px;">beat{{ 's' if track_count > 1 else '' }} publié{{ 's' if track_count > 1 else '' }}</span>
+    </td>
+    {% if last_track %}
+    <td style="width: 16px;"></td>
+    <td style="background: #0f3460; border-radius: 8px; padding: 16px 20px; text-align: center;">
+      <span style="color: #ffffff; font-size: 15px; font-weight: bold;">{{ last_track.title }}</span>
+      <br>
+      <span style="color: #8899aa; font-size: 13px;">dernier upload</span>
+    </td>
+    {% endif %}
+  </tr>
+</table>
+{% endif %}
+
+<!-- CTA principal -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+  <tr>
+    <td align="center">
+      <a href="{{ upload_url }}"
+         style="display: inline-block; background: #e94560; color: #ffffff; text-decoration: none;
+                font-size: 15px; font-weight: bold; padding: 14px 32px; border-radius: 6px;">
+        ＋ Uploader un nouveau beat
+      </a>
+    </td>
+  </tr>
+</table>
+
+<!-- CTA secondaire -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
+  <tr>
+    <td align="center">
+      <a href="{{ profile_url }}"
+         style="display: inline-block; background: transparent; color: #aabbcc; text-decoration: none;
+                font-size: 14px; border: 1px solid #0f3460; padding: 10px 24px; border-radius: 6px;">
+        Partager mon profil de beatmaker →
+      </a>
+    </td>
+  </tr>
+</table>
+
+<hr style="border: none; border-top: 1px solid #0f3460; margin: 24px 0;">
+
+<!-- Le saviez-vous -->
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="background: #0a1628; border-left: 3px solid #e94560; border-radius: 4px; padding: 14px 18px;">
+      <p style="color: #e94560; font-size: 12px; font-weight: bold; text-transform: uppercase;
+                letter-spacing: 0.08em; margin: 0 0 6px;">💡 Le saviez-vous ?</p>
+      <p style="color: #aabbcc; font-size: 14px; margin: 0; line-height: 1.6;">
+        {{ did_you_know | safe }}
+      </p>
+    </td>
+  </tr>
+</table>
+
+{% endblock %}

@@ -44,8 +44,11 @@ def process_topline_data(job_payload: dict):
     try:
         with flask_app.app_context():
 
-            user = db.session.get(User, job_payload['user_id'])
-            if not user:
+            user_id          = job_payload.get('user_id')
+            guest_session_id = job_payload.get('guest_session_id')
+
+            user = db.session.get(User, user_id) if user_id else None
+            if user_id and not user:
                 redis_client.hset(f"job:{job_id}", mapping={
                     'status': 'error', 'error_message': 'User not found'
                 })
@@ -119,14 +122,21 @@ def process_topline_data(job_payload: dict):
 
             # ── Étape 4 : enregistrement BDD ──────────────────────────────────
             try:
+                from datetime import datetime, timedelta
                 topline = Topline(
                     track_id=job_payload['track_id'],
-                    artist_id=job_payload['user_id'],
+                    artist_id=user_id,
+                    guest_session_id=guest_session_id if not user_id else None,
+                    guest_expires_at=(
+                        datetime.utcnow() + timedelta(hours=24)
+                        if not user_id else None
+                    ),
                     audio_file=final_relative_path,
                     description=job_payload['description'],
                 )
                 db.session.add(topline)
-                user.consume_topline_token()
+                if user:
+                    user.consume_topline_token()
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()

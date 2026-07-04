@@ -23,21 +23,20 @@ import { RevealOnScrollDirective } from '../../directives/reveal-on-scroll.direc
 const PER_PAGE = 20;
 
 // ── Statistiques landing ──────────────────────────────────────────────────────
-// Valeurs vitrines (pas branchées sur l'API) — à ajuster à mesure que la
-// plateforme grandit. Animées en count-up à l'entrée dans le viewport.
 interface LandingStat {
-  icon: string;
-  target: number;
+  icon:   string;
   suffix: string;
-  label: string;
+  label:  string;
 }
 
 const LANDING_STATS: LandingStat[] = [
-  { icon: 'bi-music-note-beamed',       target: 150,  suffix: '+', label: 'beats en ligne' },
-  { icon: 'bi-people-fill',             target: 45,   suffix: '+', label: 'créateurs inscrits' },
-  { icon: 'bi-file-earmark-check-fill', target: 60,   suffix: '+', label: 'contrats générés' },
-  { icon: 'bi-headphones',              target: 2400, suffix: '+', label: 'écoutes cette semaine' },
+  { icon: 'bi-music-note-beamed',   suffix: '+', label: 'beats en ligne' },
+  { icon: 'bi-people-fill',         suffix: '+', label: 'artistes inscrits' },
+  { icon: 'bi-bag-check-fill',      suffix: '+', label: 'licences vendues' },
+  { icon: 'bi-mic-fill',            suffix: '+', label: 'toplines publiées' },
 ];
+
+const LANDING_STATS_FALLBACK = [150, 45, 60, 120];
 
 const STATS_COUNTUP_MS = 1600;
 
@@ -68,7 +67,8 @@ export class HomeComponent implements OnInit {
 
   // Stats landing — count-up déclenché par lpReveal sur le bandeau
   readonly landingStats = LANDING_STATS;
-  statValues = signal<number[]>(LANDING_STATS.map(() => 0));
+  statValues  = signal<number[]>(LANDING_STATS.map(() => 0));
+  statTargets = signal<number[]>(LANDING_STATS_FALLBACK);
   private statsStarted = false;
 
   private trackService       = inject(TrackService);
@@ -77,12 +77,23 @@ export class HomeComponent implements OnInit {
   private favSvc             = inject(FavoritesService);
   readonly auth              = inject(AuthService);
 
+  // -1 = premier rendu (retour depuis une autre page → restaurer savedPage)
+  private _lastApplied = -1;
+
   constructor() {
-    // Filtre ou catégorie changent → toujours revenir à la page 1
     effect(() => {
-      this.filterStateService.applied();
+      const applied = this.filterStateService.applied();
       this.auth.preferredTagCategory();
-      this.loadTracks(1);
+
+      if (this._lastApplied === -1) {
+        // Premier rendu : restaurer la page mémorisée (retour depuis track-detail)
+        this._lastApplied = applied;
+        this.loadTracks(this.filterStateService.savedPage());
+      } else {
+        // Filtre ou catégorie changés → page 1
+        this._lastApplied = applied;
+        this.loadTracks(1);
+      }
     }, { allowSignalWrites: true });
   }
 
@@ -94,13 +105,27 @@ export class HomeComponent implements OnInit {
 
     const user = this.auth.currentUser();
     const hasRole = user && (user.roles.is_artist || user.roles.is_beatmaker || user.roles.is_mix_engineer);
-    // Ne pas redemander si l'utilisateur a déjà une préférence (backend ou mode artistes local)
     const alreadyHasPref = !!user?.preferred_tag_category
       || localStorage.getItem('card_info_mode') === 'artists';
     if (hasRole && !alreadyHasPref && OnboardingModalComponent.shouldShow()) {
       localStorage.setItem('laprod_onboarding_done', '1');
       this.showOnboarding.set(true);
     }
+
+    // Charger les stats réelles de la plateforme pour le bandeau landing
+    this.trackService.getPlatformStats().subscribe({
+      next: (res) => {
+        if (res.success && res.data) {
+          this.statTargets.set([
+            res.data.beats_count,
+            res.data.artists_count,
+            res.data.licenses_sold,
+            res.data.toplines_count,
+          ]);
+        }
+      },
+      error: () => { /* fallback sur LANDING_STATS_FALLBACK déjà en place */ },
+    });
   }
 
   dismissHero(): void {
@@ -111,16 +136,18 @@ export class HomeComponent implements OnInit {
     if (this.statsStarted) return;
     this.statsStarted = true;
 
+    const targets = this.statTargets();
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      this.statValues.set(LANDING_STATS.map((s) => s.target));
+      this.statValues.set(targets);
       return;
     }
 
     const start = performance.now();
     const tick = (now: number) => {
       const progress = Math.min((now - start) / STATS_COUNTUP_MS, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      this.statValues.set(LANDING_STATS.map((s) => Math.round(s.target * eased)));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      this.statValues.set(targets.map((t) => Math.round(t * eased)));
       if (progress < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -142,6 +169,7 @@ export class HomeComponent implements OnInit {
 
   loadTracks(page = 1): void {
     this.page.set(page);
+    this.filterStateService.savedPage.set(page);
     this.loading.set(true);
     this.error.set(null);
     this._loadRegularTracks(page);

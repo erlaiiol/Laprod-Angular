@@ -610,3 +610,92 @@
 .btn-unpublish { background: v.$bg-elevated; border: 1px solid v.$tag-violet; color: v.$tag-violet-light; &:hover { background: rgba(v.$tag-violet, 0.15); } }
 .btn-delete    { background: v.$tag-red;    color: #fff; &:hover { filter: brightness(1.15); } }
 .btn-retry     { background: v.$bg-elevated; color: v.$off-white; &:hover { background: v.$bg-border-subtle; } }
+
+// ── Guest mode ────────────────────────────────────────────────────────────────
+
+.token-guest {
+  background: rgba(v.$text-secondary, 0.1);
+  color: v.$text-secondary;
+  border: 1px solid rgba(v.$text-secondary, 0.2);
+}
+
+.guest-limit-reached {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: rgba(v.$primary, 0.08);
+  border: 1px solid rgba(v.$primary, 0.25);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: v.$text-secondary;
+  margin-bottom: 0.75rem;
+
+  i { color: v.$primary; flex-shrink: 0; }
+
+  .guest-limit-cta {
+    margin-left: auto;
+    color: v.$primary;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.guest-upsell-banner {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.25rem;
+  background: rgba(v.$tag-green, 0.07);
+  border: 1px solid rgba(v.$tag-green, 0.25);
+  border-radius: v.$radius-lg;
+  margin-bottom: 1.25rem;
+
+  &__icon {
+    font-size: 1.5rem;
+    color: v.$tag-green;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  &__content {
+    flex: 1;
+
+    strong { display: block; margin-bottom: 0.25rem; color: v.$tag-green; }
+    p { margin: 0 0 0.25rem; font-size: 0.85rem; color: v.$text-secondary; line-height: 1.5; }
+    .guest-attempts-hint { color: v.$text-secondary; font-size: 0.8rem; }
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .btn-upsell-register {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: v.$tag-green;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-decoration: none;
+    white-space: nowrap;
+    &:hover { filter: brightness(1.15); }
+  }
+
+  .btn-upsell-login {
+    text-align: center;
+    font-size: 0.8rem;
+    color: v.$text-secondary;
+    text-decoration: none;
+    &:hover { color: v.$text-primary; }
+  }
+}

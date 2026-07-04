@@ -1,0 +1,145 @@
+<div class="testi-page">
+
+  <!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+  <section class="testi-hero">
+    <h1 class="testi-hero__title">Ce qu'ils disent de LaProd</h1>
+    <p class="testi-hero__sub">Beatmakers, artistes, ingénieurs son — leurs retours d'expérience réels.</p>
+  </section>
+
+  <!-- ── [DEV] Cas illustratifs — toujours clairement étiquetés ────────────── -->
+  @if (isDev) {
+    <section class="testi-section">
+      <div class="testi-section__header">
+        <span class="dev-badge">MODE DEV — cas illustratifs</span>
+        <h2>Exemples de témoignages</h2>
+        <p class="testi-section__hint">Ces cas sont fictifs. Remplacez-les par de vrais témoignages avant la mise en prod.</p>
+      </div>
+
+      <div class="testi-grid">
+        @for (c of illustrativeCases; track c.name) {
+          <article class="testi-card testi-card--illustrative">
+            <span class="illustrative-badge">{{ c.tag }}</span>
+            <blockquote class="testi-card__quote">"{{ c.quote }}"</blockquote>
+            <footer class="testi-card__footer">
+              <span class="testi-card__name">{{ c.name }}</span>
+              <span class="testi-card__role">{{ c.role }}</span>
+            </footer>
+          </article>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ── Témoignages publiés ────────────────────────────────────────────────── -->
+  <section class="testi-section">
+    <h2 class="testi-section__title">Avis de la communauté</h2>
+
+    @if (loading()) {
+      <div class="testi-loading">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+        <span>Chargement des avis...</span>
+      </div>
+    } @else if (testimonials().length === 0) {
+      <div class="testi-empty">
+        <i class="bi bi-chat-quote"></i>
+        <p>Aucun avis publié pour l'instant. Sois le premier à partager ton expérience.</p>
+      </div>
+    } @else {
+      <div class="testi-grid">
+        @for (t of testimonials(); track t.id) {
+          <article class="testi-card">
+            @if (t.rating) {
+              <div class="testi-card__stars">
+                @for (filled of stars(t.rating); track $index) {
+                  <i class="bi" [class.bi-star-fill]="filled" [class.bi-star]="!filled"></i>
+                }
+              </div>
+            }
+            <blockquote class="testi-card__quote">"{{ t.message }}"</blockquote>
+            <footer class="testi-card__footer">
+              <span class="testi-card__name">{{ t.username ?? t.email }}</span>
+              @if (t.role) {
+                <span class="testi-card__role">{{ roleLabel(t.role) }}</span>
+              }
+            </footer>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ── Formulaire soumission ──────────────────────────────────────────────── -->
+  <section class="testi-section testi-form-section">
+    <h2 class="testi-section__title">Partager mon expérience</h2>
+    <p class="testi-section__sub">Ton avis est lu et validé manuellement avant publication.</p>
+
+    @if (submitSuccess()) {
+      <div class="testi-success">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>
+          <strong>Merci !</strong>
+          <p>Ton témoignage a été reçu. Il sera publié après validation.</p>
+        </div>
+      </div>
+    } @else {
+      <form class="testi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+
+        <div class="form-row">
+          <label class="form-label">Email <span class="req">*</span></label>
+          <input type="email" class="form-control" formControlName="email"
+                 placeholder="ton@email.com"
+                 [class.is-invalid]="form.get('email')?.invalid && form.get('email')?.touched">
+          @if (form.get('email')?.invalid && form.get('email')?.touched) {
+            <div class="invalid-feedback">Email invalide.</div>
+          }
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Tu es…</label>
+          <select class="form-select" formControlName="role">
+            <option value="">Choisir (optionnel)</option>
+            @for (r of roles; track r.value) {
+              <option [value]="r.value">{{ r.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Note (optionnel)</label>
+          <div class="star-picker">
+            @for (n of [1, 2, 3, 4, 5]; track n) {
+              <button type="button" class="star-btn" [class.active]="n <= currentRating()" (click)="setRating(n)">
+                <i class="bi bi-star-fill"></i>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Témoignage <span class="req">*</span></label>
+          <textarea class="form-control" formControlName="message" rows="5"
+                    placeholder="Décris ton expérience sur LaProd (20 caractères minimum)..."
+                    [class.is-invalid]="form.get('message')?.invalid && form.get('message')?.touched"></textarea>
+          @if (form.get('message')?.invalid && form.get('message')?.touched) {
+            <div class="invalid-feedback">Message trop court (20 caractères minimum).</div>
+          }
+        </div>
+
+        @if (submitError()) {
+          <div class="testi-form-error">
+            <i class="bi bi-exclamation-triangle-fill"></i> {{ submitError() }}
+          </div>
+        }
+
+        <button type="submit" class="lp-btn-primary" [disabled]="form.invalid || submitLoading()">
+          @if (submitLoading()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          Envoyer mon témoignage
+        </button>
+
+      </form>
+    }
+  </section>
+
+</div>

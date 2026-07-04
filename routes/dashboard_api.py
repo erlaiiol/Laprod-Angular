@@ -1,11 +1,13 @@
 """
 Dashboard API — GET endpoints pour les espaces Beatmaker, Artiste et Mix Engineer
 """
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import select
-from extensions import db, csrf
-from models import Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory
+from sqlalchemy import select, func
+from datetime import datetime, timedelta
+import json
+from extensions import db, csrf, redis_client
+from models import Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory, TrackView, ListenEvent
 from serializers import ok, err, mix_order_full as ser_order_full
 from utils.auth_helpers import require_user
 
@@ -98,6 +100,191 @@ def get_beatmaker_dashboard(current_user):
         'tracks': tracks_data,
         'sales':  sales_data,
     })
+
+
+# ─── Beatmaker — Analytics ────────────────────────────────────────────────────
+
+@dashboard_api_bp.route('/beatmaker/analytics', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def get_beatmaker_analytics(current_user):
+    """
+    Endpoint analytics beatmaker.
+    Query param : period = '7d' | '30d' | '90d' (default '30d')
+
+    Retourne :
+      - time_series : vues / écoutes / revenus par jour
+      - per_track   : stats agrégées par beat + taux de conversion
+      - recommendations : conseils générés automatiquement
+    Mis en cache Redis 30 min par (user_id, period).
+    """
+    if not current_user.is_beatmaker:
+        return err('Accès refusé.', status=403)
+
+    period = request.args.get('period', '30d')
+    if period not in ('7d', '30d', '90d'):
+        period = '30d'
+    days = int(period[:-1])
+
+    cache_key = f"dash:bm:{current_user.id}:{period}"
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return ok(json.loads(cached))
+    except Exception:
+        pass
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    # ── IDs des tracks du beatmaker ───────────────────────────────────────────
+    track_ids = [
+        r[0] for r in db.session.query(Track.id)
+        .filter_by(composer_id=current_user.id).all()
+    ]
+
+    if not track_ids:
+        payload = {'time_series': {'views': [], 'plays': [], 'revenues': []}, 'per_track': [], 'recommendations': []}
+        return ok(payload)
+
+    # ── Séries temporelles — vues ─────────────────────────────────────────────
+    views_ts = db.session.query(
+        func.date(TrackView.created_at).label('day'),
+        func.count(TrackView.id).label('count'),
+    ).filter(
+        TrackView.track_id.in_(track_ids),
+        TrackView.created_at >= cutoff,
+    ).group_by(func.date(TrackView.created_at)).order_by('day').all()
+
+    # ── Séries temporelles — écoutes ──────────────────────────────────────────
+    plays_ts = db.session.query(
+        func.date(ListenEvent.created_at).label('day'),
+        func.count(ListenEvent.id).label('count'),
+    ).filter(
+        ListenEvent.track_id.in_(track_ids),
+        ListenEvent.created_at >= cutoff,
+    ).group_by(func.date(ListenEvent.created_at)).order_by('day').all()
+
+    # ── Séries temporelles — revenus ──────────────────────────────────────────
+    revenues_ts = db.session.query(
+        func.date(Purchase.created_at).label('day'),
+        func.sum(Purchase.composer_revenue).label('revenue'),
+    ).join(Track, Purchase.track_id == Track.id).filter(
+        Track.composer_id == current_user.id,
+        Purchase.created_at >= cutoff,
+    ).group_by(func.date(Purchase.created_at)).order_by('day').all()
+
+    # ── Stats par track ───────────────────────────────────────────────────────
+    tracks = db.session.query(Track).filter(Track.id.in_(track_ids)).all()
+
+    views_by_track = dict(
+        db.session.query(TrackView.track_id, func.count(TrackView.id))
+        .filter(TrackView.track_id.in_(track_ids), TrackView.created_at >= cutoff)
+        .group_by(TrackView.track_id).all()
+    )
+    unique_listeners_by_track = dict(
+        db.session.query(TrackView.track_id, func.count(func.distinct(TrackView.ip_hash)))
+        .filter(TrackView.track_id.in_(track_ids))
+        .group_by(TrackView.track_id).all()
+    )
+    plays_by_track = dict(
+        db.session.query(ListenEvent.track_id, func.count(ListenEvent.id))
+        .filter(ListenEvent.track_id.in_(track_ids), ListenEvent.created_at >= cutoff)
+        .group_by(ListenEvent.track_id).all()
+    )
+    completion_by_track = dict(
+        db.session.query(ListenEvent.track_id, func.avg(ListenEvent.completion_ratio))
+        .filter(ListenEvent.track_id.in_(track_ids))
+        .group_by(ListenEvent.track_id).all()
+    )
+    sales_by_track = dict(
+        db.session.query(Purchase.track_id, func.count(Purchase.id))
+        .join(Track, Purchase.track_id == Track.id)
+        .filter(Track.composer_id == current_user.id)
+        .group_by(Purchase.track_id).all()
+    )
+    revenue_by_track = dict(
+        db.session.query(Purchase.track_id, func.sum(Purchase.composer_revenue))
+        .join(Track, Purchase.track_id == Track.id)
+        .filter(Track.composer_id == current_user.id)
+        .group_by(Purchase.track_id).all()
+    )
+    toplines_by_track = dict(
+        db.session.query(Topline.track_id, func.count(Topline.id))
+        .filter(Topline.track_id.in_(track_ids), Topline.is_published == True)
+        .group_by(Topline.track_id).all()
+    )
+
+    per_track = []
+    for t in tracks:
+        v  = views_by_track.get(t.id, 0)
+        ul = unique_listeners_by_track.get(t.id, 0)
+        s  = sales_by_track.get(t.id, 0)
+        conv = round(s / ul, 3) if ul > 0 else 0.0
+        per_track.append({
+            'track_id':           t.id,
+            'title':              t.title,
+            'image_file':         t.image_file,
+            'bpm':                t.bpm,
+            'tags':               [tg.name for tg in t.tags],
+            'views':              v,
+            'plays':              plays_by_track.get(t.id, 0),
+            'play_completion_avg': round(float(completion_by_track.get(t.id) or 0), 2),
+            'unique_listeners':   ul,
+            'sales_count':        s,
+            'revenue':            round(float(revenue_by_track.get(t.id) or 0), 2),
+            'toplines_count':     toplines_by_track.get(t.id, 0),
+            'conversion_rate':    conv,
+        })
+
+    # ── Recommandations intelligentes ─────────────────────────────────────────
+    recommendations = []
+
+    if per_track:
+        converting = [p for p in per_track if p['conversion_rate'] > 0]
+        if converting:
+            avg_conv = sum(p['conversion_rate'] for p in per_track if p['unique_listeners'] > 0) / max(1, sum(1 for p in per_track if p['unique_listeners'] > 0))
+            best = sorted(converting, key=lambda x: x['conversion_rate'], reverse=True)
+            if best and best[0]['conversion_rate'] > avg_conv * 1.5:
+                bpms = [p['bpm'] for p in best[:3] if p['bpm']]
+                if bpms:
+                    bpm_hint = f"{min(bpms)}–{max(bpms)}" if len(set(bpms)) > 1 else str(bpms[0])
+                    recommendations.append(f"Tes beats les plus convertissants tournent autour de {bpm_hint} BPM. Produis dans cette plage.")
+
+        top_tags: dict[str, int] = {}
+        for p in per_track:
+            if p['sales_count'] > 0:
+                for tag in p['tags']:
+                    top_tags[tag] = top_tags.get(tag, 0) + p['sales_count']
+        if top_tags:
+            best_tag = max(top_tags, key=lambda k: top_tags[k])
+            if top_tags[best_tag] > 1:
+                recommendations.append(f"Le tag #{best_tag} génère le plus de ventes. Utilise-le davantage dans tes descriptions.")
+
+        incomplete = [p for p in per_track if p['unique_listeners'] > 10 and p['sales_count'] == 0]
+        if incomplete:
+            recommendations.append(f"{len(incomplete)} beat(s) avec plus de 10 écoutes uniques mais 0 vente — vérifie leur prix ou leurs tags.")
+
+        low_comp = [p for p in per_track if 0 < p['play_completion_avg'] < 0.35]
+        if low_comp:
+            recommendations.append(f"{len(low_comp)} beat(s) ont un taux d'écoute moyen < 35%. Raccourcis l'intro ou relance l'énergie plus vite.")
+
+    payload = {
+        'time_series': {
+            'views':    [{'date': str(r.day), 'count': r.count}     for r in views_ts],
+            'plays':    [{'date': str(r.day), 'count': r.count}     for r in plays_ts],
+            'revenues': [{'date': str(r.day), 'revenue': round(float(r.revenue), 2)} for r in revenues_ts],
+        },
+        'per_track':       sorted(per_track, key=lambda x: x['views'], reverse=True),
+        'recommendations': recommendations,
+    }
+
+    try:
+        redis_client.setex(cache_key, 1800, json.dumps(payload))
+    except Exception:
+        pass
+
+    return ok(payload)
 
 
 # ─── Artiste ──────────────────────────────────────────────────────────────────

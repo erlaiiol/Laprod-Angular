@@ -62,6 +62,9 @@
           <span class="tab-count">{{ soldLicenses()!.licenses.length }}</span>
         }
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'analytics'" (click)="setTab('analytics'); onAnalyticsTabActivated()">
+        <i class="bi bi-bar-chart-line"></i> Analytics
+      </button>
     </div>
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
@@ -102,6 +105,21 @@
                   }
                 </span>
                 <span class="sales-count"><i class="bi bi-bag"></i> {{ track.sales_count }} vente(s)</span>
+                <a [routerLink]="['/edit-track', track.id]" class="quality-badge-link">
+                  <app-track-quality-score
+                    [compact]="true"
+                    [title]="track.title"
+                    [bpm]="track.bpm"
+                    [key]="track.key ?? ''"
+                    [style]="track.style ?? ''"
+                    [hasImage]="!!track.image_file"
+                    [hasWav]="track.has_wav"
+                    [hasStems]="track.has_stems"
+                    [priceMp3]="track.price_mp3 ?? 0"
+                    [priceWav]="track.price_wav ?? 0"
+                    [priceStems]="track.price_stems ?? 0"
+                  />
+                </a>
                 @if (!viewStatsLoading()) {
                   <span class="view-count" title="Vues totales / uniques">
                     <i class="bi bi-eye"></i>
@@ -344,6 +362,109 @@
         </div>
 
       }
+    }
+
+    <!-- ── Tab : Analytics ──────────────────────────────────────────────── -->
+    @if (activeTab() === 'analytics') {
+      <div class="analytics-tab">
+
+        <!-- Sélecteur de période -->
+        <div class="analytics-period-bar">
+          @for (p of periods; track p) {
+            <button class="period-btn" [class.active]="analyticsPeriod() === p"
+                    (click)="loadAnalytics(p)">{{ p }}</button>
+          }
+        </div>
+
+        @if (analyticsLoading()) {
+          <div class="analytics-loading">
+            <div class="spinner-border text-primary spinner-border-sm me-2"></div>
+            Chargement des analytics…
+          </div>
+        }
+
+        @if (analyticsData() && !analyticsLoading()) {
+
+          <!-- Recommandations -->
+          @if (analyticsData()!.recommendations.length > 0) {
+            <div class="recommendations">
+              <h4><i class="bi bi-lightbulb-fill"></i> Recommandations</h4>
+              @for (rec of analyticsData()!.recommendations; track rec) {
+                <div class="rec-item">
+                  <i class="bi bi-arrow-right-circle"></i>
+                  {{ rec }}
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Courbe temporelle -->
+          <div class="chart-container">
+            <canvas baseChart
+              [datasets]="chartDatasets()"
+              [labels]="chartLabels()"
+              [options]="chartOptions"
+              type="line">
+            </canvas>
+          </div>
+
+          <!-- Tableau per-track -->
+          @if (analyticsData()!.per_track.length > 0) {
+            <div class="table-wrap">
+              <table class="data-table analytics-table">
+                <thead>
+                  <tr>
+                    <th>Beat</th>
+                    <th>Vues</th>
+                    <th>Écoutes</th>
+                    <th>Complétion</th>
+                    <th>Ventes</th>
+                    <th>Conversion</th>
+                    <th>Revenu</th>
+                    <th>Toplines</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of analyticsData()!.per_track; track t.track_id) {
+                    <tr>
+                      <td class="track-cell">
+                        <img class="track-thumb"
+                             [src]="t.image_file ? (apiUrl + '/db_assets/' + t.image_file) : 'assets/placeholders/placeholder-track.png'"
+                             alt="">
+                        <span>{{ t.title }}</span>
+                      </td>
+                      <td>{{ t.views }}</td>
+                      <td>{{ t.plays }}</td>
+                      <td>
+                        <div class="completion-bar">
+                          <div class="completion-bar__fill" [style.width.%]="t.play_completion_avg * 100"></div>
+                          <span>{{ (t.play_completion_avg * 100).toFixed(0) }}%</span>
+                        </div>
+                      </td>
+                      <td>{{ t.sales_count }}</td>
+                      <td>
+                        <span class="conv-rate"
+                              [class.conv-high]="t.conversion_rate >= 0.1"
+                              [class.conv-mid]="t.conversion_rate >= 0.03 && t.conversion_rate < 0.1">
+                          {{ (t.conversion_rate * 100).toFixed(1) }}%
+                        </span>
+                      </td>
+                      <td>{{ t.revenue.toFixed(2) }}€</td>
+                      <td>{{ t.toplines_count }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <i class="bi bi-bar-chart"></i>
+              <p>Pas encore de données pour cette période.</p>
+            </div>
+          }
+        }
+
+      </div>
     }
 
   </div>

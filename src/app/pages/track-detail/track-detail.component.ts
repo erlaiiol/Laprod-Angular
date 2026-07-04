@@ -10,6 +10,7 @@ import { environment } from '../../../environments/environment';
 import { TrackService, TrackDetail, PublishedTopline, OwnedLicense } from '../../services/track.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
+import { FilterStateService } from '../../services/filter-state.service';
 import { ToplineService } from '../../services/topline.service';
 import { ToplineStatusService } from '../../services/topline-status.service';
 import { ToplineRecorderComponent } from '../../components/topline-recorder/topline-recorder.component';
@@ -50,6 +51,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   auth                      = inject(AuthService);
   private cdr               = inject(ChangeDetectorRef);
   private toast             = inject(ToastService);
+  private filterState       = inject(FilterStateService);
 
   // Cache blob URLs pour les toplines privées (libérés dans ngOnDestroy)
   private toplineBlobUrls = new Map<number, string>();
@@ -135,6 +137,26 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
     this.player.recRequested.set(0);
     this.toplineBlobUrls.forEach(url => URL.revokeObjectURL(url));
     this.toplineBlobUrls.clear();
+  }
+
+  goBack(): void {
+    this.router.navigate(['/']);
+  }
+
+  onTagClick(tagName: string): void {
+    if (!this.filterState.addTag(tagName)) return;
+    this.toast.showToast({ level: 'info', message: `#${tagName} ajouté aux filtres` });
+  }
+
+  onStyleClick(style: string | null): void {
+    if (!style) return;
+    if (!this.filterState.addStyle(style)) return;
+    this.toast.showToast({ level: 'info', message: `Style « ${style} » ajouté aux filtres` });
+  }
+
+  onArtistClick(name: string): void {
+    if (!this.filterState.addSimilarArtist(name)) return;
+    this.toast.showToast({ level: 'info', message: `Artiste « ${name} » ajouté aux filtres` });
   }
 
   getImageUrl(path: string | null | undefined): string {

@@ -54,9 +54,17 @@ export class ToplineService {
     );
   }
 
-  uploadTopline(formData: FormData): Observable<ApiResponse<UploadToplineData>> {
-    return this.http.post<ApiResponse<UploadToplineData>>(
-      `${this.apiUrl}/upload`, formData,
+  uploadTopline(formData: FormData, guestSessionId?: string): Observable<ApiResponse<UploadToplineData & { remaining_guest_attempts?: number }>> {
+    const headers: Record<string, string> = {};
+    if (guestSessionId) headers['X-Guest-Session'] = guestSessionId;
+    return this.http.post<ApiResponse<UploadToplineData & { remaining_guest_attempts?: number }>>(
+      `${this.apiUrl}/upload`, formData, { headers },
+    );
+  }
+
+  claimGuestToplines(guestSessionId: string): Observable<ApiResponse<{ claimed: number }>> {
+    return this.http.post<ApiResponse<{ claimed: number }>>(
+      `${this.apiUrl}/claim`, { guest_session_id: guestSessionId },
     );
   }
 

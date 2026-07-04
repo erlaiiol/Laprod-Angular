@@ -301,13 +301,14 @@ def topline(tl) -> dict:
     `stream_url` utilise le proxy JWT /api/stream/toplines/:id.
     """
     return {
-        'id':           tl.id,
-        'artist_id':    tl.artist_id,
-        'stream_url':   f'/api/stream/toplines/{tl.id}',
-        'description':  tl.description,
-        'is_published': tl.is_published,
-        'created_at':   tl.created_at.isoformat() if tl.created_at else None,
-        'artist_user':  user_ref(tl.artist_user),
+        'id':               tl.id,
+        'artist_id':        tl.artist_id,
+        'guest_session_id': tl.guest_session_id,
+        'stream_url':       f'/api/stream/toplines/{tl.id}',
+        'description':      tl.description,
+        'is_published':     tl.is_published,
+        'created_at':       tl.created_at.isoformat() if tl.created_at else None,
+        'artist_user':      user_ref(tl.artist_user) if tl.artist_user else None,
     }
 
 

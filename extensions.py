@@ -358,5 +358,27 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque mercredi à 10h : re-engagement des utilisateurs inactifs 7j+
+        from utils.scheduled_tasks import run_reengagement_emails
+        scheduler.add_job(
+            func=run_reengagement_emails,
+            trigger='cron',
+            day_of_week='wed',
+            hour=10,
+            minute=0,
+            id='reengagement_emails',
+            replace_existing=True,
+            args=[app]
+        )
+        # Toutes les heures : purge des toplines guest expirées (TTL 24h, non réclamées)
+        from utils.scheduled_tasks import run_guest_topline_cleanup
+        scheduler.add_job(
+            func=run_guest_topline_cleanup,
+            trigger='interval',
+            hours=1,
+            id='guest_topline_cleanup',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement)")

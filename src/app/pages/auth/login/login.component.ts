@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { GuestToplineService } from '../../../services/guest-topline.service';
+import { ToastService } from '../../../services/toast.service';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -31,7 +33,12 @@ export class LoginComponent {
 
   private hasCalled = false;
 
-  constructor(private authService : AuthService, private router : Router ) {}
+  constructor(
+    private authService : AuthService,
+    private router      : Router,
+    private guestSvc    : GuestToplineService,
+    private toast       : ToastService,
+  ) {}
 
   onSubmit() {
     this.loading.set(true);
@@ -46,6 +53,20 @@ export class LoginComponent {
       .subscribe({
         next: (res) => {
           if (res.success) {
+            if (this.guestSvc.hasPendingClaim()) {
+              this.guestSvc.claimAfterLogin().subscribe({
+                next: (claim) => {
+                  if (claim.success && (claim.data?.claimed ?? 0) > 0) {
+                    this.toast.showToast({
+                      level: 'success',
+                      message: `${claim.data!.claimed} topline(s) récupérée(s) depuis ta session invité !`,
+                    });
+                  }
+                  this.guestSvc.clearPendingClaim();
+                },
+                error: () => this.guestSvc.clearPendingClaim(),
+              });
+            }
             const user = this.authService.currentUser();
             if (res.code === 'SHOW_SELECT_ROLE' || (user && !user.user_type_selected)) {
               this.router.navigate(['/select-role']);

@@ -108,6 +108,9 @@ export interface TrackDetail extends Track {
   contract_prices?:  ContractPrices;
   is_exclusive_sold?: boolean;
   owned_licenses?:   Record<string, OwnedLicense>;
+  sales_count?:      number;
+  unique_listeners?: number;
+  toplines_count?:   number;
 }
 
 // Paramètres de filtre optionnels → querystring Flask (?search=trap&bpm_min=80)
@@ -227,6 +230,12 @@ export class TrackService {
   getViewStats(): Observable<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>> {
     return this.http.get<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>>(
       `${this.tracksApiUrl}/my/view-stats`
+    );
+  }
+
+  getPlatformStats(): Observable<ApiResponse<{ beats_count: number; artists_count: number; licenses_sold: number; toplines_count: number }>> {
+    return this.http.get<ApiResponse<{ beats_count: number; artists_count: number; licenses_sold: number; toplines_count: number }>>(
+      `${this.tracksApiUrl}/stats/platform`
     );
   }
 

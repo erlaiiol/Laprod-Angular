@@ -9,10 +9,11 @@ POST   /api/toplines/<id>/unpublish    → Repasser en privée (propriétaire)
 DELETE /api/toplines/<id>              → Supprimer une topline (propriétaire)
 """
 from flask import Blueprint, request, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+import hashlib
 import uuid
 import config
 
@@ -25,6 +26,10 @@ from utils.crud_helpers import (
     get_or_404, require_ownership,
     handle_route_exceptions, commit_or_rollback,
 )
+
+GUEST_LIMIT_UUID = 3   # max essais visibles côté UI
+GUEST_LIMIT_IP   = 5   # max côté serveur (tolérance CG-NAT)
+GUEST_TTL_SEC    = 86400  # 24h
 
 toplines_api_bp = Blueprint('toplines_api', __name__, url_prefix='/api/toplines')
 
@@ -70,23 +75,71 @@ def get_my_toplines(track_id):
 
 @toplines_api_bp.route('/upload', methods=['POST'])
 @csrf.exempt
-@jwt_required()
-@limiter.limit("10 per hour")
-@require_user
-def upload_topline(current_user):
+@limiter.limit("15 per hour")
+def upload_topline():
     """
     Upload voix + traitement audio async (RQ worker).
+    Supporte les utilisateurs connectés (JWT) et les guests (X-Guest-Session header).
 
     FormData :
       - voice_file      : Blob audio (webm / mp3 / wav)
       - track_id        : int
       - use_autotune    : 'true' | 'false'
-      - latency_hint_ms : int (optionnel) — latence hardware mesurée côté client
+      - latency_hint_ms : int (optionnel)
       - description     : str (optionnel, max 500 car.)
+
+    Headers (guest uniquement) :
+      - X-Guest-Session : UUID v4 généré côté client (localStorage)
     """
-    can_submit, quota_message = current_user.can_submit_topline()
-    if not can_submit:
-        return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
+    # ── Résolution identité (JWT ou guest) ───────────────────────────────────
+    current_user     = None
+    guest_session_id = None
+
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            from models import User
+            current_user = db.session.get(User, int(user_id))
+    except Exception:
+        pass
+
+    if not current_user:
+        raw_session = (request.headers.get('X-Guest-Session') or '').strip()
+        if not raw_session or len(raw_session) > 36:
+            return err(
+                'Authentification requise ou header X-Guest-Session manquant.',
+                code='AUTH_REQUIRED', status=401,
+            )
+        guest_session_id = raw_session
+
+    # ── Quota ────────────────────────────────────────────────────────────────
+    if current_user:
+        can_submit, quota_message = current_user.can_submit_topline()
+        if not can_submit:
+            return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
+    else:
+        # Vérification Redis double-filet (UUID + IP-hash)
+        uuid_key = f"guest_topline:{guest_session_id}"
+        ip_hash  = hashlib.sha256(
+            (request.headers.get('X-Forwarded-For') or request.remote_addr or '').encode()
+        ).hexdigest()[:16]
+        ip_key   = f"guest_topline_ip:{ip_hash}"
+
+        uuid_count = int(redis_client.get(uuid_key) or 0)
+        ip_count   = int(redis_client.get(ip_key) or 0)
+
+        if uuid_count >= GUEST_LIMIT_UUID:
+            return err(
+                'Limite atteinte. Crée un compte gratuit pour continuer.',
+                code='GUEST_LIMIT_REACHED', status=429,
+                data={'remaining': 0},
+            )
+        if ip_count >= GUEST_LIMIT_IP:
+            return err(
+                'Trop de tentatives depuis cette adresse. Réessaie demain.',
+                code='IP_LIMIT_REACHED', status=429,
+            )
 
     try:
         voice_file      = request.files.get('voice_file')
@@ -109,6 +162,7 @@ def upload_topline(current_user):
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         track_id  = int(track_id_raw)
+        user_slug = current_user.id if current_user else f"g_{guest_session_id[:8]}"
 
         # ── Sauvegarder le fichier RAW ────────────────────────────────────────
         content_type = voice_file.content_type or ''
@@ -122,7 +176,7 @@ def upload_topline(current_user):
         toplines_dir = config.UPLOAD_FOLDER / 'toplines'
         toplines_dir.mkdir(parents=True, exist_ok=True)
 
-        raw_filename = f"topline_raw_{track_id}_{current_user.id}_{timestamp}.{ext}"
+        raw_filename = f"topline_raw_{track_id}_{user_slug}_{timestamp}.{ext}"
         raw_path     = toplines_dir / raw_filename
         voice_file.save(raw_path)
 
@@ -139,38 +193,52 @@ def upload_topline(current_user):
             f"content-type={content_type!r})"
         )
 
+        # ── Incrémentation Redis si guest (après validation fichier) ──────────
+        if not current_user:
+            pipe = redis_client.pipeline()
+            pipe.incr(uuid_key)
+            pipe.expire(uuid_key, GUEST_TTL_SEC)
+            pipe.incr(ip_key)
+            pipe.expire(ip_key, GUEST_TTL_SEC)
+            pipe.execute()
+
         # ── Enqueue RQ ────────────────────────────────────────────────────────
         job_id = str(uuid.uuid4())
 
         job_payload = {
-            'job_id':          job_id,
-            'user_id':         current_user.id,
-            'track_id':        track_id,
-            'raw_path':        str(raw_path),
-            'raw_filename':    raw_filename,
-            'use_autotune':    use_autotune,
-            'description':     description,
-            'beat_audio_file': track.audio_file,
-            'track_key':       track.key,
-            'timestamp':       timestamp,
-            'latency_hint_ms': latency_hint_ms,
+            'job_id':           job_id,
+            'user_id':          current_user.id if current_user else None,
+            'guest_session_id': guest_session_id,
+            'track_id':         track_id,
+            'raw_path':         str(raw_path),
+            'raw_filename':     raw_filename,
+            'use_autotune':     use_autotune,
+            'description':      description,
+            'beat_audio_file':  track.audio_file,
+            'track_key':        track.key,
+            'timestamp':        timestamp,
+            'latency_hint_ms':  latency_hint_ms,
         }
 
         redis_client.hset(f"job:{job_id}", mapping={
             'status':  'queued',
-            'user_id': str(current_user.id),
+            'user_id': str(current_user.id) if current_user else 'guest',
         })
         redis_client.expire(f"job:{job_id}", 7200)
 
         q = Queue(connection=redis_client)
         q.enqueue('tasks.topline_processing.process_topline_data', job_payload, job_timeout=300)
 
-        current_app.logger.info(
-            f"Topline job {job_id} enqueued par user #{current_user.id} sur track #{track_id}"
-        )
+        who = f"user #{current_user.id}" if current_user else f"guest {guest_session_id[:8]}"
+        current_app.logger.info(f"Topline job {job_id} enqueued par {who} sur track #{track_id}")
+
+        remaining = None
+        if not current_user:
+            new_count = int(redis_client.get(uuid_key) or 1)
+            remaining = max(0, GUEST_LIMIT_UUID - new_count)
 
         return ok(
-            data={'job_id': job_id},
+            data={'job_id': job_id, 'remaining_guest_attempts': remaining},
             message='Topline envoyée, traitement en cours...',
         )
 
@@ -180,6 +248,55 @@ def upload_topline(current_user):
             f"Erreur lors de l'envoi : {e}",
             code='PROCESSING_ERROR', status=500,
         )
+
+
+# ── POST /toplines/claim ───────────────────────────────────────────────────────
+
+@toplines_api_bp.route('/claim', methods=['POST'])
+@csrf.exempt
+@jwt_required()
+@require_user
+def claim_guest_toplines(current_user):
+    """
+    Associe les toplines guest d'une session à l'utilisateur connecté.
+    Body JSON : { "guest_session_id": "uuid" }
+    """
+    data             = request.get_json(silent=True) or {}
+    guest_session_id = (data.get('guest_session_id') or '').strip()
+
+    if not guest_session_id or len(guest_session_id) > 36:
+        return err('guest_session_id manquant ou invalide.', status=400)
+
+    toplines = (
+        db.session.query(Topline)
+        .filter_by(guest_session_id=guest_session_id, artist_id=None)
+        .all()
+    )
+
+    if not toplines:
+        return ok({'claimed': 0}, message='Aucune topline guest à récupérer.')
+
+    count = 0
+    for tl in toplines:
+        tl.artist_id        = current_user.id
+        tl.guest_session_id = None
+        tl.guest_expires_at = None
+        count += 1
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Claim toplines failed: {e}", exc_info=True)
+        return err('Erreur lors de la récupération des toplines.', status=500)
+
+    current_app.logger.info(
+        f"Claimed {count} topline(s) depuis session {guest_session_id[:8]} → user #{current_user.id}"
+    )
+    return ok(
+        {'claimed': count, 'toplines': [ser_topline(tl) for tl in toplines]},
+        message=f'{count} topline(s) récupérée(s) avec succès.',
+    )
 
 
 # ── POST /toplines/<id>/publish ────────────────────────────────────────────────

@@ -1,0 +1,266 @@
+@use 'variables' as v;
+
+.testi-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: v.$space-5 v.$space-4;
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
+
+.testi-hero {
+  text-align: center;
+  padding: v.$space-6 0 v.$space-5;
+
+  &__title {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 900;
+    margin-bottom: v.$space-3;
+    color: v.$text-primary;
+  }
+
+  &__sub {
+    font-size: 1.05rem;
+    color: v.$text-secondary;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+
+.testi-section {
+  margin-bottom: v.$space-6;
+
+  &__title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: v.$text-primary;
+    margin-bottom: v.$space-4;
+  }
+
+  &__sub {
+    color: v.$text-secondary;
+    font-size: 0.9rem;
+    margin-top: calc(-1 * v.$space-3);
+    margin-bottom: v.$space-4;
+  }
+
+  &__hint {
+    color: v.$text-secondary;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: v.$space-4;
+  }
+
+  &__header {
+    margin-bottom: v.$space-4;
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: v.$text-primary;
+      margin-bottom: v.$space-1;
+    }
+  }
+}
+
+// ── Dev badge ────────────────────────────────────────────────────────────────
+
+.dev-badge {
+  display: inline-block;
+  background: rgba(255, 200, 0, 0.15);
+  color: #ffc800;
+  border: 1px solid rgba(255, 200, 0, 0.35);
+  border-radius: v.$radius-sm;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  margin-bottom: v.$space-2;
+}
+
+// ── Grid ──────────────────────────────────────────────────────────────────────
+
+.testi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: v.$space-4;
+}
+
+// ── Cards ─────────────────────────────────────────────────────────────────────
+
+.testi-card {
+  background: v.$black;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: v.$radius-lg;
+  padding: v.$space-4;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-3;
+  position: relative;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: rgba(255,255,255,0.16);
+  }
+
+  &--illustrative {
+    border-color: rgba(255, 200, 0, 0.2);
+    background: rgba(255, 200, 0, 0.03);
+  }
+
+  &__stars {
+    display: flex;
+    gap: 2px;
+    color: v.$gold;
+    font-size: 0.85rem;
+  }
+
+  &__quote {
+    font-size: 0.95rem;
+    color: v.$text-primary;
+    line-height: 1.65;
+    margin: 0;
+    flex: 1;
+    quotes: "\201C" "\201D";
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: v.$space-2;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  &__name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: v.$text-primary;
+  }
+
+  &__role {
+    font-size: 0.78rem;
+    color: v.$text-secondary;
+  }
+}
+
+.illustrative-badge {
+  display: inline-block;
+  background: rgba(255, 200, 0, 0.18);
+  color: #ffc800;
+  border-radius: v.$radius-sm;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  position: absolute;
+  top: v.$space-3;
+  right: v.$space-3;
+}
+
+// ── States ────────────────────────────────────────────────────────────────────
+
+.testi-loading {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  color: v.$text-secondary;
+  font-size: 0.9rem;
+  padding: v.$space-5 0;
+}
+
+.testi-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: v.$space-3;
+  padding: v.$space-6 0;
+  color: v.$text-secondary;
+  text-align: center;
+
+  i {
+    font-size: 2.5rem;
+    opacity: 0.4;
+  }
+
+  p { font-size: 0.95rem; }
+}
+
+.testi-success {
+  display: flex;
+  align-items: flex-start;
+  gap: v.$space-3;
+  background: rgba(v.$tag-green, 0.1);
+  border: 1px solid rgba(v.$tag-green, 0.3);
+  border-radius: v.$radius-lg;
+  padding: v.$space-4;
+  color: v.$text-primary;
+
+  i {
+    color: v.$tag-green;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  strong { display: block; margin-bottom: 4px; }
+  p { margin: 0; font-size: 0.9rem; color: v.$text-secondary; }
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+
+.testi-form-section { max-width: 600px; }
+
+.testi-form {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-4;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+}
+
+.form-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: v.$text-secondary;
+
+  .req { color: v.$primary; }
+}
+
+.star-picker {
+  display: flex;
+  gap: v.$space-1;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.2);
+  font-size: 1.3rem;
+  transition: color 0.15s, transform 0.15s;
+
+  &.active { color: v.$gold; }
+  &:hover  { transform: scale(1.2); color: v.$gold; }
+}
+
+.testi-form-error {
+  background: rgba(v.$primary, 0.1);
+  border: 1px solid rgba(v.$primary, 0.3);
+  border-radius: v.$radius-sm;
+  padding: v.$space-2 v.$space-3;
+  font-size: 0.88rem;
+  color: v.$text-primary;
+
+  i { color: v.$primary; }
+}

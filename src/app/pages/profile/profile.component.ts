@@ -4,11 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
-import { TrackService } from '../../services/track.service';
+import { TrackService, Track } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
 import { PlaylistService, Playlist } from '../../services/playlist.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
+import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { environment } from '../../../environments/environment';
 
 const TRACKS_PER_PAGE    = 12;
@@ -17,7 +18,7 @@ const PLAYLISTS_PER_PAGE = 8;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent],
+  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent],
   templateUrl: './profile.component.html',
   styleUrl:    './profile.component.scss',
 })
@@ -31,6 +32,10 @@ export class ProfileComponent implements OnInit {
   playlists        = signal<Playlist[]>([]);
   containingIds    = signal(new Set<number>());
   highlightTrackId = signal<number | null>(null);
+
+  displayMode = signal<'list' | 'gallery' | 'compact'>(
+    (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'
+  );
 
   // Pagination tracks
   trackPage = signal(1);
@@ -168,5 +173,31 @@ export class ProfileComponent implements OnInit {
 
   formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
+
+  setDisplayMode(mode: 'list' | 'gallery' | 'compact'): void {
+    this.displayMode.set(mode);
+    localStorage.setItem('laprod_display_mode', mode);
+  }
+
+  asTrack(t: UserTrack): Track {
+    return {
+      id:                   t.id,
+      title:                t.title,
+      composer_user:        { username: this.profile()!.username },
+      stream_url:           t.stream_url,
+      image_file:           t.image_file,
+      bpm:                  t.bpm,
+      key:                  t.key,
+      style:                t.style ?? '',
+      price_mp3:            t.price_mp3 ?? 0,
+      tags:                 t.tags.map(tag => ({ ...tag, category: tag.category ?? '', color: tag.color ?? '' })),
+      similar_artists:      t.similar_artists,
+      is_approved:          t.is_approved,
+      is_ai_suggested:      false,
+      full_stream_url:      null,
+      playlist_count:       0,
+      first_playlist_image: null,
+    };
   }
 }

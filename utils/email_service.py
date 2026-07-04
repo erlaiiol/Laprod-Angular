@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 import html as html_module
 import os
+import random
 
 from utils.invoice_generator import (
     generate_track_purchase_invoice,
@@ -1132,6 +1133,226 @@ L'équipe LaProd
         subject=f'Vous êtes le seul licencié — {track_title} — LaProd',
         recipients=[buyer.email],
         text_body=text_body,
+    )
+
+
+# ============================================
+# EMAILS — RE-ENGAGEMENT HEBDOMADAIRE
+# ============================================
+
+_TIPS_BEATMAKER = [
+    (
+        "À la fin de chaque upload, un <strong>template de description YouTube</strong> est généré "
+        "automatiquement avec BPM, gamme, réseaux et lien de licence. Copiez-collez-le directement "
+        "dans votre prochaine vidéo."
+    ),
+    (
+        "L'IA de LaProd <strong>analyse votre fichier audio</strong> pour détecter automatiquement "
+        "le BPM, la gamme et suggérer un style — vous n'avez plus qu'à valider."
+    ),
+    (
+        "Vous pouvez créer des <strong>playlists thématiques</strong> pour organiser votre catalogue "
+        "et les partager avec vos acheteurs potentiels."
+    ),
+    (
+        "Le prix de chaque droit (territorial, mécanique, arrangement, exclusif…) est "
+        "<strong>personnalisable par track</strong>. Différenciez-vous des autres beatmakers."
+    ),
+    (
+        "La preview est <strong>watermarkée et limitée à 1:30</strong> automatiquement — vos sons "
+        "sont protégés, impossible à extraire sans achat de licence."
+    ),
+    (
+        "Vous pouvez <strong>répartir les droits SACEM</strong> entre compositeur et arrangeur "
+        "directement à l'upload. LaProd gère les pourcentages contractuellement."
+    ),
+]
+
+_TIPS_ARTIST = [
+    (
+        "Le <strong>Topline Recorder</strong> vous permet d'enregistrer voix, rap ou mélodie "
+        "directement sur un beat depuis l'application — sans installation, depuis votre téléphone."
+    ),
+    (
+        "La recherche avancée filtre par <strong>BPM, gamme, style et tags</strong> — trouvez "
+        "exactement le beat qui correspond à votre projet en quelques secondes."
+    ),
+    (
+        "À chaque achat de licence, un <strong>contrat numérique signé</strong> est généré et "
+        "archivé automatiquement dans votre espace."
+    ),
+    (
+        "Le <strong>mode compact</strong> de l'accueil affiche plus de beats d'un coup — parfait "
+        "pour parcourir le catalogue rapidement depuis mobile."
+    ),
+    (
+        "Vos écoutes sont visibles par les beatmakers dans leurs stats — "
+        "<strong>écouter un beat, c'est aussi encourager son auteur</strong> à uploader davantage."
+    ),
+    (
+        "Vous pouvez constituer des <strong>playlists de favoris</strong> pour retrouver vos sons "
+        "préférés et les partager avec vos collaborateurs."
+    ),
+]
+
+_TIPS_MIX_ENGINEER = [
+    (
+        "Les artistes consultent vos <strong>samples avant/après</strong> avant toute commande — "
+        "un before/after récent et soigné multiplie vos conversions."
+    ),
+    (
+        "Le paiement est sécurisé en deux temps : <strong>acompte versé à la livraison preview</strong>, "
+        "solde à la validation finale par l'artiste."
+    ),
+    (
+        "Vous pouvez <strong>accepter ou refuser</strong> chaque demande entrante avant que la "
+        "moindre somme ne soit prélevée."
+    ),
+    (
+        "Le système inclut jusqu'à <strong>2 révisions</strong> gérées automatiquement par la "
+        "plateforme, avec délais et versements progressifs."
+    ),
+    (
+        "Votre bio et vos <strong>certifications</strong> (mix, mastering, arrangement artistique) "
+        "sont affichées directement sur votre profil public."
+    ),
+    (
+        "Les artistes peuvent joindre un <strong>brief détaillé</strong> à leur demande : "
+        "références musicales, instructions par instrument, stems séparés — vous avez tout le "
+        "contexte avant de commencer."
+    ),
+]
+
+
+def send_reengagement_beatmaker_email(user, last_track=None, track_count=0):
+    """
+    Relance un beatmaker inactif depuis plus de 7 jours.
+    Le tip "Le saviez-vous ?" est choisi aléatoirement parmi _TIPS_BEATMAKER.
+    """
+    upload_url  = _fe('/upload-track')
+    profile_url = _fe(f'/profile/{user.username}')
+    tip         = random.choice(_TIPS_BEATMAKER)
+
+    # Version texte brut : strip des balises HTML du tip
+    import re as _re
+    tip_plain = _re.sub(r'<[^>]+>', '', tip)
+
+    text_body = f"""Bonjour {user.username},
+
+Cela fait une semaine que vous n'avez pas uploadé de beat.
+Vos auditeurs attendent votre prochain son !
+
+Uploader un nouveau beat : {upload_url}
+Partager votre profil : {profile_url}
+
+\U0001f4a1 Le saviez-vous ? {tip_plain}
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/reengagement_beatmaker.html',
+        user=user,
+        last_track=last_track,
+        track_count=track_count,
+        upload_url=upload_url,
+        profile_url=profile_url,
+        did_you_know=tip,
+    )
+
+    return send_email(
+        subject="Votre prochain hit attend d'être uploadé \U0001f3b9 — LaProd",
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_reengagement_artist_email(user, recent_tracks=None):
+    """
+    Relance un artiste qui n'a pas écouté de track depuis plus de 7 jours.
+    Inclut ses derniers favoris/écoutes et un tip aléatoire parmi _TIPS_ARTIST.
+    """
+    home_url       = _fe('/')
+    track_base_url = current_app.config.get('FRONTEND_URL', 'https://laprod.net').rstrip('/')
+    tip            = random.choice(_TIPS_ARTIST)
+
+    import re as _re
+    tip_plain = _re.sub(r'<[^>]+>', '', tip)
+
+    text_body = f"""Bonjour {user.username},
+
+Cela fait une semaine que vous n'avez pas lancé le player sur LaProd.
+Vos sons favoris n'attendent que vous — et vos amis artistes pourraient adorer les mêmes.
+
+Découvrir de nouveaux beats : {home_url}
+
+\U0001f4a1 Le saviez-vous ? {tip_plain}
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/reengagement_artist.html',
+        user=user,
+        recent_tracks=recent_tracks or [],
+        home_url=home_url,
+        track_base_url=track_base_url,
+        did_you_know=tip,
+    )
+
+    return send_email(
+        subject="Ces sons vous ont inspiré – ils attendent votre retour \U0001f3a4 — LaProd",
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_reengagement_mix_engineer_email(user, completed_count=0, total_earnings=None):
+    """
+    Relance un mix engineer qui n'a reçu aucune demande depuis plus de 7 jours.
+    Incite à mettre à jour ses samples avant/après avec un tip aléatoire parmi _TIPS_MIX_ENGINEER.
+    """
+    dashboard_url = _fe('/dashboard/mix-engineer')
+    profile_url   = _fe(f'/mix/engineer/{user.username}')
+    tip           = random.choice(_TIPS_MIX_ENGINEER)
+    earnings_str  = f'{total_earnings:.2f}' if total_earnings else None
+
+    import re as _re
+    tip_plain = _re.sub(r'<[^>]+>', '', tip)
+
+    text_body = f"""Bonjour {user.username},
+
+Cela fait une semaine que vous n'avez reçu aucune demande de mix/master.
+Les artistes comparent les samples avant de choisir leur engineer.
+
+Mettre à jour mes samples : {dashboard_url}
+Partager mon profil : {profile_url}
+
+\U0001f4a1 Le saviez-vous ? {tip_plain}
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/reengagement_mix_engineer.html',
+        user=user,
+        completed_count=completed_count,
+        total_earnings=earnings_str,
+        dashboard_url=dashboard_url,
+        profile_url=profile_url,
+        did_you_know=tip,
+    )
+
+    return send_email(
+        subject="Les artistes cherchent votre expertise \U0001f39a — LaProd",
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
     )
 
 

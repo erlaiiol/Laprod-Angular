@@ -1,16 +1,18 @@
 import {
   Component, Input, Output, EventEmitter, OnDestroy,
-  signal, inject, ChangeDetectionStrategy, ChangeDetectorRef,
+  signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef,
   ElementRef, ViewChild, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
 import { ToplineService } from '../../services/topline.service';
 import { ToplineStatusService } from '../../services/topline-status.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
+import { GuestToplineService } from '../../services/guest-topline.service';
 import { environment } from '../../../environments/environment';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
@@ -18,7 +20,7 @@ type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
 @Component({
   selector: 'app-topline-recorder',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './topline-recorder.component.html',
   styleUrls: ['./topline-recorder.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -52,7 +54,11 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private player           = inject(PlayerService);
   private cdr              = inject(ChangeDetectorRef);
   readonly auth            = inject(AuthService);
+  readonly guestSvc        = inject(GuestToplineService);
   private http             = inject(HttpClient);
+
+  readonly isGuest            = computed(() => !this.auth.isLoggedIn());
+  readonly guestSentTopline   = signal(false);
 
   private resultBlobUrl: string | null = null;
 
@@ -266,12 +272,21 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       : null;
     this.toplineStatusSvc.openForUpload(this.track.id, this.track.title, imageUrl);
 
-    this.toplineSvc.uploadTopline(fd).subscribe({
+    const guestId = this.isGuest() ? this.guestSvc.sessionId() : undefined;
+
+    this.toplineSvc.uploadTopline(fd, guestId).subscribe({
       next: (res) => {
         if (res.success && res.data?.job_id) {
-          this.toplineStatusSvc.startPolling(res.data.job_id);
-          this.state.set('idle');
-          this.closed.emit();
+          if (this.isGuest()) {
+            this.guestSvc.syncFromServer(res.data.remaining_guest_attempts ?? null);
+            this.guestSvc.markPendingClaim();
+            this.guestSentTopline.set(true);
+            this.state.set('idle');
+          } else {
+            this.toplineStatusSvc.startPolling(res.data.job_id);
+            this.state.set('idle');
+            this.closed.emit();
+          }
         } else {
           this.toplineStatusSvc.stopPolling();
           this.errorMsg.set(res.feedback?.message ?? 'Erreur lors de l\'envoi.');

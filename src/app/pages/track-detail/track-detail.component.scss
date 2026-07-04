@@ -13,6 +13,36 @@
   color: v.$text-primary;
 }
 
+// ── Barre de retour ───────────────────────────────────────────────────────────
+
+.track-back-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.25rem;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: 1px solid rgba(v.$bg-border-subtle, 0.6);
+  border-radius: v.$radius-sm;
+  color: v.$text-muted;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+  i { font-size: 0.75rem; }
+
+  &:hover {
+    color: v.$off-white;
+    border-color: v.$bg-border-subtle;
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 .track-hero {
@@ -116,6 +146,12 @@
   color:         v.$text-primary;
 }
 
+.tag--clickable, .meta-chip--clickable, .artist-chip--clickable {
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+  &:hover { filter: brightness(1.3); transform: translateY(-1px); }
+}
+
 // ── Artistes similaires ──────────────────────────────────────────────────────
 
 .similar-artists-row {
@@ -132,6 +168,120 @@
   padding: 0.12rem 0.5rem; border-radius: 12px; font-size: 0.78rem;
   font-style: italic; color: v.$text-secondary;
   border: 1px solid v.$bg-border; background: v.$bg-surface;
+}
+
+// ── Topline CTA block ─────────────────────────────────────────────────────────
+
+.topline-cta-block {
+  display:       flex;
+  align-items:   center;
+  gap:           1.25rem;
+  background:    rgba(v.$primary, 0.08);
+  border:        1px solid rgba(v.$primary, 0.25);
+  border-radius: v.$radius-lg;
+  padding:       1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(8px);
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items:    flex-start;
+    gap:            0.75rem;
+  }
+}
+
+.topline-cta-icon {
+  flex-shrink:     0;
+  width:           48px;
+  height:          48px;
+  border-radius:   50%;
+  background:      v.$primary;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       1.3rem;
+  color:           v.$white;
+  box-shadow:      v.$glow-primary;
+}
+
+.topline-cta-content {
+  flex: 1;
+
+  h3 {
+    font-family:  v.$font-display;
+    font-size:    1rem;
+    font-weight:  700;
+    margin:       0 0 0.2rem;
+    color:        v.$text-primary;
+  }
+
+  p {
+    font-size:   0.82rem;
+    color:       v.$text-secondary;
+    margin:      0;
+    line-height: 1.5;
+  }
+}
+
+.topline-cta-btn {
+  flex-shrink:   0;
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.6rem 1.25rem;
+  background:    v.$primary;
+  color:         v.$white;
+  border:        none;
+  border-radius: v.$radius-md;
+  font-size:     0.88rem;
+  font-weight:   700;
+  cursor:        pointer;
+  text-decoration: none;
+  white-space:   nowrap;
+  transition:    background v.$dur-base v.$ease-out, box-shadow v.$dur-base v.$ease-out;
+
+  &:hover { background: v.$primary-dark; box-shadow: v.$glow-primary; }
+
+  &--guest {
+    background: transparent;
+    border:     1px solid v.$primary;
+    color:      v.$primary;
+
+    &:hover { background: rgba(v.$primary, 0.12); box-shadow: none; }
+  }
+}
+
+// ── Pont vers l'achat ──────────────────────────────────────────────────────────
+
+.purchase-bridge {
+  display:         flex;
+  align-items:     center;
+  gap:             0.6rem;
+  padding:         0.9rem 1.25rem;
+  background:      v.$bg-elevated;
+  border:          1px solid v.$bg-border;
+  border-radius:   v.$radius-md;
+  margin:          1.5rem 0 2rem;
+  font-size:       0.88rem;
+  color:           v.$text-secondary;
+  line-height:     1.45;
+
+  i { color: v.$primary; font-size: 1.1rem; flex-shrink: 0; }
+
+  @media (max-width: 640px) { flex-wrap: wrap; }
+}
+
+.purchase-bridge__link {
+  margin-left:    auto;
+  flex-shrink:    0;
+  color:          v.$primary;
+  font-weight:    600;
+  text-decoration: none;
+  font-size:      0.82rem;
+
+  &:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) { margin-left: 0; }
 }
 
 // ── Purchase ─────────────────────────────────────────────────────────────────
@@ -308,6 +458,48 @@
   &:hover { background: v.$primary-dark; }
 }
 
+// ── Social proof ──────────────────────────────────────────────────────────────
+
+.social-proof-pill {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.18rem 0.6rem;
+  background:    rgba(v.$tag-teal, 0.1);
+  border:        1px solid rgba(v.$tag-teal, 0.3);
+  border-radius: v.$radius-pill;
+  font-size:     0.72rem;
+  color:         v.$tag-teal-light;
+  font-weight:   600;
+
+  i { font-size: 0.7rem; }
+}
+
+.purchase-section-header {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  flex-wrap:   wrap;
+  margin-bottom: 1rem;
+
+  h2 { margin: 0; font-size: 1.2rem; font-weight: 600; color: v.$text-primary; }
+}
+
+.sales-proof {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.18rem 0.6rem;
+  background:    rgba(v.$tag-green, 0.1);
+  border:        1px solid rgba(v.$tag-green, 0.3);
+  border-radius: v.$radius-pill;
+  font-size:     0.72rem;
+  color:         v.$tag-green-light;
+  font-weight:   600;
+
+  i { font-size: 0.7rem; }
+}
+
 // ── Toplines ─────────────────────────────────────────────────────────────────
 
 .toplines-section h2 { font-size: 1.2rem; font-weight: 600; color: v.$text-primary; }
@@ -317,6 +509,13 @@
   align-items:     center;
   justify-content: space-between;
   margin-bottom:   1rem;
+}
+
+.toplines-header-left {
+  display:     flex;
+  align-items: center;
+  gap:         0.6rem;
+  flex-wrap:   wrap;
 }
 
 .btn-edit {
