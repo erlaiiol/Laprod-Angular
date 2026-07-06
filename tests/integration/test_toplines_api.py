@@ -476,6 +476,148 @@ class TestUploadTopline:
         assert len(saved) == 1
 
 
+# ── POST /api/toplines/upload-processed ───────────────────────────────────────
+#
+# Chemin mobile natif (studio Capacitor) : le mix vocal+beat est déjà fait côté
+# client, on reçoit directement un MP3 final. Pas de job RQ — écriture DB directe,
+# is_mobile_processed=True. Contrairement à /upload, un JWT est obligatoire (pas
+# de guest) et le fichier est validé comme MP3/WAV/MP4 déjà traité, pas une voix brute.
+
+def _fake_processed_mp3():
+    """Blob MP3 stub 1KB — dépasse la validation de taille minimale (512 octets)."""
+    return (io.BytesIO(b'ID3\x03\x00\x00\x00' + b'\x00' * 1016), 'maquette.mp3', 'audio/mpeg')
+
+
+def _fake_processed_empty():
+    return (io.BytesIO(b'ID3' + b'\x00' * 10), 'maquette.mp3', 'audio/mpeg')
+
+
+def _upload_processed(client, track_id, headers, *, processed=None, description=None):
+    data = {
+        'processed_file': processed if processed is not None else _fake_processed_mp3(),
+        'track_id': str(track_id),
+    }
+    if description is not None:
+        data['description'] = description
+    return client.post(
+        '/api/toplines/upload-processed',
+        data=data,
+        content_type='multipart/form-data',
+        headers=headers,
+    )
+
+
+class TestUploadProcessedTopline:
+
+    def test_requires_authentication(self, client, track_default_prices):
+        resp = client.post(
+            '/api/toplines/upload-processed',
+            data={'processed_file': _fake_processed_mp3(), 'track_id': str(track_default_prices.id)},
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 401
+
+    def test_happy_path_returns_topline_id(self, client, artist_headers, track_default_prices):
+        resp = _upload_processed(client, track_default_prices.id, artist_headers)
+        assert resp.status_code == 200, resp.json
+        assert resp.json['success'] is True
+        assert isinstance(resp.json['data']['topline_id'], int)
+
+    def test_topline_persisted_with_is_mobile_processed_true(
+        self, client, db, artist_headers, track_default_prices
+    ):
+        from models import Topline
+        resp = _upload_processed(client, track_default_prices.id, artist_headers)
+        tl = db.session.get(Topline, resp.json['data']['topline_id'])
+        assert tl is not None
+        assert tl.is_mobile_processed is True
+        assert tl.is_published is False
+
+    def test_token_consumed_on_success(
+        self, client, db, artist_headers, user_artist, track_default_prices
+    ):
+        before = user_artist.topline_tokens
+        _upload_processed(client, track_default_prices.id, artist_headers)
+        db.session.refresh(user_artist)
+        assert user_artist.topline_tokens == before - 1
+
+    def test_quota_exceeded_returns_403(
+        self, client, db, artist_headers, user_artist, track_default_prices
+    ):
+        user_artist.topline_tokens = 0
+        db.session.commit()
+        resp = _upload_processed(client, track_default_prices.id, artist_headers)
+        assert resp.status_code == 403
+        assert resp.json['code'] == 'QUOTA_EXCEEDED'
+
+    def test_missing_processed_file_returns_400(self, client, artist_headers, track_default_prices):
+        resp = client.post(
+            '/api/toplines/upload-processed',
+            data={'track_id': str(track_default_prices.id)},
+            content_type='multipart/form-data',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'VALIDATION_ERROR'
+
+    def test_missing_track_id_returns_400(self, client, artist_headers):
+        resp = client.post(
+            '/api/toplines/upload-processed',
+            data={'processed_file': _fake_processed_mp3()},
+            content_type='multipart/form-data',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'VALIDATION_ERROR'
+
+    def test_invalid_format_rejected(self, client, artist_headers, track_default_prices):
+        bad_file = (io.BytesIO(b'\x1aE\xdf\xa3' + b'\x00' * 1020), 'voice.webm', 'audio/webm')
+        resp = _upload_processed(client, track_default_prices.id, artist_headers, processed=bad_file)
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'INVALID_FORMAT'
+
+    def test_empty_file_returns_400_invalid_audio(self, client, artist_headers, track_default_prices):
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers, processed=_fake_processed_empty(),
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'INVALID_AUDIO'
+
+    def test_unknown_track_returns_404(self, client, artist_headers):
+        resp = _upload_processed(client, 999999, artist_headers)
+        assert resp.status_code == 404
+        assert resp.json['code'] == 'TRACK_NOT_FOUND'
+
+    def test_unapproved_track_returns_403(
+        self, client, db, artist_headers, track_default_prices
+    ):
+        track_default_prices.is_approved = False
+        db.session.commit()
+        try:
+            resp = _upload_processed(client, track_default_prices.id, artist_headers)
+            assert resp.status_code == 403
+            assert resp.json['code'] == 'TRACK_UNAVAILABLE'
+        finally:
+            track_default_prices.is_approved = True
+            db.session.commit()
+
+    def test_description_forwarded(self, client, db, artist_headers, track_default_prices):
+        from models import Topline
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers, description='Ma maquette mobile',
+        )
+        tl = db.session.get(Topline, resp.json['data']['topline_id'])
+        assert tl.description == 'Ma maquette mobile'
+
+    def test_no_rq_job_enqueued(self, client, artist_headers, track_default_prices):
+        """Contrairement à /upload, le chemin mobile n'utilise aucune queue RQ."""
+        mock_queue = MagicMock()
+        with patch('routes.toplines_api.Queue', MagicMock(return_value=mock_queue)):
+            resp = _upload_processed(client, track_default_prices.id, artist_headers)
+        assert resp.status_code == 200
+        mock_queue.enqueue.assert_not_called()
+
+
 # ── POST /api/toplines/<id>/publish ───────────────────────────────────────────
 
 class TestPublishTopline:

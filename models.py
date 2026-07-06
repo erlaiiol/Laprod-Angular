@@ -659,6 +659,7 @@ class Topline(db.Model):
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     is_published = db.Column(db.Boolean, default=False, nullable=False)
+    is_mobile_processed = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):
         name = self.artist_user.username if self.artist_id else f"guest:{self.guest_session_id}"

@@ -45,6 +45,7 @@ export class TrackCardComponent {
   showAllTags     = signal(false);
   showAllArtists  = signal(false);
 
+  isLoggedIn  = computed(() => this.authService.isLoggedIn());
   showArtists = computed(() => this.authService.preferredCardInfoMode() === 'artists');
 
   // Tags filtrés par catégorie active (si filtre posé), sinon tous

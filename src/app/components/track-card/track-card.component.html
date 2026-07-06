@@ -18,7 +18,7 @@
       class="music-card-img"
       loading="lazy"
       onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
-    @if (compactMode) {
+    @if (compactMode && isLoggedIn()) {
       <div class="tc-price-badge">{{ formatPrice(track.price_mp3) }}</div>
     }
     <div class="play-overlay">
@@ -110,11 +110,13 @@
           }
         }
       </div>
-      <button class="btn-price" type="button"
-              (click)="$event.stopPropagation()"
-              [routerLink]="['/track', track.id]">
-        à partir de {{ formatPrice(track.price_mp3) }}
-      </button>
+      @if (isLoggedIn()) {
+        <button class="btn-price" type="button"
+                (click)="$event.stopPropagation()"
+                [routerLink]="['/track', track.id]">
+          à partir de {{ formatPrice(track.price_mp3) }}
+        </button>
+      }
     </div>
   </div>
 

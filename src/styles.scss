@@ -104,7 +104,7 @@
   --glass-bg:    #{v.$glass-bg};
 }
 
-// ── Global dark-theme overrides (loaded after Bootstrap CDN) ─────────────────
+// ── Global dark-theme overrides (loaded after Bootstrap, bundled via angular.json) ─
 
 *,
 *::before,
@@ -115,6 +115,9 @@
 html {
   height: 100%;
   scroll-behavior: smooth;
+  // Empêche le rebond élastique (rubber-band) du body dans le WebView natif —
+  // sans ça, l'app trahit immédiatement son origine web sur iOS/Android.
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -126,6 +129,9 @@ body {
   font-size:        16px;
   line-height:      v.$leading-normal;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  // Supprime le délai de 300ms au tap et le double-tap-to-zoom du navigateur mobile.
+  touch-action: manipulation;
 }
 
 // Titres — police display, tracking serré

@@ -26,6 +26,10 @@ export interface UploadToplineData {
   job_id: string;
 }
 
+export interface UploadProcessedData {
+  topline_id: number;
+}
+
 export interface PublishToplineData {
   topline: PublishedTopline;
 }
@@ -59,6 +63,13 @@ export class ToplineService {
     if (guestSessionId) headers['X-Guest-Session'] = guestSessionId;
     return this.http.post<ApiResponse<UploadToplineData & { remaining_guest_attempts?: number }>>(
       `${this.apiUrl}/upload`, formData, { headers },
+    );
+  }
+
+  /** Chemin mobile natif : upload d'une topline déjà traitée côté client. Réponse immédiate. */
+  uploadProcessed(formData: FormData): Observable<ApiResponse<UploadProcessedData>> {
+    return this.http.post<ApiResponse<UploadProcessedData>>(
+      `${this.apiUrl}/upload-processed`, formData,
     );
   }
 

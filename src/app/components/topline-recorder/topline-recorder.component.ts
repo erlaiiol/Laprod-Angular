@@ -1,18 +1,21 @@
 import {
   Component, Input, Output, EventEmitter, OnDestroy,
-  signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef,
+  signal, computed, effect, inject, ChangeDetectionStrategy, ChangeDetectorRef,
   ElementRef, ViewChild, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { Capacitor } from '@capacitor/core';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
+import { MobileStudioComponent } from '../mobile-studio/mobile-studio.component';
 import { ToplineService } from '../../services/topline.service';
 import { ToplineStatusService } from '../../services/topline-status.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { GuestToplineService } from '../../services/guest-topline.service';
+import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
@@ -20,7 +23,7 @@ type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
 @Component({
   selector: 'app-topline-recorder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, MobileStudioComponent],
   templateUrl: './topline-recorder.component.html',
   styleUrls: ['./topline-recorder.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -56,9 +59,30 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   readonly auth            = inject(AuthService);
   readonly guestSvc        = inject(GuestToplineService);
   private http             = inject(HttpClient);
+  private router           = inject(Router);
+  private toast            = inject(ToastService);
+
+  readonly isNative = Capacitor.isNativePlatform();
 
   readonly isGuest            = computed(() => !this.auth.isLoggedIn());
   readonly guestSentTopline   = signal(false);
+
+  // Pas de mode guest sur mobile natif (l'endpoint d'upload natif exige un JWT) :
+  // on laisse l'utilisateur parcourir/écouter librement, et on ne demande la
+  // connexion qu'à l'instant précis où il ouvre le studio d'enregistrement —
+  // jamais au lancement de l'app.
+  constructor() {
+    effect(() => {
+      if (this.isNative && !this.auth.isLoggedIn()) {
+        // Couvre aussi bien le tap sur "Enregistrer" sans compte que l'expiration
+        // de session en cours d'enregistrement (silentLogout() de l'intercepteur JWT
+        // fait retomber isLoggedIn() à false, ce qui redéclenche cet effect).
+        this.toast.showToast({ level: 'info', message: 'Connexion requise pour enregistrer une topline.' });
+        this.closed.emit();
+        this.router.navigate(['/login']);
+      }
+    });
+  }
 
   private resultBlobUrl: string | null = null;
 
@@ -257,11 +281,14 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.state.set('processing');
     this.cdr.markForCheck();
 
+    // Sur natif, onRecordingStop() n'est jamais atteint : le template redirige
+    // vers MobileRecorderComponent qui gère l'intégralité du flux natif.
     const mimeType = this.recordingMimeType || 'audio/webm';
     const ext      = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-    const blob     = new Blob(this.chunks, { type: mimeType });
-    const fd       = new FormData();
-    fd.append('voice_file',      blob, `voice.${ext}`);
+    const voiceBlob = new Blob(this.chunks, { type: mimeType });
+
+    const fd = new FormData();
+    fd.append('voice_file',      voiceBlob, `voice.${ext}`);
     fd.append('track_id',        String(this.track.id));
     fd.append('use_autotune',    String(this.useAutotune));
     fd.append('latency_hint_ms', String(this._latencyHintMs));

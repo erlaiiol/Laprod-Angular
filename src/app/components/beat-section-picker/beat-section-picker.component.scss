@@ -1,0 +1,362 @@
+@use '../../../styles/variables' as v;
+
+// ── Container ──────────────────────────────────────────────────────────────────
+
+.bsp-container {
+  display:          flex;
+  flex-direction:   column;
+  height:           100%;
+  background:       v.$bg-surface;
+  border-radius:    20px 20px 0 0;
+  overflow:         hidden;
+}
+
+// ── En-tête ────────────────────────────────────────────────────────────────────
+
+.bsp-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         18px 20px 14px;
+  border-bottom:   1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink:     0;
+}
+
+.bsp-title {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin:      0;
+  font-size:   1.05rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+
+  i { color: v.$primary; font-size: 1.1rem; }
+}
+
+.bsp-close {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           34px;
+  height:          34px;
+  border:          none;
+  border-radius:   10px;
+  background:      rgba(255, 255, 255, 0.07);
+  color:           rgba(255, 255, 255, 0.6);
+  cursor:          pointer;
+  font-size:       0.9rem;
+  transition:      background 0.15s;
+
+  &:active { background: rgba(255, 255, 255, 0.14); }
+}
+
+// ── Loading / Erreur ───────────────────────────────────────────────────────────
+
+.bsp-loading {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             14px;
+  flex:            1;
+  color:           v.$text-secondary;
+  font-size:       0.9rem;
+}
+
+.bsp-spinner {
+  display:          inline-block;
+  width:            32px;
+  height:           32px;
+  border:           3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: v.$primary;
+  border-radius:    50%;
+  animation:        bsp-spin 0.75s linear infinite;
+}
+
+@keyframes bsp-spin { to { transform: rotate(360deg); } }
+
+.bsp-error {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin:      16px 20px;
+  padding:     12px 16px;
+  border-radius: 10px;
+  background:  rgba(v.$primary, 0.1);
+  color:       v.$primary;
+  font-size:   0.88rem;
+
+  i { font-size: 1rem; }
+}
+
+// ── Mode d'insertion ───────────────────────────────────────────────────────────
+
+.bsp-mode-bar {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  padding:     12px 20px 0;
+  flex-shrink: 0;
+  flex-wrap:   wrap;
+}
+
+.bsp-mode-label {
+  font-size:   0.8rem;
+  color:       v.$text-secondary;
+  flex-shrink: 0;
+}
+
+.bsp-mode-toggle {
+  display:       flex;
+  border-radius: 10px;
+  overflow:      hidden;
+  border:        1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bsp-mode-btn {
+  padding:     6px 13px;
+  border:      none;
+  background:  transparent;
+  color:       v.$text-secondary;
+  font-size:   0.8rem;
+  font-weight: 600;
+  cursor:      pointer;
+  transition:  background 0.15s, color 0.15s;
+
+  &--active {
+    background: v.$primary;
+    color:      #fff;
+  }
+
+  &:not(.bsp-mode-btn--active):active { background: rgba(255, 255, 255, 0.07); }
+}
+
+// ── Hint ───────────────────────────────────────────────────────────────────────
+
+.bsp-hint {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  margin:      10px 20px 4px;
+  font-size:   0.78rem;
+  color:       rgba(255, 255, 255, 0.3);
+
+  i { font-size: 0.85rem; }
+}
+
+// ── Grille de sections ─────────────────────────────────────────────────────────
+
+.bsp-grid {
+  display:    flex;
+  flex-direction: column;
+  gap:        8px;
+  padding:    0 12px 8px;
+  overflow-y: auto;
+  flex:       1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bsp-card {
+  position:      relative;
+  display:       flex;
+  flex-direction: column;
+  gap:           6px;
+  padding:       12px 14px;
+  border:        1.5px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background:    rgba(255, 255, 255, 0.03);
+  cursor:        pointer;
+  text-align:    left;
+  transition:    border-color 0.15s, background 0.15s, transform 0.1s;
+  width:         100%;
+
+  &:active { transform: scale(0.98); }
+
+  &--selected {
+    border-color: v.$primary;
+    background:   rgba(v.$primary, 0.07);
+  }
+}
+
+// ── Badge section ──────────────────────────────────────────────────────────────
+
+.bsp-card-badge {
+  display:     flex;
+  align-items: center;
+  gap:         7px;
+
+  i { color: v.$primary; font-size: 0.9rem; }
+}
+
+.bsp-card-name {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+}
+
+// ── Waveform mini ──────────────────────────────────────────────────────────────
+
+.bsp-waveform {
+  width:         100%;
+  height:        48px;
+  border-radius: 6px;
+  background:    rgba(255, 255, 255, 0.04);
+}
+
+// ── Méta tags ──────────────────────────────────────────────────────────────────
+
+.bsp-card-meta {
+  display:   flex;
+  gap:       6px;
+  flex-wrap: wrap;
+}
+
+.bsp-tag {
+  font-size:     0.72rem;
+  font-weight:   600;
+  color:         rgba(255, 255, 255, 0.45);
+  background:    rgba(255, 255, 255, 0.07);
+  padding:       2px 8px;
+  border-radius: 20px;
+
+  &--energy[data-energy='Fort']  { color: #e5c14b; background: rgba(229, 193, 75, 0.12); }
+  &--energy[data-energy='Moyen'] { color: v.$primary; background: rgba(v.$primary, 0.1); }
+  &--energy[data-energy='Calme'] { color: rgba(255,255,255,0.4); }
+}
+
+// ── Drums chip ─────────────────────────────────────────────────────────────────
+
+.bsp-drums-chip {
+  display:      flex;
+  align-items:  center;
+  gap:          4px;
+  font-size:    0.72rem;
+  font-weight:  600;
+  color:        rgba(100, 200, 255, 0.8);
+  width:        fit-content;
+
+  i { font-size: 0.75rem; }
+}
+
+// ── Check ──────────────────────────────────────────────────────────────────────
+
+.bsp-check {
+  position:  absolute;
+  top:       12px;
+  right:     12px;
+  font-size: 1rem;
+  color:     v.$primary;
+  animation: bsp-pop 0.15s ease;
+}
+
+@keyframes bsp-pop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+// ── Résumé durée ───────────────────────────────────────────────────────────────
+
+.bsp-duration-bar {
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
+  padding:         8px 18px 6px;
+  flex-shrink:     0;
+  border-top:      1px solid rgba(255, 255, 255, 0.06);
+  background:      rgba(255, 255, 255, 0.02);
+}
+
+.bsp-dur {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+  font-size:   0.8rem;
+  font-weight: 600;
+
+  &--current {
+    color: rgba(255, 255, 255, 0.45);
+    i     { font-size: 0.78rem; }
+  }
+
+  &--extended {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  &--capped {
+    color: #e5c14b;
+  }
+
+  &--hint {
+    color:       rgba(255, 255, 255, 0.22);
+    font-weight: 400;
+    font-style:  italic;
+  }
+}
+
+.bsp-dur-arrow {
+  font-size: 0.7rem;
+  color:     rgba(255, 255, 255, 0.25);
+}
+
+.bsp-cap-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           3px;
+  font-size:     0.68rem;
+  font-weight:   700;
+  color:         #e5c14b;
+  background:    rgba(229, 193, 75, 0.12);
+  border:        1px solid rgba(229, 193, 75, 0.25);
+  border-radius: 20px;
+  padding:       1px 6px;
+  margin-left:   2px;
+
+  i { font-size: 0.7rem; }
+}
+
+// ── Footer ─────────────────────────────────────────────────────────────────────
+
+.bsp-footer {
+  display:      flex;
+  gap:          10px;
+  padding:      12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top:   1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink:  0;
+}
+
+.bsp-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  height:          46px;
+  border:          none;
+  border-radius:   13px;
+  font-size:       0.9rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      opacity 0.15s, transform 0.1s;
+
+  i { font-size: 1rem; }
+
+  &:disabled { opacity: 0.35; pointer-events: none; }
+  &:active   { transform: scale(0.97); }
+
+  &--preview {
+    flex:       1;
+    background: rgba(255, 255, 255, 0.09);
+    color:      v.$text-primary;
+
+    &.bsp-btn--playing {
+      background: rgba(v.$primary, 0.15);
+      color:      v.$primary;
+    }
+  }
+
+  &--apply {
+    flex:       1;
+    background: v.$primary;
+    color:      #fff;
+  }
+}

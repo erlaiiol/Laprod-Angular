@@ -1,3 +1,12 @@
+<!-- Sur mobile natif → interface premium dédiée. Pas de mode guest en natif :
+     tant que la connexion n'est pas confirmée, le composant se contente de
+     rediriger (cf. constructor()) sans jamais monter le studio. -->
+@if (isNative && auth.isLoggedIn()) {
+  <app-mobile-studio [track]="track" (closed)="closed.emit()" />
+}
+
+<!-- Sur web → interface modale existante -->
+@if (!isNative) {
 <!-- Modal backdrop — click outside = close -->
 <div class="recorder-backdrop" (click)="closed.emit()">
 
@@ -238,3 +247,4 @@
 
   </div>
 </div>
+} <!-- @if (!isNative) -->

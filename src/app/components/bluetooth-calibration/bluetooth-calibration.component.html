@@ -1,0 +1,97 @@
+<div class="bc-overlay" (click)="state() !== 'playing' && cancel()">
+  <div class="bc-sheet" (click)="$event.stopPropagation()">
+
+    <!-- ── Fermeture — cohérent avec beat-section-picker (.bsp-close) ───────── -->
+    <button class="bc-close" (click)="cancel()" aria-label="Fermer">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <!-- ── Intro ─────────────────────────────────────────────────────────── -->
+    @if (state() === 'intro') {
+      <div class="bc-intro">
+        <div class="bc-icon-wrap">
+          <i class="bi bi-bluetooth"></i>
+        </div>
+        <h2 class="bc-title">Calibrer la latence Bluetooth</h2>
+        <p class="bc-body">
+          Votre casque ajoute un délai entre le son joué et ce que vous entendez.
+          Ce test mesure ce délai pour aligner votre voix avec le beat à l'export.
+        </p>
+        <ol class="bc-steps">
+          <li>Des bips réguliers vont jouer via votre casque</li>
+          <li>Tapez l'écran en rythme avec ce que vous <em>entendez</em></li>
+          <li>La latence sera calculée automatiquement</li>
+        </ol>
+        <button class="bc-btn bc-btn--primary" (click)="start()">
+          <i class="bi bi-play-fill"></i>
+          Démarrer le test
+        </button>
+        <button class="bc-btn bc-btn--ghost" (click)="cancel()">Annuler</button>
+      </div>
+    }
+
+    <!-- ── Playing ───────────────────────────────────────────────────────── -->
+    @if (state() === 'playing') {
+
+      <p class="bc-hint">Tapez en rythme avec les bips</p>
+
+      <!-- Grande zone de tap -->
+      <button class="bc-tap-zone"
+              [class.bc-tap-zone--active]="tapFeedback()"
+              (pointerdown)="onTap()">
+        <div class="bc-tap-icon">
+          <i class="bi bi-hand-index-thumb-fill"></i>
+        </div>
+        <span class="bc-tap-label">Tapez ici</span>
+        <span class="bc-tap-count">{{ tapCount() }} tap{{ tapCount() > 1 ? 's' : '' }}</span>
+      </button>
+
+      <!-- Progression beats -->
+      <div class="bc-progress-row">
+        <span class="bc-beats-left">
+          {{ beatsLeft() > 0 ? beatsLeft() + ' bips restants…' : 'Calcul en cours…' }}
+        </span>
+        <div class="bc-progress-bar">
+          <div class="bc-progress-fill"
+               [style.width.%]="((totalTaps - beatsLeft()) / totalTaps) * 100">
+          </div>
+        </div>
+      </div>
+
+    }
+
+    <!-- ── Résultat ───────────────────────────────────────────────────────── -->
+    @if (state() === 'result' && measuredMs() !== null) {
+      <div class="bc-result">
+        <div class="bc-result-value" [style.color]="qualityColor(measuredMs()!)">
+          {{ measuredMs() }}<span class="bc-result-unit">ms</span>
+        </div>
+        <p class="bc-result-label">{{ qualityLabel(measuredMs()!) }}</p>
+        <p class="bc-result-body">
+          Ce délai sera automatiquement compensé lors de l'export de votre maquette.
+        </p>
+        <div class="bc-result-actions">
+          <button class="bc-btn bc-btn--ghost" (click)="retry()">
+            <i class="bi bi-arrow-counterclockwise"></i>
+            Réessayer
+          </button>
+          <button class="bc-btn bc-btn--primary" (click)="apply()">
+            <i class="bi bi-check2"></i>
+            Appliquer
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ── Erreur ─────────────────────────────────────────────────────────── -->
+    @if (state() === 'error') {
+      <div class="bc-error-state">
+        <i class="bi bi-exclamation-circle"></i>
+        <p>Pas assez de taps détectés. Réessayez en tapant régulièrement.</p>
+        <button class="bc-btn bc-btn--primary" (click)="retry()">Réessayer</button>
+        <button class="bc-btn bc-btn--ghost" (click)="cancel()">Annuler</button>
+      </div>
+    }
+
+  </div>
+</div>

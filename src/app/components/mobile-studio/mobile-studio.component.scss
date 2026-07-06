@@ -1,0 +1,1651 @@
+@use '../../../styles/variables' as v;
+
+// ── Overlay + sheet ───────────────────────────────────────────────────────────
+
+.ms-overlay {
+  position:         fixed;
+  inset:            0;
+  z-index:          200;
+  background:       rgba(0, 0, 0, 0.55);
+  display:          flex;
+  align-items:      flex-end;
+  backdrop-filter:  blur(3px);
+}
+
+.ms-sheet {
+  position:         relative;
+  width:            100%;
+  max-height:       92dvh;
+  overflow-y:       auto;
+  overscroll-behavior-y: contain;
+  background:       #1a1a1a;
+  border-radius:    22px 22px 0 0;
+  display:          flex;
+  flex-direction:   column;
+  padding-bottom:   env(safe-area-inset-bottom);
+}
+
+// ── Handle ────────────────────────────────────────────────────────────────────
+
+.ms-handle {
+  width:         40px;
+  height:        4px;
+  background:    rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin:        10px auto 4px;
+  flex-shrink:   0;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+.ms-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         12px 16px 8px;
+  flex-shrink:     0;
+}
+
+.ms-track-info {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  min-width:   0;
+}
+
+.ms-cover {
+  width:         44px;
+  height:        44px;
+  border-radius: 8px;
+  object-fit:    cover;
+  flex-shrink:   0;
+
+  &--placeholder {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    background:      rgba(255, 255, 255, 0.07);
+    color:           rgba(255, 255, 255, 0.3);
+    font-size:       1.2rem;
+  }
+}
+
+.ms-track-text { min-width: 0; }
+
+.ms-track-title {
+  font-size:     0.92rem;
+  font-weight:   700;
+  color:         v.$text-primary;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  margin:        0;
+}
+
+.ms-track-meta {
+  font-size: 0.75rem;
+  color:     v.$text-secondary;
+  margin:    2px 0 0;
+
+  span { color: v.$text-primary; font-weight: 600; }
+}
+
+.ms-close-btn {
+  background:  none;
+  border:      none;
+  color:       v.$text-secondary;
+  font-size:   1.1rem;
+  cursor:      pointer;
+  padding:     6px;
+  flex-shrink: 0;
+  &:active { opacity: 0.6; }
+}
+
+// ── Erreur ────────────────────────────────────────────────────────────────────
+
+.ms-error {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           8px;
+  margin:        0 16px 10px;
+  padding:       10px 13px;
+  background:    rgba(v.$primary, 0.08);
+  border:        1px solid rgba(v.$primary, 0.25);
+  border-radius: 10px;
+  font-size:     0.83rem;
+  color:         v.$primary;
+  i { margin-top: 2px; flex-shrink: 0; }
+}
+
+// ── Confirmation ré-enregistrement ────────────────────────────────────────────
+
+.ms-confirm-overlay {
+  position:         absolute;
+  inset:            0;
+  z-index:          10;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  background:       rgba(0, 0, 0, 0.72);
+  border-radius:    22px 22px 0 0;
+  padding:          24px;
+  backdrop-filter:  blur(4px);
+  animation:        fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.ms-confirm-box {
+  background:    #252525;
+  border:        1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding:       28px 24px 22px;
+  width:         100%;
+  max-width:     320px;
+  text-align:    center;
+  display:       flex;
+  flex-direction: column;
+  align-items:   center;
+  gap:           10px;
+  animation:     slideUp 0.18s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.ms-confirm-icon {
+  font-size: 2rem;
+  color:     v.$warning;
+}
+
+.ms-confirm-title {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  margin:      0;
+}
+
+.ms-confirm-body {
+  font-size: 0.83rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-confirm-actions {
+  display:    flex;
+  gap:        10px;
+  width:      100%;
+  margin-top: 6px;
+}
+
+.ms-confirm-cancel {
+  flex:          1;
+  padding:       12px;
+  border:        1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background:    none;
+  color:         v.$text-secondary;
+  font-size:     0.88rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s;
+  &:active { background: rgba(255, 255, 255, 0.07); }
+}
+
+.ms-confirm-ok {
+  flex:          1;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           6px;
+  padding:       12px;
+  border:        none;
+  border-radius: 12px;
+  background:    v.$primary;
+  color:         #fff;
+  font-size:     0.88rem;
+  font-weight:   700;
+  cursor:        pointer;
+  transition:    opacity 0.15s;
+  &:active { opacity: 0.85; }
+  i { font-size: 0.95rem; }
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+
+.ms-countdown-zone {
+  padding:        32px 20px 36px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            12px;
+}
+
+.ms-countdown-label {
+  font-size:   0.83rem;
+  color:       v.$text-secondary;
+  margin:      0;
+  letter-spacing: 0.05em;
+}
+
+.ms-countdown-number {
+  font-size:   5rem;
+  font-weight: 900;
+  color:       v.$primary;
+  line-height: 1;
+  animation:   pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%       { transform: scale(1.08); opacity: 0.85; }
+}
+
+.ms-countdown-hint {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  font-size:   0.78rem;
+  color:       rgba(255, 255, 255, 0.4);
+  margin:      0;
+  i { font-size: 0.85rem; }
+}
+
+// ── Vue enregistrement ────────────────────────────────────────────────────────
+
+.ms-rec-zone {
+  padding:        20px 20px 28px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            14px;
+}
+
+.ms-rec-header {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  font-size:   0.85rem;
+  color:       v.$text-secondary;
+}
+
+.ms-rec-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  background:    v.$primary;
+  animation:     blink 1s step-start infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.ms-rec-label {
+  font-weight:    700;
+  color:          v.$primary;
+  font-size:      0.8rem;
+  letter-spacing: 0.1em;
+}
+
+.ms-rec-timer { font-weight: 600; color: v.$text-primary; }
+.ms-rec-max   { color: rgba(255, 255, 255, 0.3); }
+
+// ── Waveform live ─────────────────────────────────────────────────────────────
+
+.ms-live-canvas {
+  width:         100%;
+  height:        64px;
+  border-radius: 8px;
+  background:    rgba(255, 255, 255, 0.03);
+  display:       block;
+}
+
+// ── Indicateur de saturation ──────────────────────────────────────────────────
+
+.ms-clip-warning {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       v.$primary;
+  width:       100%;
+  animation:   fadeIn 0.15s ease;
+}
+
+.ms-clip-warning__dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    v.$primary;
+  flex-shrink:   0;
+  animation:     blink 0.5s step-start infinite;
+}
+
+// ── Volume beat ───────────────────────────────────────────────────────────────
+
+.ms-beat-vol-row {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  width:       100%;
+
+  i {
+    font-size:   1rem;
+    color:       rgba(255, 255, 255, 0.45);
+    flex-shrink: 0;
+  }
+}
+
+.ms-beat-vol-slider {
+  flex:                 1;
+  -webkit-appearance:   none;
+  height:               3px;
+  border-radius:        2px;
+  background:           rgba(255, 255, 255, 0.15);
+  cursor:               pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width:              18px;
+    height:             18px;
+    border-radius:      50%;
+    background:         #fff;
+    box-shadow:         0 1px 4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.ms-beat-vol-label {
+  font-size:   0.75rem;
+  color:       rgba(255, 255, 255, 0.4);
+  min-width:   26px;
+  text-align:  right;
+  flex-shrink: 0;
+}
+
+// ── Barre de temps ────────────────────────────────────────────────────────────
+
+.ms-time-bar {
+  width:         100%;
+  height:        3px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow:      hidden;
+
+  &__fill {
+    height:        100%;
+    background:    rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    transition:    width 1s linear, background 0.3s;
+  }
+
+  &--near-end &__fill {
+    background: v.$warning;
+    animation:  nearEndPulse 1s ease-in-out infinite;
+  }
+}
+
+@keyframes nearEndPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+.ms-time-near-end {
+  font-size:   0.72rem;
+  font-weight: 700;
+  color:       v.$warning;
+  margin:      0;
+  text-align:  center;
+  animation:   fadeIn 0.2s ease;
+}
+
+// ── Bouton stop ───────────────────────────────────────────────────────────────
+
+.ms-btn-stop {
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  padding:         14px 36px;
+  border:          2px solid rgba(255, 255, 255, 0.3);
+  border-radius:   50px;
+  background:      none;
+  color:           v.$text-primary;
+  font-size:       0.95rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s;
+  &:active { border-color: rgba(255, 255, 255, 0.6); }
+
+  &__square {
+    width:         12px;
+    height:        12px;
+    background:    v.$text-primary;
+    border-radius: 2px;
+    flex-shrink:   0;
+  }
+}
+
+// ── Export / Preview (spinner) ────────────────────────────────────────────────
+
+.ms-proc-zone {
+  padding:        32px 20px 28px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            14px;
+}
+
+.ms-ring-wrap {
+  position: relative;
+  width:    72px;
+  height:   72px;
+}
+
+.ms-ring-svg {
+  width:     100%;
+  height:    100%;
+  transform: rotate(-90deg);
+}
+
+.ms-ring-track {
+  fill:         none;
+  stroke:       rgba(255, 255, 255, 0.1);
+  stroke-width: 4;
+}
+
+.ms-ring-fill {
+  fill:              none;
+  stroke:            v.$primary;
+  stroke-width:      4;
+  stroke-linecap:    round;
+  stroke-dasharray:  150.8;
+  stroke-dashoffset: 150.8;
+  transition:        stroke-dashoffset 0.4s ease;
+}
+
+.ms-ring-pct {
+  position:        absolute;
+  inset:           0;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       0.85rem;
+  font-weight:     700;
+  color:           v.$text-primary;
+}
+
+.ms-proc-step {
+  font-size:   0.87rem;
+  color:       v.$text-primary;
+  font-weight: 500;
+  margin:      0;
+}
+
+.ms-proc-hint {
+  font-size: 0.76rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-draft-saved {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  font-size:   0.76rem;
+  color:       #4caf81;
+  margin:      0;
+  animation:   fadeIn 0.3s ease;
+
+  i { font-size: 0.8rem; }
+}
+
+.ms-proc-bar {
+  width:         100%;
+  height:        3px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow:      hidden;
+
+  &__fill {
+    height:        100%;
+    background:    v.$primary;
+    border-radius: 2px;
+    transition:    width 0.4s ease;
+  }
+}
+
+// ── Beat editor host ──────────────────────────────────────────────────────────
+
+.ms-beat-editor-host {
+  display:        flex;
+  flex-direction: column;
+  flex:           1;
+  min-height:     0;
+  overflow:       hidden;
+}
+
+// ── Beat row (idle) ───────────────────────────────────────────────────────────
+
+.ms-beat-section {
+  padding: 12px 14px 4px;
+}
+
+.ms-beat-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             10px;
+  padding:         10px 12px;
+  background:      rgba(255, 255, 255, 0.04);
+  border:          1px solid rgba(255, 255, 255, 0.08);
+  border-radius:   12px;
+}
+
+.ms-beat-info {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  min-width:   0;
+  flex:        1;
+}
+
+.ms-beat-name {
+  font-size:     0.84rem;
+  font-weight:   600;
+  color:         v.$text-primary;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
+.ms-beat-badge {
+  display:      flex;
+  align-items:  center;
+  gap:          4px;
+  font-size:    0.7rem;
+  font-weight:  700;
+  color:        #4caf81;
+  background:   rgba(76, 175, 129, 0.12);
+  border-radius: 20px;
+  padding:      2px 7px;
+  flex-shrink:  0;
+
+  i { font-size: 0.7rem; }
+}
+
+.ms-beat-extend-btn {
+  display:         flex;
+  align-items:     center;
+  gap:             5px;
+  padding:         7px 12px;
+  border:          1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius:   10px;
+  background:      none;
+  color:           v.$text-secondary;
+  font-size:       0.8rem;
+  font-weight:     600;
+  cursor:          pointer;
+  flex-shrink:     0;
+  transition:      border-color 0.15s, color 0.15s;
+
+  i { font-size: 0.85rem; }
+
+  &:active {
+    border-color: v.$primary;
+    color:        v.$primary;
+  }
+}
+
+// ── Vue studio (idle) ─────────────────────────────────────────────────────────
+
+.ms-studio {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  min-height:     0;
+}
+
+.ms-tracks-section {
+  padding: 12px 14px 0;
+  flex:    1;
+}
+
+.ms-section-label {
+  display:        flex;
+  align-items:    center;
+  gap:            6px;
+  font-size:      0.72rem;
+  font-weight:    700;
+  color:          v.$text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin:         0 0 10px;
+  i { font-size: 0.8rem; }
+}
+
+.ms-tracks-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  margin-bottom:  10px;
+}
+
+.ms-add-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  width:           100%;
+  padding:         13px;
+  border:          1.5px dashed rgba(255, 255, 255, 0.22);
+  border-radius:   14px;
+  background:      none;
+  color:           v.$text-secondary;
+  font-size:       0.88rem;
+  font-weight:     500;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s;
+
+  &:active {
+    border-color: v.$primary;
+    color:        v.$primary;
+  }
+}
+
+.ms-upgrade-nudge {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           8px;
+  padding:       11px 13px;
+  background:    rgba(255, 255, 255, 0.04);
+  border:        1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size:     0.82rem;
+  color:         v.$text-secondary;
+
+  i { flex-shrink: 0; margin-top: 2px; }
+  a { color: v.$primary; text-decoration: none; font-weight: 600; }
+}
+
+.ms-desc-wrap { padding: 10px 14px 0; }
+
+.ms-desc-input {
+  width:         100%;
+  padding:       10px 13px;
+  background:    rgba(255, 255, 255, 0.05);
+  border:        1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color:         v.$text-primary;
+  font-size:     0.84rem;
+  outline:       none;
+  box-sizing:    border-box;
+
+  &::placeholder { color: rgba(255, 255, 255, 0.28); }
+  &:focus { border-color: rgba(255, 255, 255, 0.25); }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+.ms-actions {
+  padding:     12px 14px 20px;
+  flex-shrink: 0;
+
+  &--row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap:     10px;
+  }
+}
+
+.ms-btn-primary {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  width:           100%;
+  padding:         16px;
+  border:          none;
+  border-radius:   14px;
+  background:      rgba(v.$primary, 0.15);
+  color:           v.$primary;
+  font-size:       1rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      background 0.15s;
+
+  &:active { background: rgba(v.$primary, 0.25); }
+  i { font-size: 1.1rem; }
+}
+
+.ms-btn-preview {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             7px;
+  padding:         14px 12px;
+  border:          1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius:   14px;
+  background:      rgba(255, 255, 255, 0.05);
+  color:           v.$text-primary;
+  font-size:       0.88rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s, background 0.15s;
+
+  &:active {
+    background:   rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  &--playing {
+    border-color: v.$primary;
+    color:        v.$primary;
+    background:   rgba(v.$primary, 0.07);
+  }
+
+  i { font-size: 1rem; }
+}
+
+.ms-btn-export {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             7px;
+  padding:         14px 12px;
+  border:          none;
+  border-radius:   14px;
+  background:      v.$primary;
+  color:           #fff;
+  font-size:       0.88rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      opacity 0.15s;
+
+  &:disabled { opacity: 0.4; cursor: default; }
+  &:not(:disabled):active { opacity: 0.85; }
+  i { font-size: 1rem; }
+}
+
+// ── Beat play button ──────────────────────────────────────────────────────────
+
+.ms-beat-play-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           34px;
+  height:          34px;
+  border:          1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius:   50%;
+  background:      rgba(255, 255, 255, 0.05);
+  color:           v.$text-secondary;
+  font-size:       0.95rem;
+  cursor:          pointer;
+  flex-shrink:     0;
+  transition:      border-color 0.15s, color 0.15s, background 0.15s;
+
+  &:active { background: rgba(255, 255, 255, 0.1); }
+
+  &--playing {
+    border-color: v.$primary;
+    color:        v.$primary;
+    background:   rgba(v.$primary, 0.1);
+  }
+}
+
+// ── Volume beat (idle) ────────────────────────────────────────────────────────
+
+.ms-beat-vol-row--idle {
+  padding:   6px 0 2px;
+  animation: fadeIn 0.2s ease;
+}
+
+// ── Section monitoring ────────────────────────────────────────────────────────
+
+.ms-monitoring-section {
+  padding:        6px 14px 4px;
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+
+// ── Statut écouteurs ──────────────────────────────────────────────────────────
+
+.ms-headphone-row {
+  display:       flex;
+  align-items:   center;
+  gap:           7px;
+  padding:       7px 11px;
+  border-radius: 10px;
+  font-size:     0.78rem;
+  font-weight:   500;
+
+  i { font-size: 0.9rem; flex-shrink: 0; }
+
+  &--wired {
+    background: rgba(76, 175, 129, 0.08);
+    color:      #4caf81;
+  }
+
+  &--bt {
+    background: rgba(77, 159, 255, 0.08);
+    color:      #4d9fff;
+  }
+
+  &--bt-a2dp {
+    background: rgba(v.$warning, 0.07);
+    color:      v.$warning;
+  }
+
+  &__warn {
+    font-size:   0.8rem;
+    margin-left: 4px;
+    opacity:     0.8;
+  }
+
+  &--none {
+    background: rgba(255, 255, 255, 0.04);
+    color:      v.$text-secondary;
+  }
+}
+
+// ── Toggle autotune ───────────────────────────────────────────────────────────
+
+.ms-autotune-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         9px 11px;
+  background:      rgba(255, 255, 255, 0.04);
+  border:          1px solid rgba(255, 255, 255, 0.08);
+  border-radius:   12px;
+  gap:             12px;
+}
+
+.ms-autotune-info {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  min-width:      0;
+}
+
+.ms-autotune-label {
+  font-size:   0.85rem;
+  font-weight: 600;
+  color:       v.$text-primary;
+}
+
+.ms-autotune-hint {
+  font-size: 0.73rem;
+  color:     v.$text-secondary;
+}
+
+// Toggle switch
+.ms-toggle {
+  position:       relative;
+  width:          44px;
+  height:         26px;
+  border:         none;
+  border-radius:  13px;
+  background:     rgba(255, 255, 255, 0.12);
+  cursor:         pointer;
+  flex-shrink:    0;
+  transition:     background 0.2s;
+  padding:        0;
+
+  &--on {
+    background: v.$primary;
+  }
+
+  &__thumb {
+    position:      absolute;
+    top:           3px;
+    left:          3px;
+    width:         20px;
+    height:        20px;
+    border-radius: 50%;
+    background:    #fff;
+    box-shadow:    0 1px 4px rgba(0, 0, 0, 0.35);
+    transition:    transform 0.2s ease;
+
+    .ms-toggle--on & {
+      transform: translateX(18px);
+    }
+  }
+}
+
+// ── Vitesse de correction ─────────────────────────────────────────────────────
+
+.ms-speed-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         6px 11px;
+  animation:       fadeIn 0.15s ease;
+}
+
+.ms-speed-label {
+  font-size: 0.78rem;
+  color:     v.$text-secondary;
+}
+
+.ms-speed-tabs {
+  display:       flex;
+  border:        1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  overflow:      hidden;
+}
+
+.ms-speed-tab {
+  padding:     5px 14px;
+  border:      none;
+  background:  none;
+  color:       v.$text-secondary;
+  font-size:   0.78rem;
+  font-weight: 600;
+  cursor:      pointer;
+  transition:  background 0.15s, color 0.15s;
+
+  &--active {
+    background: rgba(v.$primary, 0.15);
+    color:      v.$primary;
+  }
+
+  & + & { border-left: 1px solid rgba(255, 255, 255, 0.1); }
+}
+
+// ── BT calibration nudge ──────────────────────────────────────────────────────
+
+.ms-bt-nudge {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  padding:     10px 12px;
+  background:  rgba(77, 159, 255, 0.06);
+  border:      1px solid rgba(77, 159, 255, 0.18);
+  border-radius: 12px;
+
+  > i {
+    font-size:  1rem;
+    color:      #4d9fff;
+    flex-shrink: 0;
+  }
+}
+
+.ms-bt-nudge__text {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  flex:           1;
+  min-width:      0;
+
+  span {
+    font-size:   0.82rem;
+    font-weight: 600;
+    color:       v.$text-primary;
+  }
+
+  small {
+    font-size: 0.73rem;
+    color:     v.$text-secondary;
+  }
+}
+
+.ms-bt-nudge--a2dp {
+  background: rgba(v.$warning, 0.06);
+  border:     1px solid rgba(v.$warning, 0.2);
+
+  > i { color: v.$warning; }
+
+  .ms-bt-nudge__text {
+    span  { color: v.$warning; }
+    small { color: rgba(v.$warning, 0.7); }
+  }
+}
+
+.ms-bt-nudge__btn {
+  padding:       6px 12px;
+  border:        1.5px solid rgba(77, 159, 255, 0.4);
+  border-radius: 8px;
+  background:    none;
+  color:         #4d9fff;
+  font-size:     0.78rem;
+  font-weight:   700;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    background 0.15s;
+
+  &:active { background: rgba(77, 159, 255, 0.1); }
+}
+
+// ── Pitch meter (pendant l'enregistrement) ────────────────────────────────────
+
+.ms-pitch-meter {
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  width:           100%;
+  animation:       fadeIn 0.2s ease;
+}
+
+.ms-pitch-meter__note {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  min-width:   28px;
+  text-align:  center;
+  flex-shrink: 0;
+}
+
+.ms-pitch-meter__bar {
+  position:      relative;
+  flex:          1;
+  height:        8px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow:      hidden;
+}
+
+.ms-pitch-meter__fill {
+  position:      absolute;
+  top:           0;
+  left:          0;
+  height:        100%;
+  background:    #4caf81;
+  border-radius: 4px;
+  max-width:     100%;
+  min-width:     4px;
+  transition:    width 0.08s linear, background 0.15s;
+
+  &--high { background: v.$primary; }   // trop aigu → rouge
+  &--low  { background: #f97316; }      // trop grave → orange
+}
+
+.ms-pitch-meter__center {
+  position:      absolute;
+  top:           0;
+  left:          50%;
+  transform:     translateX(-50%);
+  width:         2px;
+  height:        100%;
+  background:    rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.ms-pitch-meter__cents {
+  font-size:   0.75rem;
+  font-weight: 600;
+  color:       v.$text-secondary;
+  min-width:   36px;
+  text-align:  right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Warm-up ───────────────────────────────────────────────────────────────────
+
+.ms-warmup-zone {
+  padding:        20px 20px 32px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            16px;
+}
+
+.ms-warmup-header {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            6px;
+  text-align:     center;
+}
+
+.ms-warmup-icon {
+  font-size:  2rem;
+  color:      v.$primary;
+  animation:  pulse 1.5s ease-in-out infinite;
+}
+
+.ms-warmup-title {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  margin:      0;
+}
+
+.ms-warmup-hint {
+  font-size: 0.78rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-warmup-listening {
+  font-size:  0.78rem;
+  color:      v.$text-secondary;
+  margin:     0;
+  font-style: italic;
+}
+
+.ms-warmup-level {
+  width: 100%;
+}
+
+.ms-warmup-level__bar {
+  width:         100%;
+  height:        6px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow:      hidden;
+}
+
+.ms-warmup-level__fill {
+  height:        100%;
+  background:    v.$primary;
+  border-radius: 3px;
+  transition:    width 0.05s linear;
+  max-width:     100%;
+}
+
+// Bouton échauffement (idle view)
+.ms-warmup-btn {
+  display:         flex;
+  align-items:     center;
+  gap:             6px;
+  padding:         8px 14px;
+  border:          1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius:   10px;
+  background:      rgba(255, 255, 255, 0.04);
+  color:           v.$text-secondary;
+  font-size:       0.82rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s;
+  width:           100%;
+  justify-content: center;
+
+  i { font-size: 0.9rem; }
+
+  &:active {
+    border-color: v.$primary;
+    color:        v.$primary;
+  }
+}
+
+// ── Affichage gamme (12 notes) ────────────────────────────────────────────────
+
+.ms-scale-display {
+  display:         flex;
+  gap:             4px;
+  width:           100%;
+  justify-content: center;
+
+  &--compact {
+    gap: 3px;
+    .ms-scale-note { width: 22px; height: 22px; }
+    .ms-scale-note__label { font-size: 0.6rem; }
+  }
+}
+
+.ms-scale-note {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           26px;
+  height:          26px;
+  border-radius:   6px;
+  background:      rgba(255, 255, 255, 0.05);
+  border:          1px solid transparent;
+  transition:      background 0.1s, border-color 0.1s, transform 0.08s;
+  cursor:          default;
+
+  // Dièses (notes noires) — légèrement plus petits
+  &--sharp {
+    width:      20px;
+    height:     20px;
+    border-radius: 4px;
+    .ms-scale-note__label { font-size: 0.55rem; }
+  }
+
+  // Notes dans la gamme
+  &--in-key {
+    background:   rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  // Note détectée actuellement
+  &--active {
+    background:   v.$primary !important;
+    border-color: transparent !important;
+    transform:    scale(1.15);
+    box-shadow:   0 0 8px rgba(v.$primary, 0.5);
+  }
+}
+
+.ms-scale-note__label {
+  font-size:   0.65rem;
+  font-weight: 700;
+  color:       rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+  user-select: none;
+
+  .ms-scale-note--in-key & { color: rgba(255, 255, 255, 0.8); }
+  .ms-scale-note--active & { color: #fff; }
+}
+
+// ── Punch-in ──────────────────────────────────────────────────────────────────
+
+.ms-punchin-zone {
+  padding:        16px 18px 28px;
+  display:        flex;
+  flex-direction: column;
+  gap:            14px;
+}
+
+.ms-punchin-header {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.ms-punchin-back {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           34px;
+  height:          34px;
+  border:          none;
+  border-radius:   10px;
+  background:      rgba(255, 255, 255, 0.07);
+  color:           v.$text-secondary;
+  font-size:       1rem;
+  cursor:          pointer;
+  flex-shrink:     0;
+  &:active { background: rgba(255, 255, 255, 0.12); }
+}
+
+.ms-punchin-title {
+  font-size:   0.95rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  margin:      0;
+
+  span { color: v.$primary; }
+}
+
+// Waveform avec partie conservée vs. supprimée
+.ms-punchin-waveform-wrap {
+  position:      relative;
+  width:         100%;
+  height:        52px;
+  border-radius: 8px;
+  background:    rgba(255, 255, 255, 0.03);
+  overflow:      visible;
+}
+
+.ms-punchin-waveform {
+  display:     flex;
+  align-items: center;
+  height:      100%;
+  gap:         1px;
+  padding:     0 2px;
+}
+
+.ms-punchin-bar {
+  flex:          1;
+  border-radius: 1px;
+  min-height:    2px;
+  transition:    background 0.15s;
+
+  &--kept    { background: rgba(255, 255, 255, 0.3); }
+  &--dropped { background: rgba(v.$primary, 0.25); }
+}
+
+.ms-punchin-cursor {
+  position:      absolute;
+  top:           -4px;
+  bottom:        -4px;
+  width:         2px;
+  background:    v.$primary;
+  border-radius: 1px;
+  transform:     translateX(-1px);
+  pointer-events: none;
+
+  &::before {
+    content:       '';
+    position:      absolute;
+    top:           0;
+    left:          50%;
+    transform:     translateX(-50%);
+    width:         8px;
+    height:        8px;
+    border-radius: 50%;
+    background:    v.$primary;
+  }
+}
+
+.ms-punchin-time {
+  font-size:  0.82rem;
+  color:      v.$text-secondary;
+  margin:     0;
+  text-align: center;
+
+  strong { color: v.$text-primary; }
+}
+
+.ms-punchin-slider {
+  width:              100%;
+  -webkit-appearance: none;
+  height:             4px;
+  border-radius:      2px;
+  background:         rgba(255, 255, 255, 0.12);
+  cursor:             pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width:              22px;
+    height:             22px;
+    border-radius:      50%;
+    background:         v.$primary;
+    box-shadow:         0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.ms-punchin-actions {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  margin-top:     4px;
+}
+
+.ms-punchin-preview-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             7px;
+  padding:         12px;
+  border:          1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius:   12px;
+  background:      rgba(255, 255, 255, 0.05);
+  color:           v.$text-primary;
+  font-size:       0.88rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s;
+
+  &:active { border-color: rgba(255, 255, 255, 0.4); }
+  i { font-size: 0.95rem; }
+}
+
+.ms-punchin-record-btn {
+  width: 100%;
+}
+
+.ms-punchin-cancel-btn {
+  border:          none;
+  background:      none;
+  color:           v.$text-secondary;
+  font-size:       0.82rem;
+  cursor:          pointer;
+  padding:         8px;
+  text-align:      center;
+  width:           100%;
+  &:active { opacity: 0.6; }
+}
+
+// ── Métronome ─────────────────────────────────────────────────────────────────
+
+.ms-metro-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         9px 11px;
+  background:      rgba(255, 255, 255, 0.04);
+  border:          1px solid rgba(255, 255, 255, 0.08);
+  border-radius:   12px;
+  gap:             12px;
+}
+
+.ms-metro-info {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  min-width:      0;
+}
+
+.ms-metro-label {
+  font-size:   0.85rem;
+  font-weight: 600;
+  color:       v.$text-primary;
+}
+
+.ms-metro-hint {
+  font-size: 0.73rem;
+  color:     v.$text-secondary;
+}
+
+// ── Toast undo ────────────────────────────────────────────────────────────────
+
+.ms-undo-toast {
+  position:        absolute;
+  bottom:          0;
+  left:            0;
+  right:           0;
+  z-index:         20;
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  padding:         13px 16px;
+  padding-bottom:  calc(13px + env(safe-area-inset-bottom));
+  background:      #2a2a2a;
+  border-top:      1px solid rgba(255, 255, 255, 0.1);
+  animation:       slideUp 0.2s ease;
+
+  > span {
+    flex:       1;
+    font-size:  0.84rem;
+    color:      v.$text-primary;
+    min-width:  0;
+    overflow:   hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ms-undo-toast__btn {
+  padding:       6px 14px;
+  border:        1.5px solid v.$primary;
+  border-radius: 8px;
+  background:    none;
+  color:         v.$primary;
+  font-size:     0.82rem;
+  font-weight:   700;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    background 0.15s;
+  &:active { background: rgba(v.$primary, 0.1); }
+}
+
+.ms-undo-toast__close {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           28px;
+  height:          28px;
+  border:          none;
+  background:      none;
+  color:           rgba(255, 255, 255, 0.35);
+  font-size:       1rem;
+  cursor:          pointer;
+  flex-shrink:     0;
+  &:active { color: v.$text-primary; }
+}
+
+// ── BT play-ahead feedback ────────────────────────────────────────────────────
+
+.ms-bt-preparing {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 16px;
+  background:    rgba(77, 159, 255, 0.08);
+  border-top:    1px solid rgba(77, 159, 255, 0.18);
+  border-bottom: 1px solid rgba(77, 159, 255, 0.18);
+  color:         #4d9fff;
+  font-size:     0.84rem;
+  font-weight:   600;
+  animation:     fadeIn 0.2s ease;
+}
+
+.ms-bt-preparing__dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  background:    #4d9fff;
+  flex-shrink:   0;
+  animation:     btPulse 1s ease-in-out infinite;
+}
+
+@keyframes btPulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%       { opacity: 0.35; transform: scale(0.75); }
+}
+
+// ── Gain microphone ───────────────────────────────────────────────────────────
+
+.ms-mic-gain-row {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  width:       100%;
+
+  i {
+    font-size:   1rem;
+    color:       rgba(255, 255, 255, 0.45);
+    flex-shrink: 0;
+  }
+}
+
+.ms-mic-gain-label {
+  font-size:            0.75rem;
+  color:                rgba(255, 255, 255, 0.4);
+  min-width:            44px;
+  text-align:           right;
+  flex-shrink:          0;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Countdown BT ──────────────────────────────────────────────────────────────
+
+.ms-bt-countdown {
+  font-size:            0.85rem;
+  font-weight:          700;
+  color:                #fff;
+  min-width:            24px;
+  text-align:           center;
+  font-variant-numeric: tabular-nums;
+  margin-left:          auto;
+}
+
+// ── Icône confirm dorée (upgrade sheet) ───────────────────────────────────────
+
+.ms-confirm-icon--gold { color: v.$gold; }
+
+// ── Bannière permission micro ─────────────────────────────────────────────────
+
+.ms-perm-banner {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  margin:        0 14px 4px;
+  padding:       10px 13px;
+  border-radius: 12px;
+  font-size:     0.82rem;
+  animation:     fadeIn 0.2s ease;
+
+  i    { flex-shrink: 0; font-size: 1rem; }
+  span { flex: 1; }
+
+  &--prompt {
+    background: rgba(v.$info, 0.08);
+    border:     1px solid rgba(v.$info, 0.2);
+    color:      v.$info;
+  }
+
+  &--denied {
+    background: rgba(v.$warning, 0.08);
+    border:     1px solid rgba(v.$warning, 0.2);
+    color:      v.$warning;
+  }
+
+  &__btn {
+    padding:       5px 11px;
+    border:        1.5px solid v.$info;
+    border-radius: 8px;
+    background:    none;
+    color:         v.$info;
+    font-size:     0.78rem;
+    font-weight:   700;
+    cursor:        pointer;
+    flex-shrink:   0;
+    transition:    background 0.15s;
+    &:active { background: rgba(v.$info, 0.1); }
+  }
+}
+
+// ── Écran de célébration (publié) ─────────────────────────────────────────────
+
+.ms-published-zone {
+  padding:        40px 20px 36px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            14px;
+  animation:      fadeIn 0.35s ease;
+}
+
+.ms-published-check {
+  width:           68px;
+  height:          68px;
+  border-radius:   50%;
+  background:      rgba(76, 175, 129, 0.14);
+  border:          2px solid rgba(76, 175, 129, 0.45);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       2.2rem;
+  color:           #4caf81;
+  animation:       slideUp 0.3s ease;
+}
+
+.ms-published-title {
+  font-size:   1.25rem;
+  font-weight: 800;
+  color:       v.$text-primary;
+  margin:      0;
+}
+
+.ms-published-sub {
+  font-size: 0.85rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-published-btn { margin-top: 6px; }
+
+// ── Bouton upgrade (remplace <a href>) ────────────────────────────────────────
+
+.ms-upgrade-link {
+  display:         inline;
+  background:      none;
+  border:          none;
+  padding:         0;
+  margin:          0;
+  color:           v.$primary;
+  font-weight:     600;
+  font-size:       inherit;
+  font-family:     inherit;
+  cursor:          pointer;
+  text-decoration: none;
+
+  &:active { opacity: 0.7; }
+}

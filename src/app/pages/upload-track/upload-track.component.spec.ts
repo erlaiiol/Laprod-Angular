@@ -14,8 +14,8 @@ import { SimilarArtistsService } from '../../services/similar-artists.service';
 
 // jsdom ne fournit pas URL.createObjectURL
 beforeAll(() => {
-  if (!global.URL.createObjectURL) {
-    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock');
+  if (!URL.createObjectURL) {
+    (URL as any).createObjectURL = vi.fn().mockReturnValue('blob:mock');
   }
 });
 
@@ -43,7 +43,8 @@ describe('UploadTrackComponent', () => {
     isPremium: vi.fn().mockReturnValue(false),
     me: vi.fn().mockReturnValue(of({})),
     getToken: vi.fn().mockReturnValue('tok'),
-    user: signal<any>(null),
+    refreshIfExpiringSoon: vi.fn().mockReturnValue(of(undefined)),
+    currentUser: signal<any>(null),
     isPremiumActive: false,
   };
 

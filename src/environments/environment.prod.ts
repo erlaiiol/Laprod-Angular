@@ -5,4 +5,5 @@ export const environment = {
   apiUrl: '',
   appTitle: 'LaProd',
   testimonialsEnabled: false,
+  isNative: false,
 };

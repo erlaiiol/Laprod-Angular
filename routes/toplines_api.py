@@ -1,12 +1,13 @@
 """
 Blueprint TOPLINES API — GET + CUD endpoints
 
-GET    /api/toplines/track/<track_id>  → toplines publiées d'une track (public)
-GET    /api/toplines/my/<track_id>     → toplines de l'utilisateur courant (jwt_required)
-POST   /api/toplines/upload            → Upload voix + traitement async (jwt_required)
-POST   /api/toplines/<id>/publish      → Publier une topline (propriétaire)
-POST   /api/toplines/<id>/unpublish    → Repasser en privée (propriétaire)
-DELETE /api/toplines/<id>              → Supprimer une topline (propriétaire)
+GET    /api/toplines/track/<track_id>   → toplines publiées d'une track (public)
+GET    /api/toplines/my/<track_id>      → toplines de l'utilisateur courant (jwt_required)
+POST   /api/toplines/upload             → Upload voix + traitement async (jwt_required)
+POST   /api/toplines/upload-processed   → Upload topline pré-traitée côté client (mobile natif)
+POST   /api/toplines/<id>/publish       → Publier une topline (propriétaire)
+POST   /api/toplines/<id>/unpublish     → Repasser en privée (propriétaire)
+DELETE /api/toplines/<id>               → Supprimer une topline (propriétaire)
 """
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
@@ -248,6 +249,110 @@ def upload_topline():
             f"Erreur lors de l'envoi : {e}",
             code='PROCESSING_ERROR', status=500,
         )
+
+
+# ── POST /toplines/upload-processed ───────────────────────────────────────────
+
+@toplines_api_bp.route('/upload-processed', methods=['POST'])
+@csrf.exempt
+@jwt_required()
+@limiter.limit("30 per hour")
+@require_user
+def upload_processed_topline(current_user):
+    """
+    Reçoit une topline déjà traitée côté client (app mobile native).
+    Enregistrement direct en BDD sans job RQ.
+
+    FormData :
+      - processed_file : Blob MP3 (audio/mpeg)
+      - track_id       : int
+      - description    : str (optionnel, max 500 car.)
+    """
+    can_submit, quota_message = current_user.can_submit_topline()
+    if not can_submit:
+        return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
+
+    try:
+        processed_file = request.files.get('processed_file')
+        track_id_raw   = request.form.get('track_id')
+        description    = request.form.get('description', '').strip()[:500] or None
+
+        if not processed_file or not track_id_raw:
+            return err(
+                'Les champs processed_file et track_id sont requis.',
+                level='warning', code='VALIDATION_ERROR',
+            )
+
+        content_type = processed_file.content_type or ''
+        allowed_types = {'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/wav', 'audio/x-wav'}
+        if not any(t in content_type for t in ('mpeg', 'mp3', 'mp4', 'wav')):
+            return err('Format de fichier invalide. MP3 attendu.', code='INVALID_FORMAT', status=400)
+
+        track = db.session.get(Track, int(track_id_raw))
+        if not track:
+            return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
+        if not track.is_approved:
+            return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        toplines_dir = config.UPLOAD_FOLDER / 'toplines'
+        toplines_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"topline_mobile_{track.id}_{current_user.id}_{timestamp}.mp3"
+        abs_path = toplines_dir / filename
+        processed_file.save(abs_path)
+
+        file_size = abs_path.stat().st_size
+        if file_size < 512:
+            abs_path.unlink(missing_ok=True)
+            return err(
+                'Fichier audio vide ou invalide.',
+                level='warning', code='INVALID_AUDIO', status=400,
+            )
+
+        rel_path = f"audio/toplines/{filename}"
+
+        topline = Topline(
+            track_id=track.id,
+            artist_id=current_user.id,
+            audio_file=rel_path,
+            description=description,
+            is_published=False,
+            is_mobile_processed=True,
+        )
+        db.session.add(topline)
+        current_user.consume_topline_token()
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            abs_path.unlink(missing_ok=True)
+            current_app.logger.error(f"upload-processed DB error: {e}", exc_info=True)
+            return err('Erreur lors de l\'enregistrement.', status=500)
+
+        current_app.logger.info(
+            f"Topline mobile #{topline.id} enregistrée par user #{current_user.id} "
+            f"sur track #{track.id} ({file_size // 1024} KB)"
+        )
+
+        try:
+            from utils.notification_service import create_notification
+            create_notification(
+                user_id=track.composer_id,
+                type='topline_received',
+                title='Nouvelle topline reçue',
+                message=f'{current_user.username} a enregistré une topline sur "{track.title}"',
+                link=f'/track/{track.id}',
+            )
+        except Exception:
+            pass
+
+        return ok({'topline_id': topline.id}, message='Topline enregistrée avec succès.')
+
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload-processed: {e}", exc_info=True)
+        return err(f"Erreur lors de l'envoi : {e}", code='PROCESSING_ERROR', status=500)
 
 
 # ── POST /toplines/claim ───────────────────────────────────────────────────────

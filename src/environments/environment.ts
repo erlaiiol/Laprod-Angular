@@ -3,4 +3,5 @@ export const environment = {
   apiUrl: '',
   appTitle: '(beta) LaProd',
   testimonialsEnabled: true,
+  isNative: false,
 };

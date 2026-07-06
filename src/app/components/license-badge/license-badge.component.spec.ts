@@ -32,6 +32,9 @@ function makeComp(overrides: Partial<{
   expiresAt: string | null;
   isExclusive: boolean;
 }>): LicenseBadgeComponent {
+  // reset avant de configurer — certains tests appellent makeComp() plusieurs fois
+  // dans le même `it`, or TestBed refuse de reconfigurer un module déjà instancié.
+  TestBed.resetTestingModule();
   TestBed.configureTestingModule({ imports: [LicenseBadgeComponent] });
   const fixture = TestBed.createComponent(LicenseBadgeComponent);
   const comp    = fixture.componentInstance;
