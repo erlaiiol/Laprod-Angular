@@ -892,3 +892,30 @@
 
   i { flex-shrink: 0; margin-top: 0.15em; }
 }
+
+.yt-template-back-home {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid v.$bg-border;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.5rem;
+  background: transparent;
+  color: v.$text-secondary;
+  border: 1px solid v.$bg-border;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: v.$primary;
+    color: v.$primary;
+  }
+}

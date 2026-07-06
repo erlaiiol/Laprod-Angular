@@ -32,6 +32,68 @@
   }
 }
 
+// ── Premium float button ──────────────────────────────────────────────────────
+
+.premium-float-btn {
+  position:      absolute;
+  top:           7px;
+  right:         30px;
+  display:       inline-flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       3px 10px 3px 8px;
+  background:    linear-gradient(135deg, #c89600, v.$gold);
+  border:        none;
+  border-radius: v.$radius-pill;
+  color:         #1a1200;
+  font-weight:   700;
+  font-size:     v.$text-2xs;
+  cursor:        pointer;
+  z-index:       1;
+  text-decoration: none;
+  white-space:   nowrap;
+
+  // Halo pulsé gold
+  &::after {
+    content:       '';
+    position:      absolute;
+    inset:         -3px;
+    border-radius: inherit;
+    box-shadow:    0 0 0 0 rgba(v.$gold, 0.55);
+    animation:     gold-halo 2.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .premium-float-label {
+    max-width:   0;
+    overflow:    hidden;
+    opacity:     0;
+    transition:  max-width v.$dur-slow v.$ease-out,
+                 opacity   v.$dur-slow v.$ease-out;
+    white-space: nowrap;
+  }
+
+  &:hover .premium-float-label,
+  &:focus .premium-float-label {
+    max-width: 80px;
+    opacity:   1;
+  }
+
+  i { font-size: 0.75rem; }
+
+  @media (max-width: 600px) {
+    top:   5px;
+    right: 26px;
+    padding: 2px 7px 2px 6px;
+    font-size: 0.55rem;
+  }
+}
+
+@keyframes gold-halo {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(v.$gold, 0.5); }
+  50%       { box-shadow: 0 0 0 7px rgba(v.$gold, 0); }
+}
+
 // ── Close button ─────────────────────────────────────────────────────────────
 
 .btn-close-player {

@@ -59,17 +59,47 @@ export class FilterStateService {
 
   readonly applied = signal(0);
 
+  // ── Page active ───────────────────────────────────────────────────────────
+  // Persistée pour que le retour depuis track-detail retrouve la bonne page.
+  // Remise à 1 automatiquement quand des filtres sont appliqués/réinitialisés.
+
+  readonly savedPage = signal(1);
+
 
   // ── Méthodes ──────────────────────────────────────────────────────────────
 
   apply(filters: ActiveFilters): void {
     this.filters.set(filters);
+    this.savedPage.set(1);
     this.applied.update(n => n + 1);
-    // signal.update(fn) : lit la valeur actuelle, applique fn, écrit le résultat.
   }
 
   reset(): void {
     this.filters.set({ ...EMPTY_FILTERS });
+    this.savedPage.set(1);
     this.applied.update(n => n + 1);
+  }
+
+  // Ajoute un tag à la sélection sans effacer les autres filtres.
+  // Retourne false si le tag était déjà présent (pas de doublon, pas de rechargement).
+  addTag(tag: string): boolean {
+    const f = this.filters();
+    if (f.tags.includes(tag)) return false;
+    this.apply({ ...f, tags: [...f.tags, tag] });
+    return true;
+  }
+
+  addStyle(style: string): boolean {
+    const f = this.filters();
+    if (f.styles.includes(style)) return false;
+    this.apply({ ...f, styles: [...f.styles, style] });
+    return true;
+  }
+
+  addSimilarArtist(name: string): boolean {
+    const f = this.filters();
+    if (f.similarArtists.includes(name)) return false;
+    this.apply({ ...f, similarArtists: [...f.similarArtists, name] });
+    return true;
   }
 }

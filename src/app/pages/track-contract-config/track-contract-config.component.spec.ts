@@ -305,6 +305,7 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       component.rightMechanical.set(true);
       component.rightPublicShow.set(true);
       component.rightArrangement.set(true);
+      component.legalAccepted.set(true);
 
       paymentSvc.createCheckout.mockClear();
       component.onConfirm();

@@ -24,6 +24,33 @@
 }
 
 
+/* ── Bouton reset filtres ─────────────────────────────────────────────────── */
+
+.btn-filter-reset {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: none; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px;
+  color: v.$text-muted; cursor: pointer; padding: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.2s;
+
+  &:hover {
+    color: v.$off-white;
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    transform: rotate(-45deg);
+  }
+
+  &--active {
+    color: v.$primary;
+    border-color: rgba(v.$primary, 0.4);
+
+    &:hover {
+      background: rgba(v.$primary, 0.1);
+      border-color: v.$primary;
+    }
+  }
+}
+
 /* ── Bouton filtre actif ───────────────────────────────────────────────────── */
 
 .btn-filter-toggle--active {
@@ -256,6 +283,8 @@ details.filter-accordion[open] .filter-accordion-arrow {
 .dropdown-item--beta { opacity: 0.6; pointer-events: none; }
 
 // ── Nav links — alignement icône + texte, taille réduite ─────────────────────
+
+.navbar-nav { gap: 0.25rem; }
 
 .navbar-nav .nav-link {
   display: flex;

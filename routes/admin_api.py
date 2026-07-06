@@ -1997,6 +1997,7 @@ def get_toplines_admin(current_user):
         return {
             'id':           tl.id,
             'is_published': tl.is_published,
+            'is_mobile_processed': tl.is_mobile_processed,
             'description':  tl.description,
             'created_at':   tl.created_at.isoformat() if tl.created_at else None,
             'stream_url':   f'/api/stream/toplines/{tl.id}',

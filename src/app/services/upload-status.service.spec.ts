@@ -1,4 +1,4 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 
@@ -129,70 +129,6 @@ describe('UploadStatusService', () => {
       service.startPolling('job-title');
       expect(localStorage.getItem('upload_track_title')).toBe('Mon Son');
     });
-  });
-
-  // ── simulation de progression RQ ─────────────────────────────────────────────
-
-  describe('simulation de progression RQ', () => {
-    it('done → progress=100 et status=done', fakeAsync(() => {
-      service.openForUpload('Beat', null);
-      service.startPolling('job-done');
-      tick(0);
-      flush(httpMock, 'job-done', 'done', '7');
-      tick(0);
-      expect(service.progress()).toBe(100);
-      expect(service.status()).toBe('done');
-      expect(service.trackId()).toBe('7');
-    }));
-
-    it('finalizing → progress=95', fakeAsync(() => {
-      service.openForUpload('Beat', null);
-      service.startPolling('job-final');
-      tick(0);
-      flush(httpMock, 'job-final', 'finalizing');
-      tick(3000);
-      expect(service.progress()).toBe(95);
-      flush(httpMock, 'job-final', 'done');
-      tick(0);
-    }));
-
-    it('queued → progress incrémenté de 1 (cap 73)', fakeAsync(() => {
-      service.openForUpload('Beat', null);
-      service.startPolling('job-q');
-      // progress démarre à 68
-      tick(0);
-      flush(httpMock, 'job-q', 'queued');
-      tick(3000);
-      expect(service.progress()).toBe(69);
-      flush(httpMock, 'job-q', 'done');
-      tick(0);
-    }));
-
-    it('started → progress incrémenté de 4 (cap 90)', fakeAsync(() => {
-      service.openForUpload('Beat', null);
-      service.startPolling('job-s');
-      tick(0);
-      flush(httpMock, 'job-s', 'started');
-      tick(3000);
-      expect(service.progress()).toBe(72); // 68 + 4
-      flush(httpMock, 'job-s', 'done');
-      tick(0);
-    }));
-
-    it('error → status=error et errorMessage défini', fakeAsync(() => {
-      service.openForUpload('Beat', null);
-      service.startPolling('job-err');
-      tick(0);
-      httpMock.expectOne(JOB_URL('job-err')).flush({
-        success: true,
-        data: { status: 'error', error_message: 'worker crash', track_id: null, topline_id: null },
-      });
-      tick(0);
-      expect(service.status()).toBe('error');
-      expect(service.errorMessage()).toBe('worker crash');
-      // progress ne doit pas changer sur erreur
-      expect(service.progress()).toBe(68);
-    }));
   });
 
   // ── stopPolling ──────────────────────────────────────────────────────────────

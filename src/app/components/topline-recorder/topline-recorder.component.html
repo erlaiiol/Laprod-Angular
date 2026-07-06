@@ -1,3 +1,12 @@
+<!-- Sur mobile natif → interface premium dédiée. Pas de mode guest en natif :
+     tant que la connexion n'est pas confirmée, le composant se contente de
+     rediriger (cf. constructor()) sans jamais monter le studio. -->
+@if (isNative && auth.isLoggedIn()) {
+  <app-mobile-studio [track]="track" (closed)="closed.emit()" />
+}
+
+<!-- Sur web → interface modale existante -->
+@if (!isNative) {
 <!-- Modal backdrop — click outside = close -->
 <div class="recorder-backdrop" (click)="closed.emit()">
 
@@ -16,6 +25,11 @@
               @if (u.is_premium) { +50/sem } @else { +5/sem }
             </span>
           </div>
+        } @else {
+          <div class="token-badge token-guest">
+            <i class="bi bi-person-dash"></i>
+            <span>{{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }} restant{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }}</span>
+          </div>
         }
       </div>
       <button class="btn-close-modal" (click)="closed.emit()" aria-label="Fermer">&#x2715;</button>
@@ -23,6 +37,35 @@
 
     @if (errorMsg()) {
       <div class="recorder-error">{{ errorMsg() }}</div>
+    }
+
+    <!-- ── Bannière upsell guest post-envoi ─────────────────────────────── -->
+    @if (guestSentTopline()) {
+      <div class="guest-upsell-banner">
+        <div class="guest-upsell-banner__icon">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="guest-upsell-banner__content">
+          <strong>Ta topline est en cours de traitement !</strong>
+          <p>
+            Crée un compte gratuit pour la sauvegarder définitivement.
+            Sans compte, elle sera perdue dans 24h.
+          </p>
+          @if (guestSvc.remainingAttempts() > 0) {
+            <p class="guest-attempts-hint">
+              Il te reste {{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }} aujourd'hui.
+            </p>
+          }
+        </div>
+        <div class="guest-upsell-banner__actions">
+          <a routerLink="/register" class="btn-upsell-register">
+            <i class="bi bi-person-plus-fill"></i> Créer un compte
+          </a>
+          <a routerLink="/login" class="btn-upsell-login">
+            Déjà inscrit ?
+          </a>
+        </div>
+      </div>
     }
 
     <!-- ── IDLE ────────────────────────────────────────────────────────────── -->
@@ -53,9 +96,16 @@
               lors du prochain renouvellement hebdomadaire.
             </div>
           }
+          @if (guestSvc.remainingAttempts() === 0 && isGuest()) {
+            <div class="guest-limit-reached">
+              <i class="bi bi-lock-fill"></i>
+              Limite atteinte. Crée un compte gratuit pour continuer à enregistrer.
+              <a routerLink="/register" class="guest-limit-cta">Créer un compte</a>
+            </div>
+          }
           <button class="btn-start-rec"
                   (click)="startRecording()"
-                  [disabled]="auth.currentUser()?.topline_tokens === 0">
+                  [disabled]="auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
             <span class="rec-dot-btn"></span> Démarrer l'enregistrement
           </button>
 
@@ -197,3 +247,4 @@
 
   </div>
 </div>
+} <!-- @if (!isNative) -->

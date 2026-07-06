@@ -1,0 +1,684 @@
+<div class="ms-overlay">
+  <div class="ms-sheet">
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         BEAT EDITOR — prend tout le sheet
+    ═══════════════════════════════════════════════════════════════════════ -->
+    @if (studioState() === 'beat-editor') {
+      <app-beat-section-picker
+        class="ms-beat-editor-host"
+        [beatUrl]="beatStreamUrl"
+        [accessToken]="auth.getToken() ?? ''"
+        [bpm]="track.bpm"
+        (extended)="onSectionExtended($event)"
+        (cancelled)="onBeatEditorCancelled()"/>
+    } @else {
+
+      <!-- ── Drag handle ───────────────────────────────────────────────── -->
+      <div class="ms-handle"></div>
+
+      <!-- ── Header ──────────────────────────────────────────────────────── -->
+      <div class="ms-header">
+        <div class="ms-track-info">
+          @if (track.image_file) {
+            <img [src]="env.apiUrl + '/db_assets/' + track.image_file"
+                 class="ms-cover" alt="">
+          } @else {
+            <div class="ms-cover ms-cover--placeholder">
+              <i class="bi bi-music-note-beamed"></i>
+            </div>
+          }
+          <div class="ms-track-text">
+            <p class="ms-track-title">{{ track.title }}</p>
+            <p class="ms-track-meta">
+              @if (track.key) { <span>{{ track.key }}</span> · }
+              {{ track.bpm }} BPM
+            </p>
+          </div>
+        </div>
+        <button class="ms-close-btn" (click)="_closeRequested()" aria-label="Fermer">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <!-- ── Erreur ────────────────────────────────────────────────────── -->
+      @if (errorMsg()) {
+        <div class="ms-error" role="alert">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span>{{ errorMsg() }}</span>
+        </div>
+      }
+
+      <!-- ── Confirmation ré-enregistrement ───────────────────────────── -->
+      @if (confirmReRecordId()) {
+        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
+          <div class="ms-confirm-box">
+            <i class="bi bi-exclamation-triangle ms-confirm-icon"></i>
+            <p class="ms-confirm-title">Ré-enregistrer cette piste ?</p>
+            <p class="ms-confirm-body">La prise actuelle sera remplacée. Vous pourrez annuler dans les 6 secondes.</p>
+            <div class="ms-confirm-actions">
+              <button class="ms-confirm-cancel" (click)="cancelReRecord()">Annuler</button>
+              <button class="ms-confirm-ok" (click)="confirmReRecord()">
+                <i class="bi bi-record-circle"></i> Recommencer
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ── Confirmation fermeture ────────────────────────────────────── -->
+      @if (confirmClose()) {
+        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
+          <div class="ms-confirm-box">
+            <i class="bi bi-x-circle ms-confirm-icon"></i>
+            <p class="ms-confirm-title">Fermer le studio ?</p>
+            <p class="ms-confirm-body">Vos enregistrements non publiés seront perdus.</p>
+            <div class="ms-confirm-actions">
+              <button class="ms-confirm-cancel" (click)="cancelClose()">Rester</button>
+              <button class="ms-confirm-ok" (click)="confirmCloseStudio()">
+                <i class="bi bi-x-lg"></i> Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ── Upgrade sheet ─────────────────────────────────────────────── -->
+      @if (showUpgradeSheet()) {
+        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
+          <div class="ms-confirm-box">
+            <i class="bi bi-stars ms-confirm-icon ms-confirm-icon--gold"></i>
+            <p class="ms-confirm-title">LaProd Pro</p>
+            <p class="ms-confirm-body">Pistes vocales illimitées, exports HD et bien plus encore.</p>
+            <div class="ms-confirm-actions">
+              <button class="ms-confirm-cancel" (click)="showUpgradeSheet.set(false)">Plus tard</button>
+              <button class="ms-confirm-ok" (click)="goToPremium()">
+                <i class="bi bi-arrow-right"></i> Voir les offres
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ── Feedback BT play-ahead ──────────────────────────────────────── -->
+      @if (btPreparing()) {
+        <div class="ms-bt-preparing" aria-live="polite">
+          <span class="ms-bt-preparing__dot"></span>
+          <span>Synchronisation Bluetooth</span>
+          @if (btCountdown() > 0) {
+            <span class="ms-bt-countdown">{{ btCountdown() }}s</span>
+          }
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           WARM-UP — monitoring sans enregistrement
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'warming-up') {
+        <div class="ms-warmup-zone">
+
+          <div class="ms-warmup-header">
+            <i class="bi bi-mic-fill ms-warmup-icon"></i>
+            <p class="ms-warmup-title">Test micro</p>
+            <p class="ms-warmup-hint">Parlez ou chantez — rien n'est enregistré</p>
+          </div>
+
+          <!-- Volume micro -->
+          <div class="ms-mic-gain-row">
+            <i class="bi bi-mic-fill"></i>
+            <input type="range" class="ms-beat-vol-slider"
+                   min="0.3" max="2.0" step="0.05"
+                   [value]="micGain()"
+                   (input)="micGain.set(+$any($event.target).value)"
+                   aria-label="Volume du micro">
+            <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
+          </div>
+
+          <!-- Niveau RMS -->
+          <div class="ms-warmup-level">
+            <div class="ms-warmup-level__bar">
+              <div class="ms-warmup-level__fill" [style.width.%]="levelPct()"></div>
+            </div>
+          </div>
+
+          <!-- Pitch meter avec contexte de gamme -->
+          @if (track.key) {
+            <div class="ms-scale-display">
+              @for (name of noteNames; track $index) {
+                <div class="ms-scale-note"
+                     [class.ms-scale-note--in-key]="scaleNotes().has($index)"
+                     [class.ms-scale-note--active]="detectedNoteIndex() === $index"
+                     [class.ms-scale-note--sharp]="[1,3,6,8,10].includes($index)"
+                     [title]="name">
+                  <span class="ms-scale-note__label">{{ name }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          @if (detectedNote()) {
+            <div class="ms-pitch-meter">
+              <span class="ms-pitch-meter__note">{{ detectedNote() }}</span>
+              <div class="ms-pitch-meter__bar">
+                <div class="ms-pitch-meter__fill"
+                     [style.width.%]="50 + correctionCents() / 3"
+                     [class.ms-pitch-meter__fill--high]="correctionCents() > 30"
+                     [class.ms-pitch-meter__fill--low]="correctionCents() < -30"></div>
+                <div class="ms-pitch-meter__center"></div>
+              </div>
+              <span class="ms-pitch-meter__cents">
+                {{ correctionCents() > 0 ? '+' : '' }}{{ correctionCents() }}¢
+              </span>
+            </div>
+          } @else if (monitorAutotune()) {
+            <p class="ms-warmup-listening">Détection en cours…</p>
+          }
+
+          <button class="ms-btn-stop" (click)="stopWarmup()">
+            <span class="ms-btn-stop__square"></span>
+            Terminer l'échauffement
+          </button>
+
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           PUNCH-IN — sélecteur de point d'entrée
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'punch-in') {
+        <div class="ms-punchin-zone">
+
+          <div class="ms-punchin-header">
+            <button class="ms-punchin-back" (click)="cancelPunchIn()">
+              <i class="bi bi-arrow-left"></i>
+            </button>
+            <p class="ms-punchin-title">
+              Corriger un passage
+              @if (punchInTrack()) { — <span>{{ punchInTrack()!.name }}</span> }
+            </p>
+          </div>
+
+          <!-- Waveform de la prise existante avec indicateur de position -->
+          @if (punchInTrack()?.waveform?.length) {
+            <div class="ms-punchin-waveform-wrap">
+              <div class="ms-punchin-waveform">
+                @for (bar of punchInTrack()!.waveform; track $index) {
+                  <div class="ms-punchin-bar"
+                       [style.height.%]="bar * 100"
+                       [class.ms-punchin-bar--kept]="$index < (punchInSec() / punchInTrack()!.duration * punchInTrack()!.waveform.length)"
+                       [class.ms-punchin-bar--dropped]="$index >= (punchInSec() / punchInTrack()!.duration * punchInTrack()!.waveform.length)">
+                  </div>
+                }
+              </div>
+              <div class="ms-punchin-cursor"
+                   [style.left.%]="(punchInSec() / (punchInTrack()!.duration || 1)) * 100">
+              </div>
+            </div>
+          }
+
+          <!-- Temps affiché -->
+          <p class="ms-punchin-time">
+            Enregistrement à partir de <strong>{{ formatTimer(punchInSec()) }}</strong>
+            @if (punchInTrack()) { / {{ formatTimer(punchInTrack()!.duration) }} }
+          </p>
+
+          <!-- Slider -->
+          <input type="range" class="ms-punchin-slider"
+                 min="1"
+                 [max]="punchInTrack()?.duration ?? 60"
+                 step="1"
+                 [value]="punchInSec()"
+                 (input)="onPunchInSlider($event)"
+                 aria-label="Point de punch-in">
+
+          <!-- Actions -->
+          <div class="ms-punchin-actions">
+            <button class="ms-punchin-preview-btn" (click)="previewFromPunchIn()">
+              <i class="bi bi-play-fill"></i>
+              Écouter depuis ce point
+            </button>
+            <button class="ms-btn-primary ms-punchin-record-btn" (click)="confirmPunchIn()">
+              <i class="bi bi-record-circle-fill"></i>
+              Enregistrer depuis ici
+            </button>
+            <button class="ms-punchin-cancel-btn" (click)="cancelPunchIn()">Annuler</button>
+          </div>
+
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           COUNTDOWN — 3… 2… 1…
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'countdown') {
+        <div class="ms-countdown-zone" aria-live="assertive">
+          <p class="ms-countdown-label">Préparez-vous…</p>
+          <span class="ms-countdown-number">{{ countdown() }}</span>
+          <p class="ms-countdown-hint">
+            <i class="bi bi-music-note-beamed"></i>
+            Beat en cours · Commencez à chanter au signal
+          </p>
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           ENREGISTREMENT
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'recording') {
+        <div class="ms-rec-zone">
+
+          <div class="ms-rec-header">
+            <span class="ms-rec-dot"></span>
+            <span class="ms-rec-label">REC</span>
+            <span class="ms-rec-timer">{{ formatTimer(recordTimer()) }}</span>
+            <span class="ms-rec-max">/ {{ formatTimer(MAX_SECONDS) }}</span>
+          </div>
+
+          <canvas #liveCanvas class="ms-live-canvas"
+                  width="320" height="64" aria-hidden="true"></canvas>
+
+          <!-- Gamme + pitch meter — toujours visible quand une hauteur est détectée -->
+          @if (track.key) {
+            <div class="ms-scale-display ms-scale-display--compact">
+              @for (name of noteNames; track $index) {
+                <div class="ms-scale-note"
+                     [class.ms-scale-note--in-key]="scaleNotes().has($index)"
+                     [class.ms-scale-note--active]="detectedNoteIndex() === $index"
+                     [class.ms-scale-note--sharp]="[1,3,6,8,10].includes($index)"
+                     [title]="name">
+                </div>
+              }
+            </div>
+          }
+
+          @if (detectedNote()) {
+            <div class="ms-pitch-meter" aria-live="polite">
+              <span class="ms-pitch-meter__note">{{ detectedNote() }}</span>
+              <div class="ms-pitch-meter__bar">
+                <div class="ms-pitch-meter__fill"
+                     [style.width.%]="50 + correctionCents() / 3"
+                     [class.ms-pitch-meter__fill--high]="correctionCents() > 30"
+                     [class.ms-pitch-meter__fill--low]="correctionCents() < -30"></div>
+                <div class="ms-pitch-meter__center"></div>
+              </div>
+              <span class="ms-pitch-meter__cents">
+                {{ correctionCents() > 0 ? '+' : '' }}{{ correctionCents() }}¢
+              </span>
+            </div>
+          }
+
+          <!-- Indicateur de saturation micro -->
+          @if (clipWarning()) {
+            <div class="ms-clip-warning" role="alert" aria-live="polite">
+              <span class="ms-clip-warning__dot"></span>
+              Saturation — baissez le gain micro
+            </div>
+          }
+
+          <div class="ms-beat-vol-row">
+            <i class="bi"
+               [class.bi-volume-off-fill]="beatVolume() === 0"
+               [class.bi-volume-down-fill]="beatVolume() > 0 && beatVolume() < 0.5"
+               [class.bi-volume-up-fill]="beatVolume() >= 0.5"></i>
+            <input type="range" class="ms-beat-vol-slider"
+                   min="0" max="1" step="0.05"
+                   [value]="beatVolume()"
+                   (input)="onBeatVolumeInput($event)"
+                   aria-label="Volume du beat">
+            <span class="ms-beat-vol-label">Beat</span>
+          </div>
+
+          <!-- Volume micro (enregistrement) -->
+          <div class="ms-mic-gain-row">
+            <i class="bi bi-mic-fill"></i>
+            <input type="range" class="ms-beat-vol-slider"
+                   min="0.3" max="2.0" step="0.05"
+                   [value]="micGain()"
+                   (input)="micGain.set(+$any($event.target).value)"
+                   aria-label="Volume du micro">
+            <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
+          </div>
+
+          <div class="ms-time-bar" [class.ms-time-bar--near-end]="nearEnd()"
+               [attr.aria-label]="nearEnd() ? 'Moins de 15 secondes restantes' : null">
+            <div class="ms-time-bar__fill"
+                 [style.width.%]="(recordTimer() / MAX_SECONDS) * 100"></div>
+          </div>
+          @if (nearEnd()) {
+            <p class="ms-time-near-end" aria-live="assertive">⚠ 15 s restantes</p>
+          }
+
+          <button class="ms-btn-stop" (click)="stopRecording()">
+            <span class="ms-btn-stop__square"></span>
+            Terminer
+          </button>
+
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           EXPORT / PREVIEW — spinner
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'exporting' || studioState() === 'previewing') {
+        <div class="ms-proc-zone" aria-live="polite">
+
+          <div class="ms-ring-wrap">
+            <svg viewBox="0 0 56 56" class="ms-ring-svg" aria-hidden="true">
+              <circle cx="28" cy="28" r="24" class="ms-ring-track"/>
+              <circle cx="28" cy="28" r="24" class="ms-ring-fill"
+                      [style.stroke-dashoffset]="(1 - service.exportPct() / 100) * 150.8"/>
+            </svg>
+            <span class="ms-ring-pct">{{ service.exportPct() }}%</span>
+          </div>
+
+          <p class="ms-proc-step">{{ service.exportStep() || (studioState() === 'previewing' ? 'Génération du mix…' : 'Finalisation…') }}</p>
+          @if (studioState() === 'exporting') {
+            <p class="ms-proc-hint">Traitement local · Ne quittez pas l'application</p>
+          }
+          @if (draftSaved()) {
+            <p class="ms-draft-saved" aria-live="polite">
+              <i class="bi bi-check-circle-fill"></i> Brouillon sauvegardé localement
+            </p>
+          }
+
+          <div class="ms-proc-bar">
+            <div class="ms-proc-bar__fill" [style.width.%]="service.exportPct()"></div>
+          </div>
+
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           PUBLIÉ — écran de célébration
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'published') {
+        <div class="ms-published-zone">
+          <div class="ms-published-check">
+            <i class="bi bi-check-lg"></i>
+          </div>
+          <p class="ms-published-title">Maquette publiée !</p>
+          <p class="ms-published-sub">{{ track.title }}</p>
+          <button class="ms-btn-primary ms-published-btn" (click)="onPublishedClose()">
+            <i class="bi bi-house-fill"></i>
+            Voir sur le feed
+          </button>
+        </div>
+      }
+
+      <!-- ════════════════════════════════════════════════════════════════
+           IDLE — studio principal
+      ═══════════════════════════════════════════════════════════════════ -->
+      @if (studioState() === 'idle') {
+        <div class="ms-studio">
+
+          <!-- ── Beat row ──────────────────────────────────────────────── -->
+          <div class="ms-beat-section">
+            <p class="ms-section-label">
+              <i class="bi bi-music-note-beamed"></i>
+              Instrumental
+            </p>
+            <div class="ms-beat-row">
+              <div class="ms-beat-info">
+                <span class="ms-beat-name">{{ track.title }}</span>
+                @if (service.extendedBeatBlob()) {
+                  <span class="ms-beat-badge">
+                    <i class="bi bi-check-circle-fill"></i>
+                    Beat étendu
+                  </span>
+                }
+              </div>
+              <button class="ms-beat-play-btn"
+                      [class.ms-beat-play-btn--playing]="beatIsPlaying()"
+                      (click)="toggleBeatPreview()"
+                      [attr.aria-label]="beatIsPlaying() ? 'Arrêter le beat' : 'Écouter le beat'">
+                <i class="bi" [class.bi-pause-fill]="beatIsPlaying()" [class.bi-play-fill]="!beatIsPlaying()"></i>
+              </button>
+              <button class="ms-beat-extend-btn" (click)="openBeatEditor()">
+                <i class="bi bi-scissors"></i>
+                Étendre
+              </button>
+            </div>
+
+            @if (beatIsPlaying()) {
+              <div class="ms-beat-vol-row ms-beat-vol-row--idle">
+                <i class="bi"
+                   [class.bi-volume-off-fill]="beatVolume() === 0"
+                   [class.bi-volume-down-fill]="beatVolume() > 0 && beatVolume() < 0.5"
+                   [class.bi-volume-up-fill]="beatVolume() >= 0.5"></i>
+                <input type="range" class="ms-beat-vol-slider"
+                       min="0" max="1" step="0.05"
+                       [value]="beatVolume()"
+                       (input)="onBeatVolumeInput($event)"
+                       aria-label="Volume du beat">
+                <span class="ms-beat-vol-label">{{ (beatVolume() * 100 | number:'1.0-0') }}%</span>
+              </div>
+            }
+          </div>
+
+          <!-- ── Banières permission micro ─────────────────────────────── -->
+          @if (permState() === 'prompt') {
+            <div class="ms-perm-banner ms-perm-banner--prompt">
+              <i class="bi bi-mic"></i>
+              <span>L'accès au micro est requis pour enregistrer</span>
+              <button class="ms-perm-banner__btn" (click)="requestMicPermission()">Autoriser</button>
+            </div>
+          }
+          @if (permState() === 'denied') {
+            <div class="ms-perm-banner ms-perm-banner--denied">
+              <i class="bi bi-mic-mute-fill"></i>
+              <span>Micro bloqué — activez-le dans Réglages › LaProd</span>
+            </div>
+          }
+
+          <!-- ── Écoute & monitoring ───────────────────────────────────── -->
+          <div class="ms-monitoring-section">
+
+            @if (headphoneType() !== null) {
+              <div class="ms-headphone-row"
+                   [class.ms-headphone-row--wired]="headphoneType() === 'wired'"
+                   [class.ms-headphone-row--bt]="headphoneType() === 'bluetooth'"
+                   [class.ms-headphone-row--bt-a2dp]="headphoneType() === 'bluetooth-a2dp'"
+                   [class.ms-headphone-row--none]="headphoneType() === 'none'">
+                <i class="bi"
+                   [class.bi-headphones]="headphoneType() === 'wired' || headphoneType() === 'none'"
+                   [class.bi-bluetooth]="headphoneType() === 'bluetooth' || headphoneType() === 'bluetooth-a2dp'"></i>
+                @switch (headphoneType()) {
+                  @case ('wired')         { <span>Écouteurs filaires détectés</span> }
+                  @case ('bluetooth')     { <span>Casque Bluetooth détecté</span> }
+                  @case ('bluetooth-a2dp') {
+                    <span>Casque Bluetooth — écoute directe indisponible
+                      <i class="bi bi-exclamation-triangle-fill ms-headphone-row__warn"></i>
+                    </span>
+                  }
+                  @default { <span>Branchez des écouteurs pour vous entendre chanter</span> }
+                }
+              </div>
+
+              @if (headphoneType() !== 'none') {
+                <div class="ms-mic-gain-row">
+                  <i class="bi bi-mic-fill"></i>
+                  <input type="range" class="ms-beat-vol-slider"
+                         min="0.3" max="2.0" step="0.05"
+                         [value]="micGain()"
+                         (input)="micGain.set(+$any($event.target).value)"
+                         aria-label="Volume du micro">
+                  <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
+                </div>
+              }
+            }
+
+            <!-- Métronome click track — visible en permanence (pas gated au type de casque) -->
+            <div class="ms-metro-row">
+              <div class="ms-metro-info">
+                <span class="ms-metro-label">Métronome</span>
+                <span class="ms-metro-hint">{{ track.bpm }} BPM · temps 1 accentué</span>
+              </div>
+              <button class="ms-toggle"
+                      [class.ms-toggle--on]="metronomeOn()"
+                      (click)="toggleMetronome()"
+                      [attr.aria-pressed]="metronomeOn()"
+                      aria-label="Activer le métronome">
+                <span class="ms-toggle__thumb"></span>
+              </button>
+            </div>
+
+            <!-- Toggle autotune (filaire seulement) -->
+            @if (headphoneType() === 'wired') {
+              <div class="ms-autotune-row">
+                <div class="ms-autotune-info">
+                  <span class="ms-autotune-label">Autotune live</span>
+                  <span class="ms-autotune-hint">Correction pendant l'enregistrement</span>
+                </div>
+                <button class="ms-toggle"
+                        [class.ms-toggle--on]="monitorAutotune()"
+                        (click)="toggleMonitorAutotune()"
+                        [attr.aria-pressed]="monitorAutotune()"
+                        aria-label="Activer l'autotune live">
+                  <span class="ms-toggle__thumb"></span>
+                </button>
+              </div>
+
+              @if (monitorAutotune()) {
+                <div class="ms-speed-row">
+                  <span class="ms-speed-label">Mode</span>
+                  <div class="ms-speed-tabs">
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
+                            (click)="retuneSpeed.set('natural')">Naturel</button>
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
+                            (click)="retuneSpeed.set('precise')">Précis</button>
+                  </div>
+                </div>
+              }
+
+              <!-- Test micro avant l'enregistrement -->
+              <button class="ms-warmup-btn" (click)="startWarmup()">
+                <i class="bi bi-activity"></i>
+                Tester mon micro
+              </button>
+            }
+
+            <!-- BT HFP : calibration latence -->
+            @if (headphoneType() === 'bluetooth') {
+              <div class="ms-bt-nudge">
+                <i class="bi bi-bluetooth"></i>
+                <div class="ms-bt-nudge__text">
+                  @if (calibration.hasCalibration()) {
+                    <span>Latence calibrée</span>
+                    <small>{{ calibration.latencyMs }} ms · Export et monitoring alignés</small>
+                  } @else {
+                    <span>Latence non calibrée</span>
+                    <small>Calibrez pour synchroniser beat et vocal</small>
+                  }
+                </div>
+                <button class="ms-bt-nudge__btn" (click)="openCalibration()">
+                  {{ calibration.hasCalibration() ? 'Recalibrer' : 'Calibrer' }}
+                </button>
+              </div>
+            }
+
+            <!-- BT A2DP : avertissement monitoring indisponible -->
+            @if (headphoneType() === 'bluetooth-a2dp') {
+              <div class="ms-bt-nudge ms-bt-nudge--a2dp">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div class="ms-bt-nudge__text">
+                  <span>Monitoring indisponible</span>
+                  <small>Ce casque ne supporte pas l'écoute en direct. Utilisez des écouteurs filaires pour vous entendre chanter. L'enregistrement reste fonctionnel.</small>
+                </div>
+              </div>
+            }
+
+          </div>
+
+          <!-- ── Pistes vocales ─────────────────────────────────────────── -->
+          <div class="ms-tracks-section">
+            <p class="ms-section-label">
+              <i class="bi bi-mic-fill"></i>
+              Pistes vocales
+            </p>
+
+            <div class="ms-tracks-list">
+              @for (t of tracks(); track t.id) {
+                <app-mobile-track-item
+                  [track]="t"
+                  [trackKey]="track.key"
+                  (startRecord)="reRecord($event)"
+                  (punchIn)="openPunchIn($event)"
+                  (remove)="service.removeTrack($event)"/>
+              }
+            </div>
+
+            @if (canAdd()) {
+              <button class="ms-add-btn" (click)="addAndRecord()">
+                <i class="bi bi-plus-lg"></i>
+                Ajouter une piste vocale
+              </button>
+            } @else {
+              <div class="ms-upgrade-nudge">
+                <i class="bi bi-lock-fill"></i>
+                <span>Limite de 2 pistes atteinte.
+                  <button class="ms-upgrade-link" (click)="showUpgradeSheet.set(true)">Passer à LaProd Pro</button> pour des pistes illimitées.
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Description -->
+          <div class="ms-desc-wrap">
+            <input type="text" maxlength="200"
+                   [(ngModel)]="description"
+                   placeholder="Description de votre maquette (optionnel)"
+                   class="ms-desc-input">
+          </div>
+
+          <!-- Actions -->
+          @if (!hasTrack()) {
+            <div class="ms-actions">
+              <button class="ms-btn-primary" (click)="addAndRecord()">
+                <i class="bi bi-mic-fill"></i>
+                Commencer à enregistrer
+              </button>
+            </div>
+          } @else {
+            <div class="ms-actions ms-actions--row">
+              <button class="ms-btn-preview"
+                      [class.ms-btn-preview--playing]="isPlayingPreview()"
+                      (click)="isPlayingPreview() ? stopPreview() : previewMix()">
+                @if (isPlayingPreview()) {
+                  <i class="bi bi-stop-fill"></i> Arrêter
+                } @else {
+                  <i class="bi bi-headphones"></i> Écouter le mix
+                }
+              </button>
+              <button class="ms-btn-export" (click)="exportAndPublish()">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Exporter & Publier
+              </button>
+            </div>
+          }
+
+        </div>
+      }
+
+      <!-- ── Calibration Bluetooth (modal superposée) ──────────────────── -->
+      @if (showCalibration()) {
+        <app-bluetooth-calibration
+          (done)="onCalibrationDone($event)"
+          (cancelled)="onCalibrationCancelled()"/>
+      }
+
+      <!-- ── Toast undo — 6 s après un re-enregistrement ──────────────── -->
+      @if (undoToast()) {
+        <div class="ms-undo-toast" role="status" aria-live="polite">
+          <span>Prise remplacée — {{ undoToast()!.trackName }}</span>
+          <button class="ms-undo-toast__btn" (click)="applyUndo()">Annuler</button>
+          <button class="ms-undo-toast__close" (click)="dismissUndoToast()" aria-label="Fermer">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      }
+
+    }
+
+  </div>
+</div>

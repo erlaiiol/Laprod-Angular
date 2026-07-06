@@ -1,0 +1,138 @@
+@use 'variables' as v;
+
+.quality-score {
+  background: v.$black;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: v.$radius-lg;
+  padding: 1.25rem;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+
+  &[data-level='optimized'] { border-color: rgba(v.$gold, 0.3); }
+  &[data-level='good']      { border-color: rgba(v.$tag-green, 0.3); }
+  &[data-level='correct']   { border-color: rgba(v.$tag-blue, 0.3); }
+
+  // ── Mode compact (badge dashboard) ────────────────────────────────────────
+  &--compact {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+
+    .ring-fill {
+      transition: stroke-dasharray 0.4s ease;
+    }
+
+    .compact-score {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: v.$text-secondary;
+    }
+  }
+}
+
+// ── SVG ring ─────────────────────────────────────────────────────────────────
+.quality-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 0.75rem;
+}
+
+.ring-bg {
+  stroke: rgba(255,255,255,0.07);
+}
+
+.ring-fill {
+  stroke: v.$tag-blue;
+  transition: stroke-dasharray 0.6s ease;
+
+  .quality-score[data-level='incomplete'] & { stroke: v.$primary; }
+  .quality-score[data-level='correct']   & { stroke: v.$tag-blue; }
+  .quality-score[data-level='good']      & { stroke: v.$tag-green; }
+  .quality-score[data-level='optimized'] & { stroke: v.$gold; }
+}
+
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.ring-score {
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ring-max {
+  font-size: 0.7rem;
+  color: v.$text-secondary;
+}
+
+// ── Level badge ───────────────────────────────────────────────────────────────
+.quality-level-badge {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  color: v.$text-secondary;
+
+  .quality-score[data-level='incomplete'] & { color: v.$primary; }
+  .quality-score[data-level='correct']   & { color: v.$tag-blue; }
+  .quality-score[data-level='good']      & { color: v.$tag-green; }
+  .quality-score[data-level='optimized'] & { color: v.$gold; }
+}
+
+// ── Criteria list ─────────────────────────────────────────────────────────────
+.criteria-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.criteria-item {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: start;
+  gap: 0.4rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.82rem;
+  color: v.$text-secondary;
+
+  &:last-child { border-bottom: none; }
+
+  &.met {
+    color: v.$text-primary;
+
+    i { color: v.$tag-green; }
+  }
+
+  i {
+    color: rgba(255,255,255,0.2);
+    font-size: 0.85rem;
+    margin-top: 1px;
+  }
+}
+
+.criteria-label { flex: 1; }
+.criteria-points { font-size: 0.72rem; color: v.$text-secondary; white-space: nowrap; }
+.criteria-tip {
+  grid-column: 2 / -1;
+  font-size: 0.75rem;
+  color: v.$text-secondary;
+  line-height: 1.4;
+  padding-top: 0.1rem;
+  font-style: italic;
+}

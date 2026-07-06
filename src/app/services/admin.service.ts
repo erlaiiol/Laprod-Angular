@@ -153,6 +153,7 @@ export interface UserSearchResult {
 export interface AdminTopline {
   id:           number;
   is_published: boolean;
+  is_mobile_processed: boolean;
   description:  string | null;
   created_at:   string | null;
   stream_url:   string;

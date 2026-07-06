@@ -1,8 +1,11 @@
-import { Component, OnInit, signal, inject, effect, untracked } from '@angular/core';
+import { Component, OnInit, signal, inject, effect, untracked, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { BaseChartDirective } from 'ng2-charts';
+import { Chart, registerables } from 'chart.js';
+Chart.register(...registerables);
 import { AuthService } from '../../../services/auth.service';
 import {
   DashboardService, BeatmakerDashboard, BeatmakerTrack, SaleRecord,
@@ -14,6 +17,8 @@ import { PlaylistService, Playlist } from '../../../services/playlist.service';
 import { LicenseService, ComposerLicense, ComposerLicensesData } from '../../../services/license.service';
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
 import { UploadStatusService } from '../../../services/upload-status.service';
+import { HttpClient } from '@angular/common/http';
+import { TrackQualityScoreComponent } from '../../../components/track-quality-score/track-quality-score.component';
 import { environment } from '../../../../environments/environment';
 
 export interface TrackViewStat {
@@ -22,12 +27,37 @@ export interface TrackViewStat {
   unique_views: number;
 }
 
-type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses';
+type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses' | 'analytics';
+
+export interface AnalyticsTrack {
+  track_id:           number;
+  title:              string;
+  image_file:         string | null;
+  bpm:                number;
+  views:              number;
+  plays:              number;
+  play_completion_avg: number;
+  unique_listeners:   number;
+  sales_count:        number;
+  revenue:            number;
+  toplines_count:     number;
+  conversion_rate:    number;
+}
+
+export interface BeatmakerAnalytics {
+  time_series: {
+    views:    { date: string; count: number }[];
+    plays:    { date: string; count: number }[];
+    revenues: { date: string; revenue: number }[];
+  };
+  per_track:       AnalyticsTrack[];
+  recommendations: string[];
+}
 
 @Component({
   selector: 'app-dashboard-beatmaker',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent],
   templateUrl: './dashboard-beatmaker.component.html',
   styleUrls: ['./dashboard-beatmaker.component.scss'],
 })
@@ -57,9 +87,65 @@ export class DashboardBeatmakerComponent implements OnInit {
   viewStats        = signal<TrackViewStat[]>([]);
   viewStatsLoading = signal(false);
 
+  // ── Analytics tab ─────────────────────────────────────────────────────────
+  analyticsData    = signal<BeatmakerAnalytics | null>(null);
+  analyticsLoading = signal(false);
+  analyticsPeriod  = signal<'7d' | '30d' | '90d'>('30d');
+
+  readonly chartLabels = computed(() => {
+    const d = this.analyticsData();
+    if (!d) return [] as string[];
+    const allDates = new Set([
+      ...d.time_series.views.map(r => r.date),
+      ...d.time_series.plays.map(r => r.date),
+    ]);
+    return Array.from(allDates).sort();
+  });
+
+  readonly chartDatasets = computed(() => {
+    const d = this.analyticsData();
+    if (!d) return [];
+    const labels = this.chartLabels();
+    const viewMap  = Object.fromEntries(d.time_series.views.map(r => [r.date, r.count]));
+    const playMap  = Object.fromEntries(d.time_series.plays.map(r => [r.date, r.count]));
+    return [
+      {
+        label: 'Vues',
+        data: labels.map(l => viewMap[l] ?? 0),
+        borderColor: '#A51929',
+        backgroundColor: 'rgba(165,25,41,0.08)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+      },
+      {
+        label: 'Écoutes',
+        data: labels.map(l => playMap[l] ?? 0),
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.08)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+      },
+    ];
+  });
+
+  readonly chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#ccc', font: { size: 12 } } } },
+    scales: {
+      x: { ticks: { color: '#888', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
+    },
+  };
+
   soldLicenses        = signal<ComposerLicensesData | null>(null);
   soldLicensesLoading = signal(false);
   licenseFilter       = signal<'all' | 'active' | 'expired' | 'exclusive'>('all');
+
+  readonly periods: readonly ('7d' | '30d' | '90d')[] = ['7d', '30d', '90d'];
+  readonly apiUrl = environment.apiUrl;
 
   readonly auth          = inject(AuthService);
   private dashboardSvc   = inject(DashboardService);
@@ -70,6 +156,7 @@ export class DashboardBeatmakerComponent implements OnInit {
   private playlistSvc    = inject(PlaylistService);
   private licenseSvc     = inject(LicenseService);
   private uploadStatusSvc = inject(UploadStatusService);
+  private http            = inject(HttpClient);
 
   constructor() {
     // Quand le worker d'upload termine (toast de progression), rafraîchir
@@ -85,6 +172,24 @@ export class DashboardBeatmakerComponent implements OnInit {
         });
       });
     });
+  }
+
+  loadAnalytics(period?: '7d' | '30d' | '90d'): void {
+    if (period) this.analyticsPeriod.set(period);
+    this.analyticsLoading.set(true);
+    this.http.get<{ success: boolean; data: BeatmakerAnalytics }>(
+      `${environment.apiUrl}/api/dashboard/beatmaker/analytics?period=${this.analyticsPeriod()}`
+    ).subscribe({
+      next: (res) => {
+        if (res.success) this.analyticsData.set(res.data);
+        this.analyticsLoading.set(false);
+      },
+      error: () => this.analyticsLoading.set(false),
+    });
+  }
+
+  onAnalyticsTabActivated(): void {
+    if (!this.analyticsData()) this.loadAnalytics();
   }
 
   ngOnInit(): void {

@@ -104,75 +104,7 @@
       </div>
     </div>
 
-    <!-- ── Liste des tracks ──────────────────────────────────────────────── -->
-    <div class="tracks-section">
-      <h2 class="tracks-title">Compositions de {{ p.username }}</h2>
-
-      @if (p.tracks.length === 0) {
-        <p class="empty-state">{{ p.username }} n'a pas encore publié de compositions.</p>
-      } @else {
-        <div class="tracks-list">
-          @for (track of pagedTracks(); track track.id) {
-            <div class="track-row">
-              <!-- Pochette -->
-              <div class="track-cover" (click)="playTrack(track)">
-                <img [src]="imgUrl(track.image_file)" [alt]="track.title"
-                     onerror="this.onerror=null;this.src='assets/placeholders/placeholder-track.png'" />
-                <div class="play-overlay"><i class="bi bi-play-fill"></i></div>
-              </div>
-
-              <!-- Infos -->
-              <div class="track-info">
-                <a [routerLink]="['/track', track.id]" class="track-title">{{ track.title }}</a>
-                @if (!track.is_approved) {
-                  <span class="badge-pending">En attente</span>
-                }
-                <div class="track-meta">{{ track.style ?? 'Inconnu' }} · {{ track.bpm }} BPM · {{ track.key }}</div>
-                <div class="track-tags">
-                  @for (tag of track.tags; track tag.id) {
-                    <span class="tag"
-                          [style.background-color]="tagBgColor(tag.color)"
-                          [style.border-color]="tagBorderColor(tag.color)">
-                      #{{ tag.name }}
-                    </span>
-                  }
-                </div>
-                @if (track.similar_artists?.length) {
-                  <div class="track-artists-mini">
-                    <i class="bi bi-person-circle"></i>
-                    @for (a of track.similar_artists!.slice(0, 3); track a.id) {
-                      <span class="artist-chip">{{ a.name }}</span>
-                    }
-                    @if (track.similar_artists!.length > 3) {
-                      <span class="artist-chip-more">+{{ track.similar_artists!.length - 3 }}</span>
-                    }
-                  </div>
-                }
-              </div>
-
-              <!-- Prix + action -->
-              <div class="track-right">
-                @if (track.price_mp3) {
-                  <a [routerLink]="['/track', track.id]" class="track-price">
-                    à partir de {{ track.price_mp3.toFixed(2) }}€
-                  </a>
-                }
-                @if (isOwnProfile()) {
-                  <a [routerLink]="['/edit-track', track.id]" class="track-edit">
-                    <i class="bi bi-pencil"></i>
-                  </a>
-                }
-              </div>
-            </div>
-          }
-        </div>
-        <app-pagination
-          [currentPage]="trackPage()"
-          [totalPages]="tracksTotalPages()"
-          (pageChange)="goToTrackPage($event)" />
-      }
-    </div>
-
+    <!-- ── Playlists (beatmakers) — affichées avant les tracks ─────────────── -->
     @if (playlists().length > 0) {
       <div class="playlists-section">
         <h2 class="playlists-heading">
@@ -214,6 +146,46 @@
           (pageChange)="goToPlaylistPage($event)" />
       </div>
     }
+
+    <!-- ── Liste des tracks ──────────────────────────────────────────────── -->
+    <div class="tracks-section">
+      <div class="tracks-toolbar">
+        <h2 class="tracks-title">Compositions de {{ p.username }}</h2>
+        <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
+          <button class="layout-btn" [class.layout-btn--active]="displayMode() === 'list'"
+                  (click)="setDisplayMode('list')" title="Vue liste">
+            <i class="bi bi-list-ul"></i>
+          </button>
+          <button class="layout-btn" [class.layout-btn--active]="displayMode() === 'gallery'"
+                  (click)="setDisplayMode('gallery')" title="Vue galerie">
+            <i class="bi bi-grid-fill"></i>
+          </button>
+          <button class="layout-btn" [class.layout-btn--active]="displayMode() === 'compact'"
+                  (click)="setDisplayMode('compact')" title="Vue compacte — idéal sur mobile">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+          </button>
+        </div>
+      </div>
+
+      @if (p.tracks.length === 0) {
+        <p class="empty-state">{{ p.username }} n'a pas encore publié de compositions.</p>
+      } @else {
+        <div class="tracks-container"
+             [class.tracks-gallery]="displayMode() === 'gallery'"
+             [class.tracks-compact]="displayMode() === 'compact'">
+          @for (track of pagedTracks(); track track.id) {
+            <app-track-card
+              [track]="asTrack(track)"
+              [galleryMode]="displayMode() === 'gallery'"
+              [compactMode]="displayMode() === 'compact'" />
+          }
+        </div>
+        <app-pagination
+          [currentPage]="trackPage()"
+          [totalPages]="tracksTotalPages()"
+          (pageChange)="goToTrackPage($event)" />
+      }
+    </div>
 
   }
 

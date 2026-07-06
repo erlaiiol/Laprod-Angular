@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 import { TagsService, Tag } from '../../services/tags.service';
 import { FilterStateService } from '../../services/filter-state.service';
@@ -69,6 +70,8 @@ export class NavbarComponent implements OnInit {
     }
     return groups;
   });
+
+  readonly testimonialsEnabled = environment.testimonialsEnabled;
 
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
   isArtist      = computed(() => this.authService.isArtist());

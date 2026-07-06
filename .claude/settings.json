@@ -13,7 +13,17 @@
       "Bash(python3 -m pytest tests/integration/test_tracks_api.py -v)",
       "Bash(.venv/bin/pytest tests/integration/test_tracks_api.py -v)",
       "Bash(npx vitest *)",
-      "Bash(node_modules/.bin/vitest run *)"
+      "Bash(node_modules/.bin/vitest run *)",
+      "Bash(PATH=/Users/eliott/.nvm/versions/node/v24.15.0/bin:__TRACKED_VAR__ npm install chart.js ng2-charts --save --prefix /Users/eliott/Documents/Dev/Laprod-Angular)",
+      "Bash(npx ng *)",
+      "Bash(node_modules/.bin/ng build *)",
+      "Bash(sort -t\"'\" -k4)",
+      "Bash(npm install *)",
+      "Bash(/usr/local/bin/npm install *)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//usr/bin/**)",
+      "Bash(/Users/eliott/.nvm/versions/node/v24.15.0/bin/npm install *)",
+      "WebSearch"
     ]
   }
 }

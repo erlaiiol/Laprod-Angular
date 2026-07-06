@@ -88,6 +88,9 @@ import { environment } from '../../../../environments/environment';
             <span class="status-chip" [class.active]="tl.is_published">
               {{ tl.is_published ? 'Publiée' : 'Privée' }}
             </span>
+            <span class="status-chip" [title]="tl.is_mobile_processed ? 'Enregistrée et mixée dans le studio mobile' : 'Enregistrée sur le site, traitée serveur'">
+              {{ tl.is_mobile_processed ? 'Mobile' : 'Web' }}
+            </span>
           </td>
 
           <!-- Description -->

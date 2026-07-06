@@ -55,6 +55,11 @@ export class PremiumComponent implements OnInit {
     }
   }
 
+  scrollToPlans(event: Event): void {
+    event.preventDefault();
+    document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
   subscribe(plan: 'amateur' | 'pro'): void {
     this.subscribing.set(plan);
     this.http.post<any>(`${environment.apiUrl}/api/premium/subscribe`, { plan })

@@ -1,0 +1,92 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+
+<h2 style="color: #e94560; margin: 0 0 8px; font-size: 22px;">
+  Ces sons méritent d'être partagés 🎤
+</h2>
+<p style="color: #aabbcc; margin: 0 0 20px; font-size: 15px;">
+  Bonjour {{ user.username }}, cela fait une semaine que vous n'avez pas lancé le player.
+  Vos sons favoris n'attendent que vous — et vos amis artistes pourraient adorer les mêmes.
+</p>
+
+{% if recent_tracks %}
+<!-- Tracks récents -->
+<p style="color: #ffffff; font-size: 14px; font-weight: bold; margin: 0 0 12px;">
+  Vos derniers coups de cœur
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+  {% for track in recent_tracks %}
+  <tr>
+    <td style="background: #0f3460; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td>
+            <span style="color: #ffffff; font-size: 14px; font-weight: bold;">{{ track.title }}</span>
+            <br>
+            <span style="color: #8899aa; font-size: 12px;">
+              par {{ track.composer_user.username }}
+              {% if track.bpm %} · {{ track.bpm }} BPM{% endif %}
+              {% if track.key %} · {{ track.key }}{% endif %}
+            </span>
+          </td>
+          <td align="right" style="white-space: nowrap; padding-left: 12px;">
+            <a href="{{ track_base_url }}/track/{{ track.id }}"
+               style="color: #e94560; font-size: 13px; text-decoration: none; font-weight: bold;">
+              Écouter →
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  {% if not loop.last %}
+  <tr><td style="height: 6px;"></td></tr>
+  {% endif %}
+  {% endfor %}
+</table>
+{% endif %}
+
+<!-- CTA principal -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+  <tr>
+    <td align="center">
+      <a href="{{ home_url }}"
+         style="display: inline-block; background: #e94560; color: #ffffff; text-decoration: none;
+                font-size: 15px; font-weight: bold; padding: 14px 32px; border-radius: 6px;">
+        Découvrir de nouveaux beats
+      </a>
+    </td>
+  </tr>
+</table>
+
+{% if recent_tracks %}
+<!-- CTA partage -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
+  <tr>
+    <td align="center">
+      <a href="{{ track_base_url }}/track/{{ recent_tracks[0].id }}"
+         style="display: inline-block; background: transparent; color: #aabbcc; text-decoration: none;
+                font-size: 14px; border: 1px solid #0f3460; padding: 10px 24px; border-radius: 6px;">
+        Partager « {{ recent_tracks[0].title }} » à un ami →
+      </a>
+    </td>
+  </tr>
+</table>
+{% endif %}
+
+<hr style="border: none; border-top: 1px solid #0f3460; margin: 24px 0;">
+
+<!-- Le saviez-vous -->
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="background: #0a1628; border-left: 3px solid #e94560; border-radius: 4px; padding: 14px 18px;">
+      <p style="color: #e94560; font-size: 12px; font-weight: bold; text-transform: uppercase;
+                letter-spacing: 0.08em; margin: 0 0 6px;">💡 Le saviez-vous ?</p>
+      <p style="color: #aabbcc; font-size: 14px; margin: 0; line-height: 1.6;">
+        {{ did_you_know | safe }}
+      </p>
+    </td>
+  </tr>
+</table>
+
+{% endblock %}

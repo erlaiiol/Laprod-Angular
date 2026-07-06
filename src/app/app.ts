@@ -10,6 +10,7 @@ import { NotificationService } from './services/notification.service';
 import { UploadProgressToastComponent } from './components/ui/upload-progress-toast/upload-progress-toast.component';
 import { ToplineProgressToastComponent } from './components/ui/topline-progress-toast/topline-progress-toast.component';
 import { UserflowComponent } from './components/userflow/userflow.component';
+import { NativeShellService } from './services/native-shell.service';
 
 @Component({
   selector: 'app-root',
@@ -23,8 +24,11 @@ export class App implements OnInit {
   readonly auth    = inject(AuthService);
   private notifSvc = inject(NotificationService);
   private router   = inject(Router);
+  private shell    = inject(NativeShellService);
 
   ngOnInit(): void {
+    this.shell.init();
+
     if (this.auth.isLoggedIn()) {
       // Vérifie que le user localStorage est toujours valide en DB.
       // Si le token est expiré ou l'user supprimé, l'interceptor appelle silentLogout().

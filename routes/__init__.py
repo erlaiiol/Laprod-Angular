@@ -31,6 +31,7 @@ from .contract_analyzer_api import contract_analyzer_api_bp
 from .playlist_api import playlist_bp
 from .invoice_api import invoice_api_bp
 from .licenses_api import licenses_api_bp
+from .testimonials_api import testimonials_api_bp
 
 __all__ = [
     'premium_api_bp',
@@ -58,4 +59,5 @@ __all__ = [
     'playlist_bp',
     'invoice_api_bp',
     'licenses_api_bp',
+    'testimonials_api_bp',
 ]

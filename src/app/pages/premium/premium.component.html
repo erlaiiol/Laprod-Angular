@@ -1,12 +1,24 @@
 <div class="premium-page">
 
-  <!-- Hero -->
-  <div class="hero">
-    <h1><i class="bi bi-star-fill"></i> LaProd<span class="plus">+</span></h1>
-    <p class="hero-sub">Passez au niveau supérieur : beats exclusifs, contrats juridiques, mastering Pro.</p>
-  </div>
+  <!-- ── Hero émotionnel ───────────────────────────────────────────────────── -->
+  <section class="premium-hero">
+    <div class="premium-hero__eyebrow">
+      <i class="bi bi-lightning-charge-fill"></i> LaProd<span class="plus">+</span>
+    </div>
+    <h1 class="premium-hero__title">
+      Tu crées.<br>Il est temps d'être payé pour ça.
+    </h1>
+    <p class="premium-hero__sub">
+      LaProd+ supprime les limites qui te ralentissent — plus de tokens, plus de visibilité, plus de contrôle sur tes droits.
+    </p>
+    @if (!isPremium()) {
+      <a class="premium-hero__cta" (click)="scrollToPlans($event)" href="#plans">
+        Voir les offres <i class="bi bi-arrow-down"></i>
+      </a>
+    }
+  </section>
 
-  <!-- Activation en cours -->
+  <!-- ── Activation en cours ───────────────────────────────────────────────── -->
   @if (activating()) {
     <div class="alert alert-info activation-loader">
       <div class="spinner-border spinner-border-sm me-2"></div>
@@ -14,7 +26,7 @@
     </div>
   }
 
-  <!-- Succès activation -->
+  <!-- ── Succès activation ─────────────────────────────────────────────────── -->
   @if (activated()) {
     <div class="alert-activated">
       <i class="bi bi-check-circle-fill"></i>
@@ -25,7 +37,7 @@
     </div>
   }
 
-  <!-- Abonnement actif -->
+  <!-- ── Plan actif ────────────────────────────────────────────────────────── -->
   @if (isPremium() && !activating()) {
     <div class="current-plan">
       <div class="current-plan-badge" [class.is-pro]="isPro()">
@@ -44,8 +56,55 @@
     </div>
   }
 
-  <!-- Tableau comparatif -->
-  <div class="plans-grid">
+  <!-- ── Section douleur : sans Premium, tu perds ça ──────────────────────── -->
+  @if (!isPremium()) {
+    <section class="pain-section">
+      <h2 class="pain-section__title">Sans Premium, tu perds ça chaque semaine.</h2>
+      <div class="pain-cards">
+        <div class="pain-card">
+          <i class="bi bi-hourglass-split pain-card__icon pain-card__icon--orange"></i>
+          <h3>Tokens épuisés.</h3>
+          <p>5 toplines par semaine, 1 upload par jour. Tu travailles à l'efficacité, pas à ton rythme.</p>
+        </div>
+        <div class="pain-card">
+          <i class="bi bi-eye-slash pain-card__icon pain-card__icon--red"></i>
+          <h3>Beats exclusifs invisibles.</h3>
+          <p>Les beats exclusifs — les plus rares, les plus ciblés — sont réservés aux membres Premium.</p>
+        </div>
+        <div class="pain-card">
+          <i class="bi bi-file-earmark-x pain-card__icon pain-card__icon--purple"></i>
+          <h3>Pas de contrats sur-mesure.</h3>
+          <p>Tu ne peux pas générer de contrats personnalisés. Tu signes sans vraiment comprendre ce que tu cèdes.</p>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- ── Ce que LaProd+ change concrètement ───────────────────────────────── -->
+  <section class="benefits-section">
+    <h2 class="benefits-section__title">Ce que LaProd+ change concrètement.</h2>
+    <div class="benefits-grid">
+      <div class="benefit-item">
+        <span class="benefit-item__num">+200</span>
+        <span class="benefit-item__label">toplines / semaine</span>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-item__num">+10</span>
+        <span class="benefit-item__label">uploads / jour</span>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-item__num benefit-item__num--gold">Accès</span>
+        <span class="benefit-item__label">beats exclusifs</span>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-item__num benefit-item__num--gold">PDF</span>
+        <span class="benefit-item__label">contrats exportables</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Tableau comparatif ───────────────────────────────────────────────── -->
+  <div class="plans-grid" id="plans">
 
     <!-- Free -->
     <div class="plan-card plan-free">
@@ -93,7 +152,7 @@
             @if (subscribing() === 'amateur') {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
-            S'abonner
+            Essayer Amateur
           </button>
         } @else {
           <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
@@ -103,7 +162,9 @@
 
     <!-- Pro -->
     <div class="plan-card plan-pro" [class.plan-current]="isPro()">
-      <div class="plan-badge-popular">Recommandé</div>
+      <div class="plan-badge-popular">
+        <i class="bi bi-star-fill"></i> Recommandé
+      </div>
       @if (isPro()) {
         <div class="plan-badge-current">Actuel</div>
       }
@@ -129,7 +190,7 @@
             @if (subscribing() === 'pro') {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
-            S'abonner
+            Commencer maintenant
           </button>
         } @else {
           <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
@@ -139,12 +200,16 @@
 
   </div>
 
-  <!-- FAQ -->
+  <!-- ── FAQ étendue ──────────────────────────────────────────────────────── -->
   <div class="faq">
     <h3>Questions fréquentes</h3>
     <div class="faq-item">
+      <strong>Puis-je essayer sans risque ?</strong>
+      <p>Oui. Vous pouvez résilier à tout moment depuis notre support. Votre accès reste actif jusqu'à la fin de la période en cours — aucune facturation surprise.</p>
+    </div>
+    <div class="faq-item">
       <strong>Puis-je changer de plan ?</strong>
-      <p>Oui, vous pouvez passer du plan Amateur au plan Pro à tout moment. Votre abonnement sera prolongé.</p>
+      <p>Oui, vous pouvez passer du plan Amateur au plan Pro à tout moment. Votre abonnement sera prolongé en conséquence.</p>
     </div>
     <div class="faq-item">
       <strong>Le paiement est-il sécurisé ?</strong>
@@ -153,6 +218,10 @@
     <div class="faq-item">
       <strong>Qu'est-ce que le Badge Engineer Master Pro ?</strong>
       <p>Avec un abonnement Pro, votre profil ingénieur affiche un badge doré indiquant que vous êtes habilité à proposer le service de mastering.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Et si j'oublie d'annuler ?</strong>
+      <p>Nous envoyons un email de rappel 7 jours avant chaque renouvellement. Vous pouvez résilier depuis la page <a routerLink="/contact">Contact</a> à tout moment.</p>
     </div>
     <div class="faq-item">
       <strong>Comment résilier ?</strong>

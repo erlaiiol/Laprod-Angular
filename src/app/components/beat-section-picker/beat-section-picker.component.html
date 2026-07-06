@@ -1,0 +1,145 @@
+<div class="bsp-container">
+
+  <!-- ── En-tête ──────────────────────────────────────────────────────────────── -->
+  <div class="bsp-header">
+    <h2 class="bsp-title">
+      <i class="bi bi-scissors"></i>
+      Étendre le beat
+    </h2>
+    <button class="bsp-close" (click)="cancelled.emit()" aria-label="Fermer">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- ── Loading ──────────────────────────────────────────────────────────────── -->
+  @if (loading()) {
+    <div class="bsp-loading">
+      <span class="bsp-spinner"></span>
+      <span>Analyse du beat…</span>
+    </div>
+  }
+
+  <!-- ── Erreur ────────────────────────────────────────────────────────────────── -->
+  @if (errorMsg()) {
+    <div class="bsp-error">
+      <i class="bi bi-exclamation-circle"></i>
+      {{ errorMsg() }}
+    </div>
+  }
+
+  <!-- ── Contenu ───────────────────────────────────────────────────────────────── -->
+  @if (!loading() && !errorMsg()) {
+
+    <!-- Mode d'insertion -->
+    <div class="bsp-mode-bar">
+      <span class="bsp-mode-label">Insérer la section&nbsp;:</span>
+      <div class="bsp-mode-toggle">
+        <button class="bsp-mode-btn" [class.bsp-mode-btn--active]="insertMode() === 'after'"
+                (click)="setMode('after')">
+          Après cette section
+        </button>
+        <button class="bsp-mode-btn" [class.bsp-mode-btn--active]="insertMode() === 'end'"
+                (click)="setMode('end')">
+          À la fin du beat
+        </button>
+      </div>
+    </div>
+
+    <!-- Hint sélection -->
+    <p class="bsp-hint">
+      <i class="bi bi-hand-index-thumb"></i>
+      Sélectionnez une section à dupliquer
+    </p>
+
+    <!-- Grille de sections -->
+    <div class="bsp-grid">
+      @for (section of sections(); track section.index) {
+        <button class="bsp-card"
+                [class.bsp-card--selected]="selectedIdx() === section.index"
+                (click)="selectSection(section.index)">
+
+          <!-- Badge section -->
+          <div class="bsp-card-badge">
+            <i class="bi" [class]="sectionIcon(section.name)"></i>
+            <span class="bsp-card-name">{{ section.name }}</span>
+          </div>
+
+          <!-- Mini waveform -->
+          <canvas #sectionCanvas class="bsp-waveform"
+                  [width]="240" [height]="48"
+                  aria-hidden="true"></canvas>
+
+          <!-- Méta -->
+          <div class="bsp-card-meta">
+            <span class="bsp-tag">{{ section.measures }} mesures</span>
+            <span class="bsp-tag bsp-tag--energy" [attr.data-energy]="energyLabel(section)">
+              {{ energyLabel(section) }}
+            </span>
+            <span class="bsp-tag">{{ formatDuration(section.duration) }}</span>
+          </div>
+
+          <!-- Drums chip -->
+          @if (section.hasDrums) {
+            <span class="bsp-drums-chip">
+              <i class="bi bi-volume-up-fill"></i>
+              Drums
+            </span>
+          }
+
+          <!-- Indicateur sélectionné -->
+          @if (selectedIdx() === section.index) {
+            <i class="bi bi-check-circle-fill bsp-check"></i>
+          }
+
+        </button>
+      }
+    </div>
+
+    <!-- ── Résumé durée ──────────────────────────────────────────────────────────── -->
+    <div class="bsp-duration-bar">
+      <span class="bsp-dur bsp-dur--current">
+        <i class="bi bi-clock"></i>
+        {{ formatDuration(currentDurationSec()) }}
+      </span>
+      @if (extendedDurationSec() !== null) {
+        <i class="bi bi-arrow-right bsp-dur-arrow"></i>
+        <span class="bsp-dur bsp-dur--extended" [class.bsp-dur--capped]="wouldBeCapped()">
+          {{ formatDuration(extendedDurationSec()!) }}
+          @if (wouldBeCapped()) {
+            <span class="bsp-cap-badge">
+              <i class="bi bi-scissors"></i>3:00
+            </span>
+          }
+        </span>
+      } @else {
+        <span class="bsp-dur bsp-dur--hint">← sélectionnez une section</span>
+      }
+    </div>
+
+    <!-- ── Barre d'action ──────────────────────────────────────────────────────── -->
+    <div class="bsp-footer">
+      @if (previewing()) {
+        <button class="bsp-btn bsp-btn--preview bsp-btn--playing" (click)="stopPreview()">
+          <i class="bi bi-stop-fill"></i>
+          Arrêter l'aperçu
+        </button>
+      } @else {
+        <button class="bsp-btn bsp-btn--preview"
+                [disabled]="!canApply()"
+                (click)="previewExtended()">
+          <i class="bi bi-play-fill"></i>
+          {{ selectedIdx() !== null ? 'Aperçu' : 'Choisir une section' }}
+        </button>
+      }
+
+      <button class="bsp-btn bsp-btn--apply"
+              [disabled]="!canApply()"
+              (click)="applyExtension()">
+        <i class="bi bi-check2"></i>
+        Appliquer
+      </button>
+    </div>
+
+  }
+
+</div>

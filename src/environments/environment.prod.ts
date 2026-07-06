@@ -4,4 +4,6 @@ export const environment = {
   // apiUrl vide = même origine → pas de CORS, pas de préfixe absolu.
   apiUrl: '',
   appTitle: 'LaProd',
+  testimonialsEnabled: false,
+  isNative: false,
 };

@@ -79,6 +79,18 @@ export class ToplineStatusService {
     this._startTimer(jobId);
   }
 
+  /**
+   * Utilisé par le chemin mobile natif : la topline est déjà traitée côté client,
+   * il n'y a pas de job_id à poller — on passe directement à l'état "done".
+   */
+  setDoneWithId(toplineId: number): void {
+    this.pollingSub?.unsubscribe();
+    this._toplineId.set(String(toplineId));
+    this._status.set('done');
+    this._progress.set(100);
+    this.toastSvc.showToast({ level: 'success', message: 'Topline traitée avec succès !' });
+  }
+
   stopPolling(): void {
     this.pollingSub?.unsubscribe();
     this.pollingSub = undefined;

@@ -16,6 +16,13 @@
 @if (track() && !loading()) {
   <div class="track-detail-page">
 
+    <!-- ── RETOUR ─────────────────────────────────────────────────────── -->
+    <div class="track-back-bar">
+      <button class="btn-back" (click)="goBack()">
+        <i class="bi bi-arrow-left"></i> Retour aux beats
+      </button>
+    </div>
+
     <!-- ── HERO ────────────────────────────────────────────────────────── -->
     <section class="track-hero">
       <div class="track-hero-cover"
@@ -70,7 +77,9 @@
         <div class="track-meta-grid">
           <span><i class="bi bi-speedometer2"></i> {{ track()!.bpm }} BPM</span>
           <span><i class="bi bi-music-note"></i> {{ track()!.key }}</span>
-          <span><i class="bi bi-tag"></i> {{ track()!.style || 'Inconnu' }}</span>
+          <span class="meta-chip--clickable" (click)="onStyleClick(track()!.style)" title="Filtrer par style">
+            <i class="bi bi-tag"></i> {{ track()!.style || 'Inconnu' }}
+          </span>
           @if (track()!.created_at) {
             <span><i class="bi bi-calendar3"></i> {{ formatDate(track()!.created_at) }}</span>
           }
@@ -78,9 +87,11 @@
 
         <div class="track-tags">
           @for (tag of track()!.tags; track tag.name) {
-            <span class="tag"
+            <span class="tag tag--clickable"
                   [style.background-color]="tagBgColor(tag.color)"
-                  [style.border-color]="tagBorderColor(tag.color)">
+                  [style.border-color]="tagBorderColor(tag.color)"
+                  (click)="onTagClick(tag.name)"
+                  title="Filtrer par #{{ tag.name }}">
               #{{ tag.name }}
             </span>
           }
@@ -91,119 +102,51 @@
               <i class="bi bi-person-circle"></i> Inspiré de
             </span>
             @for (a of track()!.similar_artists!; track a.id) {
-              <span class="artist-chip">{{ a.name }}</span>
+              <span class="artist-chip artist-chip--clickable"
+                    (click)="onArtistClick(a.name)"
+                    title="Filtrer par {{ a.name }}">{{ a.name }}</span>
             }
           </div>
         }
       </div>
     </section>
 
-    <!-- ── PURCHASE ─────────────────────────────────────────────────────── -->
-    <section class="purchase-section">
-      <h2>Acquérir une licence</h2>
-
-      @if (isExclusiveSold()) {
-        <div class="exclusive-sold-banner">
-          <i class="bi bi-lock-fill"></i>
-          Ce track a été vendu en exclusivité et n'est plus disponible à la vente.
+    <!-- ── TOPLINE CTA BLOCK ───────────────────────────────────────────── -->
+    @if (!isExclusiveSold()) {
+      <div class="topline-cta-block">
+        <div class="topline-cta-icon">
+          <i class="bi bi-mic-fill"></i>
         </div>
-      } @else {
-        <div class="purchase-cards">
-
-          <div class="purchase-card" [class.unavailable]="!track()!.price_mp3" [class.already-owned]="!!ownedLicense('mp3')">
-            <div class="format-badge mp3">MP3</div>
-            @if (ownedLicense('mp3'); as lic) {
-              <app-license-badge class="owned-license-badge"
-                [licenseStatus]="lic.license_status"
-                [isLifetime]="lic.is_lifetime"
-                [expiresAt]="lic.expires_at">
-              </app-license-badge>
-            }
-            <p class="format-desc">Licence lease standard</p>
-            @if (track()!.price_mp3) {
-              <p class="format-price">{{ track()!.price_mp3.toFixed(2) }}€</p>
-              <button class="btn-buy" (click)="requestBuy('mp3')">
-                Acheter MP3
-              </button>
-            } @else {
-              <p class="format-unavailable">Non disponible</p>
-            }
-          </div>
-
-          <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav" [class.already-owned]="!!ownedLicense('wav')">
-            <div class="format-badge wav">WAV</div>
-            @if (ownedLicense('wav'); as lic) {
-              <app-license-badge class="owned-license-badge"
-                [licenseStatus]="lic.license_status"
-                [isLifetime]="lic.is_lifetime"
-                [expiresAt]="lic.expires_at">
-              </app-license-badge>
-            }
-            <p class="format-desc">Qualité studio non compressée</p>
-            @if (track()!.price_wav && track()!.file_wav) {
-              <p class="format-price">{{ (track()!.price_wav ?? 0).toFixed(2) }}€</p>
-              <button class="btn-buy" (click)="requestBuy('wav')">
-                Acheter WAV
-              </button>
-            } @else {
-              <p class="format-unavailable">Non disponible</p>
-            }
-          </div>
-
-          <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems" [class.already-owned]="!!ownedLicense('stems')">
-            <div class="format-badge stems">STEMS</div>
-            @if (ownedLicense('stems'); as lic) {
-              <app-license-badge class="owned-license-badge"
-                [licenseStatus]="lic.license_status"
-                [isLifetime]="lic.is_lifetime"
-                [expiresAt]="lic.expires_at">
-              </app-license-badge>
-            }
-            <p class="format-desc">Pistes séparées (batterie, basse, mélodie…)</p>
-            @if (track()!.price_stems && track()!.file_stems) {
-              <p class="format-price">{{ (track()!.price_stems ?? 0).toFixed(2) }}€</p>
-              <button class="btn-buy featured" (click)="requestBuy('stems')">
-                Acheter STEMS
-              </button>
-            } @else {
-              <p class="format-unavailable">Non disponible</p>
-            }
-          </div>
-
+        <div class="topline-cta-content">
+          <h3>Chante dessus avant d'acheter.</h3>
+          <p>Enregistre ta topline en un clic — autotune intégré, zéro logiciel. Tu sais si ça marche avant de dépenser un centime.</p>
         </div>
-      }
-    </section>
-
-    <!-- ── CONFIRMATION RACHAT ────────────────────────────────────────────── -->
-    @if (confirmFormat()) {
-      <div class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
-           (click)="cancelBuy()" (keydown.escape)="cancelBuy()">
-        <div class="confirm-dialog" (click)="$event.stopPropagation()">
-          <h3 id="confirm-title" class="confirm-title">
-            <i class="bi bi-info-circle-fill"></i>
-            Licence déjà active
-          </h3>
-          <p class="confirm-body">
-            Vous disposez déjà d'une licence active pour ce track au format
-            <strong>{{ confirmFormat()!.toUpperCase() }}</strong>.
-            Souhaitez-vous vraiment effectuer un nouvel achat ?
-          </p>
-          <div class="confirm-actions">
-            <button class="btn-confirm-cancel" (click)="cancelBuy()">
-              Annuler
-            </button>
-            <button class="btn-confirm-proceed" (click)="proceedBuy()">
-              Continuer l'achat
-            </button>
-          </div>
-        </div>
+        @if (auth.isLoggedIn()) {
+          <button class="topline-cta-btn" (click)="toggleRecorder()">
+            <i class="bi bi-mic-fill"></i>
+            {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
+          </button>
+        } @else {
+          <a routerLink="/register" class="topline-cta-btn topline-cta-btn--guest">
+            <i class="bi bi-mic-fill"></i>
+            Essayer gratuitement
+          </a>
+        }
       </div>
     }
 
     <!-- ── TOPLINES ──────────────────────────────────────────────────────── -->
     <section class="toplines-section">
       <div class="toplines-header">
-        <h2>Toplines ({{ track()!.toplines.length }})</h2>
+        <div class="toplines-header-left">
+          <h2>Toplines ({{ track()!.toplines.length }})</h2>
+          @if ((track()!.toplines_count ?? 0) > 2) {
+            <span class="social-proof-pill">
+              <i class="bi bi-people-fill"></i>
+              {{ track()!.toplines_count }} artiste(s) ont posé leur voix sur ce beat
+            </span>
+          }
+        </div>
         @if (auth.isLoggedIn()) {
           <button class="btn-record" (click)="toggleRecorder()">
             <i class="bi bi-mic-fill"></i>
@@ -286,6 +229,125 @@
         }
       </div>
     </section>
+
+    <!-- ── PONT VERS L'ACHAT ─────────────────────────────────────────────── -->
+    @if (!isExclusiveSold()) {
+      <div class="purchase-bridge">
+        <i class="bi bi-arrow-down-circle-fill"></i>
+        Tu aimes le résultat ? Acquiers la licence avant qu'un autre artiste prenne l'exclusivité.
+        <a href="#purchase" class="purchase-bridge__link">Voir les licences</a>
+      </div>
+    }
+
+    <!-- ── PURCHASE ─────────────────────────────────────────────────────── -->
+    <section class="purchase-section" id="purchase">
+      <div class="purchase-section-header">
+        <h2>Acquérir une licence</h2>
+        @if ((track()!.sales_count ?? 0) > 0) {
+          <span class="sales-proof">
+            <i class="bi bi-bag-check-fill"></i>
+            {{ track()!.sales_count }} licence{{ (track()!.sales_count ?? 0) > 1 ? 's' : '' }} vendue{{ (track()!.sales_count ?? 0) > 1 ? 's' : '' }}
+          </span>
+        }
+      </div>
+
+      @if (isExclusiveSold()) {
+        <div class="exclusive-sold-banner">
+          <i class="bi bi-lock-fill"></i>
+          Ce track a été vendu en exclusivité et n'est plus disponible à la vente.
+        </div>
+      } @else {
+        <div class="purchase-cards">
+
+          <div class="purchase-card" [class.unavailable]="!track()!.price_mp3" [class.already-owned]="!!ownedLicense('mp3')">
+            <div class="format-badge mp3">MP3</div>
+            @if (ownedLicense('mp3'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
+            <p class="format-desc">Streaming & réseaux sociaux — Spotify, YouTube, Instagram</p>
+            @if (track()!.price_mp3) {
+              <p class="format-price">{{ track()!.price_mp3.toFixed(2) }}€</p>
+              <button class="btn-buy" (click)="requestBuy('mp3')">
+                Acheter MP3
+              </button>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
+          <div class="purchase-card" [class.unavailable]="!track()!.price_wav || !track()!.file_wav" [class.already-owned]="!!ownedLicense('wav')">
+            <div class="format-badge wav">WAV</div>
+            @if (ownedLicense('wav'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
+            <p class="format-desc">Qualité studio — label, distribution physique, sync TV/film</p>
+            @if (track()!.price_wav && track()!.file_wav) {
+              <p class="format-price">{{ (track()!.price_wav ?? 0).toFixed(2) }}€</p>
+              <button class="btn-buy" (click)="requestBuy('wav')">
+                Acheter WAV
+              </button>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
+          <div class="purchase-card featured" [class.unavailable]="!track()!.price_stems || !track()!.file_stems" [class.already-owned]="!!ownedLicense('stems')">
+            <div class="format-badge stems">STEMS</div>
+            @if (ownedLicense('stems'); as lic) {
+              <app-license-badge class="owned-license-badge"
+                [licenseStatus]="lic.license_status"
+                [isLifetime]="lic.is_lifetime"
+                [expiresAt]="lic.expires_at">
+              </app-license-badge>
+            }
+            <p class="format-desc">Contrôle total — arrange, remixe, rends ce beat uniquement tien</p>
+            @if (track()!.price_stems && track()!.file_stems) {
+              <p class="format-price">{{ (track()!.price_stems ?? 0).toFixed(2) }}€</p>
+              <button class="btn-buy featured" (click)="requestBuy('stems')">
+                Acheter STEMS
+              </button>
+            } @else {
+              <p class="format-unavailable">Non disponible</p>
+            }
+          </div>
+
+        </div>
+      }
+    </section>
+
+    <!-- ── CONFIRMATION RACHAT ────────────────────────────────────────────── -->
+    @if (confirmFormat()) {
+      <div class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title"
+           (click)="cancelBuy()" (keydown.escape)="cancelBuy()">
+        <div class="confirm-dialog" (click)="$event.stopPropagation()">
+          <h3 id="confirm-title" class="confirm-title">
+            <i class="bi bi-info-circle-fill"></i>
+            Licence déjà active
+          </h3>
+          <p class="confirm-body">
+            Vous disposez déjà d'une licence active pour ce track au format
+            <strong>{{ confirmFormat()!.toUpperCase() }}</strong>.
+            Souhaitez-vous vraiment effectuer un nouvel achat ?
+          </p>
+          <div class="confirm-actions">
+            <button class="btn-confirm-cancel" (click)="cancelBuy()">
+              Annuler
+            </button>
+            <button class="btn-confirm-proceed" (click)="proceedBuy()">
+              Continuer l'achat
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
   </div>
 }

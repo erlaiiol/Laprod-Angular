@@ -3,31 +3,64 @@
 .premium-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  padding: 0 1rem 4rem;
 }
 
-// Hero
-.hero {
+// ── Hero émotionnel ────────────────────────────────────────────────────────────
+.premium-hero {
   text-align: center;
-  margin-bottom: 2.5rem;
+  padding: 4rem 1rem 3rem;
+  background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(v.$primary, 0.08) 0%, transparent 70%);
+  margin-bottom: 1rem;
 
-  h1 {
-    font-size: 2.4rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    i { color: v.$gold; margin-right: 0.4rem; }
+  &__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: v.$primary;
+    margin-bottom: 1.25rem;
+
+    .plus { color: v.$gold; }
   }
 
-  .plus { color: v.$gold; }
+  &__title {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin: 0 0 1rem;
+  }
 
-  .hero-sub {
+  &__sub {
     font-size: 1.05rem;
     color: v.$text-secondary;
-    margin-top: 0.5rem;
+    max-width: 520px;
+    margin: 0 auto 2rem;
+    line-height: 1.6;
+  }
+
+  &__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    background: v.$primary;
+    color: #fff;
+    border-radius: v.$radius-pill;
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: opacity v.$dur-fast v.$ease-out;
+
+    &:hover { opacity: 0.88; }
   }
 }
 
-// Activation feedback
+// ── Activation feedback ────────────────────────────────────────────────────────
 .activation-loader {
   display: flex;
   align-items: center;
@@ -45,12 +78,11 @@
   margin-bottom: 1.5rem;
 
   i { color: v.$tag-green; font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
-
   strong { display: block; margin-bottom: 0.25rem; color: v.$tag-green; }
   p { margin: 0; font-size: 0.9rem; color: v.$text-secondary; }
 }
 
-// Active plan banner
+// ── Plan actif ─────────────────────────────────────────────────────────────────
 .current-plan {
   display: flex;
   align-items: center;
@@ -85,12 +117,106 @@
   }
 }
 
-// Plans grid
+// ── Section douleur ────────────────────────────────────────────────────────────
+.pain-section {
+  padding: 3rem 0 2.5rem;
+  text-align: center;
+
+  &__title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+  }
+}
+
+.pain-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  text-align: left;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pain-card {
+  background: v.$black;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: v.$radius-lg;
+  padding: 1.5rem;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+
+  &__icon {
+    font-size: 1.75rem;
+    display: block;
+    margin-bottom: 0.75rem;
+
+    &--orange { color: #f97316; }
+    &--red    { color: v.$primary; }
+    &--purple { color: #a78bfa; }
+  }
+
+  h3 { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; }
+  p  { margin: 0; font-size: 0.85rem; color: v.$text-secondary; line-height: 1.6; }
+}
+
+// ── Section bénéfices ──────────────────────────────────────────────────────────
+.benefits-section {
+  padding: 2.5rem 0;
+  text-align: center;
+
+  &__title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 1.75rem;
+  }
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.benefit-item {
+  background: v.$black;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: v.$radius-lg;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+
+  &__num {
+    font-size: 2rem;
+    font-weight: 900;
+    color: v.$primary;
+    line-height: 1;
+
+    &--gold { color: v.$gold; }
+  }
+
+  &__label {
+    font-size: 0.78rem;
+    color: v.$text-secondary;
+    text-align: center;
+    line-height: 1.3;
+  }
+}
+
+// ── Plans grid ─────────────────────────────────────────────────────────────────
 .plans-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
-  margin-bottom: 3rem;
+  margin: 1rem 0 3rem;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -107,8 +233,8 @@
   flex-direction: column;
   box-shadow: v.$shadow-sm, v.$edge-highlight;
   transition: border-color v.$dur-slow v.$ease-out,
-              transform v.$dur-slow v.$ease-out,
-              box-shadow v.$dur-slow v.$ease-out;
+              transform    v.$dur-slow v.$ease-out,
+              box-shadow   v.$dur-slow v.$ease-out;
 
   &:hover {
     transform: translateY(-2px);
@@ -120,26 +246,46 @@
   }
 
   &.plan-pro {
-    border-color: rgba(234, 179, 8, 0.25);
-    background: rgba(234, 179, 8, 0.03);
+    border-color: rgba(v.$gold, 0.3);
+    background: rgba(v.$gold, 0.03);
+    transform: scale(1.04);
+    box-shadow: 0 0 40px rgba(v.$gold, 0.15), v.$shadow-md, v.$edge-highlight;
+    animation: gold-pulse 4s ease-in-out infinite;
 
-    &:hover { box-shadow: v.$glow-gold, v.$shadow-md; }
+    &:hover {
+      transform: scale(1.04) translateY(-2px);
+      box-shadow: 0 0 50px rgba(v.$gold, 0.25), v.$shadow-md;
+    }
   }
+}
+
+@keyframes gold-pulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(v.$gold, 0.1), v.$shadow-md, v.$edge-highlight; }
+  50%       { box-shadow: 0 0 50px rgba(v.$gold, 0.25), v.$shadow-md, v.$edge-highlight; }
 }
 
 .plan-badge-popular {
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
   background: v.$gold;
-  color: v.$black;
+  color: #1a1200;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 0.2rem 0.75rem;
+  padding: 0.25rem 0.9rem;
   border-radius: 20px;
+  white-space: nowrap;
+  animation: badge-float 3s ease-in-out infinite;
+
+  i { margin-right: 0.2rem; font-size: 0.65rem; }
+}
+
+@keyframes badge-float {
+  0%, 100% { transform: translateX(-50%) translateY(0);    }
+  50%       { transform: translateX(-50%) translateY(-3px); }
 }
 
 .plan-badge-current {
@@ -147,7 +293,7 @@
   top: -12px;
   right: 1rem;
   background: v.$tag-blue;
-  color: v.$black;
+  color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.2rem 0.75rem;
@@ -169,8 +315,13 @@
     font-size: 1.8rem;
     font-weight: 700;
 
-    span { font-family: v.$font-body; font-size: 0.9rem; font-weight: 400;
-           letter-spacing: normal; color: v.$text-secondary; }
+    span {
+      font-family: v.$font-body;
+      font-size: 0.9rem;
+      font-weight: 400;
+      letter-spacing: normal;
+      color: v.$text-secondary;
+    }
   }
 }
 
@@ -187,8 +338,10 @@
     padding: 0.35rem 0;
     font-size: 0.88rem;
     border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: color v.$dur-fast v.$ease-out;
 
     &:last-child { border-bottom: none; }
+    &:hover { color: v.$text-primary; }
 
     i.bi-check-circle-fill { color: v.$tag-green; flex-shrink: 0; }
     i.bi-check             { color: v.$tag-neutral; flex-shrink: 0; }
@@ -228,14 +381,19 @@
 
 .btn-plan-pro {
   background: v.$gold;
-  color: v.$black;
+  color: #1a1200;
+  font-weight: 700;
 
   &:hover:not(:disabled) { opacity: 0.88; }
 }
 
-// FAQ
+// ── FAQ ────────────────────────────────────────────────────────────────────────
 .faq {
-  h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
 }
 
 .faq-item {

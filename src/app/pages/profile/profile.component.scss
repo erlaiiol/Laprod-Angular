@@ -174,11 +174,41 @@
 
 /* ── Tracks section ───────────────────────────────────────────────────────── */
 
+.tracks-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 0.75rem;
+}
+
 .tracks-title {
   font-size: 1.05rem;
   font-weight: 700;
   color: v.$text-primary;
-  margin-bottom: 1rem;
+  margin: 0;
+}
+
+.layout-toggle {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.layout-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: 1px solid v.$bg-border; border-radius: 6px;
+  color: v.$text-muted; cursor: pointer; font-size: 0.95rem;
+  transition: all 0.15s ease;
+
+  &:hover { border-color: rgba(v.$text-muted, 0.6); color: v.$off-white; }
+
+  &--active {
+    background: rgba(v.$primary, 0.12);
+    border-color: rgba(v.$primary, 0.4);
+    color: v.$primary;
+  }
 }
 
 .empty-state {
@@ -191,139 +221,28 @@
   margin: 0;
 }
 
-.tracks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+.tracks-container {
+  // mode liste (défaut) — flux vertical géré par TrackCardComponent
 }
 
-.track-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: v.$bg-surface;
-  border: 1px solid v.$bg-border;
-  border-radius: 6px;
-  padding: 0.75rem;
-  transition: border-color 0.15s;
+.tracks-container.tracks-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
 
-  &:hover { border-color: v.$bg-border-subtle; }
+  @media (max-width: 900px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 640px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
 }
 
-.track-cover {
-  flex-shrink: 0;
-  position: relative;
-  width: 56px;
-  height: 56px;
-  cursor: pointer;
+.tracks-container.tracks-compact {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 4px;
-  }
-
-  .play-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    opacity: 0;
-    transition: opacity 0.15s;
-    color: #fff;
-    font-size: 1.25rem;
-  }
-
-  &:hover .play-overlay { opacity: 1; }
-}
-
-.track-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.track-title {
-  display: block;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: v.$text-primary;
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &:hover { color: v.$primary; }
-}
-
-.badge-pending {
-  @include m.badge-flat(v.$tag-orange, v.$tag-orange-dark);
-  border-radius: 4px;
-  margin-left: 0.4rem;
-  vertical-align: middle;
-  font-size: 0.68rem;
-}
-
-.track-meta {
-  font-size: 0.75rem;
-  color: v.$text-muted;
-  margin-top: 0.15rem;
-}
-
-.track-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.3rem;
-}
-
-.tag {
-  font-size: 0.7rem;
-  color: v.$text-muted;
-  background: v.$bg-elevated;
-  border: 1px solid v.$bg-border;
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-}
-
-.track-artists-mini {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem;
-  margin-top: 0.25rem; font-size: 0.7rem; color: v.$text-muted;
-  i { margin-right: 0.2rem; }
-}
-
-.artist-chip {
-  font-style: italic; color: v.$text-muted;
-  border: 1px solid v.$bg-border; background: v.$bg-surface;
-  padding: 0.08rem 0.35rem; border-radius: 10px; font-size: 0.7rem;
-}
-
-.artist-chip-more {
-  color: v.$text-muted; font-size: 0.7rem;
-}
-
-.track-right {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.4rem;
-}
-
-.track-price {
-  font-size: 0.78rem;
-  color: v.$tag-green;
-  text-decoration: none;
-  white-space: nowrap;
-
-  &:hover { color: v.$tag-green-light; }
-}
-
-.track-edit {
-  @include m.btn-ghost-sm(v.$tag-orange);
+  @media (max-width: 900px) { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 640px) { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+  @media (max-width: 480px) { grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
 }
 
 /* ── Spinner ──────────────────────────────────────────────────────────────── */

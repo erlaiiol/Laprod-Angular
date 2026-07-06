@@ -142,17 +142,84 @@ def get_track(track_id):
                     'license_status': p.license_status,
                 }
 
+        # Métriques de preuve sociale — calculées à la volée (légères)
+        sales_count = db.session.query(func.count(Purchase.id)).filter(
+            Purchase.track_id == track_id,
+            Purchase.license_status == 'active',
+        ).scalar() or 0
+
+        unique_listeners = db.session.query(
+            func.count(func.distinct(TrackView.ip_hash))
+        ).filter(TrackView.track_id == track_id).scalar() or 0
+
+        toplines_count = db.session.query(func.count(Topline.id)).filter(
+            Topline.track_id == track_id,
+            Topline.is_published == True,  # noqa: E712
+        ).scalar() or 0
+
         track_data = track_detail(track)
         track_data['toplines']        = [ser_topline(tl) for tl in published_toplines]
         track_data['my_toplines']     = [ser_topline(tl) for tl in my_toplines]
         track_data['contract_prices'] = _resolve_contract_prices(track)
         track_data['owned_licenses']  = owned_licenses
+        track_data['sales_count']     = sales_count
+        track_data['unique_listeners'] = unique_listeners
+        track_data['toplines_count']  = toplines_count
 
         return ok({'track': track_data})
 
     except Exception as e:
         current_app.logger.warning(f'erreur API get_track(): {e}')
         return err('Erreur lors de la récupération du track', status=500)
+
+
+# ── GET /tracks/stats/platform ────────────────────────────────────────────────
+
+@tracks_api_bp.route('/stats/platform', methods=['GET'])
+def get_platform_stats():
+    """Métriques globales de la plateforme pour la landing page (cachées Redis 1h)."""
+    cache_key = 'platform:stats'
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return ok(json.loads(cached))
+    except Exception:
+        pass
+
+    try:
+        beats_count = db.session.query(func.count(Track.id)).filter(
+            Track.is_approved == True  # noqa: E712
+        ).scalar() or 0
+
+        artists_count = db.session.query(func.count(User.id)).filter(
+            User.is_artist == True  # noqa: E712
+        ).scalar() or 0
+
+        licenses_sold = db.session.query(func.count(Purchase.id)).filter(
+            Purchase.license_status == 'active'
+        ).scalar() or 0
+
+        toplines_count = db.session.query(func.count(Topline.id)).filter(
+            Topline.is_published == True  # noqa: E712
+        ).scalar() or 0
+
+        stats = {
+            'beats_count':    beats_count,
+            'artists_count':  artists_count,
+            'licenses_sold':  licenses_sold,
+            'toplines_count': toplines_count,
+        }
+
+        try:
+            redis_client.setex(cache_key, 3600, json.dumps(stats))
+        except Exception:
+            pass
+
+        return ok(stats)
+
+    except Exception as e:
+        current_app.logger.warning(f'erreur get_platform_stats(): {e}')
+        return err('Erreur stats plateforme', status=500)
 
 
 # ── GET /tracks/tracks ────────────────────────────────────────────────────────

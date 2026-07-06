@@ -630,7 +630,7 @@
 
       <!-- ── Template YouTube (affiché après l'upload réussi) ─────────────── -->
       @if (uploadDone()) {
-        <div class="yt-template-section">
+        <div class="yt-template-section" #ytSection>
           <div class="yt-template-header">
             <i class="bi bi-check-circle-fill yt-success-icon"></i>
             <h3>Beat uploadé avec succès !</h3>
@@ -650,7 +650,7 @@
               }
             </button>
             <button type="button" class="btn-go-home" (click)="goHome()">
-              <i class="bi bi-house-fill"></i> Terminer
+              <i class="bi bi-grid-fill"></i> Mon dashboard
             </button>
           </div>
 
@@ -658,6 +658,12 @@
             <i class="bi bi-info-circle"></i>
             L'URL complète du track sera disponible dans votre profil une fois le traitement terminé (quelques minutes).
           </p>
+
+          <div class="yt-template-back-home">
+            <button type="button" class="btn-back-home" (click)="goToTracks()">
+              <i class="bi bi-music-note-beamed"></i> Retour à l'accueil des beats
+            </button>
+          </div>
         </div>
       }
 
