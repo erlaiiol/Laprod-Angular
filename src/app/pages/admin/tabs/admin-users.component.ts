@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
 })
 export class AdminUsersComponent implements OnInit {
 
-  staticBase = `/db_assets/`;
+  staticBase = `${environment.apiUrl}/db_assets/`;
 
   loading    = signal(false);
   users      = signal<AdminUser[]>([]);

@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Injectable, InjectionToken, inject } from '@angular/core';
+import { Filesystem, Directory, type FilesystemPlugin } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 
 const DRAFTS_DIR = 'laprod_drafts';
@@ -11,10 +11,29 @@ export interface DraftEntry {
   mtime:    number;
 }
 
+/**
+ * Plugin Filesystem et flag natif, injectés plutôt que référencés en dur.
+ * `vi.mock('@capacitor/filesystem' | '@capacitor/core', ...)` s'est révélé peu
+ * fiable en environnement de test (hoisting Vitest partagé entre fichiers de la
+ * suite complète) — passer par l'injection Angular (même pattern que PITCH_MONITOR
+ * et OFFLINE_AUDIO_CONTEXT) permet un override via TestBed, garanti indépendant
+ * de l'ordre d'exécution des specs.
+ */
+export const CAPACITOR_FILESYSTEM = new InjectionToken<FilesystemPlugin>(
+  'CapacitorFilesystem',
+  { factory: () => Filesystem },
+);
+
+export const IS_NATIVE_PLATFORM = new InjectionToken<boolean>(
+  'IsNativePlatform',
+  { factory: () => Capacitor.isNativePlatform() },
+);
+
 @Injectable({ providedIn: 'root' })
 export class DraftSaveService {
 
-  readonly isNative = Capacitor.isNativePlatform();
+  private readonly fs = inject(CAPACITOR_FILESYSTEM);
+  readonly isNative    = inject(IS_NATIVE_PLATFORM);
 
   /**
    * Sauvegarde un Blob MP3 dans Documents/laprod_drafts/.
@@ -29,7 +48,7 @@ export class DraftSaveService {
       const filename = `${label}_${Date.now()}.mp3`;
       const base64   = await this._blobToBase64(blob);
 
-      const result = await Filesystem.writeFile({
+      const result = await this.fs.writeFile({
         path:      `${DRAFTS_DIR}/${filename}`,
         data:      base64,
         directory: Directory.Documents,
@@ -48,7 +67,7 @@ export class DraftSaveService {
     if (!this.isNative) return [];
 
     try {
-      const { files } = await Filesystem.readdir({
+      const { files } = await this.fs.readdir({
         path:      DRAFTS_DIR,
         directory: Directory.Documents,
       });
@@ -70,7 +89,7 @@ export class DraftSaveService {
   /** Supprime un brouillon par son chemin relatif. */
   async deleteDraft(path: string): Promise<void> {
     if (!this.isNative) return;
-    await Filesystem.deleteFile({ path, directory: Directory.Documents }).catch(() => {});
+    await this.fs.deleteFile({ path, directory: Directory.Documents }).catch(() => {});
   }
 
   /** Supprime tous les brouillons plus vieux que `maxAgeDays` jours. */
@@ -86,7 +105,7 @@ export class DraftSaveService {
 
   private async _ensureDir(): Promise<void> {
     try {
-      await Filesystem.mkdir({
+      await this.fs.mkdir({
         path:      DRAFTS_DIR,
         directory: Directory.Documents,
         recursive: true,

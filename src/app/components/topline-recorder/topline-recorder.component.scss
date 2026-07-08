@@ -699,3 +699,69 @@
     &:hover { color: v.$text-primary; }
   }
 }
+
+// ── Upsell dans la vue résultat (guest) ──────────────────────────────────────
+
+.guest-result-upsell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(v.$primary, 0.06);
+  border: 1px solid rgba(v.$primary, 0.2);
+  border-radius: v.$radius-lg;
+  margin-top: 0.75rem;
+  text-align: center;
+
+  &__msg {
+    margin: 0;
+    font-size: 0.85rem;
+    color: v.$text-secondary;
+    line-height: 1.55;
+    i { color: v.$primary; margin-right: 0.3rem; }
+    strong { color: v.$text-primary; }
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+
+    .btn-upsell-register {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: v.$primary;
+      color: #fff;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-decoration: none;
+      &:hover { background: v.$primary-dark; }
+    }
+
+    .btn-upsell-login {
+      font-size: 0.8rem;
+      color: v.$text-secondary;
+      text-decoration: none;
+      &:hover { color: v.$text-primary; }
+    }
+  }
+
+  .guest-retry {
+    background: transparent;
+    border: 1px solid v.$bg-border;
+    color: v.$text-muted;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    &:hover { background: v.$bg-elevated; color: v.$text-secondary; }
+  }
+}

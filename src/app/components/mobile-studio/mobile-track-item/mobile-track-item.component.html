@@ -42,9 +42,14 @@
               title="Double-clic pour renommer">{{ track.name }}</span>
       }
 
-      <!-- Waveform -->
-      <canvas #wfCanvas class="mti-waveform" width="180" height="46"
-              aria-hidden="true"></canvas>
+      <!-- Waveform + playhead -->
+      <div class="mti-wf-wrap" (click)="onWaveformClick($event)">
+        <canvas #wfCanvas class="mti-waveform" width="180" height="46"
+                aria-hidden="true"></canvas>
+        @if (playheadPct !== null) {
+          <div class="mti-playhead" [style.left.%]="playheadPct * 100" aria-hidden="true"></div>
+        }
+      </div>
 
       <!-- Actions -->
       <div class="mti-actions" (click)="$event.stopPropagation()">
@@ -77,7 +82,7 @@
   </div>
 
   <!-- ── Contrôles expandables ──────────────────────────────────────────────── -->
-  @if (track.trackState === 'recorded' && expanded()) {
+  @if (track.trackState === 'empty' || (track.trackState === 'recorded' && expanded())) {
     <div class="mti-controls">
 
       <!-- Autotune — simple ON / OFF -->

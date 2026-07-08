@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, inject, effect, untracked, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, signal, inject, effect, untracked, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Router } from '@angular/router';
@@ -18,7 +19,9 @@ import { LicenseService, ComposerLicense, ComposerLicensesData } from '../../../
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
 import { UploadStatusService } from '../../../services/upload-status.service';
 import { HttpClient } from '@angular/common/http';
+import { catchError, EMPTY, switchMap } from 'rxjs';
 import { TrackQualityScoreComponent } from '../../../components/track-quality-score/track-quality-score.component';
+import { AppRefreshService } from '../../../services/app-refresh.service';
 import { environment } from '../../../../environments/environment';
 
 export interface TrackViewStat {
@@ -147,16 +150,18 @@ export class DashboardBeatmakerComponent implements OnInit {
   readonly periods: readonly ('7d' | '30d' | '90d')[] = ['7d', '30d', '90d'];
   readonly apiUrl = environment.apiUrl;
 
-  readonly auth          = inject(AuthService);
-  private dashboardSvc   = inject(DashboardService);
-  private trackSvc       = inject(TrackService);
-  private cudTrackSvc    = inject(CudTrackService);
-  private router         = inject(Router);
-  private toast          = inject(ToastService);
-  private playlistSvc    = inject(PlaylistService);
-  private licenseSvc     = inject(LicenseService);
+  readonly auth           = inject(AuthService);
+  private dashboardSvc    = inject(DashboardService);
+  private trackSvc        = inject(TrackService);
+  private cudTrackSvc     = inject(CudTrackService);
+  private router          = inject(Router);
+  private toast           = inject(ToastService);
+  private playlistSvc     = inject(PlaylistService);
+  private licenseSvc      = inject(LicenseService);
   private uploadStatusSvc = inject(UploadStatusService);
   private http            = inject(HttpClient);
+  private refreshSvc      = inject(AppRefreshService);
+  private destroyRef      = inject(DestroyRef);
 
   constructor() {
     // Quand le worker d'upload termine (toast de progression), rafraîchir
@@ -214,6 +219,16 @@ export class DashboardBeatmakerComponent implements OnInit {
     this.trackSvc.getViewStats().subscribe({
       next: res => { this.viewStats.set(res.data?.stats ?? []); this.viewStatsLoading.set(false); },
       error: () => this.viewStatsLoading.set(false),
+    });
+
+    // Rafraîchissement silencieux tant que le dashboard est ouvert.
+    // Ne touche pas aux indicateurs de chargement — l'UI ne clignote pas.
+    // Si la requête échoue, on conserve les données existantes.
+    this.refreshSvc.soft$.pipe(
+      switchMap(() => this.dashboardSvc.getBeatmakerDashboard().pipe(catchError(() => EMPTY))),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (res) => { if (res.success) this.data.set(res.data!); },
     });
   }
 

@@ -56,7 +56,7 @@ import { environment } from '../../../../environments/environment';
 export class AdminDashboardComponent implements OnInit {
   @Input() onStatsLoaded?: (stats: AdminStats) => void;
 
-  staticBase = `/db_assets/`;
+  staticBase = `${environment.apiUrl}/db_assets/`;
   loading    = signal(false);
   stats      = signal<AdminStats | null>(null);
 

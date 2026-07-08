@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
 export class AdminTracksComponent implements OnInit {
   @Output() pendingCountChange = new EventEmitter<number>();
 
-  staticBase = `/db_assets/`;
+  staticBase = `${environment.apiUrl}/db_assets/`;
 
   loading        = signal(false);
   tracks         = signal<AdminTrack[]>([]);

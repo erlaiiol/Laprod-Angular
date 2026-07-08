@@ -93,7 +93,10 @@ describe('TrackDetailComponent — licences et confirmation', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            snapshot: { paramMap: { get: () => '42' } },
+            snapshot: {
+              paramMap:      { get: () => '42' },
+              queryParamMap: { get: () => null },
+            },
           },
         },
       ],

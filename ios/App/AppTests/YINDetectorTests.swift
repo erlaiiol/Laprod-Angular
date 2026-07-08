@@ -171,6 +171,43 @@ final class YINDetectorTests: XCTestCase {
         XCTAssertNil(correction, "Gamme vide → pas de correction possible")
     }
 
+    // ── Voix masculines (testé après fix frameSize=2048) ─────────────────────
+    //
+    // Avec frameSize=512 @ 48 kHz, tauMax=600 > half=256 → guard échoue → nil.
+    // Le fix frameSize=2048 (tauMax=600 < half=1024) corrige cette régression.
+
+    func testDetectsMaleVoiceE2_82Hz() {
+        var detector = YINDetector(frameSize: frameSize, minFrequency: 70, maxFrequency: 1_200)
+        let frame    = sineWave(frequency: 82.4)  // E2 — limite basse voix de basse
+        let hz       = detector.detect(frame: frame, sampleRate: sampleRate)
+        XCTAssertNotNil(hz, "YIN doit détecter E2 (82 Hz) avec frameSize=2048")
+        XCTAssertEqual(hz!, 82.4, accuracy: 4.0)
+    }
+
+    func testDetectsMaleVoiceA2_110Hz() {
+        var detector = YINDetector(frameSize: frameSize)
+        let frame    = sineWave(frequency: 110.0)
+        let hz       = detector.detect(frame: frame, sampleRate: sampleRate)
+        XCTAssertNotNil(hz, "YIN doit détecter A2 (110 Hz) avec frameSize=2048")
+        XCTAssertEqual(hz!, 110.0, accuracy: 4.0)
+    }
+
+    func testDetectsMaleVoiceB2_123Hz() {
+        var detector = YINDetector(frameSize: frameSize)
+        let frame    = sineWave(frequency: 123.47)
+        let hz       = detector.detect(frame: frame, sampleRate: sampleRate)
+        XCTAssertNotNil(hz, "YIN doit détecter B2 (123 Hz) avec frameSize=2048")
+        XCTAssertEqual(hz!, 123.47, accuracy: 5.0)
+    }
+
+    func testDetectsMaleVoiceD3_147Hz() {
+        var detector = YINDetector(frameSize: frameSize)
+        let frame    = sineWave(frequency: 146.83)
+        let hz       = detector.detect(frame: frame, sampleRate: sampleRate)
+        XCTAssertNotNil(hz, "YIN doit détecter D3 (147 Hz) avec frameSize=2048")
+        XCTAssertEqual(hz!, 146.83, accuracy: 5.0)
+    }
+
     // ── Précondition ──────────────────────────────────────────────────────────
 
     func testWrongFrameSizeFatalError() {

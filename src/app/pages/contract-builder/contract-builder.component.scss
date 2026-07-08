@@ -66,6 +66,33 @@
   h2 { font-size: 1rem; font-weight: 700; margin: 0 0 0.85rem; }
 }
 
+.cb-type-choice {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.85rem;
+  @media (max-width: 540px) { grid-template-columns: 1fr; }
+}
+
+.cb-type-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 10px;
+  padding: 0.75rem 0.9rem; cursor: pointer; text-align: left;
+  color: v.$text-primary; transition: border-color 0.15s, background 0.15s;
+
+  i { font-size: 1.1rem; color: v.$text-muted; }
+
+  .cb-type-label { font-size: 0.85rem; font-weight: 700; }
+  .cb-type-desc  { font-size: 0.75rem; color: v.$text-secondary; line-height: 1.4; }
+
+  &:hover { border-color: v.$tag-violet; }
+
+  &.selected {
+    border-color: v.$tag-violet;
+    background: rgba(v.$tag-violet, 0.08);
+    i { color: v.$tag-violet-light; }
+  }
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
 .cb-new-form {
   display: flex; gap: 0.6rem;
   @media (max-width: 540px) { flex-direction: column; }
@@ -116,6 +143,20 @@
 
 .cb-contract-date {
   font-size: 0.75rem; color: v.$text-secondary;
+}
+
+.cb-type-badge {
+  font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+  border-radius: 12px; white-space: nowrap;
+  background: rgba(v.$tag-violet, 0.12); color: v.$tag-violet-light;
+  border: 1px solid rgba(v.$tag-violet, 0.35);
+
+  &--perf {
+    background: rgba(v.$tag-green, 0.12); color: v.$tag-green-light;
+    border-color: rgba(v.$tag-green, 0.35);
+  }
+
+  @media (max-width: 540px) { display: none; }
 }
 
 .cb-status-badge {

@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace = "net.laprod.app"
@@ -10,6 +11,12 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17"
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -22,6 +29,26 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    buildFeatures {
+        // AGP 8+ désactive BuildConfig par défaut ; requis par MainActivity.java (BuildConfig.DEBUG)
+        // pour n'activer le mixed content HTTP local qu'en debug.
+        buildConfig true
+    }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 repositories {
@@ -40,7 +67,11 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
-    implementation 'com.github.JorenSix:TarsosDSP:2.4'
+    // Jar "fat" TarsosDSP-Android (core + pitch + be.tarsos.dsp.io.android), résolu via le
+    // dépôt ivy déclaré dans le build.gradle racine. Ne pas ajouter "be.tarsos.dsp:core" en
+    // plus : ce jar l'embarque déjà et provoquerait des classes dupliquées.
+    implementation "TarsosDSP:TarsosDSP-Android:2.4"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion"
 }
 
 apply from: 'capacitor.build.gradle'

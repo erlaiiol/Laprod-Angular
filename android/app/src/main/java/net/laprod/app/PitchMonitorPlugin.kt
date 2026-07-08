@@ -10,7 +10,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.PlaybackParams
+import android.media.audiofx.PresetReverb
 import android.os.Build
 import android.util.Base64
 import be.tarsos.dsp.AudioDispatcher
@@ -34,18 +34,11 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.pow
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
-//
-// Responsabilité unique : gestion du cycle de vie Capacitor (startSession /
-// stopSession / checkHeadphones) et pont vers les composants DSP.
-//
-// La logique audio de bas niveau est isolée dans AudioRecordingSession.
 
 @CapacitorPlugin(name = "PitchMonitor")
 class PitchMonitorPlugin : Plugin() {
 
     private var activeSession: AudioRecordingSession? = null
-
-    // ── startSession ──────────────────────────────────────────────────────────
 
     @PluginMethod
     fun startSession(call: PluginCall) {
@@ -55,7 +48,11 @@ class PitchMonitorPlugin : Plugin() {
         }
 
         val speedStr = call.getString("retuneSpeed") ?: "natural"
-        val smoothK  = if (speedStr == "precise") 0.5f else 0.85f
+        val smoothK  = when (speedStr) {
+            "robot"   -> 0.00f
+            "precise" -> 0.55f
+            else      -> 0.82f
+        }
 
         val opts = RecordingOptions(
             useMonitor      = call.getBoolean("useMonitor")      ?: false,
@@ -75,7 +72,6 @@ class PitchMonitorPlugin : Plugin() {
             })
         }
         session.onInterrupted = {
-            // Exécuter sur le thread principal pour respecter les garanties Capacitor
             activity?.runOnUiThread {
                 val active = activeSession ?: return@runOnUiThread
                 val result = active.stop()
@@ -94,8 +90,6 @@ class PitchMonitorPlugin : Plugin() {
         call.resolve()
     }
 
-    // ── stopSession ───────────────────────────────────────────────────────────
-
     @PluginMethod
     fun stopSession(call: PluginCall) {
         val session = activeSession ?: run {
@@ -104,7 +98,6 @@ class PitchMonitorPlugin : Plugin() {
         }
         val result = session.stop()
         activeSession = null
-
         call.resolve(JSObject().apply {
             put("pcmBase64",  Base64.encodeToString(result.pcmBytes, Base64.NO_WRAP))
             put("sampleRate", result.sampleRate)
@@ -113,35 +106,29 @@ class PitchMonitorPlugin : Plugin() {
         })
     }
 
-    // ── checkHeadphones ───────────────────────────────────────────────────────
-
     @PluginMethod
     fun checkHeadphones(call: PluginCall) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         var hpType = "none"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val devices = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            for (device in devices) {
+            for (device in am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
                 when (device.type) {
                     AudioDeviceInfo.TYPE_WIRED_HEADSET,
                     AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> hpType = "wired"
-                    // SCO (HFP) supporte le monitoring audio bidirectionnel
                     AudioDeviceInfo.TYPE_BLUETOOTH_SCO    -> if (hpType != "wired") hpType = "bluetooth"
-                    // A2DP = lecture seule, monitoring micro impossible
                     AudioDeviceInfo.TYPE_BLUETOOTH_A2DP   -> if (hpType != "wired" && hpType != "bluetooth") hpType = "bluetooth-a2dp"
                     else -> {}
                 }
             }
         } else {
             @Suppress("DEPRECATION")
-            if (am.isWiredHeadsetOn) hpType = "wired"
-            @Suppress("DEPRECATION")
-            else if (am.isBluetoothScoOn) hpType = "bluetooth"
-            @Suppress("DEPRECATION")
-            else if (am.isBluetoothA2dpOn) hpType = "bluetooth-a2dp"
+            when {
+                am.isWiredHeadsetOn  -> hpType = "wired"
+                am.isBluetoothScoOn  -> hpType = "bluetooth"
+                am.isBluetoothA2dpOn -> hpType = "bluetooth-a2dp"
+            }
         }
-
         call.resolve(JSObject().apply { put("type", hpType) })
     }
 }
@@ -163,8 +150,20 @@ data class SessionResult(val pcmBytes: ByteArray, val sampleRate: Int)
 
 // ── AudioRecordingSession ─────────────────────────────────────────────────────
 //
-// Encapsule TarsosDSP AudioDispatcher + AudioTrack de monitoring.
-// Monitoring autotune : correction de hauteur via PlaybackParams.pitch sur AudioTrack.
+// Monitoring autotune :
+//   monitorAutotune=false → volume direct (AudioTrack write sans pitch shift)
+//   monitorAutotune=true  → RubberBandProcessor (formant preservé, ~10 ms latence)
+//
+// Architecture monitoring avec Rubber Band :
+//
+//   [TarsosDSP AudioDispatcher]
+//       └── AudioProcessor.process(event):
+//               event.floatBuffer → RubberBandProcessor.process()
+//               retrieve() → convertir float→Int16 → AudioTrack
+//       └── PitchProcessor (YIN):
+//               détecte la hauteur → rubberBand.setPitchCents(correction)
+//
+// La correction s'applique AU BLOC SUIVANT (1 frame de délai = 23 ms @ 44.1 kHz).
 
 class AudioRecordingSession(private val opts: RecordingOptions, private val context: Context) {
 
@@ -174,8 +173,8 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
 
     private val SAMPLE_RATE = 44_100
 
-    // Monitoring autotune : frame 512 (10 ms) ; standard : frame calculé par TarsosDSP
-    private val MONITOR_FRAME  = 512
+    // 1024 samples @ 44.1 kHz : half=512, min détectable ≈ 86 Hz → voix masculines OK
+    private val MONITOR_FRAME  = 1024
     private val STANDARD_FRAME = android.media.AudioRecord.getMinBufferSize(
         SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
     )
@@ -184,13 +183,13 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private val pcmBuffer         = ByteArrayOutputStream()
     private var dispatcher: AudioDispatcher? = null
     private var outputTrack: AudioTrack?     = null
+    private var rubberBand: RubberBandProcessor? = null
+    private var reverb: PresetReverb?        = null
     private var job: Job?                    = null
 
-    // Lissage exponentiel pour le monitoring autotune (accès mono-thread : coroutine IO)
     private var smoothedSemitones = 0f
-    private val MONITOR_CAP      = 1.5f   // semitones
+    private val MONITOR_CAP       = 2.5f
 
-    // Gestion des interruptions audio (appel entrant, autre app)
     private var focusRequest:  AudioFocusRequest? = null
     private var noisyReceiver: BroadcastReceiver? = null
 
@@ -208,40 +207,51 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         val bufferSize = if (opts.monitorAutotune) MONITOR_FRAME else STANDARD_FRAME
         dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(SAMPLE_RATE, bufferSize, 0)
 
-        // ── Enregistrement PCM brut ────────────────────────────────────────────
+        // ── Enregistrement PCM + monitoring ───────────────────────────────────
         dispatcher!!.addAudioProcessor(object : AudioProcessor {
             override fun process(event: AudioEvent): Boolean {
+                // Toujours enregistrer les octets bruts (audio non traité → serveur)
                 pcmBuffer.write(event.byteBuffer, 0, event.byteBuffer.size)
-                onLevel?.invoke(event.rMS)
-                if (opts.useMonitor) {
-                    outputTrack?.write(applyGain(event.byteBuffer, opts.voiceGain), 0, event.byteBuffer.size)
+                onLevel?.invoke(event.getRMS().toFloat())
+
+                if (!opts.useMonitor) return true
+
+                if (opts.monitorAutotune) {
+                    // Passer par Rubber Band pour le monitoring avec autotune
+                    rubberBand?.process(event.floatBuffer)
+                    val available = rubberBand?.available() ?: 0
+                    if (available > 0) {
+                        val out = FloatArray(available)
+                        rubberBand?.retrieve(out)
+                        outputTrack?.write(floatsToInt16(out, opts.voiceGain), 0, available * 2)
+                    }
+                } else {
+                    // Monitoring simple : volume direct, pas de pitch shift
+                    outputTrack?.write(applyGain(event.byteBuffer, opts.voiceGain),
+                                       0, event.byteBuffer.size)
                 }
                 return true
             }
             override fun processingFinished() {}
         })
 
-        // ── Détection de hauteur YIN (TarsosDSP) ──────────────────────────────
+        // ── Détection de hauteur YIN ──────────────────────────────────────────
         val pdh = PitchDetectionHandler { result: PitchDetectionResult, _: AudioEvent ->
             val hz = result.pitch
             if (!result.isPitched || hz < 80f || hz > 1_200f) return@PitchDetectionHandler
 
-            val nearest    = PitchCorrectionEngine.findNearestNote(hz, scale) ?: return@PitchDetectionHandler
+            val nearest      = PitchCorrectionEngine.findNearestNote(hz, scale)
+                               ?: return@PitchDetectionHandler
             val rawSemitones = PitchCorrectionEngine.correctionSemitones(hz, nearest)
 
             if (opts.monitorAutotune && opts.useMonitor) {
-                // Lissage exponentiel
-                smoothedSemitones = opts.smoothK * smoothedSemitones + (1 - opts.smoothK) * rawSemitones
+                smoothedSemitones = opts.smoothK * smoothedSemitones +
+                                    (1 - opts.smoothK) * rawSemitones
                 val clamped = smoothedSemitones.coerceIn(-MONITOR_CAP, MONITOR_CAP)
 
-                // Pitch shift via PlaybackParams (API 23+, préserve la durée)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val pitchRatio = 2f.pow(clamped / 12f)
-                    outputTrack?.playbackParams = PlaybackParams().apply {
-                        pitch = pitchRatio
-                        speed = 1f
-                    }
-                }
+                // Communiquer la correction au processeur Rubber Band (thread-safe).
+                // Elle sera appliquée au prochain bloc process() (délai 1 frame ≈ 23 ms).
+                rubberBand?.setPitchCents(clamped * 100f)
                 onPitch?.invoke(hz, clamped)
             } else {
                 onPitch?.invoke(hz, rawSemitones)
@@ -249,19 +259,60 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         dispatcher!!.addAudioProcessor(PitchProcessor(YIN, SAMPLE_RATE.toFloat(), bufferSize, pdh))
 
-        // ── Monitoring AudioTrack ──────────────────────────────────────────────
+        // ── AudioTrack ────────────────────────────────────────────────────────
         if (opts.useMonitor) {
-            val outBufSize = AudioTrack.getMinBufferSize(
-                SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT
-            )
-            outputTrack = AudioTrack(
-                AudioManager.STREAM_MUSIC, SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                outBufSize, AudioTrack.MODE_STREAM
-            ).also { it.play() }
+            val minBuf     = AudioTrack.getMinBufferSize(SAMPLE_RATE,
+                                AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            val targetBuf  = SAMPLE_RATE / 100 * 2   // 10 ms en Int16
+            val outBufSize = maxOf(minBuf, targetBuf)
+
+            outputTrack = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(SAMPLE_RATE)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(outBufSize)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                    .build()
+                    .also { it.play() }
+            } else {
+                @Suppress("DEPRECATION")
+                AudioTrack(
+                    AudioManager.STREAM_MUSIC, SAMPLE_RATE,
+                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    outBufSize, AudioTrack.MODE_STREAM
+                ).also { it.play() }
+            }
+
+            // Créer Rubber Band uniquement pour le monitoring autotune
+            if (opts.monitorAutotune) {
+                rubberBand = RubberBandProcessor(SAMPLE_RATE)
+            }
+
+            // Reverb plate sur le retour monitoring (miroir du chemin iOS).
+            // runCatching : AudioEffect peut échouer sur certains appareils / émulateurs.
+            if (opts.reverbWet > 0f) {
+                runCatching {
+                    reverb = PresetReverb(0, outputTrack!!.audioSessionId).apply {
+                        preset  = PresetReverb.PRESET_PLATE
+                        enabled = true
+                    }
+                }
+            }
         }
 
-        // ── AudioFocus — interrompt si un appel ou une app prioritaire prend l'audio ──
+        // ── AudioFocus ────────────────────────────────────────────────────────
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
@@ -280,7 +331,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
         }
 
-        // ── AUDIO_BECOMING_NOISY — débrancher le casque pendant l'enregistrement ──
         noisyReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
@@ -288,15 +338,16 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 }
             }
         }
-        context.registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        context.registerReceiver(noisyReceiver,
+                                  IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
 
         job = CoroutineScope(Dispatchers.IO).launch { dispatcher!!.run() }
     }
 
     fun stop(): SessionResult {
-        // Libérer les ressources audio système avant d'arrêter le dispatcher
         try { context.unregisterReceiver(noisyReceiver) } catch (_: Exception) {}
         noisyReceiver = null
+
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             focusRequest?.let { am.abandonAudioFocusRequest(it) }
@@ -308,6 +359,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
 
         dispatcher?.stop()
         job?.cancel()
+        rubberBand?.close()
+        rubberBand = null
+        reverb?.release()
+        reverb = null
         outputTrack?.stop()
         outputTrack?.release()
         outputTrack = null
@@ -315,8 +370,20 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE)
     }
 
-    // ── Gain PCM Int16 ────────────────────────────────────────────────────────
+    // ── PCM conversions ───────────────────────────────────────────────────────
 
+    // Float32 [-1,1] → Int16 little-endian bytes, with gain
+    private fun floatsToInt16(samples: FloatArray, gain: Float): ByteArray {
+        val out = ByteArray(samples.size * 2)
+        for (i in samples.indices) {
+            val s  = (samples[i] * gain * 32767f).toInt().coerceIn(-32_768, 32_767).toShort()
+            out[i * 2]     = (s.toInt() and 0xFF).toByte()
+            out[i * 2 + 1] = ((s.toInt() shr 8) and 0xFF).toByte()
+        }
+        return out
+    }
+
+    // Int16 little-endian bytes → gain applied in-place
     private fun applyGain(bytes: ByteArray, gain: Float): ByteArray {
         val out = ByteArray(bytes.size)
         var i = 0
@@ -330,7 +397,5 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         return out
     }
 }
-
-// ── Alias de type (lisibilité des lambdas) ────────────────────────────────────
 
 private typealias Void = Unit

@@ -1313,6 +1313,12 @@ class UserContractStatus(enum.Enum):
     final = 'final'
 
 
+class ContractTemplateTypeEnum(enum.Enum):
+    """Famille de contrat du builder : exploitation d'œuvre ou représentation (live)."""
+    exploitation = 'exploitation'
+    performance  = 'performance'
+
+
 class PartyTypeEnum(enum.Enum):
     physical = 'physical'
     company  = 'company'
@@ -1322,8 +1328,11 @@ class ContractClauseGroup(db.Model):
     """Groupes de clauses (sections) du contract builder, gérés par l'admin."""
     __tablename__ = 'contract_clause_group'
 
-    id          = db.Column(db.Integer, primary_key=True)
-    name        = db.Column(db.String(150), nullable=False)
+    id            = db.Column(db.Integer, primary_key=True)
+    name          = db.Column(db.String(150), nullable=False)
+    contract_type = db.Column(db.Enum(ContractTemplateTypeEnum), nullable=False,
+                              default=ContractTemplateTypeEnum.exploitation,
+                              server_default='exploitation')
     description = db.Column(db.Text, nullable=True)
     tooltip     = db.Column(db.Text, nullable=True)
     sort_order  = db.Column(db.Integer, nullable=False, default=0)
@@ -1383,9 +1392,12 @@ class UserContract(db.Model):
     """Contrat d'exploitation créé par un utilisateur premium."""
     __tablename__ = 'user_contract'
 
-    id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title      = db.Column(db.String(200), nullable=False)
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title         = db.Column(db.String(200), nullable=False)
+    contract_type = db.Column(db.Enum(ContractTemplateTypeEnum), nullable=False,
+                              default=ContractTemplateTypeEnum.exploitation,
+                              server_default='exploitation')
     status     = db.Column(db.Enum(UserContractStatus), nullable=False, default=UserContractStatus.draft)
     pdf_file   = db.Column(db.String(300), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)

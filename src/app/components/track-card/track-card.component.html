@@ -133,7 +133,7 @@
       <i class="bi bi-mic-fill"></i>
     </button>
     <app-favorite-button [trackId]="track.id"></app-favorite-button>
-    <app-share-button [url]="'/track/' + track.id" [title]="track.title"></app-share-button>
+    <app-share-button [url]="'/track/' + track.id + '?autoplay=1'" [title]="track.title"></app-share-button>
     <div class="track-playlist-wrap">
       <span class="track-playlist-label">playlists</span>
       <app-playlist-button [track]="track"></app-playlist-button>

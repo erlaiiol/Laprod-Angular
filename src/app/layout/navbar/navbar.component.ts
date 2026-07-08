@@ -8,6 +8,7 @@ import { FilterStateService } from '../../services/filter-state.service';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-navbar',
@@ -36,6 +37,7 @@ export class NavbarComponent implements OnInit {
 
   private notifSvc          = inject(NotificationService);
   private similarArtistsSvc = inject(SimilarArtistsService);
+  readonly themeSvc         = inject(ThemeService);
 
   private router = inject(Router);
 
@@ -185,6 +187,26 @@ export class NavbarComponent implements OnInit {
     });
     if (this.router.url.split('?')[0] !== '/') {
       this.router.navigate(['/']);
+    }
+    this._closeNavbarCollapse();
+  }
+
+  private _closeNavbarCollapse(): void {
+    const el = document.getElementById('navbarNav');
+    if (!el) return;
+    const bsCollapse = (window as any).bootstrap?.Collapse?.getInstance(el);
+    bsCollapse?.hide();
+  }
+
+  // Délégation d'événement sur le menu mobile : Bootstrap ne referme le
+  // collapse qu'au clic sur le toggler, pas sur les liens à l'intérieur.
+  // On ferme au clic sur tout lien qui navigue réellement (nav-link,
+  // dropdown-item) — pas sur les toggles de sous-menu (Contrats, avatar),
+  // qui ne font qu'ouvrir un dropdown sans changer de page.
+  onNavLinkClick(event: MouseEvent): void {
+    const link = (event.target as HTMLElement).closest('a');
+    if (link && !link.classList.contains('dropdown-toggle')) {
+      this._closeNavbarCollapse();
     }
   }
 

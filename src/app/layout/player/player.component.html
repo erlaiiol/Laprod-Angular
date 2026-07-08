@@ -5,14 +5,6 @@
   <!-- ✕ Close -->
   <button class="btn-close-player" (click)="player.close()" aria-label="Fermer le player">&#x2715;</button>
 
-  <!-- ⚡ Premium float -->
-  @if (auth.isLoggedIn() && !auth.isPremium()) {
-    <button class="premium-float-btn" [routerLink]="['/premium']" title="Passer Premium">
-      <i class="bi bi-lightning-charge-fill"></i>
-      <span class="premium-float-label">Premium</span>
-    </button>
-  }
-
   <div class="player-content">
 
     <!-- ── LEFT: cover (click = toggle play) + title/artist ────────────── -->
@@ -104,8 +96,8 @@
                   <span class="btn-action-label">Enregistre ta topline</span>
                   <span class="btn-action-free btn-action-free--rec">gratuit · autotune intégré</span>
                 } @else {
-                  <span class="btn-action-label">Essaie la topline</span>
-                  <span class="btn-action-free btn-action-free--login">gratuit · connexion rapide</span>
+                  <span class="btn-action-label">Enregistre ta topline</span>
+                  <span class="btn-action-free btn-action-free--rec">gratuit · autotune intégré</span>
                 }
               </span>
             </button>

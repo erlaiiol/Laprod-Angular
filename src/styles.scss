@@ -3,8 +3,26 @@
 @use 'styles/mixins'    as m;
 
 // ── CSS custom properties — available globally via var() ─────────────────────
+// IMPORTANT : les variables bg-* / text-* / glass-* sont écrites en valeurs brutes
+// ici (pas de #{v.$xxx}) car $bg-base etc. valent désormais var(--bg-base) —
+// écrire #{v.$bg-base} produirait --bg-base: var(--bg-base) (référence circulaire).
 
 :root {
+  // ── Thème sombre (défaut) ──────────────────────────────────────────────────
+  --bg-base:          #101218;
+  --bg-surface:       #181b24;
+  --bg-elevated:      #212533;
+  --bg-border:        #2b3140;
+  --bg-border-subtle: #3d4457;
+
+  --text-primary:    #f5f6f8;
+  --text-secondary:  #9aa3b2;
+  --text-muted:      #687180;
+
+  --glass-bg:     rgba(20, 23, 31, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --backdrop-dim: rgba(6, 7, 10, 0.72);
+
   // Tag colors — main (vibrant)
   --tag-violet:  #{v.$tag-violet};
   --tag-blue:    #{v.$tag-blue};
@@ -37,23 +55,11 @@
   --tag-neutral-light:  #{v.$tag-neutral-light};
   --tag-neutral-dark:   #{v.$tag-neutral-dark};
 
-  // App background layers (deep dark, faint blue undertone)
-  --bg-base:          #{v.$bg-base};
-  --bg-surface:       #{v.$bg-surface};
-  --bg-elevated:      #{v.$bg-elevated};
-  --bg-border:        #{v.$bg-border};
-  --bg-border-subtle: #{v.$bg-border-subtle};
-
-  // Text
-  --text-primary:    #{v.$text-primary};
-  --text-secondary:  #{v.$text-secondary};
-  --text-muted:      #{v.$text-muted};
-
   // Whites
   --white:     #{v.$white};
-  --off-white: #{v.$off-white};
+  --off-white: #f5f6f8;
 
-  // Primary CTA — rouge raffiné; $accent kept as alias
+  // Primary CTA — rouge raffiné (invariant entre les thèmes)
   --primary:          #{v.$primary};
   --primary-dark:     #{v.$primary-dark};
   --primary-darker:   #{v.$primary-darker};
@@ -101,7 +107,27 @@
   --dur-base:    #{v.$dur-base};
   --dur-slow:    #{v.$dur-slow};
   --ease-out:    #{v.$ease-out};
-  --glass-bg:    #{v.$glass-bg};
+}
+
+// ── Thème clair ───────────────────────────────────────────────────────────────
+// Seules les variables qui changent entre dark/light sont redéclarées ici.
+// Le reste (couleurs tag, primary rouge, gold, tokens) reste identique.
+
+[data-theme="light"] {
+  --bg-base:          #f0f2f5;
+  --bg-surface:       #ffffff;
+  --bg-elevated:      #f8f9fb;
+  --bg-border:        #dde2ea;
+  --bg-border-subtle: #c8cfd9;
+
+  --text-primary:    #111827;
+  --text-secondary:  #374151;
+  --text-muted:      #6b7280;
+  --off-white:       #111827;
+
+  --glass-bg:     rgba(248, 249, 251, 0.88);
+  --glass-border: rgba(0, 0, 0, 0.07);
+  --backdrop-dim: rgba(15, 20, 40, 0.45);
 }
 
 // ── Global dark-theme overrides (loaded after Bootstrap, bundled via angular.json) ─
@@ -168,15 +194,79 @@ h1, h2, h3, h4, h5, h6,
 
 // Align Bootstrap's bg-dark navbar with the page's dark background.
 // Verre léger : le contenu défile derrière la navbar sticky avec un blur discret.
+// padding-top: env(safe-area-inset-top) descend le contenu sous le notch/Dynamic Island.
 nav.navbar.bg-dark,
 .navbar.navbar-dark.bg-dark {
   background-color: v.$bg-base !important;
   border-bottom: 1px solid v.$glass-border;
+  padding-top: max(0.5rem, env(safe-area-inset-top));
 
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     background-color: v.$glass-bg !important;
     -webkit-backdrop-filter: blur(v.$glass-blur) saturate(1.4);
     backdrop-filter: blur(v.$glass-blur) saturate(1.4);
+  }
+}
+
+// ── Overrides mode clair — Bootstrap classes globales ─────────────────────────
+
+[data-theme="light"] {
+  // Navbar Bootstrap : passe les CSS variables internes de navbar-dark au mode clair
+  .navbar.navbar-dark {
+    --bs-navbar-color:                rgba(0, 0, 0, 0.72);
+    --bs-navbar-hover-color:          rgba(0, 0, 0, 0.9);
+    --bs-navbar-active-color:         #111827;
+    --bs-navbar-brand-color:          #111827;
+    --bs-navbar-brand-hover-color:    #111827;
+    --bs-navbar-toggler-border-color: rgba(0, 0, 0, 0.2);
+    // Icône hamburger sombre (SVG inline encodé)
+    --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280%2C0%2C0%2C0.65%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+
+  // Dropdown sombre → fond blanc en mode clair
+  .dropdown-menu-dark {
+    --bs-dropdown-bg:                 #ffffff;
+    --bs-dropdown-color:              #374151;
+    --bs-dropdown-border-color:       #dde2ea;
+    --bs-dropdown-link-color:         #374151;
+    --bs-dropdown-link-hover-color:   #111827;
+    --bs-dropdown-link-hover-bg:      #f0f2f5;
+    --bs-dropdown-link-active-color:  #111827;
+    --bs-dropdown-link-active-bg:     #dde2ea;
+    --bs-dropdown-divider-bg:         #dde2ea;
+    --bs-dropdown-header-color:       #6b7280;
+  }
+
+  // Inputs Bootstrap en mode clair
+  .form-control {
+    background-color: #f8f9fb;
+    color:            #111827;
+    border-color:     #dde2ea;
+
+    &::placeholder { color: #9aa3b2; }
+    &:focus {
+      background-color: #ffffff;
+      color:            #111827;
+      border-color:     rgba(229, 50, 60, 0.45);
+      box-shadow:       0 0 0 3px rgba(229, 50, 60, 0.1);
+    }
+  }
+
+  // Scrollbar clair
+  ::-webkit-scrollbar-thumb       { background: #c8cfd9; }
+  ::-webkit-scrollbar-thumb:hover { background: #9aa3b2; }
+
+  // Utilitaires globaux lp-card / lp-glass produits par les mixins (valeurs compilées
+  // hardcodées dans le mixin — override nécessaire ici)
+  .lp-card {
+    background:   #ffffff;
+    border-color: #dde2ea;
+    box-shadow:   0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .lp-glass {
+    background:   rgba(248, 249, 251, 0.88) !important;
+    border-color: rgba(0, 0, 0, 0.07) !important;
   }
 }
 

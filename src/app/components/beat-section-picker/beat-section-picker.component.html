@@ -30,43 +30,63 @@
   <!-- ── Contenu ───────────────────────────────────────────────────────────────── -->
   @if (!loading() && !errorMsg()) {
 
+    <!-- Waveform globale : vue d'ensemble du beat avec section sélectionnée en rouge -->
+    <div class="bsp-global-wf-wrap">
+      <canvas #globalCanvas class="bsp-global-waveform" aria-hidden="true"></canvas>
+      <p class="bsp-wf-caption">
+        @if (selectedIdx() !== null) {
+          Section sélectionnée en rouge · cliquez sur une carte pour changer
+        } @else {
+          Sélectionnez une section ci-dessous
+        }
+      </p>
+    </div>
+
     <!-- Mode d'insertion -->
     <div class="bsp-mode-bar">
-      <span class="bsp-mode-label">Insérer la section&nbsp;:</span>
+      <span class="bsp-mode-label">Insérer&nbsp;:</span>
       <div class="bsp-mode-toggle">
         <button class="bsp-mode-btn" [class.bsp-mode-btn--active]="insertMode() === 'after'"
                 (click)="setMode('after')">
-          Après cette section
+          Après la section
         </button>
         <button class="bsp-mode-btn" [class.bsp-mode-btn--active]="insertMode() === 'end'"
                 (click)="setMode('end')">
-          À la fin du beat
+          À la fin
         </button>
       </div>
     </div>
-
-    <!-- Hint sélection -->
-    <p class="bsp-hint">
-      <i class="bi bi-hand-index-thumb"></i>
-      Sélectionnez une section à dupliquer
-    </p>
 
     <!-- Grille de sections -->
     <div class="bsp-grid">
       @for (section of sections(); track section.index) {
         <button class="bsp-card"
                 [class.bsp-card--selected]="selectedIdx() === section.index"
+                [class.bsp-card--previewing]="previewingIdx() === section.index"
                 (click)="selectSection(section.index)">
 
-          <!-- Badge section -->
-          <div class="bsp-card-badge">
-            <i class="bi" [class]="sectionIcon(section.name)"></i>
-            <span class="bsp-card-name">{{ section.name }}</span>
+          <!-- Badge section + bouton écoute -->
+          <div class="bsp-card-top">
+            <div class="bsp-card-badge">
+              @if (selectedIdx() === section.index) {
+                <i class="bi bi-check-circle-fill bsp-badge-check"></i>
+              } @else {
+                <i class="bi" [class]="sectionIcon(section.name)"></i>
+              }
+              <span class="bsp-card-name">{{ section.name }}</span>
+            </div>
+            <button class="bsp-section-play"
+                    [class.bsp-section-play--active]="previewingIdx() === section.index"
+                    (click)="$event.stopPropagation(); previewSection(section.index)"
+                    [attr.aria-label]="previewingIdx() === section.index ? 'Arrêter' : 'Écouter cette section'">
+              <i class="bi"
+                 [class.bi-stop-fill]="previewingIdx() === section.index"
+                 [class.bi-play-fill]="previewingIdx() !== section.index"></i>
+            </button>
           </div>
 
           <!-- Mini waveform -->
           <canvas #sectionCanvas class="bsp-waveform"
-                  [width]="240" [height]="48"
                   aria-hidden="true"></canvas>
 
           <!-- Méta -->
@@ -76,20 +96,12 @@
               {{ energyLabel(section) }}
             </span>
             <span class="bsp-tag">{{ formatDuration(section.duration) }}</span>
+            @if (section.hasDrums) {
+              <span class="bsp-tag bsp-tag--drums">
+                <i class="bi bi-volume-up-fill"></i> Drums
+              </span>
+            }
           </div>
-
-          <!-- Drums chip -->
-          @if (section.hasDrums) {
-            <span class="bsp-drums-chip">
-              <i class="bi bi-volume-up-fill"></i>
-              Drums
-            </span>
-          }
-
-          <!-- Indicateur sélectionné -->
-          @if (selectedIdx() === section.index) {
-            <i class="bi bi-check-circle-fill bsp-check"></i>
-          }
 
         </button>
       }
@@ -128,7 +140,7 @@
                 [disabled]="!canApply()"
                 (click)="previewExtended()">
           <i class="bi bi-play-fill"></i>
-          {{ selectedIdx() !== null ? 'Aperçu' : 'Choisir une section' }}
+          {{ selectedIdx() !== null ? 'Aperçu du beat étendu' : 'Choisir une section' }}
         </button>
       }
 

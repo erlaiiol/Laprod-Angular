@@ -157,10 +157,6 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   onRecClick(): void {
-    if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/login']);
-      return;
-    }
     if (this.isViewingTrackLoaded()) {
       this.player.recRequested.update(n => n + 1);
     } else {

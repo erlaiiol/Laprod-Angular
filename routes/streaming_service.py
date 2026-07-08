@@ -181,24 +181,36 @@ def download_track_file(track_id, format, current_user):
 def stream_topline(topline_id):
     """
     Sert l'audio d'une topline.
-    - Publiée  → public
-    - Non publiée → propriétaire uniquement (JWT requis)
+    - Publiée       → public
+    - Non publiée   → propriétaire (JWT) ou guest session (X-Guest-Session)
     """
     topline = db.session.get(Topline, topline_id)
     if not topline:
         abort(404)
 
     if not topline.is_published:
+        # 1. Essai JWT (utilisateurs connectés + admins)
+        current_user_id = None
+        is_admin        = False
         try:
             verify_jwt_in_request()
             current_user_id = int(get_jwt_identity())
             current_user    = db.session.get(User, current_user_id)
+            is_admin        = bool(current_user and getattr(current_user, 'is_admin', False))
         except (JWTExtendedException, ValueError, TypeError):
-            abort(403)
-        is_owner = topline.artist_id == current_user_id
-        is_admin = current_user and getattr(current_user, 'is_admin', False)
-        if not is_owner and not is_admin:
-            abort(403)
+            pass
+
+        if current_user_id is not None:
+            is_owner = topline.artist_id == current_user_id
+            if not is_owner and not is_admin:
+                abort(403)
+        else:
+            # 2. Fallback session guest : la topline doit appartenir à cette session
+            guest_session = (request.headers.get('X-Guest-Session') or '').strip()
+            if (not guest_session
+                    or not topline.guest_session_id
+                    or guest_session != topline.guest_session_id):
+                abort(403)
 
     if not topline.audio_file:
         abort(404)

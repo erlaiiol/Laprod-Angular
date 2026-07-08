@@ -62,6 +62,41 @@
   &.final { background: rgba(v.$tag-green, 0.15); color: v.$tag-green; border-color: rgba(v.$tag-green, 0.4); }
 }
 
+.bf-type-badge {
+  font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+  border-radius: 10px; white-space: nowrap;
+  background: rgba(v.$tag-blue, 0.12); color: v.$tag-blue-light; border: 1px solid rgba(v.$tag-blue, 0.35);
+
+  &--perf {
+    background: rgba(v.$tag-green, 0.12); color: v.$tag-green-light; border-color: rgba(v.$tag-green, 0.35);
+  }
+}
+
+// ── Avertissements juridiques ──────────────────────────────────────────────────
+
+.bf-legal-warning,
+.bf-salariat-banner {
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1.25rem;
+
+  i { font-size: 1.1rem; margin-top: 0.1rem; flex-shrink: 0; }
+
+  strong { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
+
+  p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: v.$text-secondary; }
+}
+
+.bf-legal-warning {
+  background: rgba(v.$tag-blue, 0.08); border: 1px solid rgba(v.$tag-blue, 0.3);
+  i, strong { color: v.$tag-blue-light; }
+}
+
+.bf-salariat-banner {
+  background: rgba(v.$tag-orange, 0.1); border: 1px solid rgba(v.$tag-orange, 0.4);
+  margin: 1rem 1.5rem 0;
+  i, strong { color: v.$tag-orange; }
+}
+
 .bf-header-actions {
   display: flex; gap: 0.5rem; align-items: center;
 }

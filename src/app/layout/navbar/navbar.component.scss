@@ -447,3 +447,148 @@ details.filter-accordion[open] .filter-accordion-arrow {
   border: 1px solid rgba(v.$gold, 0.35); border-radius: 3px;
   padding: 0.05rem 0.3rem; margin-left: 0.3rem; vertical-align: middle;
 }
+
+// ── Bouton toggle thème (visiteurs non connectés) ─────────────────────────────
+
+.btn-theme-toggle {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  width:           32px;
+  height:          32px;
+  background:      transparent;
+  border:          1px solid rgba(255, 255, 255, 0.18);
+  border-radius:   v.$radius-sm;
+  color:           v.$text-muted;
+  cursor:          pointer;
+  padding:         0;
+  transition:      color v.$dur-fast, border-color v.$dur-fast, background v.$dur-fast;
+
+  i { font-size: 1rem; line-height: 1; }
+
+  &:hover {
+    color:        v.$text-primary;
+    border-color: rgba(255, 255, 255, 0.35);
+    background:   rgba(255, 255, 255, 0.06);
+  }
+}
+
+// ── Dropdown item — basculement de thème ──────────────────────────────────────
+
+.dropdown-item--theme {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  font-size:   0.875rem;
+  color:       v.$text-secondary;
+  width:       100%;
+  text-align:  left;
+  background:  transparent;
+  border:      none;
+  padding:     0.35rem 1rem;
+  cursor:      pointer;
+  transition:  background v.$dur-fast, color v.$dur-fast;
+
+  i { font-size: 0.875rem; width: 1rem; text-align: center; flex-shrink: 0; }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color:      v.$text-primary;
+  }
+}
+
+// ── Overrides mode clair — éléments à encapsulation Angular ──────────────────
+// Le sélecteur [data-theme="light"] sur <html> est ancêtre de tous les éléments
+// → Angular ajoute automatiquement [_ngcontent] aux sélecteurs fils, ce qui est correct.
+
+[data-theme="light"] {
+
+  // Bouton toggle (visiteurs) : bords sombres sur fond clair
+  .btn-theme-toggle {
+    border-color: rgba(0, 0, 0, 0.15);
+    color:        #6b7280;
+
+    &:hover {
+      border-color: rgba(0, 0, 0, 0.3);
+      background:   rgba(0, 0, 0, 0.04);
+      color:        #111827;
+    }
+  }
+
+  // Dropdown item thème en mode clair
+  .dropdown-item--theme {
+    color: #374151;
+    &:hover { background: #f0f2f5; color: #111827; }
+  }
+
+  // Bouton reset filtres
+  .btn-filter-reset {
+    border-color: rgba(0, 0, 0, 0.15);
+    color:        #6b7280;
+
+    &:hover {
+      background:   rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.28);
+      color:        #111827;
+      transform:    rotate(-45deg);
+    }
+
+    &--active {
+      color:        v.$primary;
+      border-color: rgba(229, 50, 60, 0.35);
+      &:hover { background: rgba(229, 50, 60, 0.08); border-color: v.$primary; }
+    }
+  }
+
+  // Nav link actif : fond sombre + texte clair (contraste garanti dans les deux thèmes)
+  .navbar-nav .nav-link.active {
+    background: #111827 !important;
+    color:      #f5f6f8 !important;
+    i.bi { color: #f5f6f8; }
+  }
+
+  // Tags filtres — remplacement des rgba(white) par rgba(black)
+  .filter-tag--neutral {
+    color:        #374151;
+    border-color: rgba(0, 0, 0, 0.15);
+
+    &:hover {
+      background:   rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.3);
+      color:        #111827;
+    }
+
+    &.selected {
+      background:   rgba(0, 0, 0, 0.84);
+      border-color: rgba(0, 0, 0, 0.9);
+      color:        #f5f6f8;
+    }
+  }
+
+  .filter-tag--artist {
+    color:        #374151;
+    border-color: rgba(0, 0, 0, 0.12);
+    font-style:   italic;
+
+    &:hover {
+      background:   rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.25);
+      color:        #111827;
+    }
+
+    &.selected {
+      background:   rgba(0, 0, 0, 0.82);
+      border-color: rgba(0, 0, 0, 0.9);
+      color:        #f5f6f8;
+      font-style:   normal;
+    }
+  }
+
+  // Accordéon drawer de filtres
+  .filter-accordion-header {
+    color: #374151;
+    .filter-accordion-arrow { color: #6b7280; }
+  }
+
+  .filter-accordion-body { background: #f8f9fb; }
+}

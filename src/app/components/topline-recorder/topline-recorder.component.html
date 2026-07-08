@@ -1,7 +1,7 @@
-<!-- Sur mobile natif → interface premium dédiée. Pas de mode guest en natif :
-     tant que la connexion n'est pas confirmée, le composant se contente de
-     rediriger (cf. constructor()) sans jamais monter le studio. -->
-@if (isNative && auth.isLoggedIn()) {
+<!-- Sur mobile natif → interface premium dédiée.
+     Les guests peuvent enregistrer et télécharger ; la connexion est demandée
+     uniquement au moment de publier (showGuestGate dans MobileStudioComponent). -->
+@if (isNative) {
   <app-mobile-studio [track]="track" (closed)="closed.emit()" />
 }
 
@@ -202,7 +202,7 @@
     @if (state() === 'result' && resultTopline()) {
       <div class="recorder-result">
         <p class="result-title">
-          <i class="bi bi-check-circle-fill"></i> Enregistrement terminé !
+          <i class="bi bi-check-circle-fill"></i> Ton mix est prêt !
         </p>
 
         <!-- Écouter -->
@@ -217,31 +217,51 @@
           }
         </button>
 
-        <!-- Statut publication -->
-        @if (isPublished()) {
-          <div class="publish-badge">
-            <i class="bi bi-globe2"></i> Publiée
+        @if (!isGuest()) {
+          <!-- Statut publication (connectés uniquement) -->
+          @if (isPublished()) {
+            <div class="publish-badge">
+              <i class="bi bi-globe2"></i> Publiée
+            </div>
+          }
+
+          <!-- Actions connecté -->
+          <div class="result-actions">
+            @if (!isPublished()) {
+              <button class="btn-publish" (click)="publishResult()">
+                <i class="bi bi-cloud-upload-fill"></i> Publier
+              </button>
+            } @else {
+              <button class="btn-unpublish" (click)="unpublishResult()">
+                <i class="bi bi-eye-slash"></i> Remettre en privé
+              </button>
+            }
+            <button class="btn-delete" (click)="deleteResult()">
+              <i class="bi bi-trash3"></i> Supprimer
+            </button>
+            <button class="btn-retry" (click)="resetToIdle()">
+              <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
+            </button>
+          </div>
+        } @else {
+          <!-- Upsell guest post-écoute -->
+          <div class="guest-result-upsell">
+            <p class="guest-result-upsell__msg">
+              <i class="bi bi-clock-fill"></i>
+              Ce mix sera supprimé dans <strong>24 heures</strong>.<br>
+              Crée un compte gratuit pour le sauvegarder, le publier et accéder à toutes les fonctionnalités.
+            </p>
+            <div class="guest-result-upsell__actions">
+              <a routerLink="/register" class="btn-upsell-register">
+                <i class="bi bi-person-plus-fill"></i> Créer un compte — c'est gratuit
+              </a>
+              <a routerLink="/login" class="btn-upsell-login">Déjà inscrit ?</a>
+            </div>
+            <button class="btn-retry guest-retry" (click)="resetToIdle()">
+              <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
+            </button>
           </div>
         }
-
-        <!-- Actions -->
-        <div class="result-actions">
-          @if (!isPublished()) {
-            <button class="btn-publish" (click)="publishResult()">
-              <i class="bi bi-cloud-upload-fill"></i> Publier
-            </button>
-          } @else {
-            <button class="btn-unpublish" (click)="unpublishResult()">
-              <i class="bi bi-eye-slash"></i> Remettre en privé
-            </button>
-          }
-          <button class="btn-delete" (click)="deleteResult()">
-            <i class="bi bi-trash3"></i> Supprimer
-          </button>
-          <button class="btn-retry" (click)="resetToIdle()">
-            <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
-          </button>
-        </div>
       </div>
     }
 

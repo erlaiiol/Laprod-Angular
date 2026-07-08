@@ -1,0 +1,46 @@
+@if (ytSvc.pending()) {
+
+  <!-- Tab glissant ancré sur le bord droit -->
+  <button class="yt-tab" (click)="toggle()" [attr.aria-expanded]="open()" title="Afficher la description YouTube">
+    <i class="bi bi-youtube"></i>
+    <span class="yt-tab__label">Description YT</span>
+  </button>
+
+  <!-- Backdrop + modale -->
+  @if (open()) {
+    <div class="yt-backdrop" (click)="toggle()"></div>
+
+    <div class="yt-modal" role="dialog" aria-modal="true" aria-label="Template description YouTube">
+      <div class="yt-modal__header">
+        <div class="yt-modal__title">
+          <i class="bi bi-youtube"></i>
+          Description YouTube
+        </div>
+        <button class="yt-modal__close" (click)="toggle()" title="Fermer">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <p class="yt-modal__hint">
+        Copiez ce texte dans la description de votre vidéo YouTube pour protéger votre beat.
+      </p>
+
+      <div class="yt-modal__box">
+        <pre class="yt-modal__pre">{{ ytSvc.pending() }}</pre>
+      </div>
+
+      <div class="yt-modal__actions">
+        <button class="yt-btn-copy" (click)="copy()">
+          @if (copied()) {
+            <i class="bi bi-check-lg"></i> Copié !
+          } @else {
+            <i class="bi bi-clipboard"></i> Copier
+          }
+        </button>
+        <button class="yt-btn-dismiss" (click)="dismiss()">
+          <i class="bi bi-trash3"></i> Ignorer
+        </button>
+      </div>
+    </div>
+  }
+}

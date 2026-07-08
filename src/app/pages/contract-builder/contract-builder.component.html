@@ -7,7 +7,7 @@
 
   <div class="cb-list-header">
     <h1>Générateur de contrats</h1>
-    <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale professionnel, adapté au droit français.</p>
+    <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale ou de représentation live (concert, festival, DJ set…), adapté au droit français.</p>
   </div>
 
   @if (!isLoggedIn()) {
@@ -23,11 +23,25 @@
   <!-- Nouveau contrat -->
   <div class="cb-new-card">
     <h2>Nouveau contrat</h2>
+
+    <div class="cb-type-choice">
+      @for (t of contractTypes; track t.value) {
+        <button type="button" class="cb-type-card"
+          [class.selected]="newType() === t.value"
+          (click)="newType.set(t.value)"
+          [disabled]="creating()">
+          <i class="bi {{ t.icon }}"></i>
+          <span class="cb-type-label">{{ t.label }}</span>
+          <span class="cb-type-desc">{{ t.desc }}</span>
+        </button>
+      }
+    </div>
+
     <div class="cb-new-form">
       <input
         class="cb-input"
         type="text"
-        placeholder="Titre de l'œuvre ou du projet..."
+        [placeholder]="placeholderForType()"
         [ngModel]="newTitle()"
         (ngModelChange)="newTitle.set($event)"
         (keydown.enter)="isLoggedIn() && create()"
@@ -64,6 +78,9 @@
             <span class="cb-contract-title">{{ contract.title }}</span>
             <span class="cb-contract-date">{{ fmtDate(contract.created_at) }}</span>
           </div>
+          <span class="cb-type-badge" [class.cb-type-badge--perf]="contract.contract_type === 'performance'">
+            {{ typeLabel(contract.contract_type || 'exploitation') }}
+          </span>
           <span class="cb-status-badge" [class]="'status-' + contract.status">
             {{ contract.status === 'final' ? 'Finalisé' : 'Brouillon' }}
           </span>

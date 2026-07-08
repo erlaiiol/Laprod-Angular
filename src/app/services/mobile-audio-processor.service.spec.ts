@@ -1,5 +1,13 @@
 import { TestBed } from '@angular/core/testing';
-import { MobileAudioProcessorService } from './mobile-audio-processor.service';
+import { OfflineAudioContext, AudioBuffer } from 'node-web-audio-api';
+import { MobileAudioProcessorService, OFFLINE_AUDIO_CONTEXT } from './mobile-audio-processor.service';
+
+// jsdom n'implémente pas le Web Audio API (OfflineAudioContext...) qu'utilise
+// MobileAudioProcessorService pour décoder/mixer le PCM natif iOS/Android.
+// node-web-audio-api fournit une implémentation Rust fidèle (via NAPI), fournie
+// ici via le token d'injection OFFLINE_AUDIO_CONTEXT — le service ne sait pas
+// qu'il tourne en test, aucun global n'est modifié.
+const testProviders = [{ provide: OFFLINE_AUDIO_CONTEXT, useValue: OfflineAudioContext }];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,7 +34,7 @@ describe('MobileAudioProcessorService — spliceAudio', () => {
   let svc: MobileAudioProcessorService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: testProviders });
     svc = TestBed.inject(MobileAudioProcessorService);
   });
 
@@ -120,7 +128,7 @@ describe('MobileAudioProcessorService — quickMix', () => {
   let svc: MobileAudioProcessorService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: testProviders });
     svc = TestBed.inject(MobileAudioProcessorService);
   });
 

@@ -1,0 +1,31 @@
+@if (!isNative) {
+  <div class="sidebar-fabs" [class.sidebar-fabs--collapsed]="collapsed()">
+
+    @if (!auth.currentUser()?.is_premium) {
+      <a class="sfab-tab sfab-tab--premium"
+         routerLink="/premium"
+         title="Découvrir LaProd+">
+        <span class="sfab-tab__label">Premium</span>
+        <span class="sfab-tab__icon">
+          <i class="bi bi-lightning-charge-fill"></i>
+        </span>
+      </a>
+    }
+
+    <button class="sfab-tab sfab-tab--guide"
+            [class.sfab-tab--new]="!userflowSvc.hasEverOpened()"
+            (click)="userflowSvc.open()"
+            type="button"
+            title="Guide LaProd">
+      <span class="sfab-tab__label">Guide</span>
+      <span class="sfab-tab__icon">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="8" stroke="currentColor" stroke-width="1.4"/>
+          <text x="9" y="13.5" text-anchor="middle" font-size="11" font-weight="700"
+                fill="currentColor" font-family="system-ui, sans-serif">?</text>
+        </svg>
+      </span>
+    </button>
+
+  </div>
+}

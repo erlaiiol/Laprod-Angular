@@ -24,6 +24,8 @@ export interface BeatAnalysis {
   usableSamples:       number;        // jusqu'au fade, arrondi à 8-mesures, ≤ maxDurationSamples
   fadeStartSample:     number;
   bpm:                 number;
+  beatPhase:           number;        // sample du 1er temps réel (décalage du fichier par rapport au grid)
+  samplesPerBeat:      number;        // période raffinée (autocorr. kick + interp. parabolique)
   samplesPerMeasure:   number;
   samplesPerSection:   number;        // 8 × samplesPerMeasure
   maxDurationSamples:  number;        // plafond 3:00, multiple de samplesPerSection
@@ -33,14 +35,31 @@ export interface BeatAnalysis {
 /** Mode d'insertion de la section dupliquée. */
 export type InsertionMode = 'after' | 'end';
 
+/**
+ * Résultat de createExtendedBeat().
+ * `addedStartSample` et `addedLengthSamples` sont exprimés dans l'espace
+ * du buffer résultat (pas de l'original) — utilisés pour la colorisation
+ * bi-couleur de la waveform dans le studio.
+ */
+export interface ExtendedBeatResult {
+  blob:               Blob;
+  totalSamples:       number;
+  sampleRate:         number;
+  addedStartSample:   number;
+  addedLengthSamples: number;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MEASURES_PER_SECTION  = 8;
 const WAVEFORM_POINTS       = 60;
 const MAX_BEAT_DURATION_S   = 180; // 3 minutes — plafond pour éviter des fichiers trop lourds
 
-// Fondu enchaîné en fraction d'une mesure (0.5 = demi-mesure de crossfade)
-const CROSSFADE_MEASURES = 0.5;
+// Micro-fade anti-clic à la jonction (en millisecondes).
+// Un beat bien calé est une boucle parfaite : couper sur un temps ne génère
+// qu'une discontinuité d'amplitude, pas une discontinuité musicale.
+// 3 ms suffisent pour éliminer le clic sans créer de doublage de mélodie.
+const SPLICE_FADE_MS = 3;
 
 // Seuil de transient : l'énergie fenêtre doit être ≥ ce facteur × fenêtre précédente
 const TRANSIENT_FACTOR = 2.5;      // ≈ +8 dB
@@ -73,34 +92,39 @@ export class BeatExtenderService {
   ): Promise<{ analysis: BeatAnalysis; rawSamples: Float32Array; sampleRate: number }> {
     const { samples, sampleRate } = await this._fetchAndDecode(beatUrl, accessToken);
 
-    const samplesPerBeat    = (60 / bpm) * sampleRate;
+    // ── Grille rythmique raffinée depuis les frappes de grosse caisse ────────
+    // Le BPM fourni peut être inexact et le fichier peut avoir un décalage
+    // (silence, intro) avant le 1er temps. On corrige les deux.
+    const { samplesPerBeat, beatPhase } =
+      this._refineBeatGrid(samples, sampleRate, bpm);
+
     const samplesPerMeasure = Math.round(samplesPerBeat * 4);
     const samplesPerSection = samplesPerMeasure * MEASURES_PER_SECTION;
 
-    // Plafond 3:00 — nombre max de sections de 8 mesures tenant dans MAX_BEAT_DURATION_S
-    const sectionDurationS   = samplesPerSection / sampleRate;
-    const maxSectionCount    = Math.floor(MAX_BEAT_DURATION_S / sectionDurationS);
-    const maxDurationSamples = maxSectionCount * samplesPerSection;
-    const maxDurationSec     = maxSectionCount * sectionDurationS;
+    // ── Plafond 3:00 calculé depuis la phase réelle ────────────────────────
+    const sectionDurationS = samplesPerSection / sampleRate;
+    const maxSectionsInCap = Math.max(0, Math.floor(
+      (MAX_BEAT_DURATION_S * sampleRate - beatPhase) / samplesPerSection,
+    ));
+    const maxDurationSamples = beatPhase + maxSectionsInCap * samplesPerSection;
+    const maxDurationSec     = maxSectionsInCap * sectionDurationS;
 
-    // Détecter le fade anti-piratage
+    // ── Détection du fade anti-piratage ───────────────────────────────────
     const fadeStartSample = this._detectFadeStart(samples, sampleRate);
 
-    // Revenir au dernier multiple de 8 mesures avant le fade, plafonné à 3:00
-    const usableSamples = Math.min(
-      Math.floor(fadeStartSample / samplesPerSection) * samplesPerSection,
-      maxDurationSamples,
-    );
+    // Nombre de sections complètes depuis beatPhase jusqu'au fade, plafonné
+    const sectionsBeforeFade = Math.max(0, Math.floor(
+      (fadeStartSample - beatPhase) / samplesPerSection,
+    ));
+    const numSections   = Math.min(sectionsBeforeFade, maxSectionsInCap);
+    const usableSamples = beatPhase + numSections * samplesPerSection;
 
-    // Analyser chaque section de 8 mesures
-    const numSections = Math.floor(usableSamples / samplesPerSection);
+    // ── Analyse de chaque section alignée sur le grid réel ────────────────
     const sections: BeatSection[] = [];
-
     for (let i = 0; i < numSections; i++) {
-      const start  = Math.round(i * samplesPerSection);
+      const start  = beatPhase + i * samplesPerSection;
       const length = Math.min(samplesPerSection, samples.length - start);
       const slice  = samples.slice(start, start + length);
-
       sections.push(
         this._analyzeSection(slice, sampleRate, i, start, length, samplesPerMeasure, bpm),
       );
@@ -116,6 +140,8 @@ export class BeatExtenderService {
         usableSamples,
         fadeStartSample,
         bpm,
+        beatPhase,
+        samplesPerBeat,
         samplesPerMeasure,
         samplesPerSection,
         maxDurationSamples,
@@ -133,38 +159,48 @@ export class BeatExtenderService {
    *   - mode='after' : immédiatement après cette section
    *   - mode='end'   : à la fin (avant que le fade original ait commencé)
    *
-   * Un fondu enchaîné de `CROSSFADE_MEASURES` mesures est appliqué à chaque jointure.
+   * Un micro-fade anti-clic de SPLICE_FADE_MS ms est appliqué à chaque jonction.
+   * Le beat étant une boucle, un point de coupe sur un bon temps est musicalement
+   * continu — seule la discontinuité d'amplitude nécessite ce fade imperceptible.
    */
   createExtendedBeat(
-    rawSamples:    Float32Array,
-    sampleRate:    number,
-    analysis:      BeatAnalysis,
-    sectionIndex:  number,
-    mode:          InsertionMode,
-  ): Blob {
-    const section     = analysis.sections[sectionIndex];
-    const xfadeSamples = Math.round(analysis.samplesPerMeasure * CROSSFADE_MEASURES);
-
+    rawSamples:   Float32Array,
+    sampleRate:   number,
+    analysis:     BeatAnalysis,
+    sectionIndex: number,
+    mode:         InsertionMode,
+  ): ExtendedBeatResult {
+    const section      = analysis.sections[sectionIndex];
+    // Micro-fade anti-clic uniquement (≈ 132 samples @ 44 100 Hz = imperceptible)
+    const xfade        = Math.round(SPLICE_FADE_MS * 0.001 * sampleRate);
     const sectionSlice = rawSamples.slice(
       section.startSample,
       section.startSample + section.lengthSamples,
     );
+    // usable = audio propre, fin de fade-out exclue, aligné sur 8 mesures
     const usable = rawSamples.slice(0, analysis.usableSamples);
 
     let extended: Float32Array;
+    let addedStart: number;
+    const addedLen = sectionSlice.length;  // longueur brute avant éventuel trim
 
     if (mode === 'after') {
-      // [partie avant la section] + [section] ×2 + [partie après]
+      // [avant (incl. section originale)] × xfade ∩ [section dupliquée] × xfade ∩ [après]
       const before = usable.slice(0, section.startSample + section.lengthSamples);
       const after  = usable.slice(section.startSample + section.lengthSamples);
-      const mid    = this._crossfade(before, sectionSlice, xfadeSamples);
-      extended     = this._crossfade(mid, after, xfadeSamples);
+      const mid    = this._crossfade(before, sectionSlice, xfade);
+      extended     = this._crossfade(mid, after, xfade);
+      // La section dupliquée commence là où `before` commence à s'effacer dans le xfade
+      addedStart = before.length - xfade;
     } else {
-      // [audio complet jusqu'au fade] + [section]
-      extended = this._crossfade(usable, sectionSlice, xfadeSamples);
+      // [usable jusqu'au seuil fade original] × xfade ∩ [section dupliquée en fin]
+      // Note : usable ne contient PAS le fade-out anti-piratage — il s'arrête au
+      // dernier multiple de 8 mesures avant fadeStartSample.
+      extended   = this._crossfade(usable, sectionSlice, xfade);
+      addedStart = usable.length - xfade;
     }
 
-    // Plafonner à 3:00 — trim + fade-out 1 mesure pour éviter une coupure nette
+    // Plafonner à 3:00 — trim + fade-out d'une mesure pour éviter une coupure nette
     const maxSamples = analysis.maxDurationSamples;
     if (extended.length > maxSamples) {
       const trimmed     = new Float32Array(maxSamples);
@@ -177,7 +213,13 @@ export class BeatExtenderService {
       extended = trimmed;
     }
 
-    return this._encodeWav(extended, sampleRate);
+    return {
+      blob:               this._encodeWav(extended, sampleRate),
+      totalSamples:       extended.length,
+      sampleRate,
+      addedStartSample:   Math.min(addedStart, extended.length),
+      addedLengthSamples: Math.min(addedLen, Math.max(0, extended.length - addedStart)),
+    };
   }
 
   // ── Détection du fade anti-piratage ──────────────────────────────────────────
@@ -210,6 +252,108 @@ export class BeatExtenderService {
       }
     }
     return samples.length;
+  }
+
+  // ── Raffinement de la grille rythmique ──────────────────────────────────────
+
+  /**
+   * Détecte le BPM précis et la phase du 1er temps à partir des onsets de
+   * basse fréquence (kick / grosse caisse).
+   *
+   * Pipeline :
+   *   1. Filtre passe-bas 200 Hz → bande "kick"
+   *   2. ODF par fenêtre de 5 ms (flux spectral positif = augmentation d'énergie)
+   *   3. Autocorrélation de l'ODF → pic dominant → BPM raffiné (interpolation parabolique)
+   *   4. Phase grid scoring → offset p tel que le grid p, p+lag, p+2lag… maximise l'ODF
+   *   5. Affinement au sample près du premier temps dans la fenêtre ±HOP/2
+   *   6. Fallback : si écart > 5 % du nominal, BPM nominal conservé mais phase détectée
+   */
+  private _refineBeatGrid(
+    samples:    Float32Array,
+    sampleRate: number,
+    nominalBpm: number,
+  ): { samplesPerBeat: number; beatPhase: number } {
+    const HOP   = Math.round(0.005 * sampleRate);   // 5 ms par frame
+    const bass  = this._lowpass(samples, sampleRate, 200);
+    const nHops = Math.floor(bass.length / HOP);
+
+    // ── ODF : énergie par frame → flux positif ───────────────────────────────
+    const odf = new Float32Array(nHops);
+    let prevE = 0;
+    for (let f = 0; f < nHops; f++) {
+      let e = 0;
+      const base = f * HOP;
+      for (let i = base; i < base + HOP && i < bass.length; i++) e += bass[i] * bass[i];
+      e /= HOP;
+      odf[f] = Math.max(0, e - prevE);
+      prevE  = e;
+    }
+
+    // ── Autocorrélation sur la plage ±12 % du lag nominal ───────────────────
+    const nomLag   = (60 / nominalBpm) * sampleRate / HOP;  // lag en frames
+    const lagMin   = Math.max(1, Math.round(nomLag * 0.88));
+    const lagMax   = Math.round(nomLag * 1.12);
+    let   bestCorr = -Infinity;
+    let   bestLag  = Math.round(nomLag);
+
+    for (let lag = lagMin; lag <= lagMax; lag++) {
+      let corr = 0;
+      const n  = nHops - lag;
+      if (n <= 0) continue;
+      for (let f = 0; f < n; f++) corr += odf[f] * odf[f + lag];
+      if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+    }
+
+    // ── Interpolation parabolique pour affiner le lag au sous-frame ─────────
+    const y0 = bestLag > lagMin     ? this._corrAt(odf, bestLag - 1) : bestCorr;
+    const y1 = bestCorr;
+    const y2 = bestLag < lagMax     ? this._corrAt(odf, bestLag + 1) : bestCorr;
+    const denom = y0 - 2 * y1 + y2;
+    const fracLag = denom !== 0
+      ? bestLag - 0.5 * (y2 - y0) / denom
+      : bestLag;
+    const refinedSPB = Math.round(fracLag * HOP);
+
+    // ── Phase grid scoring : trouver le meilleur offset de départ ───────────
+    let bestScore  = -Infinity;
+    let bestPhaseF = 0;
+    for (let p = 0; p < bestLag; p++) {
+      let score = 0;
+      for (let f = p; f < nHops; f += bestLag) score += odf[f];
+      if (score > bestScore) { bestScore = score; bestPhaseF = p; }
+    }
+
+    // ── Affinement au sample du premier temps ────────────────────────────────
+    const centerSample = bestPhaseF * HOP;
+    const halfWin      = Math.round(HOP / 2);
+    const searchStart  = Math.max(0, centerSample - halfWin);
+    const searchEnd    = Math.min(bass.length - 1, centerSample + halfWin);
+    let   peakVal      = -Infinity;
+    let   peakSample   = centerSample;
+    for (let i = searchStart; i <= searchEnd; i++) {
+      const v = bass[i] * bass[i];
+      if (v > peakVal) { peakVal = v; peakSample = i; }
+    }
+
+    // Contraindre beatPhase à max 2 mesures (8 temps) depuis le début
+    const maxPhase    = Math.round(refinedSPB * 8);
+    const beatPhase   = Math.min(peakSample, maxPhase);
+
+    // ── Fallback si le BPM raffiné dévie > 5 % du nominal ──────────────────
+    const nominalSPB  = Math.round((60 / nominalBpm) * sampleRate);
+    const deviation   = Math.abs(refinedSPB - nominalSPB) / nominalSPB;
+    const samplesPerBeat = deviation <= 0.05 ? refinedSPB : nominalSPB;
+
+    return { samplesPerBeat, beatPhase };
+  }
+
+  /** Calcule la corrélation de l'ODF à un lag donné (helper parabolique). */
+  private _corrAt(odf: Float32Array, lag: number): number {
+    let corr = 0;
+    const n  = odf.length - lag;
+    if (n <= 0) return 0;
+    for (let f = 0; f < n; f++) corr += odf[f] * odf[f + lag];
+    return corr;
   }
 
   // ── Analyse d'une section ─────────────────────────────────────────────────────

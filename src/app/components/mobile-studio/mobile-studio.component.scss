@@ -1,40 +1,35 @@
 @use '../../../styles/variables' as v;
 
-// ── Overlay + sheet ───────────────────────────────────────────────────────────
+// ── Overlay + sheet — plein écran (mini app) ──────────────────────────────────
 
 .ms-overlay {
-  position:         fixed;
-  inset:            0;
-  z-index:          200;
-  background:       rgba(0, 0, 0, 0.55);
-  display:          flex;
-  align-items:      flex-end;
-  backdrop-filter:  blur(3px);
+  position:        fixed;
+  inset:           0;
+  z-index:         200;
+  display:         flex;
+  flex-direction:  column;
+  background:      #0d0e12;
+  animation:       studioOpen 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes studioOpen {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .ms-sheet {
-  position:         relative;
-  width:            100%;
-  max-height:       92dvh;
-  overflow-y:       auto;
+  position:              relative;
+  flex:                  1;
+  overflow-y:            auto;
   overscroll-behavior-y: contain;
-  background:       #1a1a1a;
-  border-radius:    22px 22px 0 0;
-  display:          flex;
-  flex-direction:   column;
-  padding-bottom:   env(safe-area-inset-bottom);
+  background:            #0d0e12;
+  display:               flex;
+  flex-direction:        column;
+  padding-bottom:        env(safe-area-inset-bottom);
 }
 
-// ── Handle ────────────────────────────────────────────────────────────────────
-
-.ms-handle {
-  width:         40px;
-  height:        4px;
-  background:    rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  margin:        10px auto 4px;
-  flex-shrink:   0;
-}
+// Handle masqué (l'UI n'est plus un bottom sheet)
+.ms-handle { display: none; }
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
@@ -42,8 +37,11 @@
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  padding:         12px 16px 8px;
+  padding:         12px 16px 10px;
+  padding-top:     calc(12px + env(safe-area-inset-top));
   flex-shrink:     0;
+  border-bottom:   1px solid rgba(255, 255, 255, 0.07);
+  background:      rgba(255, 255, 255, 0.02);
 }
 
 .ms-track-info {
@@ -951,6 +949,13 @@
     color:      v.$primary;
   }
 
+  // Mode robot : accent cyan pour distinguer visuellement le snap dur
+  &--robot { color: rgba(100, 200, 255, 0.65); }
+  &--robot#{&}--active {
+    background: rgba(100, 200, 255, 0.12);
+    color:      rgba(100, 200, 255, 0.95);
+  }
+
   & + & { border-left: 1px solid rgba(255, 255, 255, 0.1); }
 }
 
@@ -1124,6 +1129,29 @@
   color:      v.$text-secondary;
   margin:     0;
   font-style: italic;
+}
+
+.ms-autotune-active-hint {
+  font-size:   0.78rem;
+  color:       #4ade80;
+  margin:      4px 0 0;
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+
+  i { font-size: 0.8rem; }
+}
+
+.ms-autotune-nokey {
+  font-size:   0.75rem;
+  color:       v.$tag-orange;
+  padding:     5px 11px;
+  margin:      0;
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+
+  i { flex-shrink: 0; }
 }
 
 .ms-warmup-level {
@@ -1648,4 +1676,645 @@
   text-decoration: none;
 
   &:active { opacity: 0.7; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DAW STUDIO — vue idle plein écran
+// ══════════════════════════════════════════════════════════════════════════════
+
+.daw-studio {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  min-height:     0;
+}
+
+// ── Barre d'état de la chanson ────────────────────────────────────────────────
+
+.daw-statusbar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         8px 14px 10px;
+  border-bottom:   1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink:     0;
+}
+
+.daw-songstate {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  min-width:   0;
+}
+
+.daw-songstate-dot {
+  width:         7px;
+  height:        7px;
+  border-radius: 50%;
+  background:    rgba(255, 255, 255, 0.2);
+  flex-shrink:   0;
+  transition:    background 0.3s;
+
+  &--live {
+    background: #4caf81;
+    animation:  dawDotPulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes dawDotPulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.3; }
+}
+
+.daw-songstate-text {
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       v.$text-secondary;
+}
+
+.daw-badge-extended {
+  display:       flex;
+  align-items:   center;
+  gap:           4px;
+  font-size:     0.68rem;
+  font-weight:   700;
+  color:         #4caf81;
+  background:    rgba(76, 175, 129, 0.12);
+  border-radius: 20px;
+  padding:       2px 7px;
+  flex-shrink:   0;
+
+  i { font-size: 0.68rem; }
+}
+
+.daw-btn-mix {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       6px 12px;
+  border:        1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  background:    rgba(255, 255, 255, 0.05);
+  color:         v.$text-primary;
+  font-size:     0.78rem;
+  font-weight:   600;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    border-color 0.15s, background 0.15s;
+
+  i { font-size: 0.85rem; }
+
+  &:active { background: rgba(255, 255, 255, 0.09); }
+
+  &--playing {
+    border-color: v.$primary;
+    color:        v.$primary;
+    background:   rgba(v.$primary, 0.08);
+  }
+}
+
+// ── Sections ─────────────────────────────────────────────────────────────────
+
+.daw-section {
+  padding:       10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  &--voices   { flex: 1; }
+  &--settings { padding: 0; }
+}
+
+.daw-section-label {
+  display:        flex;
+  align-items:    center;
+  gap:            6px;
+  font-size:      0.68rem;
+  font-weight:    700;
+  color:          rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin:         0 0 8px;
+
+  i { font-size: 0.75rem; }
+}
+
+// ── Piste beat (lane) ─────────────────────────────────────────────────────────
+
+.daw-beat-lane {
+  background:    rgba(255, 255, 255, 0.03);
+  border:        1.5px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  overflow:      hidden;
+  cursor:        pointer;
+  transition:    border-color 0.18s, background 0.18s;
+
+  &--selected {
+    border-color: v.$primary;
+    background:   rgba(v.$primary, 0.06);
+  }
+
+  &:not(&--selected):active {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.daw-beat-lane-info {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         10px 12px 6px;
+  gap:             10px;
+}
+
+.daw-track-label {
+  display:     flex;
+  align-items: center;
+  gap:         7px;
+  min-width:   0;
+  flex:        1;
+}
+
+.daw-track-label-name {
+  font-size:     0.86rem;
+  font-weight:   600;
+  color:         v.$text-primary;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+
+.daw-track-pill {
+  display:       flex;
+  align-items:   center;
+  gap:           3px;
+  font-size:     0.64rem;
+  font-weight:   700;
+  border-radius: 20px;
+  padding:       2px 6px;
+  flex-shrink:   0;
+
+  i { font-size: 0.64rem; }
+
+  &--green {
+    color:      #4caf81;
+    background: rgba(76, 175, 129, 0.12);
+  }
+}
+
+.daw-beat-lane-btns {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  flex-shrink: 0;
+}
+
+.daw-icon-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           32px;
+  height:          32px;
+  border:          1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius:   50%;
+  background:      rgba(255, 255, 255, 0.05);
+  color:           v.$text-secondary;
+  font-size:       0.9rem;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink:     0;
+
+  &:active { background: rgba(255, 255, 255, 0.1); }
+
+  &--active {
+    border-color: v.$primary;
+    color:        v.$primary;
+    background:   rgba(v.$primary, 0.1);
+  }
+}
+
+// Waveform décorative du beat (CSS pur)
+.daw-beat-wf-wrap {
+  position: relative;
+  margin:   0 12px 10px;
+  height:   52px;
+}
+
+.daw-beat-waveform {
+  display:       block;
+  width:         100%;
+  height:        52px;
+  border-radius: 6px;
+  background:    rgba(v.$primary, 0.04);
+  border:        1px solid rgba(v.$primary, 0.12);
+  // Invisible jusqu'au dessin — le shimmer prend la place
+  opacity: 0;
+  transition: opacity 0.3s ease;
+
+  &--ready { opacity: 1; }
+
+  &--seekable { cursor: pointer; }
+}
+
+.daw-beat-wf-time {
+  display:     flex;
+  align-items: center;
+  gap:         2px;
+  padding:     2px 14px 0;
+  font-size:   0.70rem;
+  font-weight: 600;
+  color:       rgba(255, 255, 255, 0.38);
+  font-variant-numeric: tabular-nums;
+
+  .daw-beat-wf-time-sep { color: rgba(255, 255, 255, 0.22); }
+}
+
+// Shimmer pendant le chargement du blob
+.daw-beat-wf-shimmer {
+  position:      absolute;
+  inset:         0;
+  border-radius: 6px;
+  background:    rgba(v.$primary, 0.04);
+  border:        1px solid rgba(v.$primary, 0.12);
+  overflow:      hidden;
+
+  &::after {
+    content:    '';
+    position:   absolute;
+    inset:      0;
+    background: linear-gradient(
+      90deg,
+      transparent          0%,
+      rgba(v.$primary, 0.08) 50%,
+      transparent          100%
+    );
+    background-size: 200% 100%;
+    animation:  bwf-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes bwf-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.daw-beat-vol-row {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  padding:     0 12px 10px;
+
+  i {
+    font-size:   0.9rem;
+    color:       rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+  }
+}
+
+// Panneau d'extension contextuel (visible quand beat sélectionné)
+.daw-extend-panel {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             10px;
+  padding:         10px 12px 12px;
+  border-top:      1px solid rgba(v.$primary, 0.15);
+  background:      rgba(v.$primary, 0.05);
+  animation:       fadeIn 0.15s ease;
+}
+
+.daw-extend-panel-hint {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+  font-size:   0.75rem;
+  color:       rgba(v.$primary, 0.65);
+  flex:        1;
+  min-width:   0;
+
+  i { font-size: 0.8rem; }
+}
+
+.daw-extend-actions {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-shrink: 0;
+}
+
+.daw-extend-btn {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       8px 13px;
+  border:        1.5px solid v.$primary;
+  border-radius: 10px;
+  background:    rgba(v.$primary, 0.1);
+  color:         v.$primary;
+  font-size:     0.82rem;
+  font-weight:   700;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    background 0.15s;
+
+  i { font-size: 0.85rem; }
+
+  &:active { background: rgba(v.$primary, 0.2); }
+}
+
+.daw-undo-btn {
+  display:       flex;
+  align-items:   center;
+  gap:           4px;
+  padding:       7px 10px;
+  border:        1.5px solid rgba(v.$text-secondary, 0.35);
+  border-radius: 10px;
+  background:    transparent;
+  color:         v.$text-secondary;
+  font-size:     0.78rem;
+  font-weight:   600;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    background 0.15s, border-color 0.15s, color 0.15s;
+
+  i { font-size: 0.85rem; }
+
+  &:active { background: rgba(v.$text-secondary, 0.1); }
+
+  &--warn {
+    border-color: rgba(v.$tag-orange, 0.6);
+    color:        v.$tag-orange;
+    &:active { background: rgba(v.$tag-orange, 0.1); }
+  }
+
+  &--danger {
+    border-color: rgba(v.$primary, 0.6);
+    color:        v.$primary;
+    &:active { background: rgba(v.$primary, 0.1); }
+  }
+}
+
+.daw-undo-confirm {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  animation:   fadeIn 0.12s ease;
+
+  &__msg {
+    font-size:   0.73rem;
+    color:       v.$tag-orange;
+    display:     flex;
+    align-items: center;
+    gap:         4px;
+    line-height: 1.2;
+
+    i { font-size: 0.8rem; }
+  }
+}
+
+// ── Permission banner ─────────────────────────────────────────────────────────
+
+.daw-perm-banner {
+  margin: 0 14px 8px;
+}
+
+// ── Pistes vocales ────────────────────────────────────────────────────────────
+
+.daw-voices-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  margin-bottom:  10px;
+}
+
+.daw-add-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             7px;
+  width:           100%;
+  padding:         13px;
+  border:          1.5px dashed rgba(255, 255, 255, 0.2);
+  border-radius:   14px;
+  background:      none;
+  color:           v.$text-secondary;
+  font-size:       0.88rem;
+  font-weight:     500;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s;
+
+  i { font-size: 1.05rem; }
+
+  &:active {
+    border-color: v.$primary;
+    color:        v.$primary;
+  }
+}
+
+// ── Réglages collapsibles ─────────────────────────────────────────────────────
+
+.daw-settings-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  width:       100%;
+  padding:     12px 14px;
+  border:      none;
+  background:  none;
+  color:       v.$text-secondary;
+  font-size:   0.82rem;
+  font-weight: 600;
+  cursor:      pointer;
+  text-align:  left;
+  transition:  color 0.15s;
+
+  i      { font-size: 0.85rem; flex-shrink: 0; }
+  span   { flex: 1; }
+
+  &:active { color: v.$text-primary; }
+}
+
+.daw-chevron { margin-left: auto; flex-shrink: 0; }
+
+.daw-settings-body {
+  padding:        0 14px 14px;
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  animation:      fadeIn 0.15s ease;
+}
+
+// ── Description ────────────────────────────────────────────────────────────────
+
+.daw-desc-row {
+  padding:    10px 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+// ── Action principale ─────────────────────────────────────────────────────────
+
+.daw-cta-row {
+  padding:     12px 14px 20px;
+  flex-shrink: 0;
+}
+
+.daw-btn-record-first {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  width:           100%;
+  padding:         18px;
+  border:          none;
+  border-radius:   16px;
+  background:      v.$primary;
+  color:           #fff;
+  font-size:       1.05rem;
+  font-weight:     700;
+  cursor:          pointer;
+  box-shadow:      0 4px 24px rgba(v.$primary, 0.35);
+  transition:      opacity 0.15s;
+
+  i { font-size: 1.2rem; }
+
+  &:active { opacity: 0.85; }
+}
+
+.daw-cta-actions {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+.daw-btn-export-main {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  width:           100%;
+  padding:         16px;
+  border:          none;
+  border-radius:   16px;
+  background:      v.$primary;
+  color:           #fff;
+  font-size:       1rem;
+  font-weight:     700;
+  cursor:          pointer;
+  box-shadow:      0 4px 20px rgba(v.$primary, 0.30);
+  transition:      opacity 0.15s;
+
+  i { font-size: 1.05rem; }
+
+  &:active { opacity: 0.85; }
+}
+
+.daw-btn-save-local {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  width:           100%;
+  padding:         13px 16px;
+  border:          1px solid rgba(255, 255, 255, 0.18);
+  border-radius:   14px;
+  background:      transparent;
+  color:           rgba(255, 255, 255, 0.75);
+  font-size:       0.9rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s;
+
+  i { font-size: 0.95rem; }
+
+  &:active {
+    border-color: rgba(255, 255, 255, 0.35);
+    color:        #fff;
+  }
+}
+
+.daw-local-saved {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  font-size:   0.82rem;
+  color:       #4ade80;
+  padding:     4px 2px 0;
+
+  i { font-size: 0.85rem; }
+}
+
+// ── Guest gate overlay ────────────────────────────────────────────────────────
+
+.daw-guest-gate {
+  position:   absolute;
+  inset:      0;
+  z-index:    200;
+  background: rgba(0, 0, 0, 0.72);
+  display:    flex;
+  align-items: flex-end;
+  padding:    0 0 env(safe-area-inset-bottom, 0px);
+
+  &__card {
+    width:         100%;
+    background:    #1c2028;
+    border-radius: 20px 20px 0 0;
+    padding:       28px 20px 32px;
+    display:       flex;
+    flex-direction: column;
+    align-items:   center;
+    gap:           14px;
+    text-align:    center;
+  }
+
+  &__icon {
+    font-size: 2rem;
+    color:     rgba(255, 255, 255, 0.4);
+  }
+
+  &__title {
+    font-size:   1.1rem;
+    font-weight: 700;
+    color:       #fff;
+    margin:      0;
+  }
+
+  &__body {
+    font-size:   0.88rem;
+    color:       rgba(255, 255, 255, 0.55);
+    margin:      0;
+    max-width:   280px;
+    line-height: 1.5;
+  }
+
+  &__cta {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    gap:             8px;
+    width:           100%;
+    padding:         15px 16px;
+    border:          none;
+    border-radius:   14px;
+    background:      v.$primary;
+    color:           #fff;
+    font-size:       0.95rem;
+    font-weight:     700;
+    cursor:          pointer;
+    box-shadow:      0 4px 16px rgba(v.$primary, 0.35);
+    transition:      opacity 0.15s;
+
+    &:active { opacity: 0.85; }
+  }
+
+  &__dl {
+    width: 100%;
+  }
+
+  &__cancel {
+    background:  transparent;
+    border:      none;
+    color:       rgba(255, 255, 255, 0.4);
+    font-size:   0.85rem;
+    cursor:      pointer;
+    padding:     4px 0;
+    margin-top:  -4px;
+  }
 }

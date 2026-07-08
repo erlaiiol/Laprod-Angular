@@ -5,39 +5,18 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   ContractBuilderService,
   ClauseGroupDTO, ClauseDTO, ContractParty, ContractValue,
-  ContractDetail, ContractStatus,
+  ContractDetail, ContractStatus, ContractType,
 } from '../../../services/contract-builder.service';
 import { ToastService } from '../../../services/toast.service';
 import { AuthService } from '../../../services/auth.service';
 import { PremiumLockComponent } from '../../../components/premium-lock/premium-lock.component';
+import {
+  CONTRACT_TYPE_CONFIGS, ContractTypeConfig, IntroFieldDef,
+} from '../contract-type-configs';
 
 interface LocalValue {
   is_enabled: boolean;
   value: any;
-}
-
-interface PresetClauseSpec {
-  group: string;
-  clause: string;
-  value?: any;
-}
-
-interface Preset {
-  id: string;
-  icon: string;
-  label: string;
-  description: string;
-  meta: string;
-  badge: string;
-  level: 'easy' | 'medium' | 'expert';
-  clauses: PresetClauseSpec[];
-}
-
-interface QuickStartSpec {
-  group:  string;
-  clause: string;
-  field:  string;
-  value:  string;
 }
 
 @Component({
@@ -83,18 +62,23 @@ export class BuilderFormComponent implements OnInit {
   downloading   = signal(false);
   confirmReset  = signal(false);
 
+  // ── Type de contrat / configuration ────────────────────────────────────────
+  contractType = signal<ContractType>('exploitation');
+  config = computed<ContractTypeConfig>(() => CONTRACT_TYPE_CONFIGS[this.contractType()]);
+
   // ── Intro tab ──────────────────────────────────────────────────────────────
-  showIntroTab   = signal(true);
-  oeuvreTitle    = signal('');
-  oeuvreIsrc     = signal('');
-  oeuvreType     = signal<'chanson' | 'album' | 'instrumental' | 'autre'>('chanson');
-  pctArtiste        = signal<number | null>(null);
-  pctEditeur        = signal<number | null>(null);
-  pctProducteur     = signal<number | null>(null);
-  anneeCreation     = signal<number | null>(null);
-  dureeOeuvre       = signal('');
-  debutExploitation = signal('');
-  finExploitation   = signal('');
+  showIntroTab = signal(true);
+
+  // Valeurs des champs d'introduction, indexées par IntroFieldDef.id
+  introValues = signal<Record<string, string>>({});
+
+  introValue(id: string): string {
+    return this.introValues()[id] ?? '';
+  }
+
+  setIntroValue(id: string, val: string): void {
+    this.introValues.update(m => ({ ...m, [id]: val }));
+  }
 
   introVarMap = computed<Record<string, string>>(() => {
     const p  = this.parties();
@@ -106,21 +90,21 @@ export class BuilderFormComponent implements OnInit {
         ? `${party.first_name ?? ''} ${party.last_name ?? ''}`.trim()
         : (party.company_name ?? '');
     };
-    return {
+    const map: Record<string, string> = {
       '[Contractant 1]':  nom(p1),
       '[Rôle 1]':         p1?.role ?? '',
       '[Contractant 2]':  nom(p2),
       '[Rôle 2]':         p2?.role ?? '',
-      "[l'Œuvre]":        this.oeuvreTitle(),
-      '[ISRC]':           this.oeuvreIsrc(),
-      '[% Artiste]':              this.pctArtiste()       !== null ? `${this.pctArtiste()}%`    : '',
-      '[% Éditeur]':              this.pctEditeur()       !== null ? `${this.pctEditeur()}%`    : '',
-      '[% Producteur]':           this.pctProducteur()    !== null ? `${this.pctProducteur()}%` : '',
-      '[année de création]':      this.anneeCreation()    !== null ? `${this.anneeCreation()}`  : '',
-      "[durée de l'œuvre]":       this.dureeOeuvre(),
-      "[début d'exploitation]":   this.debutExploitation(),
-      "[fin d'exploitation]":     this.finExploitation(),
     };
+    const values = this.introValues();
+    for (const section of this.config().introSections) {
+      for (const field of section.fields) {
+        if (!field.bracket) continue;
+        const raw = (values[field.id] ?? '').trim();
+        map[field.bracket] = raw ? `${raw}${field.suffix ?? ''}` : '';
+      }
+    }
+    return map;
   });
 
   introVarEntries  = computed(() =>
@@ -129,10 +113,31 @@ export class BuilderFormComponent implements OnInit {
   definedIntroVars = computed(() => this.introVarEntries().filter(e => !!e.value));
   hasAnyIntroVar   = computed(() => this.definedIntroVars().length > 0);
 
-  // True when the 3 "essential" variables (both party names + title) are set
+  // True when the essential variables (both party names + type-specific keys) are set
   hasKeyInfo = computed(() => {
     const m = this.introVarMap();
-    return !!(m['[Contractant 1]'] && m['[Contractant 2]'] && m["[l'Œuvre]"]);
+    if (!m['[Contractant 1]'] || !m['[Contractant 2]']) return false;
+    return this.config().keyBrackets.every(k => !!m[k]);
+  });
+
+  // Avertissement salariat du spectacle (contrats de représentation) :
+  // Contractant 1 personne physique + clause de rémunération surveillée activée.
+  salariatRisk = computed(() => {
+    const watch = this.config().salariatWatch;
+    if (!watch) return false;
+    const first = this.parties()[0];
+    if (!first || first.party_type !== 'physical') return false;
+    const vm = this.valuesMap();
+    const watched = new Set(watch.keys);
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        if (!watched.has(`${group.name}||${clause.name}`)) continue;
+        const lv = vm[clause.id];
+        const enabled = lv ? lv.is_enabled : clause.is_enabled_by_default;
+        if (enabled || clause.is_required) return true;
+      }
+    }
+    return false;
   });
 
   // True when at least one enabled clause carries text or details content
@@ -181,222 +186,8 @@ export class BuilderFormComponent implements OnInit {
     return result;
   });
 
-  // ── Presets ────────────────────────────────────────────────────────────────
-  readonly presets: Preset[] = [
-    {
-      id: 'licence-numerique',
-      icon: 'bi-music-note-beamed',
-      label: 'Licence numérique',
-      description: 'Distribution digitale non-exclusive — Spotify, Apple Music, TikTok.',
-      meta: '3 ans · France · Non-exclusive',
-      badge: 'Débutant',
-      level: 'easy',
-      clauses: [
-        { group: 'Préambule', clause: 'Contexte et volonté des parties' },
-        { group: 'Objet du contrat', clause: 'Nature juridique', value: { selected: 'Licence' } },
-        { group: 'Objet du contrat', clause: 'Finalité et description' },
-        { group: 'Désignation des œuvres', clause: 'Description de l\'œuvre' },
-        { group: 'Désignation des œuvres', clause: 'Versions concernées', value: { selected: ['Version originale'] } },
-        { group: 'Nature des droits concédés', clause: 'Droit de reproduction' },
-        { group: 'Nature des droits concédés', clause: 'Droit de représentation' },
-        { group: 'Nature des droits concédés', clause: 'Droit de distribution' },
-        { group: 'Nature des droits concédés', clause: 'Mise à disposition / Streaming' },
-        { group: 'Modalités d\'exploitation', clause: 'Supports autorisés', value: { selected: ['Téléchargement numérique', 'Streaming', 'Réseaux sociaux'] } },
-        { group: 'Territoire', clause: 'Territoire d\'exploitation', value: { territory: 'France' } },
-        { group: 'Durée', clause: 'Durée du contrat', value: { amount: 3, unit: 'ans' } },
-        { group: 'Obligations de l\'exploitant', clause: 'Obligation de distribution' },
-        { group: 'Obligations de l\'auteur / artiste', clause: 'Respect des délais contractuels' },
-        { group: 'Livraison des éléments techniques', clause: 'Éléments à livrer', value: { selected: ['Fichier WAV (master final)', 'Pochette haute résolution', 'Métadonnées complètes'] } },
-        { group: 'Livraison des éléments techniques', clause: 'Délai de livraison', value: { amount: 1, unit: 'mois' } },
-        { group: 'Royalties', clause: 'Mode de calcul', value: { selected: 'Sur net distributeur' } },
-        { group: 'Royalties', clause: 'Taux — streaming (%)', value: { number: 20 } },
-        { group: 'Comptabilité et audit', clause: 'Fréquence des relevés de comptes', value: { selected: 'Semestriel' } },
-        { group: 'Comptabilité et audit', clause: 'Conservation des données comptables (années)', value: { number: 5 } },
-        { group: 'Comptabilité et audit', clause: 'Droit d\'audit' },
-        { group: 'Garanties et propriété intellectuelle', clause: 'Obtention des autorisations nécessaires' },
-        { group: 'Responsabilité et indemnisation', clause: 'Limitation de responsabilité' },
-        { group: 'Responsabilité et indemnisation', clause: 'Prise en charge des litiges tiers' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Plateformes DSP (Spotify, Apple Music...)' },
-        { group: 'Exploitation numérique et plateformes', clause: 'YouTube Content ID' },
-        { group: 'Exploitation numérique et plateformes', clause: 'TikTok' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Meta (Instagram, Facebook Reels)' },
-        { group: 'Données, métadonnées et collecte', clause: 'Gestion des identifiants (ISRC, ISWC, UPC)' },
-        { group: 'Données, métadonnées et collecte', clause: 'Reporting plateforme' },
-        { group: 'Données, métadonnées et collecte', clause: 'Collecte SACEM / droits voisins' },
-        { group: 'Communication et image', clause: 'Droit d\'utiliser le nom / image / voix' },
-        { group: 'Force majeure', clause: 'Effets de la force majeure', value: { selected: 'Suspension du contrat' } },
-        { group: 'Résiliation', clause: 'Résiliation pour non-paiement' },
-        { group: 'Résiliation', clause: 'Résiliation pour faillite / liquidation' },
-        { group: 'Résiliation', clause: 'Effets et délais de résiliation' },
-        { group: 'Réversion des droits', clause: 'Retour automatique des droits' },
-        { group: 'Réversion des droits', clause: 'Conditions de réversion' },
-        { group: 'Notifications', clause: 'Email contractuel du cessionnaire' },
-        { group: 'Clauses générales', clause: 'Clause de non-renonciation' },
-        { group: 'Clauses générales', clause: 'Survie des clauses' },
-      ],
-    },
-    {
-      id: 'licence-exclusive',
-      icon: 'bi-shield-check',
-      label: 'Licence exclusive',
-      description: 'Contrat label ou distributeur avec exclusivité, avances et royalties.',
-      meta: '5 ans · Monde entier · Exclusive',
-      badge: 'Intermédiaire',
-      level: 'medium',
-      clauses: [
-        { group: 'Préambule', clause: 'Contexte et volonté des parties' },
-        { group: 'Définitions contractuelles', clause: 'Glossaire des termes' },
-        { group: 'Objet du contrat', clause: 'Nature juridique', value: { selected: 'Licence' } },
-        { group: 'Objet du contrat', clause: 'Finalité et description' },
-        { group: 'Désignation des œuvres', clause: 'Description de l\'œuvre' },
-        { group: 'Désignation des œuvres', clause: 'Versions concernées', value: { selected: ['Version originale', 'Version instrumentale'] } },
-        { group: 'Nature des droits concédés', clause: 'Droit de reproduction' },
-        { group: 'Nature des droits concédés', clause: 'Droit de représentation' },
-        { group: 'Nature des droits concédés', clause: 'Droit de distribution' },
-        { group: 'Nature des droits concédés', clause: 'Mise à disposition / Streaming' },
-        { group: 'Modalités d\'exploitation', clause: 'Supports autorisés', value: { selected: ['Vinyle', 'CD', 'Téléchargement numérique', 'Streaming', 'Réseaux sociaux', 'Télévision / Radio'] } },
-        { group: 'Territoire', clause: 'Territoire d\'exploitation', value: { territory: 'Monde entier' } },
-        { group: 'Durée', clause: 'Durée du contrat', value: { amount: 5, unit: 'ans' } },
-        { group: 'Exclusivité', clause: 'Exclusivité totale' },
-        { group: 'Exclusivité', clause: 'Exceptions à l\'exclusivité' },
-        { group: 'Obligations de l\'exploitant', clause: 'Obligation de distribution' },
-        { group: 'Obligations de l\'exploitant', clause: 'Minimum marketing' },
-        { group: 'Obligations de l\'exploitant', clause: 'Obligation de maintien de disponibilité' },
-        { group: 'Obligations de l\'auteur / artiste', clause: 'Disponibilité promotionnelle' },
-        { group: 'Obligations de l\'auteur / artiste', clause: 'Respect des délais contractuels' },
-        { group: 'Livraison des éléments techniques', clause: 'Éléments à livrer', value: { selected: ['Fichier WAV (master final)', 'Stems / pistes séparées', 'Pochette haute résolution', 'Métadonnées complètes', 'Paroles (lyrics)', 'Crédits complets'] } },
-        { group: 'Livraison des éléments techniques', clause: 'Formats et normes techniques' },
-        { group: 'Livraison des éléments techniques', clause: 'Délai de livraison', value: { amount: 1, unit: 'mois' } },
-        { group: 'Avances', clause: 'Type d\'avance', value: { selected: 'Avance recoupable' } },
-        { group: 'Avances', clause: 'Montant de l\'avance (€)' },
-        { group: 'Avances', clause: 'Conditions de versement' },
-        { group: 'Royalties', clause: 'Mode de calcul', value: { selected: 'Sur net distributeur' } },
-        { group: 'Royalties', clause: 'Taux — exploitation physique (%)' },
-        { group: 'Royalties', clause: 'Taux — streaming (%)', value: { number: 25 } },
-        { group: 'Royalties', clause: 'Taux — synchronisation (%)' },
-        { group: 'Recoupement', clause: 'Recoupement prévu' },
-        { group: 'Recoupement', clause: 'Dépenses recoupables' },
-        { group: 'Comptabilité et audit', clause: 'Fréquence des relevés de comptes', value: { selected: 'Trimestriel' } },
-        { group: 'Comptabilité et audit', clause: 'Conservation des données comptables (années)', value: { number: 5 } },
-        { group: 'Comptabilité et audit', clause: 'Droit d\'audit' },
-        { group: 'Comptabilité et audit', clause: 'Procédure d\'audit' },
-        { group: 'Garanties et propriété intellectuelle', clause: 'Obtention des autorisations nécessaires' },
-        { group: 'Responsabilité et indemnisation', clause: 'Limitation de responsabilité' },
-        { group: 'Responsabilité et indemnisation', clause: 'Prise en charge des litiges tiers' },
-        { group: 'Droits moraux', clause: 'Validation artistique requise' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Plateformes DSP (Spotify, Apple Music...)' },
-        { group: 'Exploitation numérique et plateformes', clause: 'YouTube Content ID' },
-        { group: 'Exploitation numérique et plateformes', clause: 'TikTok' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Meta (Instagram, Facebook Reels)' },
-        { group: 'Données, métadonnées et collecte', clause: 'Gestion des identifiants (ISRC, ISWC, UPC)' },
-        { group: 'Données, métadonnées et collecte', clause: 'Reporting plateforme' },
-        { group: 'Données, métadonnées et collecte', clause: 'Collecte SACEM / droits voisins' },
-        { group: 'Communication et image', clause: 'Droit d\'utiliser le nom / image / voix' },
-        { group: 'Force majeure', clause: 'Effets de la force majeure', value: { selected: 'Suspension du contrat' } },
-        { group: 'Résiliation', clause: 'Résiliation pour non-paiement' },
-        { group: 'Résiliation', clause: 'Résiliation pour faillite / liquidation' },
-        { group: 'Résiliation', clause: 'Résiliation pour absence d\'exploitation' },
-        { group: 'Résiliation', clause: 'Résiliation pour violation d\'exclusivité' },
-        { group: 'Résiliation', clause: 'Effets et délais de résiliation' },
-        { group: 'Réversion des droits', clause: 'Retour automatique des droits' },
-        { group: 'Réversion des droits', clause: 'Récupération des masters' },
-        { group: 'Réversion des droits', clause: 'Conditions de réversion' },
-        { group: 'Droit applicable et juridiction compétente', clause: 'Médiation préalable obligatoire' },
-        { group: 'Notifications', clause: 'Email contractuel du cessionnaire' },
-        { group: 'Clauses générales', clause: 'Clause de non-renonciation' },
-        { group: 'Clauses générales', clause: 'Survie des clauses' },
-        { group: 'Clauses générales', clause: 'Ordre de priorité des annexes' },
-      ],
-    },
-    {
-      id: 'edition-musicale',
-      icon: 'bi-music-note-list',
-      label: 'Édition musicale',
-      description: 'Auteur-compositeur confiant la gestion de ses droits à un éditeur (SACEM).',
-      meta: '3 ans · Monde entier · Éditeur musical',
-      badge: 'Expert',
-      level: 'expert',
-      clauses: [
-        { group: 'Préambule', clause: 'Contexte et volonté des parties' },
-        { group: 'Préambule', clause: 'Historique de collaboration' },
-        { group: 'Définitions contractuelles', clause: 'Glossaire des termes' },
-        { group: 'Objet du contrat', clause: 'Nature juridique', value: { selected: 'Édition' } },
-        { group: 'Objet du contrat', clause: 'Finalité et description' },
-        { group: 'Désignation des œuvres', clause: 'Description de l\'œuvre' },
-        { group: 'Désignation des œuvres', clause: 'Code ISWC' },
-        { group: 'Désignation des œuvres', clause: 'Code ISRC' },
-        { group: 'Désignation des œuvres', clause: 'Versions concernées', value: { selected: ['Version originale', 'Version instrumentale', 'Stems / pistes séparées'] } },
-        { group: 'Désignation des œuvres', clause: 'Fichiers et éléments livrés' },
-        { group: 'Nature des droits concédés', clause: 'Droit de reproduction' },
-        { group: 'Nature des droits concédés', clause: 'Droit de représentation' },
-        { group: 'Nature des droits concédés', clause: 'Droit de distribution' },
-        { group: 'Nature des droits concédés', clause: 'Mise à disposition / Streaming' },
-        { group: 'Nature des droits concédés', clause: 'Droit d\'adaptation / arrangement' },
-        { group: 'Modalités d\'exploitation', clause: 'Supports autorisés', value: { selected: ['Vinyle', 'CD', 'Cassette', 'Téléchargement numérique', 'Streaming', 'Réseaux sociaux', 'Télévision / Radio', 'Cinéma', 'Jeux vidéo', 'Applications mobiles'] } },
-        { group: 'Territoire', clause: 'Territoire d\'exploitation', value: { territory: 'Monde entier' } },
-        { group: 'Durée', clause: 'Durée du contrat', value: { amount: 3, unit: 'ans' } },
-        { group: 'Exclusivité', clause: 'Exclusivité totale' },
-        { group: 'Exclusivité', clause: 'Exceptions à l\'exclusivité' },
-        { group: 'Obligations de l\'exploitant', clause: 'Obligation de distribution' },
-        { group: 'Obligations de l\'exploitant', clause: 'Minimum marketing' },
-        { group: 'Obligations de l\'exploitant', clause: 'Obligation de maintien de disponibilité' },
-        { group: 'Obligations de l\'auteur / artiste', clause: 'Disponibilité promotionnelle' },
-        { group: 'Obligations de l\'auteur / artiste', clause: 'Respect des délais contractuels' },
-        { group: 'Livraison des éléments techniques', clause: 'Éléments à livrer', value: { selected: ['Fichier WAV (master final)', 'Stems / pistes séparées', 'Pochette haute résolution', 'Métadonnées complètes', 'Paroles (lyrics)', 'Crédits complets', 'Photos presse'] } },
-        { group: 'Livraison des éléments techniques', clause: 'Formats et normes techniques' },
-        { group: 'Livraison des éléments techniques', clause: 'Délai de livraison', value: { amount: 1, unit: 'mois' } },
-        { group: 'Avances', clause: 'Type d\'avance', value: { selected: 'Avance recoupable' } },
-        { group: 'Avances', clause: 'Montant de l\'avance (€)' },
-        { group: 'Avances', clause: 'Conditions de versement' },
-        { group: 'Royalties', clause: 'Mode de calcul', value: { selected: 'Sur net distributeur' } },
-        { group: 'Royalties', clause: 'Taux — exploitation physique (%)' },
-        { group: 'Royalties', clause: 'Taux — streaming (%)', value: { number: 25 } },
-        { group: 'Royalties', clause: 'Taux — synchronisation (%)' },
-        { group: 'Royalties', clause: 'Taux — YouTube / UGC (%)' },
-        { group: 'Recoupement', clause: 'Recoupement prévu' },
-        { group: 'Recoupement', clause: 'Dépenses recoupables' },
-        { group: 'Comptabilité et audit', clause: 'Fréquence des relevés de comptes', value: { selected: 'Trimestriel' } },
-        { group: 'Comptabilité et audit', clause: 'Conservation des données comptables (années)', value: { number: 5 } },
-        { group: 'Comptabilité et audit', clause: 'Droit d\'audit' },
-        { group: 'Comptabilité et audit', clause: 'Procédure d\'audit' },
-        { group: 'Garanties et propriété intellectuelle', clause: 'Obtention des autorisations nécessaires' },
-        { group: 'Responsabilité et indemnisation', clause: 'Limitation de responsabilité' },
-        { group: 'Responsabilité et indemnisation', clause: 'Prise en charge des litiges tiers' },
-        { group: 'Droits moraux', clause: 'Validation artistique requise' },
-        { group: 'Synchronisation et usages audiovisuels', clause: 'Cinéma / Séries télévisées' },
-        { group: 'Synchronisation et usages audiovisuels', clause: 'Plateformes sociales (Reels, Shorts, TikTok)' },
-        { group: 'Synchronisation et usages audiovisuels', clause: 'Trailers / Bande-annonces' },
-        { group: 'Synchronisation et usages audiovisuels', clause: 'Précisions synchro' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Plateformes DSP (Spotify, Apple Music...)' },
-        { group: 'Exploitation numérique et plateformes', clause: 'YouTube Content ID' },
-        { group: 'Exploitation numérique et plateformes', clause: 'TikTok' },
-        { group: 'Exploitation numérique et plateformes', clause: 'Meta (Instagram, Facebook Reels)' },
-        { group: 'Exploitation numérique et plateformes', clause: 'UGC / Remix utilisateurs' },
-        { group: 'Données, métadonnées et collecte', clause: 'Gestion des identifiants (ISRC, ISWC, UPC)' },
-        { group: 'Données, métadonnées et collecte', clause: 'Reporting plateforme' },
-        { group: 'Données, métadonnées et collecte', clause: 'Collecte SACEM / droits voisins' },
-        { group: 'Données, métadonnées et collecte', clause: 'Matching Content ID' },
-        { group: 'Communication et image', clause: 'Droit d\'utiliser le nom / image / voix' },
-        { group: 'Communication et image', clause: 'Biographie pour la presse' },
-        { group: 'Force majeure', clause: 'Effets de la force majeure', value: { selected: 'Suspension du contrat' } },
-        { group: 'Résiliation', clause: 'Résiliation pour non-paiement' },
-        { group: 'Résiliation', clause: 'Résiliation pour faillite / liquidation' },
-        { group: 'Résiliation', clause: 'Résiliation pour absence d\'exploitation' },
-        { group: 'Résiliation', clause: 'Résiliation pour violation d\'exclusivité' },
-        { group: 'Résiliation', clause: 'Effets et délais de résiliation' },
-        { group: 'Réversion des droits', clause: 'Retour automatique des droits' },
-        { group: 'Réversion des droits', clause: 'Récupération des masters' },
-        { group: 'Réversion des droits', clause: 'Conditions de réversion' },
-        { group: 'Cession du contrat et sous-licence', clause: 'Sous-licence autorisée' },
-        { group: 'Droit applicable et juridiction compétente', clause: 'Médiation préalable obligatoire' },
-        { group: 'Notifications', clause: 'Email contractuel du cessionnaire' },
-        { group: 'Clauses générales', clause: 'Clause de non-renonciation' },
-        { group: 'Clauses générales', clause: 'Survie des clauses' },
-        { group: 'Clauses générales', clause: 'Ordre de priorité des annexes' },
-        { group: 'Annexes', clause: 'Liste des annexes' },
-      ],
-    },
-  ];
+  // ── Presets / Quick Start (fournis par la config du type de contrat) ──────
+  get presets() { return this.config().presets; }
 
   constructor(
     private route:  ActivatedRoute,
@@ -415,31 +206,27 @@ export class BuilderFormComponent implements OnInit {
 
   loadAll(id: number): void {
     this.loading.set(true);
-    let templateDone = false;
-    let contractDone = false;
 
-    const tryFinish = () => {
-      if (!templateDone || !contractDone) return;
+    const finish = () => {
       this.loading.set(false);
       this.activeGroup.set(0);
       this.showIntroTab.set(true);
     };
 
-    this.svc.getTemplate().subscribe({
-      next: res => {
-        if (res.success && res.data) this.groups.set(res.data.groups);
-        templateDone = true; tryFinish();
-      },
-      error: () => { templateDone = true; tryFinish(); },
-    });
-
+    // Le contrat d'abord (il porte son type), puis le template correspondant.
     this.svc.getContract(id).subscribe({
       next: res => {
         if (res.success && res.data) this.applyContract(res.data.contract);
-        contractDone = true; tryFinish();
+        this.svc.getTemplate(this.contractType()).subscribe({
+          next: tRes => {
+            if (tRes.success && tRes.data) this.groups.set(tRes.data.groups);
+            finish();
+          },
+          error: () => finish(),
+        });
       },
       error: () => {
-        contractDone = true; tryFinish();
+        finish();
         this.toast.showToast({ level: 'error', message: 'Contrat introuvable.' });
         this.router.navigate(['/contract-builder']);
       },
@@ -448,6 +235,7 @@ export class BuilderFormComponent implements OnInit {
 
   applyContract(c: ContractDetail): void {
     this.title.set(c.title);
+    this.contractType.set(c.contract_type ?? 'exploitation');
     this.status.set(c.status);
     this.pdfFile.set(c.pdf_file);
     this.parties.set(c.parties.length ? c.parties : []);
@@ -834,125 +622,16 @@ export class BuilderFormComponent implements OnInit {
     }
   }
 
-  // ── Quick Start ────────────────────────────────────────────────────────────
+  // ── Quick Start (fourni par la config du type de contrat) ─────────────────
 
-  readonly quickStartClauses: QuickStartSpec[] = [
-    {
-      group: 'Préambule', clause: 'Contexte et volonté des parties', field: 'text',
-      value:
-        "[Contractant 1], en qualité de [Rôle 1], ci-après dénommé(e) « le [Rôle 1] », " +
-        "et [Contractant 2], en qualité de [Rôle 2], ci-après dénommé(e) « le [Rôle 2] », " +
-        "ont convenu, d'un commun accord, de formaliser les conditions d'exploitation de " +
-        "l'œuvre musicale intitulée [l'Œuvre], aux fins et dans les limites définies par " +
-        "le présent contrat. Les parties déclarent avoir pris connaissance de l'ensemble " +
-        "des dispositions ci-après et en accepter les termes sans réserve.",
-    },
-    {
-      group: 'Objet du contrat', clause: 'Finalité et description', field: 'text',
-      value:
-        "Le présent contrat a pour objet de définir les conditions dans lesquelles " +
-        "[Contractant 1], en qualité de [Rôle 1], concède à [Contractant 2], en qualité " +
-        "de [Rôle 2], le droit d'exploiter l'œuvre musicale intitulée [l'Œuvre], du " +
-        "[début d'exploitation] au [fin d'exploitation], dans les limites territoriales et " +
-        "selon les modalités précisées aux articles suivants. Cette exploitation s'inscrit " +
-        "dans le cadre du développement de la carrière artistique de [Contractant 1] et " +
-        "de la promotion de [l'Œuvre] sur l'ensemble des marchés couverts par le présent accord.",
-    },
-    {
-      group: 'Désignation des œuvres', clause: 'Description de l\'œuvre', field: 'text',
-      value:
-        "L'œuvre faisant l'objet du présent contrat est une composition musicale originale " +
-        "intitulée [l'Œuvre], créée en [année de création], d'une durée de [durée de l'œuvre], " +
-        "dont les droits d'auteur appartiennent à [Contractant 1]. Elle est identifiée par " +
-        "le code ISRC [ISRC] et livrée sous format WAV 24 bits / 44,1 kHz, accompagnée des " +
-        "stems multipistes, du visuel de pochette haute résolution et des métadonnées " +
-        "complètes conformes aux standards DDEX.",
-    },
-    {
-      group: 'Exclusivité', clause: 'Exclusivité totale', field: 'details',
-      value:
-        "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble " +
-        "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les " +
-        "territoires couverts et pour toute la durée du présent accord. Pendant cette période, " +
-        "[Contractant 1] s'engage à ne pas concéder à un tiers le droit d'exploiter [l'Œuvre], " +
-        "directement ou indirectement, sous quelque forme que ce soit.",
-    },
-    {
-      group: 'Comptabilité et audit', clause: 'Procédure d\'audit', field: 'text',
-      value:
-        "[Contractant 1] ou son mandataire dûment habilité pourra, après notification écrite " +
-        "adressée à [Contractant 2] avec un préavis minimum de trente (30) jours, procéder à " +
-        "la vérification des livres de compte et documents comptables afférents à l'exploitation " +
-        "de [l'Œuvre]. Cet audit ne pourra être effectué qu'une seule fois par exercice " +
-        "comptable. Les frais d'audit seront à la charge de [Contractant 1], sauf si l'audit " +
-        "révèle un écart supérieur à 5 % en défaveur de [Contractant 1], auquel cas ils seront " +
-        "supportés par [Contractant 2].",
-    },
-    {
-      group: 'Résiliation', clause: 'Effets et délais de résiliation', field: 'text',
-      value:
-        "En cas de résiliation du présent contrat, pour quelque cause que ce soit, " +
-        "[Contractant 2] s'engage à retirer [l'Œuvre] de l'ensemble des plateformes de " +
-        "distribution dans un délai de trente (30) jours ouvrés à compter de la notification " +
-        "de résiliation. Les créances antérieures à la date de résiliation demeurent exigibles. " +
-        "[Contractant 1] conserve le droit de percevoir les royalties afférentes aux " +
-        "exploitations intervenues avant la date de résiliation effective.",
-    },
-    {
-      group: 'Réversion des droits', clause: 'Retour automatique des droits', field: 'details',
-      value:
-        "À l'issue du présent contrat ou en cas de résiliation anticipée pour quelque cause " +
-        "que ce soit, l'ensemble des droits concédés par [Contractant 1] seront automatiquement " +
-        "et de plein droit révertis à ce dernier, sans formalité ni indemnité. [Contractant 2] " +
-        "s'engage à prendre toutes les mesures nécessaires pour que ces droits soient " +
-        "effectivement libérés dans les meilleurs délais.",
-    },
-    {
-      group: 'Réversion des droits', clause: 'Conditions de réversion', field: 'text',
-      value:
-        "Les droits concédés par [Contractant 1] seront automatiquement révertis dans les " +
-        "cas suivants : (i) si [Contractant 2] n'a pas procédé à la première exploitation " +
-        "commerciale de [l'Œuvre] avant le [début d'exploitation] convenu ou dans les " +
-        "dix-huit (18) mois suivant la livraison des masters définitifs ; (ii) si [l'Œuvre] " +
-        "cesse d'être disponible à l'écoute sur les principales plateformes de streaming " +
-        "(Spotify, Apple Music, Deezer) pendant une période continue de douze (12) mois ; " +
-        "(iii) en cas de liquidation judiciaire de [Contractant 2] ; (iv) à l'échéance " +
-        "du [fin d'exploitation] si aucun renouvellement n'a été signé.",
-    },
-  ];
-
-  readonly quickStartToggles: string[] = [
-    'Préambule||Contexte et volonté des parties',
-    'Nature des droits concédés||Droit de reproduction',
-    'Nature des droits concédés||Droit de représentation',
-    'Nature des droits concédés||Droit de distribution',
-    'Nature des droits concédés||Mise à disposition / Streaming',
-    'Exploitation numérique et plateformes||Plateformes DSP (Spotify, Apple Music...)',
-    'Exploitation numérique et plateformes||YouTube Content ID',
-    'Exploitation numérique et plateformes||TikTok',
-    'Exploitation numérique et plateformes||Meta (Instagram, Facebook Reels)',
-    'Données, métadonnées et collecte||Gestion des identifiants (ISRC, ISWC, UPC)',
-    'Données, métadonnées et collecte||Reporting plateforme',
-    'Données, métadonnées et collecte||Collecte SACEM / droits voisins',
-    'Obligations de l\'exploitant||Obligation de distribution',
-    'Obligations de l\'auteur / artiste||Obligation de bonne foi',
-    'Garanties et propriété intellectuelle||Garantie de titularité',
-    'Garanties et propriété intellectuelle||Garantie d\'originalité',
-    'Garanties et propriété intellectuelle||Absence d\'échantillons non autorisés',
-    'Communication et image||Droit au crédit',
-    'Confidentialité||Périmètre de la confidentialité',
-    'Force majeure||Événements couverts',
-    'Résiliation||Résiliation pour inexécution',
-    'Clauses générales||Divisibilité',
-    'Clauses générales||Intégralité de l\'accord',
-    'Clauses générales||Modification écrite',
-  ];
+  get quickStartClauses() { return this.config().quickStartClauses; }
+  get quickStartToggles() { return this.config().quickStartToggles; }
 
   applyQuickStart(): void {
     if (!this.hasKeyInfo()) {
       this.toast.showToast({
         level: 'error',
-        message: 'Merci de remplir les informations clés : nom des deux parties et titre de l\'œuvre.',
+        message: this.config().keyInfoHint,
       });
       return;
     }
