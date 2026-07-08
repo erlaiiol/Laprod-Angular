@@ -1,9 +1,10 @@
 /**
  * MobileAudioProcessorService — Pipeline de production vocale entièrement côté client.
  *
- * Ordre de traitement (miroir d'une chaîne mastering standard) :
- *   Decode → Mono mix → Noise gate → HPF → De-esser → EQ → Gain
- *   → Tanh limiter → Plate reverb → [Autotune] → Mix beat → Peak guard → MP3
+ * Chaîne de traitement (inspirée studio professionnel) :
+ *   Decode → Mono → Gate → HPF → LA-2A (optique) → Presence EQ → Air shelf @12kHz
+ *   → 1176 (FET) → De-esser → Gain → Tanh limiter → Plate reverb → [Autotune]
+ *   → Mix beat → Peak guard → MP3
  *
  * Références techniques :
  *   - HPF Butterworth CBS Q values : Zölzer, DAFX 2e éd., §2.2
@@ -12,13 +13,37 @@
  *   - Schroeder reverb → plate IR via filtered noise : gskinner.com/blog 2019
  *   - Pitch detection YIN : de Cheveigné & Kawahara, J. Acoust. Soc. Am. 2002
  *   - SoundTouchJS WSOLA : Söderström, TUT, Finland 1993
+ *   - LA-2A / 1176 : Katz, Mastering Audio 3e éd., ch. 6
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 // @ts-ignore — pas de typings officiels pour soundtouchjs
 import { SoundTouch, SimpleFilter } from 'soundtouchjs';
 import { PitchDetector } from 'pitchy';
 import { Mp3Encoder } from '@breezystack/lamejs';
+
+/**
+ * Constructeur d'OfflineAudioContext, injecté plutôt que référencé en dur.
+ * jsdom (environnement de test) n'implémente pas le Web Audio API — ce token
+ * permet aux tests de fournir une vraie implémentation (ex. node-web-audio-api)
+ * sans toucher au global ni au service. En prod (navigateur/WebView), la factory
+ * retourne exactement la classe native : comportement inchangé.
+ * Même pattern que PITCH_MONITOR (pitch-monitor-plugin.ts) pour l'abstraction natif/plateforme.
+ *
+ * La factory par défaut doit rester sûre même quand le global n'existe pas :
+ * ce champ est résolu dès la construction du service (injection de champ), et
+ * MobileAudioProcessorService est lui-même injecté par d'autres services
+ * (ex. MobileMaquetteService) dans des tests qui ne touchent jamais l'audio —
+ * référencer le global sans garde ferait échouer CES tests-là aussi, alors
+ * qu'ils n'appellent jamais une méthode de décodage/mixage.
+ */
+export const OFFLINE_AUDIO_CONTEXT = new InjectionToken<typeof OfflineAudioContext>(
+  'OfflineAudioContext',
+  {
+    factory: () =>
+      (typeof OfflineAudioContext !== 'undefined' ? OfflineAudioContext : undefined) as typeof OfflineAudioContext,
+  },
+);
 
 // ── DSP constants ─────────────────────────────────────────────────────────────
 // Regroupés ici pour faciliter le tuning sans chercher dans le code.
@@ -37,21 +62,39 @@ const HPF_FREQ = 160;    // Hz — coupe les rumbles et proximité de micro
 const HPF_Q1   = 0.5412;
 const HPF_Q2   = 1.3066;
 
+// LA-2A — compresseur optique : colle la voix, égalise les dynamiques sans pompage
+// Knee très doux = compression progressive, caractère "transparent/gluey"
+const LA2A_THRESHOLD = -22;   // dBFS
+const LA2A_KNEE      =  14;   // dB — très doux (optique)
+const LA2A_RATIO     =   3;   // :1
+const LA2A_ATTACK    = 0.030; // s — 30ms, laisse les consonnes passer
+const LA2A_RELEASE   = 0.350; // s — programme-dépendant approché
+
+// 1176 — compresseur FET : punch, transitoires, solidification post-EQ
+// Knee dur + ratio élevé = caractère "snap", pas de punch perdu
+const C1176_THRESHOLD = -18;  // dBFS
+const C1176_KNEE      =   2;  // dB — dur (FET)
+const C1176_RATIO     =   8;  // :1
+const C1176_ATTACK    = 0.001; // s — 1ms (min réaliste Web Audio)
+const C1176_RELEASE   = 0.180; // s
+
 // De-esser split-band — sidechain centré sur le cluster de sibilance
-// 5 472 Hz : centre mesical du pic de sibilance vocale en microphone cardioïde
+// Positionné APRÈS la compression : le compresseur relève les sibilances
+// par rapport aux voyelles, le de-esser les rattrape plus précisément ici.
+// 5 472 Hz : centre médical du pic de sibilance vocale en microphone cardioïde
 const DEESS_FREQ      = 5_472;  // Hz
 const DEESS_BW_Q      =   2.7;  // Q du bandpass sibilant
-const DEESS_THRESHOLD =   -24;  // dBFS seuil du compresseur sibilant
+const DEESS_THRESHOLD =   -22;  // dBFS — légèrement relevé post-compression
 const DEESS_RATIO     =    10;  // compression agressive sur la bande (de-esser ≈ gate fréq.)
 const DEESS_ATTACK    = 0.004;  // s — rapide pour attraper les transients
 const DEESS_RELEASE   = 0.050;  // s
 
 // EQ vocal
 const PRESENCE_FREQ = 2_500;  // Hz — boost d'intelligibilité (consonnes, attaque)
-const PRESENCE_GAIN =   3.0;  // dB
+const PRESENCE_GAIN =   3.5;  // dB
 const PRESENCE_Q    =   1.0;
-const AIR_FREQ      = 10_000; // Hz — shelf pour l'aérien (open top-end)
-const AIR_GAIN      =   2.5;  // dB
+const AIR_FREQ      = 12_000; // Hz — Pultec-style "air" shelf (12kHz = ouverture sans agressivité)
+const AIR_GAIN      =   4.0;  // dB — valeur par défaut; clarityDb le remplace si spécifié
 
 // Tanh soft limiter — protège contre les inter-sample peaks après le gain staging
 // Fonction : y = tanh(x · drive / ceiling) · ceiling
@@ -68,7 +111,7 @@ const PLATE_LP_HZ   = 6_000;  // Hz
 // Autotune (correction de hauteur globale + lissage)
 const PITCH_FRAME    = 2048;  // samples — fenêtre YIN (~43 ms @ 48kHz)
 const PITCH_HOP      =  256;  // samples — pas d'analyse (~5 ms)
-const PITCH_CLARITY  =  0.88; // seuil de confiance YIN (0→1, 1=parfait)
+const PITCH_CLARITY  =  0.80; // seuil de confiance YIN (0→1, 1=parfait)
 const PITCH_HZ_MIN   =   80;  // Hz — limite basse (voix basse masculine)
 const PITCH_HZ_MAX   = 1_200; // Hz — limite haute (voix soprano)
 const PITCH_SMOOTH_K =    5;  // longueur du filtre médian glissant (frames)
@@ -158,6 +201,8 @@ export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
 @Injectable({ providedIn: 'root' })
 export class MobileAudioProcessorService {
 
+  private readonly offlineCtx = inject(OFFLINE_AUDIO_CONTEXT);
+
   /** Cache de l'IR plate — généré une seule fois par session. */
   private _plateIRCache: Promise<AudioBuffer> | null = null;
 
@@ -222,7 +267,7 @@ export class MobileAudioProcessorService {
     );
     const cropped = cropSamples > 0
       ? (() => {
-          const ctx = new OfflineAudioContext(1, gated.length - cropSamples, SR);
+          const ctx = new this.offlineCtx(1, gated.length - cropSamples, SR);
           const buf = ctx.createBuffer(1, gated.length - cropSamples, SR);
           buf.getChannelData(0).set(gated.getChannelData(0).subarray(cropSamples));
           return buf;
@@ -269,7 +314,7 @@ export class MobileAudioProcessorService {
     const totalFrames = Math.min(vocalLen, beatRaw.length);
 
     prog('Mixage…', 30);
-    const ctx = new OfflineAudioContext(2, totalFrames, SR);
+    const ctx = new this.offlineCtx(2, totalFrames, SR);
 
     // Beat
     const beatSrc = ctx.createBufferSource();
@@ -327,7 +372,7 @@ export class MobileAudioProcessorService {
       : beatRaw.length;
     const totalLen  = Math.min(vocalLen, beatRaw.length);
 
-    const ctx = new OfflineAudioContext(2, totalLen, SR);
+    const ctx = new this.offlineCtx(2, totalLen, SR);
 
     const beatSrc = ctx.createBufferSource();
     beatSrc.buffer = beatRaw;
@@ -401,7 +446,7 @@ export class MobileAudioProcessorService {
     }
 
     // WebM/OGG/MP4 (enregistrement web bureau)
-    const ctx = new OfflineAudioContext(2, SR, SR);
+    const ctx = new this.offlineCtx(2, SR, SR);
     return ctx.decodeAudioData(ab);
   }
 
@@ -422,7 +467,7 @@ export class MobileAudioProcessorService {
   /** Ramène un PCM brut capturé à `srcRate` au sample rate canonique du pipeline (SR). */
   private async _pcmToCanonicalRate(samples: Float32Array, srcRate: number): Promise<AudioBuffer> {
     if (srcRate === SR) {
-      const ctx = new OfflineAudioContext(1, samples.length, SR);
+      const ctx = new this.offlineCtx(1, samples.length, SR);
       const buf = ctx.createBuffer(1, samples.length, SR);
       buf.getChannelData(0).set(samples);
       return buf;
@@ -430,12 +475,12 @@ export class MobileAudioProcessorService {
 
     // Resampling via le moteur Web Audio : un AudioBufferSourceNode est rééchantillonné
     // automatiquement vers le sample rate du contexte de destination au rendu.
-    const srcCtx = new OfflineAudioContext(1, samples.length, srcRate);
+    const srcCtx = new this.offlineCtx(1, samples.length, srcRate);
     const srcBuf = srcCtx.createBuffer(1, samples.length, srcRate);
     srcBuf.getChannelData(0).set(samples);
 
     const targetLength = Math.max(1, Math.ceil(samples.length * SR / srcRate));
-    const dstCtx = new OfflineAudioContext(1, targetLength, SR);
+    const dstCtx = new this.offlineCtx(1, targetLength, SR);
     const src    = dstCtx.createBufferSource();
     src.buffer   = srcBuf;
     src.connect(dstCtx.destination);
@@ -447,7 +492,7 @@ export class MobileAudioProcessorService {
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) throw new Error(`Beat fetch: HTTP ${resp.status}`);
     const ab  = await resp.arrayBuffer();
-    const ctx = new OfflineAudioContext(2, SR, SR);
+    const ctx = new this.offlineCtx(2, SR, SR);
     return ctx.decodeAudioData(ab);
   }
 
@@ -461,7 +506,7 @@ export class MobileAudioProcessorService {
       const ch = buf.getChannelData(c);
       for (let i = 0; i < len; i++) out[i] += ch[i] / nCh;
     }
-    const ctx    = new OfflineAudioContext(1, len, SR);
+    const ctx    = new this.offlineCtx(1, len, SR);
     const result = ctx.createBuffer(1, len, SR);
     result.getChannelData(0).set(out);
     return result;
@@ -493,7 +538,7 @@ export class MobileAudioProcessorService {
       out[i] = src[i] * gate;
     }
 
-    const ctx    = new OfflineAudioContext(1, buf.length, SR);
+    const ctx    = new this.offlineCtx(1, buf.length, SR);
     const result = ctx.createBuffer(1, buf.length, SR);
     result.getChannelData(0).set(out);
     return result;
@@ -503,28 +548,63 @@ export class MobileAudioProcessorService {
 
   private async _applyVocalChain(voice: AudioBuffer, params: MixParameters): Promise<AudioBuffer> {
     const len = voice.length;
-    const ctx = new OfflineAudioContext(1, len, SR);
+    const ctx = new this.offlineCtx(1, len, SR);
 
     const src = ctx.createBufferSource();
     src.buffer = voice;
 
-    // ── HPF ordre 4 Butterworth (deux sections Butterworth 2nd ordre en cascade) ──
+    // ── HPF ordre 4 Butterworth (deux sections 2nd-ordre en cascade) ─────────────
     const hp1 = ctx.createBiquadFilter();
     hp1.type = 'highpass'; hp1.frequency.value = HPF_FREQ; hp1.Q.value = HPF_Q1;
     const hp2 = ctx.createBiquadFilter();
     hp2.type = 'highpass'; hp2.frequency.value = HPF_FREQ; hp2.Q.value = HPF_Q2;
     src.connect(hp1).connect(hp2);
 
-    // ── De-esser : sidechain split-band ─────────────────────────────────────────
-    // Formule : signal_desessé = original + comp(bande_sib) - uncomp(bande_sib)
-    // Le GainNode(-1) soustrait la bande non compressée, le compresseur la réinjecte
-    // à niveau réduit. Toutes les autres fréquences passent intactes.
+    // ── LA-2A (compresseur optique) ───────────────────────────────────────────────
+    // Knee très doux = caractère transparent, programme-dépendant.
+    // Rôle : colle la voix, compense les variations de distance micro, prépare l'EQ.
+    const la2a = ctx.createDynamicsCompressor();
+    la2a.threshold.value = LA2A_THRESHOLD;
+    la2a.knee.value      = LA2A_KNEE;
+    la2a.ratio.value     = LA2A_RATIO;
+    la2a.attack.value    = LA2A_ATTACK;
+    la2a.release.value   = LA2A_RELEASE;
+    hp2.connect(la2a);
+
+    // ── EQ vocal (Presence + Pultec Air) ─────────────────────────────────────────
+    // Presence : boost d'intelligibilité (consonnes, attaque des syllabes)
+    const presence = ctx.createBiquadFilter();
+    presence.type = 'peaking'; presence.frequency.value = PRESENCE_FREQ;
+    presence.gain.value = PRESENCE_GAIN; presence.Q.value = PRESENCE_Q;
+    la2a.connect(presence);
+
+    // Pultec-style air shelf @12kHz : clarityDb pilote le gain (défaut = AIR_GAIN)
+    const air = ctx.createBiquadFilter();
+    air.type = 'highshelf'; air.frequency.value = AIR_FREQ;
+    air.gain.value = params.clarityDb ?? AIR_GAIN;
+    presence.connect(air);
+
+    // ── 1176 (compresseur FET) ────────────────────────────────────────────────────
+    // Knee dur + attaque très rapide = "snap" et solidification des transitoires.
+    // Positionné après l'EQ : le shelf d'air a relevé le haut du spectre, le 1176
+    // le maîtrise sans altérer l'image de brillance acquise.
+    const c1176 = ctx.createDynamicsCompressor();
+    c1176.threshold.value = C1176_THRESHOLD;
+    c1176.knee.value      = C1176_KNEE;
+    c1176.ratio.value     = C1176_RATIO;
+    c1176.attack.value    = C1176_ATTACK;
+    c1176.release.value   = C1176_RELEASE;
+    air.connect(c1176);
+
+    // ── De-esser : sidechain split-band (après compression) ──────────────────────
+    // La compression relève les sibilances par rapport aux voyelles → le de-esser
+    // ici est plus précis qu'en amont. Formule : signal_desessé = dry + comp(sib) − sib
     const dry = ctx.createGain(); dry.gain.value = 1;
-    hp2.connect(dry);
+    c1176.connect(dry);
 
     const sib = ctx.createBiquadFilter();
     sib.type = 'bandpass'; sib.frequency.value = DEESS_FREQ; sib.Q.value = DEESS_BW_Q;
-    hp2.connect(sib);
+    c1176.connect(sib);
 
     const sibComp = ctx.createDynamicsCompressor();
     sibComp.threshold.value = DEESS_THRESHOLD;
@@ -542,23 +622,10 @@ export class MobileAudioProcessorService {
     sibComp.connect(deessMerge);
     sibNeg.connect(deessMerge);
 
-    // ── EQ vocal ─────────────────────────────────────────────────────────────────
-    // Presence : boost d'intelligibilité (consonnes, attaque des syllabes)
-    const presence = ctx.createBiquadFilter();
-    presence.type = 'peaking'; presence.frequency.value = PRESENCE_FREQ;
-    presence.gain.value = PRESENCE_GAIN; presence.Q.value = PRESENCE_Q;
-    deessMerge.connect(presence);
-
-    // Air shelf : brillance et ouverture du haut-spectre (clarityDb pilote le gain, défaut AIR_GAIN)
-    const air = ctx.createBiquadFilter();
-    air.type = 'highshelf'; air.frequency.value = AIR_FREQ;
-    air.gain.value = params.clarityDb ?? AIR_GAIN;
-    presence.connect(air);
-
     // ── Gain utilisateur ──────────────────────────────────────────────────────────
     const gainNode = ctx.createGain();
     gainNode.gain.value = params.voiceGain;
-    air.connect(gainNode);
+    deessMerge.connect(gainNode);
 
     // ── Tanh soft limiter ─────────────────────────────────────────────────────────
     const limiter = this._createTanhLimiter(ctx);
@@ -567,11 +634,10 @@ export class MobileAudioProcessorService {
     // ── Plate reverb ──────────────────────────────────────────────────────────────
     const ir   = await this._getPlateIR();
     const conv = ctx.createConvolver();
-    // Transfer : copier les données Float32 de l'IR dans le contexte courant
     const irBuf = ctx.createBuffer(1, ir.length, SR);
     irBuf.getChannelData(0).set(ir.getChannelData(0));
-    conv.buffer   = irBuf;
-    conv.normalize = false; // l'IR est déjà normalisé lors de la génération
+    conv.buffer    = irBuf;
+    conv.normalize = false;
 
     const dryG = ctx.createGain(); dryG.gain.value = 1 - params.reverbWet;
     const wetG = ctx.createGain(); wetG.gain.value = params.reverbWet;
@@ -615,7 +681,7 @@ export class MobileAudioProcessorService {
 
   private async _generatePlateIR(): Promise<AudioBuffer> {
     const len     = Math.floor(PLATE_DECAY_S * SR);
-    const offline = new OfflineAudioContext(1, len, SR);
+    const offline = new this.offlineCtx(1, len, SR);
 
     const noise  = offline.createBuffer(1, len, SR);
     const d      = noise.getChannelData(0);
@@ -755,7 +821,7 @@ export class MobileAudioProcessorService {
         for (let i = 0; i < n && wp < len; i++) output[wp++] = tmp[i * 2];
       }
 
-      const ctx = new OfflineAudioContext(1, len, SR);
+      const ctx = new this.offlineCtx(1, len, SR);
       const out = ctx.createBuffer(1, len, SR);
       out.getChannelData(0).set(output);
       resolve(out);
@@ -779,7 +845,7 @@ export class MobileAudioProcessorService {
     const voiceLen    = voice.length - cropSamples;
     const totalFrames = Math.min(voiceLen, beat.length);
 
-    const ctx = new OfflineAudioContext(2, totalFrames, SR);
+    const ctx = new this.offlineCtx(2, totalFrames, SR);
 
     const beatSrc = ctx.createBufferSource();
     beatSrc.buffer = beat;

@@ -23,8 +23,8 @@ export interface PitchMonitorPlugin {
     trackKey:       string;
     /** Active la correction de hauteur temps-réel sur le monitoring (casque filaire requis). */
     monitorAutotune?: boolean;
-    /** Vitesse de correction : 'natural' (k=0.85) ou 'precise' (k=0.5). Défaut : 'natural'. */
-    retuneSpeed?:   'natural' | 'precise';
+    /** Vitesse de correction : 'natural' (τ≈75ms), 'precise' (τ≈25ms), 'robot' (snap instantané). Défaut : 'natural'. */
+    retuneSpeed?:   'natural' | 'precise' | 'robot';
   }): Promise<void>;
 
   stopSession(): Promise<SessionResult>;

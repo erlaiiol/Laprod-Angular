@@ -24,6 +24,9 @@
       <span class="bf-status" [class.final]="isFinal()">
         {{ isFinal() ? 'Finalisé' : 'Brouillon' }}
       </span>
+      <span class="bf-type-badge" [class.bf-type-badge--perf]="contractType() === 'performance'">
+        {{ config().label }}
+      </span>
     </div>
     <div class="bf-header-actions">
       <button class="btn-preview" (click)="togglePreview()"
@@ -67,6 +70,17 @@
     <!-- Main content -->
     <div class="bf-content">
 
+      <!-- Avertissement salariat du spectacle (dynamique) -->
+      @if (salariatRisk() && config().salariatWatch) {
+        <div class="bf-salariat-banner">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>
+            <strong>Risque de requalification en salariat</strong>
+            <p>{{ config().salariatWatch!.message }}</p>
+          </div>
+        </div>
+      }
+
       <!-- ── Intro tab ──────────────────────────────────────────────────── -->
       @if (showIntroTab()) {
         <div class="bf-section bf-intro">
@@ -75,6 +89,16 @@
             <h2><span class="bf-art-badge bf-art-badge--intro">✦</span> Introduction</h2>
             <p class="bf-section-desc">Renseignez une fois les informations clés qui seront réutilisables dans vos clauses.</p>
           </div>
+
+          @if (config().legalWarning; as warning) {
+            <div class="bf-legal-warning">
+              <i class="bi bi-info-circle-fill"></i>
+              <div>
+                <strong>{{ warning.title }}</strong>
+                <p>{{ warning.text }}</p>
+              </div>
+            </div>
+          }
 
           <!-- Section 1 : Parties (éditeur compact inline) -->
           <div class="bf-intro-section">
@@ -86,7 +110,7 @@
                 <div class="bf-intro-party-head">
                   <span class="bf-intro-party-badge">
                     @if ($index === 0) {
-                      <i class="bi bi-music-note-beamed"></i> Contractant 1 — Artiste / Titulaire
+                      <i class="bi bi-music-note-beamed"></i> {{ config().firstPartyBadge }}
                     } @else {
                       <i class="bi bi-building"></i> Contractant {{ $index + 1 }}
                     }
@@ -100,7 +124,7 @@
                 <div class="bf-intro-party-fields">
                   <label class="bf-intro-field bf-intro-field--wide">
                     <span>Rôle dans le contrat <span class="req">*</span></span>
-                    <input type="text" class="bf-input" placeholder="ex : Artiste, Éditeur, Distributeur…"
+                    <input type="text" class="bf-input" [placeholder]="config().rolePlaceholder"
                       [value]="p.role"
                       (input)="updatePartyField($index, 'role', $any($event.target).value)"
                       [disabled]="isFinal()" />
@@ -149,93 +173,47 @@
             }
           </div>
 
-          <!-- Section 2 : L'œuvre -->
-          <div class="bf-intro-section">
-            <h3 class="bf-intro-title"><i class="bi bi-music-note-beamed"></i> L'œuvre concernée</h3>
-            <div class="bf-intro-grid">
-              <label class="bf-intro-field bf-intro-field--wide">
-                <span>Titre de l'œuvre</span>
-                <input type="text" class="bf-input" placeholder="ex : Midnight Drive"
-                  [value]="oeuvreTitle()"
-                  (input)="oeuvreTitle.set($any($event.target).value)" />
-              </label>
-              <label class="bf-intro-field">
-                <span>Type</span>
-                <select class="bf-select"
-                  [value]="oeuvreType()"
-                  (change)="oeuvreType.set($any($any($event.target).value))">
-                  <option value="chanson">Chanson</option>
-                  <option value="album">Album</option>
-                  <option value="instrumental">Instrumental</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </label>
-              <label class="bf-intro-field">
-                <span>Code ISRC</span>
-                <input type="text" class="bf-input" placeholder="ex : FR-ABC-23-01234"
-                  [value]="oeuvreIsrc()"
-                  (input)="oeuvreIsrc.set($any($event.target).value)" />
-              </label>
-              <label class="bf-intro-field">
-                <span>Année de création</span>
-                <input type="number" class="bf-input" min="1900" max="2099" placeholder="ex : 2024"
-                  [value]="anneeCreation() ?? ''"
-                  (input)="anneeCreation.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
-              </label>
-              <label class="bf-intro-field">
-                <span>Durée de l'œuvre</span>
-                <input type="text" class="bf-input" placeholder="ex : 3 min 42 s"
-                  [value]="dureeOeuvre()"
-                  (input)="dureeOeuvre.set($any($event.target).value)" />
-              </label>
-              <label class="bf-intro-field">
-                <span>Début d'exploitation</span>
-                <input type="text" class="bf-input" placeholder="ex : 01/01/2025"
-                  [value]="debutExploitation()"
-                  (input)="debutExploitation.set($any($event.target).value)" />
-              </label>
-              <label class="bf-intro-field">
-                <span>Fin d'exploitation</span>
-                <input type="text" class="bf-input" placeholder="ex : 31/12/2027"
-                  [value]="finExploitation()"
-                  (input)="finExploitation.set($any($event.target).value)" />
-              </label>
+          <!-- Sections 2+ : champs d'introduction (pilotés par la config du type de contrat) -->
+          @for (section of config().introSections; track section.title) {
+            <div class="bf-intro-section">
+              <h3 class="bf-intro-title"><i class="bi {{ section.icon }}"></i> {{ section.title }}</h3>
+              @if (section.hint) {
+                <p class="bf-intro-hint">{{ section.hint }}</p>
+              }
+              <div class="bf-intro-grid">
+                @for (field of section.fields; track field.id) {
+                  <label class="bf-intro-field" [class.bf-intro-field--wide]="field.wide">
+                    <span>{{ field.label }}</span>
+                    @if (field.inputType === 'select') {
+                      <select class="bf-select"
+                        [value]="introValue(field.id)"
+                        (change)="setIntroValue(field.id, $any($event.target).value)">
+                        <option value="">—</option>
+                        @for (opt of field.options ?? []; track opt) {
+                          <option [value]="opt">{{ opt }}</option>
+                        }
+                      </select>
+                    } @else if (field.suffix) {
+                      <div class="bf-input-group">
+                        <input [type]="field.inputType" class="bf-input bf-input-sm"
+                          [attr.min]="field.min" [attr.max]="field.max"
+                          [placeholder]="field.placeholder ?? ''"
+                          [value]="introValue(field.id)"
+                          (input)="setIntroValue(field.id, $any($event.target).value)" />
+                        <span class="bf-unit">{{ field.suffix }}</span>
+                      </div>
+                    } @else {
+                      <input [type]="field.inputType" class="bf-input"
+                        [attr.min]="field.min" [attr.max]="field.max"
+                        [placeholder]="field.placeholder ?? ''"
+                        [value]="introValue(field.id)"
+                        (input)="setIntroValue(field.id, $any($event.target).value)" />
+                    }
+                  </label>
+                }
+              </div>
             </div>
-          </div>
-
-          <!-- Section 3 : Clés financières -->
-          <div class="bf-intro-section">
-            <h3 class="bf-intro-title"><i class="bi bi-percent"></i> Clés financières</h3>
-            <div class="bf-intro-grid">
-              <label class="bf-intro-field">
-                <span>% Artiste</span>
-                <div class="bf-input-group">
-                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 70"
-                    [value]="pctArtiste() ?? ''"
-                    (input)="pctArtiste.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
-                  <span class="bf-unit">%</span>
-                </div>
-              </label>
-              <label class="bf-intro-field">
-                <span>% Éditeur</span>
-                <div class="bf-input-group">
-                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 20"
-                    [value]="pctEditeur() ?? ''"
-                    (input)="pctEditeur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
-                  <span class="bf-unit">%</span>
-                </div>
-              </label>
-              <label class="bf-intro-field">
-                <span>% Producteur</span>
-                <div class="bf-input-group">
-                  <input type="number" class="bf-input bf-input-sm" min="0" max="100" placeholder="ex : 10"
-                    [value]="pctProducteur() ?? ''"
-                    (input)="pctProducteur.set($any($event.target).value !== '' ? +$any($event.target).value : null)" />
-                  <span class="bf-unit">%</span>
-                </div>
-              </label>
-            </div>
-          </div>
+          }
 
           <!-- Section 4 : Résumé du contrat -->
           @if (activeGroupSummaries().length > 0) {
@@ -286,14 +264,14 @@
                       <i class="bi bi-lightning-charge-fill"></i> Prêt à démarrer
                     </span>
                     <span class="bf-qs-banner-desc">
-                      Pré-remplissez les clauses essentielles d'une licence numérique avec vos variables.
+                      {{ config().quickStartDescription }}
                     </span>
                   } @else {
                     <span class="bf-qs-banner-title bf-qs-banner-title--warn">
                       <i class="bi bi-exclamation-triangle-fill"></i> Informations clés manquantes
                     </span>
                     <span class="bf-qs-banner-desc">
-                      Pour activer le Quick Start, renseignez le nom des deux parties et le titre de l'œuvre.
+                      {{ config().keyInfoHint }}
                     </span>
                   }
                 </div>
@@ -797,7 +775,7 @@
                 </button>
               } @else {
                 <p class="bf-qs-card-desc bf-qs-card-desc--warn">
-                  Merci de remplir les informations clés dans l'introduction (noms des parties et titre de l'œuvre) avant de lancer le Quick Start.
+                  {{ config().keyInfoHint }}
                 </p>
                 <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro()">
                   <i class="bi bi-pencil"></i> Compléter l'introduction
@@ -834,7 +812,7 @@
           }
           <p class="bf-guide-note">
             <i class="bi bi-info-circle"></i>
-            Ces modèles respectent le CPI (Code de la Propriété Intellectuelle). Consultez un avocat spécialisé pour toute clause sensible.
+            {{ config().guideNote }}
           </p>
         </div>
 

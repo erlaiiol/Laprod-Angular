@@ -31,7 +31,7 @@ public struct YINDetector {
 
     public init(
         frameSize:         Int   = 2048,
-        threshold:         Float = 0.10,
+        threshold:         Float = 0.14,   // 0.10 était trop strict pour les voix non entraînées
         minFrequency:      Float = 80.0,
         maxFrequency:      Float = 1_200.0,
         maxSemitoneShift:  Float = 3.0

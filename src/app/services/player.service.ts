@@ -30,6 +30,9 @@ export class PlayerService {
   /** Increments each time the player asks the detail page to open the recorder. */
   recRequested  = signal(0);
 
+  /** True while MobileStudioComponent is open — hides navbar and player. */
+  studioOpen    = signal(false);
+
   // ── Audio element shared with WaveSurfer via `media:` option ─────────────
   // WaveSurfer owns loading (wavesurfer.load(url)) — this service only controls
   // play/pause/seek/volume after the track is loaded.
@@ -70,8 +73,8 @@ export class PlayerService {
         this._sendListenEvent(track);
         this._resetListenTimer();
       }
-      // Ne pas auto-avancer sur un audio mix order : l'utilisateur décide lui-même
-      if (!this.viewingMixOrder()) {
+      // Ne pas auto-avancer en studio (le beat est en boucle) ni sur un mix order
+      if (!this.viewingMixOrder() && !this.studioOpen()) {
         this.playNext();
       }
     };

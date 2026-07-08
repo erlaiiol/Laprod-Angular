@@ -13,65 +13,6 @@ $flow-colors: (
   "teal":   (base: v.$tag-teal,      bg: rgba(v.$tag-teal, 0.1),      border: rgba(v.$tag-teal, 0.25)),
 );
 
-// ── Trigger button ────────────────────────────────────────────────────────────
-
-.uf-trigger {
-  position: fixed;
-  bottom: 6.5rem;
-  right: 1.1rem;
-  z-index: 1060; // above navbar and all its overlays (1040/1050)
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: v.$bg-surface;
-  border: 1px solid v.$bg-border;
-  color: v.$text-muted;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
-  padding: 0;
-
-  &:hover {
-    border-color: v.$primary;
-    color: v.$primary;
-    background: rgba(v.$primary, 0.07);
-    box-shadow: 0 0 0 4px rgba(v.$primary, 0.08);
-  }
-
-  &--hidden {
-    pointer-events: none;
-    opacity: 0;
-  }
-
-  &--new {
-    border-color: rgba(v.$primary, 0.6);
-    color: v.$primary;
-
-    &::before {
-      content: '';
-      position: absolute;
-      inset: -5px;
-      border-radius: 50%;
-      border: 2px solid v.$primary;
-      animation: uf-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-      pointer-events: none;
-    }
-  }
-}
-
-.uf-trigger__svg {
-  display: block;
-  flex-shrink: 0;
-}
-
-@keyframes uf-ping {
-  0%   { transform: scale(1);   opacity: 0.55; }
-  80%  { transform: scale(1.65); opacity: 0; }
-  100% { transform: scale(1.65); opacity: 0; }
-}
-
 // ── Backdrop ──────────────────────────────────────────────────────────────────
 
 .uf-backdrop {
@@ -336,10 +277,3 @@ $flow-colors: (
   }
 }
 
-// ── Mobile : remonte les FABs au-dessus du player 2 rangées + safe-area ───────
-
-@media (max-width: 600px) {
-  .uf-trigger {
-    bottom: calc(7.5rem + env(safe-area-inset-bottom));
-  }
-}

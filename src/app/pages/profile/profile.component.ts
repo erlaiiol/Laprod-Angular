@@ -24,7 +24,7 @@ const PLAYLISTS_PER_PAGE = 8;
 })
 export class ProfileComponent implements OnInit {
 
-  staticBase = `/db_assets/`;
+  staticBase = `${environment.apiUrl}/db_assets/`;
 
   loading          = signal(true);
   error            = signal<string | null>(null);

@@ -1,8 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { catchError, EMPTY, filter, Observable, switchMap, tap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
+import { AppRefreshService } from './app-refresh.service';
 
 export interface AppNotification {
   id:         number;
@@ -35,7 +37,20 @@ export class NotificationService {
   readonly notifications = signal<AppNotification[]>([]);
   readonly unreadCount   = signal(0);
 
-  constructor(private http: HttpClient, private auth: AuthService) {}
+  constructor(
+    private http:       HttpClient,
+    private auth:       AuthService,
+    private refreshSvc: AppRefreshService,
+  ) {
+    // Rafraîchissement silencieux en arrière-plan.
+    // switchMap annule la requête précédente si un nouvel événement arrive avant la réponse.
+    // catchError empêche une erreur réseau ponctuelle de couper le flux.
+    this.refreshSvc.soft$.pipe(
+      filter(() => this.auth.isLoggedIn()),
+      switchMap(() => this.load().pipe(catchError(() => EMPTY))),
+      takeUntilDestroyed(),
+    ).subscribe();
+  }
 
   private get headers() {
     return { Authorization: `Bearer ${this.auth.getToken()}` };

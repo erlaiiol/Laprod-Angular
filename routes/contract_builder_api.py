@@ -25,6 +25,7 @@ from models import (
     UserContractValue,
     UserContractStatus,
     PartyTypeEnum,
+    ContractTemplateTypeEnum,
 )
 import config
 
@@ -48,6 +49,14 @@ def _err(message, status=400):
 
 def _get_user():
     return db.get_or_404(User, int(get_jwt_identity()))
+
+
+def _parse_contract_type(raw, default=ContractTemplateTypeEnum.exploitation):
+    """Convertit un paramètre 'type' en ContractTemplateTypeEnum (fallback: exploitation)."""
+    try:
+        return ContractTemplateTypeEnum(raw) if raw else default
+    except ValueError:
+        return default
 
 
 def _clause_dto(c) -> dict:
@@ -109,11 +118,12 @@ def _party_dto(p) -> dict:
 
 def _contract_summary_dto(c) -> dict:
     return {
-        'id':         c.id,
-        'title':      c.title,
-        'status':     c.status.value,
-        'created_at': c.created_at.isoformat(),
-        'updated_at': c.updated_at.isoformat() if c.updated_at else None,
+        'id':            c.id,
+        'title':         c.title,
+        'contract_type': c.contract_type.value,
+        'status':        c.status.value,
+        'created_at':    c.created_at.isoformat(),
+        'updated_at':    c.updated_at.isoformat() if c.updated_at else None,
     }
 
 
@@ -140,9 +150,10 @@ def _check_ownership(contract, user_id: int):
 @jwt_required()
 @csrf.exempt
 def get_template():
+    ctype = _parse_contract_type(request.args.get('type'))
     groups = (
         db.session.query(ContractClauseGroup)
-        .filter_by(is_active=True)
+        .filter_by(is_active=True, contract_type=ctype)
         .order_by(ContractClauseGroup.sort_order)
         .all()
     )
@@ -162,9 +173,10 @@ def create_contract():
     data  = request.get_json(silent=True) or {}
     title = (data.get('title') or '').strip()
     if not title:
-        return _err("Le titre de l'œuvre est requis.")
+        return _err("Le titre de l'œuvre ou de l'évènement est requis.")
 
-    contract = UserContract(user_id=user.id, title=title)
+    ctype    = _parse_contract_type(data.get('contract_type'))
+    contract = UserContract(user_id=user.id, title=title, contract_type=ctype)
     db.session.add(contract)
     db.session.commit()
     return _ok(data={'contract': _contract_summary_dto(contract)}, status=201)
@@ -293,7 +305,7 @@ def generate_contract(contract_id):
     value_map = {v.clause_id: v for v in contract.values}
     groups = (
         db.session.query(ContractClauseGroup)
-        .filter_by(is_active=True)
+        .filter_by(is_active=True, contract_type=contract.contract_type)
         .order_by(ContractClauseGroup.sort_order)
         .all()
     )
@@ -318,8 +330,13 @@ def generate_contract(contract_id):
         if clauses_data:
             sections.append({'group_name': group.name, 'clauses': clauses_data})
 
+    type_labels = {
+        ContractTemplateTypeEnum.exploitation: "Contrat d'exploitation d'œuvre musicale",
+        ContractTemplateTypeEnum.performance:  "Contrat de représentation musicale",
+    }
     contract_data = {
         'title':        contract.title,
+        'type_label':   type_labels.get(contract.contract_type, ''),
         'generated_at': datetime.now().strftime('%d/%m/%Y'),
         'parties':      [_party_dto(p) for p in contract.parties],
         'sections':     sections,

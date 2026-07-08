@@ -18,6 +18,7 @@ export interface VocalTrack {
   processedBlob: Blob | null;  // autotune WSOLA — null jusqu'au 1er toggle ON
   waveform:     number[];      // 120 points [0–1] pour le canvas
   duration:     number;        // secondes
+  beatStartSec: number;        // position du beat à laquelle l'enregistrement a démarré
   settings:     TrackSettings;
   trackState:   'empty' | 'recording' | 'recorded' | 'processing';
 }
@@ -68,6 +69,7 @@ export class MobileMaquetteService {
       processedBlob: null,
       waveform:     [],
       duration:     0,
+      beatStartSec: 0,
       settings:     { ...DEFAULT_TRACK_SETTINGS },
       trackState:   'empty',
     };
@@ -173,6 +175,8 @@ export class MobileMaquetteService {
     accessToken:   string;
     trackKey:      string;
     latencyHintMs: number;
+    /** Beat pré-téléchargé localement — évite un fetch réseau lors de l'export. */
+    beatBlob?:     Blob;
   }): Promise<Blob> {
     const tracks = this.tracks().filter(t => t.rawBlob !== null);
     if (tracks.length === 0) throw new Error('Aucune piste enregistrée');
@@ -232,7 +236,7 @@ export class MobileMaquetteService {
         beatGain:      opts.beatGain,
         accessToken:   opts.accessToken,
         latencyHintMs: opts.latencyHintMs,
-        beatBlob:      this.extendedBeatBlob() ?? undefined,
+        beatBlob:      this.extendedBeatBlob() ?? opts.beatBlob ?? undefined,
         onProgress:    (step, pct) => {
           this.exportStep.set(step);
           this.exportPct.set(75 + Math.round(pct * 0.25));

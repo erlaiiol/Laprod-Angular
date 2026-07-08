@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
 })
 export class EditProfileComponent implements OnInit {
 
-  staticBase = `/db_assets/`;
+  staticBase = `${environment.apiUrl}/db_assets/`;
 
   // ── Form state ────────────────────────────────────────────────────────────
   bio        = signal('');

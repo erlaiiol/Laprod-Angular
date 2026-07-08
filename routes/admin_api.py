@@ -58,6 +58,7 @@ from utils.auth_helpers import require_admin
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
+    ContractTemplateTypeEnum,
     ListenEvent, SimilarArtist, Topline,
 )
 
@@ -1487,12 +1488,13 @@ def delete_similar_artist(artist_id, current_user):
 
 def _cb_group_dto(g, include_clauses=False) -> dict:
     d = {
-        'id':          g.id,
-        'name':        g.name,
-        'description': g.description,
-        'tooltip':     g.tooltip,
-        'sort_order':  g.sort_order,
-        'is_active':   g.is_active,
+        'id':            g.id,
+        'name':          g.name,
+        'contract_type': g.contract_type.value,
+        'description':   g.description,
+        'tooltip':       g.tooltip,
+        'sort_order':    g.sort_order,
+        'is_active':     g.is_active,
     }
     if include_clauses:
         d['clauses'] = [_cb_clause_dto(c) for c in g.clauses]
@@ -1527,11 +1529,14 @@ def _cb_clause_dto(c) -> dict:
 @csrf.exempt
 @require_admin
 def cb_list_groups(current_user):
-    groups = (
-        db.session.query(ContractClauseGroup)
-        .order_by(ContractClauseGroup.sort_order)
-        .all()
-    )
+    q = db.session.query(ContractClauseGroup)
+    raw_type = request.args.get('type')
+    if raw_type:
+        try:
+            q = q.filter_by(contract_type=ContractTemplateTypeEnum(raw_type))
+        except ValueError:
+            pass
+    groups = q.order_by(ContractClauseGroup.sort_order).all()
     return jsonify({'success': True, 'data': {'groups': [_cb_group_dto(g, include_clauses=True) for g in groups]}})
 
 
@@ -1545,13 +1550,19 @@ def cb_create_group(current_user):
     if not name:
         return jsonify({'success': False, 'feedback': {'level': 'error', 'message': 'Le nom est requis.'}}), 400
 
+    try:
+        ctype = ContractTemplateTypeEnum(data.get('contract_type') or 'exploitation')
+    except ValueError:
+        ctype = ContractTemplateTypeEnum.exploitation
+
     max_order = db.session.query(db.func.max(ContractClauseGroup.sort_order)).scalar() or -1
     g = ContractClauseGroup(
-        name        = name,
-        description = data.get('description'),
-        tooltip     = data.get('tooltip'),
-        sort_order  = max_order + 1,
-        is_active   = data.get('is_active', True),
+        name          = name,
+        contract_type = ctype,
+        description   = data.get('description'),
+        tooltip       = data.get('tooltip'),
+        sort_order    = max_order + 1,
+        is_active     = data.get('is_active', True),
     )
     db.session.add(g)
     db.session.commit()

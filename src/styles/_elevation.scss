@@ -21,7 +21,8 @@ $glow-gold:       0 0 20px rgba(234, 179, 8, 0.3);   // FAB premium / Pro
 $glow-white:      0 0 16px rgba(255, 255, 255, 0.1); // lift neutre
 
 // ── Verre (glassmorphism léger) ───────────────────────────────────────────────
-$glass-bg:     rgba(20, 23, 31, 0.72);      // navbar / player / modales
-$glass-border: rgba(255, 255, 255, 0.08);
-$glass-blur:   16px;                        // backdrop-filter: blur($glass-blur)
-$backdrop-dim: rgba(6, 7, 10, 0.72);        // backdrops de modale / drawer
+// Valeurs déclarées en CSS custom properties dans styles.scss pour être thème-aware.
+$glass-bg:     var(--glass-bg);
+$glass-border: var(--glass-border);
+$glass-blur:   16px;
+$backdrop-dim: var(--backdrop-dim);

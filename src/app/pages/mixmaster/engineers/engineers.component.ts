@@ -8,6 +8,7 @@ import { Track } from '../../../services/track.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 import { PaginationComponent } from '../../../components/pagination/pagination.component';
 import { ShareButtonComponent } from '../../../components/share-button/share-button.component';
+import { environment } from '../../../../environments/environment';
 
 const PER_PAGE = 9;
 
@@ -59,7 +60,7 @@ export class MixmasterEngineersComponent implements OnInit {
   imgUrl(path: string | null): string {
     if (!path) return '/assets/placeholders/default_profile.png';
     if (path.startsWith('http')) return path;
-    return `/db_assets/${path}`;
+    return `${environment.apiUrl}/db_assets/${path}`;
   }
 
   playSample(relativeUrl: string, label: 'Brut' | 'Traité', eng: MixEngineerPublic): void {

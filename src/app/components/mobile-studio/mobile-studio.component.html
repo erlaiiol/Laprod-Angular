@@ -7,15 +7,12 @@
     @if (studioState() === 'beat-editor') {
       <app-beat-section-picker
         class="ms-beat-editor-host"
-        [beatUrl]="beatStreamUrl"
+        [beatUrl]="beatPickerUrl"
         [accessToken]="auth.getToken() ?? ''"
         [bpm]="track.bpm"
         (extended)="onSectionExtended($event)"
         (cancelled)="onBeatEditorCancelled()"/>
     } @else {
-
-      <!-- ── Drag handle ───────────────────────────────────────────────── -->
-      <div class="ms-handle"></div>
 
       <!-- ── Header ──────────────────────────────────────────────────────── -->
       <div class="ms-header">
@@ -123,7 +120,6 @@
             <p class="ms-warmup-hint">Parlez ou chantez — rien n'est enregistré</p>
           </div>
 
-          <!-- Volume micro -->
           <div class="ms-mic-gain-row">
             <i class="bi bi-mic-fill"></i>
             <input type="range" class="ms-beat-vol-slider"
@@ -134,14 +130,12 @@
             <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
           </div>
 
-          <!-- Niveau RMS -->
           <div class="ms-warmup-level">
             <div class="ms-warmup-level__bar">
               <div class="ms-warmup-level__fill" [style.width.%]="levelPct()"></div>
             </div>
           </div>
 
-          <!-- Pitch meter avec contexte de gamme -->
           @if (track.key) {
             <div class="ms-scale-display">
               @for (name of noteNames; track $index) {
@@ -170,8 +164,17 @@
                 {{ correctionCents() > 0 ? '+' : '' }}{{ correctionCents() }}¢
               </span>
             </div>
+            @if (monitorAutotune() && track.key) {
+              <p class="ms-autotune-active-hint">
+                @if (correctionCents() !== 0) {
+                  <i class="bi bi-check-circle-fill"></i> Autotune actif — vous chantez juste
+                } @else {
+                  <i class="bi bi-check-circle-fill"></i> Vous êtes pile sur la note !
+                }
+              </p>
+            }
           } @else if (monitorAutotune()) {
-            <p class="ms-warmup-listening">Détection en cours…</p>
+            <p class="ms-warmup-listening">Chantez ou parlez — détection en cours…</p>
           }
 
           <button class="ms-btn-stop" (click)="stopWarmup()">
@@ -198,7 +201,6 @@
             </p>
           </div>
 
-          <!-- Waveform de la prise existante avec indicateur de position -->
           @if (punchInTrack()?.waveform?.length) {
             <div class="ms-punchin-waveform-wrap">
               <div class="ms-punchin-waveform">
@@ -216,13 +218,11 @@
             </div>
           }
 
-          <!-- Temps affiché -->
           <p class="ms-punchin-time">
             Enregistrement à partir de <strong>{{ formatTimer(punchInSec()) }}</strong>
             @if (punchInTrack()) { / {{ formatTimer(punchInTrack()!.duration) }} }
           </p>
 
-          <!-- Slider -->
           <input type="range" class="ms-punchin-slider"
                  min="1"
                  [max]="punchInTrack()?.duration ?? 60"
@@ -231,7 +231,6 @@
                  (input)="onPunchInSlider($event)"
                  aria-label="Point de punch-in">
 
-          <!-- Actions -->
           <div class="ms-punchin-actions">
             <button class="ms-punchin-preview-btn" (click)="previewFromPunchIn()">
               <i class="bi bi-play-fill"></i>
@@ -277,7 +276,6 @@
           <canvas #liveCanvas class="ms-live-canvas"
                   width="320" height="64" aria-hidden="true"></canvas>
 
-          <!-- Gamme + pitch meter — toujours visible quand une hauteur est détectée -->
           @if (track.key) {
             <div class="ms-scale-display ms-scale-display--compact">
               @for (name of noteNames; track $index) {
@@ -307,7 +305,6 @@
             </div>
           }
 
-          <!-- Indicateur de saturation micro -->
           @if (clipWarning()) {
             <div class="ms-clip-warning" role="alert" aria-live="polite">
               <span class="ms-clip-warning__dot"></span>
@@ -328,7 +325,6 @@
             <span class="ms-beat-vol-label">Beat</span>
           </div>
 
-          <!-- Volume micro (enregistrement) -->
           <div class="ms-mic-gain-row">
             <i class="bi bi-mic-fill"></i>
             <input type="range" class="ms-beat-vol-slider"
@@ -406,265 +402,403 @@
       }
 
       <!-- ════════════════════════════════════════════════════════════════
-           IDLE — studio principal
+           IDLE — mini DAW studio
       ═══════════════════════════════════════════════════════════════════ -->
       @if (studioState() === 'idle') {
-        <div class="ms-studio">
+        <div class="daw-studio">
 
-          <!-- ── Beat row ──────────────────────────────────────────────── -->
-          <div class="ms-beat-section">
-            <p class="ms-section-label">
-              <i class="bi bi-music-note-beamed"></i>
-              Instrumental
-            </p>
-            <div class="ms-beat-row">
-              <div class="ms-beat-info">
-                <span class="ms-beat-name">{{ track.title }}</span>
-                @if (service.extendedBeatBlob()) {
-                  <span class="ms-beat-badge">
-                    <i class="bi bi-check-circle-fill"></i>
-                    Beat étendu
-                  </span>
+          <!-- Barre d'état de la chanson -->
+          <div class="daw-statusbar">
+            <div class="daw-songstate">
+              <span class="daw-songstate-dot"
+                    [class.daw-songstate-dot--live]="hasTrack()"></span>
+              <span class="daw-songstate-text">
+                @if (hasTrack()) {
+                  Brouillon&nbsp;·&nbsp;{{ tracks().filter(t => t.rawBlob !== null).length }} piste{{ tracks().filter(t => t.rawBlob !== null).length > 1 ? 's' : '' }}
+                } @else {
+                  Studio prêt
                 }
-              </div>
-              <button class="ms-beat-play-btn"
-                      [class.ms-beat-play-btn--playing]="beatIsPlaying()"
-                      (click)="toggleBeatPreview()"
-                      [attr.aria-label]="beatIsPlaying() ? 'Arrêter le beat' : 'Écouter le beat'">
-                <i class="bi" [class.bi-pause-fill]="beatIsPlaying()" [class.bi-play-fill]="!beatIsPlaying()"></i>
-              </button>
-              <button class="ms-beat-extend-btn" (click)="openBeatEditor()">
-                <i class="bi bi-scissors"></i>
-                Étendre
-              </button>
+              </span>
+              @if (service.extendedBeatBlob()) {
+                <span class="daw-badge-extended">
+                  <i class="bi bi-check-circle-fill"></i> Beat étendu
+                </span>
+              }
             </div>
-
-            @if (beatIsPlaying()) {
-              <div class="ms-beat-vol-row ms-beat-vol-row--idle">
-                <i class="bi"
-                   [class.bi-volume-off-fill]="beatVolume() === 0"
-                   [class.bi-volume-down-fill]="beatVolume() > 0 && beatVolume() < 0.5"
-                   [class.bi-volume-up-fill]="beatVolume() >= 0.5"></i>
-                <input type="range" class="ms-beat-vol-slider"
-                       min="0" max="1" step="0.05"
-                       [value]="beatVolume()"
-                       (input)="onBeatVolumeInput($event)"
-                       aria-label="Volume du beat">
-                <span class="ms-beat-vol-label">{{ (beatVolume() * 100 | number:'1.0-0') }}%</span>
-              </div>
+            @if (hasTrack()) {
+              <button class="daw-btn-mix"
+                      [class.daw-btn-mix--playing]="isPlayingPreview()"
+                      (click)="isPlayingPreview() ? stopPreview() : previewMix()"
+                      [attr.aria-label]="isPlayingPreview() ? 'Arrêter' : 'Écouter le mix'">
+                <i class="bi" [class.bi-stop-fill]="isPlayingPreview()" [class.bi-headphones]="!isPlayingPreview()"></i>
+                <span>{{ isPlayingPreview() ? 'Stop' : 'Mix' }}</span>
+              </button>
             }
           </div>
 
-          <!-- ── Banières permission micro ─────────────────────────────── -->
+          <!-- ── Piste instrumentale ──────────────────────────────────── -->
+          <div class="daw-section">
+            <p class="daw-section-label">
+              <i class="bi bi-music-note-beamed"></i>
+              Instrumental
+            </p>
+
+            <div class="daw-beat-lane"
+                 [class.daw-beat-lane--selected]="selectedLane() === 'beat'"
+                 (click)="selectLane('beat')">
+
+              <div class="daw-beat-lane-info">
+                <div class="daw-track-label">
+                  <span class="daw-track-label-name">{{ track.title }}</span>
+                  @if (service.extendedBeatBlob()) {
+                    <span class="daw-track-pill daw-track-pill--green">
+                      <i class="bi bi-check-circle-fill"></i> étendu
+                    </span>
+                  }
+                </div>
+                <div class="daw-beat-lane-btns" (click)="$event.stopPropagation()">
+                  <button class="daw-icon-btn"
+                          [class.daw-icon-btn--active]="beatIsPlaying()"
+                          (click)="toggleBeatPreview()"
+                          [attr.aria-label]="beatIsPlaying() ? 'Pause' : 'Écouter le beat'">
+                    <i class="bi" [class.bi-pause-fill]="beatIsPlaying()" [class.bi-play-fill]="!beatIsPlaying()"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Waveform réelle du beat (dessinée après décodage du blob) -->
+              <div class="daw-beat-wf-wrap">
+                <canvas #beatWaveCanvas class="daw-beat-waveform"
+                        [class.daw-beat-waveform--ready]="beatWaveReady()"
+                        [class.daw-beat-waveform--seekable]="beatWaveReady()"
+                        (click)="onBeatWaveformClick($event)"
+                        aria-hidden="true"></canvas>
+                @if (!beatWaveReady()) {
+                  <div class="daw-beat-wf-shimmer" aria-hidden="true"></div>
+                }
+              </div>
+              <!-- Temps écoulé / total -->
+              @if (beatWaveReady()) {
+                <div class="daw-beat-wf-time">
+                  <span>{{ fmtBeatTime(beatCurrentTime()) }}</span>
+                  @if (beatDuration() > 0) {
+                    <span class="daw-beat-wf-time-sep"> / {{ fmtBeatTime(beatDuration()) }}</span>
+                  }
+                </div>
+              }
+
+              @if (beatIsPlaying()) {
+                <div class="daw-beat-vol-row" (click)="$event.stopPropagation()">
+                  <i class="bi"
+                     [class.bi-volume-off-fill]="beatVolume() === 0"
+                     [class.bi-volume-up-fill]="beatVolume() > 0"></i>
+                  <input type="range" class="ms-beat-vol-slider"
+                         min="0" max="1" step="0.05"
+                         [value]="beatVolume()"
+                         (input)="onBeatVolumeInput($event)"
+                         aria-label="Volume du beat">
+                  <span class="ms-beat-vol-label">{{ (beatVolume() * 100 | number:'1.0-0') }}%</span>
+                </div>
+              }
+
+              <!-- Panneau d'extension contextuel -->
+              @if (selectedLane() === 'beat') {
+                <div class="daw-extend-panel" (click)="$event.stopPropagation()">
+                  <span class="daw-extend-panel-hint">
+                    <i class="bi bi-hand-index-fill"></i>
+                    Rallonger l'instrumentale
+                  </span>
+                  <div class="daw-extend-actions">
+                    @if (canUndoExtend()) {
+                      @if (undoConfirmPending()) {
+                        <div class="daw-undo-confirm">
+                          <span class="daw-undo-confirm__msg">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            {{ undoWouldCutTopline().join(', ') }} sera tronquée. Continuer ?
+                          </span>
+                          <button class="daw-undo-btn daw-undo-btn--danger" (click)="confirmUndoExtend()">Oui</button>
+                          <button class="daw-undo-btn" (click)="cancelUndoExtend()">Non</button>
+                        </div>
+                      } @else {
+                        <button class="daw-undo-btn"
+                                [class.daw-undo-btn--warn]="undoWouldCutTopline().length > 0"
+                                (click)="requestUndoLastExtend()"
+                                [title]="undoWouldCutTopline().length > 0 ? 'Attention : supprime une topline' : 'Annuler la dernière extension'">
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                          @if (beatExtendCount() > 1) { ×{{ beatExtendCount() }} }
+                        </button>
+                      }
+                    }
+                    <button class="daw-extend-btn" (click)="openBeatEditor()">
+                      <i class="bi bi-scissors"></i>
+                      Choisir un passage
+                    </button>
+                  </div>
+                </div>
+              }
+
+            </div>
+          </div>
+
+          <!-- Permission micro -->
           @if (permState() === 'prompt') {
-            <div class="ms-perm-banner ms-perm-banner--prompt">
+            <div class="ms-perm-banner ms-perm-banner--prompt daw-perm-banner">
               <i class="bi bi-mic"></i>
               <span>L'accès au micro est requis pour enregistrer</span>
               <button class="ms-perm-banner__btn" (click)="requestMicPermission()">Autoriser</button>
             </div>
           }
           @if (permState() === 'denied') {
-            <div class="ms-perm-banner ms-perm-banner--denied">
+            <div class="ms-perm-banner ms-perm-banner--denied daw-perm-banner">
               <i class="bi bi-mic-mute-fill"></i>
               <span>Micro bloqué — activez-le dans Réglages › LaProd</span>
             </div>
           }
 
-          <!-- ── Écoute & monitoring ───────────────────────────────────── -->
-          <div class="ms-monitoring-section">
-
-            @if (headphoneType() !== null) {
-              <div class="ms-headphone-row"
-                   [class.ms-headphone-row--wired]="headphoneType() === 'wired'"
-                   [class.ms-headphone-row--bt]="headphoneType() === 'bluetooth'"
-                   [class.ms-headphone-row--bt-a2dp]="headphoneType() === 'bluetooth-a2dp'"
-                   [class.ms-headphone-row--none]="headphoneType() === 'none'">
-                <i class="bi"
-                   [class.bi-headphones]="headphoneType() === 'wired' || headphoneType() === 'none'"
-                   [class.bi-bluetooth]="headphoneType() === 'bluetooth' || headphoneType() === 'bluetooth-a2dp'"></i>
-                @switch (headphoneType()) {
-                  @case ('wired')         { <span>Écouteurs filaires détectés</span> }
-                  @case ('bluetooth')     { <span>Casque Bluetooth détecté</span> }
-                  @case ('bluetooth-a2dp') {
-                    <span>Casque Bluetooth — écoute directe indisponible
-                      <i class="bi bi-exclamation-triangle-fill ms-headphone-row__warn"></i>
-                    </span>
-                  }
-                  @default { <span>Branchez des écouteurs pour vous entendre chanter</span> }
-                }
-              </div>
-
-              @if (headphoneType() !== 'none') {
-                <div class="ms-mic-gain-row">
-                  <i class="bi bi-mic-fill"></i>
-                  <input type="range" class="ms-beat-vol-slider"
-                         min="0.3" max="2.0" step="0.05"
-                         [value]="micGain()"
-                         (input)="micGain.set(+$any($event.target).value)"
-                         aria-label="Volume du micro">
-                  <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
-                </div>
-              }
-            }
-
-            <!-- Métronome click track — visible en permanence (pas gated au type de casque) -->
-            <div class="ms-metro-row">
-              <div class="ms-metro-info">
-                <span class="ms-metro-label">Métronome</span>
-                <span class="ms-metro-hint">{{ track.bpm }} BPM · temps 1 accentué</span>
-              </div>
-              <button class="ms-toggle"
-                      [class.ms-toggle--on]="metronomeOn()"
-                      (click)="toggleMetronome()"
-                      [attr.aria-pressed]="metronomeOn()"
-                      aria-label="Activer le métronome">
-                <span class="ms-toggle__thumb"></span>
-              </button>
-            </div>
-
-            <!-- Toggle autotune (filaire seulement) -->
-            @if (headphoneType() === 'wired') {
-              <div class="ms-autotune-row">
-                <div class="ms-autotune-info">
-                  <span class="ms-autotune-label">Autotune live</span>
-                  <span class="ms-autotune-hint">Correction pendant l'enregistrement</span>
-                </div>
-                <button class="ms-toggle"
-                        [class.ms-toggle--on]="monitorAutotune()"
-                        (click)="toggleMonitorAutotune()"
-                        [attr.aria-pressed]="monitorAutotune()"
-                        aria-label="Activer l'autotune live">
-                  <span class="ms-toggle__thumb"></span>
-                </button>
-              </div>
-
-              @if (monitorAutotune()) {
-                <div class="ms-speed-row">
-                  <span class="ms-speed-label">Mode</span>
-                  <div class="ms-speed-tabs">
-                    <button class="ms-speed-tab"
-                            [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
-                            (click)="retuneSpeed.set('natural')">Naturel</button>
-                    <button class="ms-speed-tab"
-                            [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
-                            (click)="retuneSpeed.set('precise')">Précis</button>
-                  </div>
-                </div>
-              }
-
-              <!-- Test micro avant l'enregistrement -->
-              <button class="ms-warmup-btn" (click)="startWarmup()">
-                <i class="bi bi-activity"></i>
-                Tester mon micro
-              </button>
-            }
-
-            <!-- BT HFP : calibration latence -->
-            @if (headphoneType() === 'bluetooth') {
-              <div class="ms-bt-nudge">
-                <i class="bi bi-bluetooth"></i>
-                <div class="ms-bt-nudge__text">
-                  @if (calibration.hasCalibration()) {
-                    <span>Latence calibrée</span>
-                    <small>{{ calibration.latencyMs }} ms · Export et monitoring alignés</small>
-                  } @else {
-                    <span>Latence non calibrée</span>
-                    <small>Calibrez pour synchroniser beat et vocal</small>
-                  }
-                </div>
-                <button class="ms-bt-nudge__btn" (click)="openCalibration()">
-                  {{ calibration.hasCalibration() ? 'Recalibrer' : 'Calibrer' }}
-                </button>
-              </div>
-            }
-
-            <!-- BT A2DP : avertissement monitoring indisponible -->
-            @if (headphoneType() === 'bluetooth-a2dp') {
-              <div class="ms-bt-nudge ms-bt-nudge--a2dp">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <div class="ms-bt-nudge__text">
-                  <span>Monitoring indisponible</span>
-                  <small>Ce casque ne supporte pas l'écoute en direct. Utilisez des écouteurs filaires pour vous entendre chanter. L'enregistrement reste fonctionnel.</small>
-                </div>
-              </div>
-            }
-
-          </div>
-
-          <!-- ── Pistes vocales ─────────────────────────────────────────── -->
-          <div class="ms-tracks-section">
-            <p class="ms-section-label">
+          <!-- ── Pistes vocales ────────────────────────────────────────── -->
+          <div class="daw-section daw-section--voices">
+            <p class="daw-section-label">
               <i class="bi bi-mic-fill"></i>
               Pistes vocales
             </p>
 
-            <div class="ms-tracks-list">
+            <div class="daw-voices-list">
               @for (t of tracks(); track t.id) {
                 <app-mobile-track-item
                   [track]="t"
                   [trackKey]="track.key"
+                  [playheadPct]="trackPlayheadPct(t)"
                   (startRecord)="reRecord($event)"
                   (punchIn)="openPunchIn($event)"
-                  (remove)="service.removeTrack($event)"/>
+                  (remove)="service.removeTrack($event)"
+                  (seekTo)="onVocalWaveformSeek(t, $event)"/>
               }
             </div>
 
-            @if (canAdd()) {
-              <button class="ms-add-btn" (click)="addAndRecord()">
-                <i class="bi bi-plus-lg"></i>
-                Ajouter une piste vocale
-              </button>
-            } @else {
-              <div class="ms-upgrade-nudge">
-                <i class="bi bi-lock-fill"></i>
-                <span>Limite de 2 pistes atteinte.
-                  <button class="ms-upgrade-link" (click)="showUpgradeSheet.set(true)">Passer à LaProd Pro</button> pour des pistes illimitées.
-                </span>
+            @if (tracks().every(t => t.rawBlob !== null)) {
+              @if (canAdd()) {
+                <button class="daw-add-btn" (click)="addAndRecord()">
+                  <i class="bi bi-plus-circle-fill"></i>
+                  Enregistrer une 2ème voix
+                </button>
+              } @else {
+                <div class="ms-upgrade-nudge">
+                  <i class="bi bi-lock-fill"></i>
+                  <span>Limite de 2 pistes atteinte.
+                    <button class="ms-upgrade-link" (click)="showUpgradeSheet.set(true)">Passer à LaProd Pro</button> pour des pistes illimitées.
+                  </span>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- ── Réglages micro & monitoring (collapsible) ──────────────── -->
+          <div class="daw-section daw-section--settings">
+            <button class="daw-settings-toggle" (click)="toggleMonitoring()">
+              <i class="bi bi-sliders"></i>
+              <span>Réglages micro & monitoring</span>
+              <i class="bi daw-chevron"
+                 [class.bi-chevron-up]="showMonitoring()"
+                 [class.bi-chevron-down]="!showMonitoring()"></i>
+            </button>
+
+            @if (showMonitoring()) {
+              <div class="daw-settings-body">
+
+                @if (headphoneType() !== null) {
+                  <div class="ms-headphone-row"
+                       [class.ms-headphone-row--wired]="headphoneType() === 'wired'"
+                       [class.ms-headphone-row--bt]="headphoneType() === 'bluetooth'"
+                       [class.ms-headphone-row--bt-a2dp]="headphoneType() === 'bluetooth-a2dp'"
+                       [class.ms-headphone-row--none]="headphoneType() === 'none'">
+                    <i class="bi"
+                       [class.bi-headphones]="headphoneType() === 'wired' || headphoneType() === 'none'"
+                       [class.bi-bluetooth]="headphoneType() === 'bluetooth' || headphoneType() === 'bluetooth-a2dp'"></i>
+                    @switch (headphoneType()) {
+                      @case ('wired')          { <span>Écouteurs filaires détectés</span> }
+                      @case ('bluetooth')      { <span>Casque Bluetooth détecté</span> }
+                      @case ('bluetooth-a2dp') {
+                        <span>Casque Bluetooth — écoute directe indisponible
+                          <i class="bi bi-exclamation-triangle-fill ms-headphone-row__warn"></i>
+                        </span>
+                      }
+                      @default { <span>Branchez des écouteurs filaires pour vous entendre chanter et activer l'autotune</span> }
+                    }
+                  </div>
+
+                  @if (headphoneType() !== 'none') {
+                    <div class="ms-mic-gain-row">
+                      <i class="bi bi-mic-fill"></i>
+                      <input type="range" class="ms-beat-vol-slider"
+                             min="0.3" max="2.0" step="0.05"
+                             [value]="micGain()"
+                             (input)="micGain.set(+$any($event.target).value)"
+                             aria-label="Volume du micro">
+                      <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
+                    </div>
+                  }
+                }
+
+                <div class="ms-metro-row">
+                  <div class="ms-metro-info">
+                    <span class="ms-metro-label">Métronome</span>
+                    <span class="ms-metro-hint">{{ track.bpm }} BPM · temps 1 accentué</span>
+                  </div>
+                  <button class="ms-toggle"
+                          [class.ms-toggle--on]="metronomeOn()"
+                          (click)="toggleMetronome()"
+                          [attr.aria-pressed]="metronomeOn()"
+                          aria-label="Activer le métronome">
+                    <span class="ms-toggle__thumb"></span>
+                  </button>
+                </div>
+
+                @if (headphoneType() === 'wired') {
+                  <div class="ms-autotune-row">
+                    <div class="ms-autotune-info">
+                      <span class="ms-autotune-label">Autotune live</span>
+                      <span class="ms-autotune-hint">Chantez juste, automatiquement</span>
+                    </div>
+                    <button class="ms-toggle"
+                            [class.ms-toggle--on]="monitorAutotune()"
+                            (click)="toggleMonitorAutotune()"
+                            [attr.aria-pressed]="monitorAutotune()"
+                            aria-label="Activer l'autotune live">
+                      <span class="ms-toggle__thumb"></span>
+                    </button>
+                  </div>
+
+                  @if (monitorAutotune()) {
+                    @if (!track.key) {
+                      <p class="ms-autotune-nokey">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
+                      </p>
+                    }
+                    <div class="ms-speed-row">
+                      <span class="ms-speed-label">Effet</span>
+                      <div class="ms-speed-tabs">
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
+                                (click)="retuneSpeed.set('natural')"
+                                title="Correction douce, voix naturelle">Doux</button>
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
+                                (click)="retuneSpeed.set('precise')"
+                                title="Correction forte, juste mais audible">Fort</button>
+                        <button class="ms-speed-tab ms-speed-tab--robot"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
+                                (click)="retuneSpeed.set('robot')"
+                                title="Effet maximal / voix robotique">Max</button>
+                      </div>
+                    </div>
+                  }
+
+                  <button class="ms-warmup-btn" (click)="startWarmup()">
+                    <i class="bi bi-activity"></i>
+                    Tester mon micro
+                  </button>
+                }
+
+                @if (headphoneType() === 'bluetooth') {
+                  <div class="ms-bt-nudge">
+                    <i class="bi bi-bluetooth"></i>
+                    <div class="ms-bt-nudge__text">
+                      @if (calibration.hasCalibration()) {
+                        <span>Latence calibrée</span>
+                        <small>{{ calibration.latencyMs }} ms · Export et monitoring alignés</small>
+                      } @else {
+                        <span>Latence non calibrée</span>
+                        <small>Calibrez pour synchroniser beat et vocal</small>
+                      }
+                    </div>
+                    <button class="ms-bt-nudge__btn" (click)="openCalibration()">
+                      {{ calibration.hasCalibration() ? 'Recalibrer' : 'Calibrer' }}
+                    </button>
+                  </div>
+                }
+
+                @if (headphoneType() === 'bluetooth-a2dp') {
+                  <div class="ms-bt-nudge ms-bt-nudge--a2dp">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div class="ms-bt-nudge__text">
+                      <span>Monitoring indisponible</span>
+                      <small>Ce casque ne supporte pas l'écoute en direct. Utilisez des écouteurs filaires pour vous entendre chanter. L'enregistrement reste fonctionnel.</small>
+                    </div>
+                  </div>
+                }
+
               </div>
             }
           </div>
 
           <!-- Description -->
-          <div class="ms-desc-wrap">
+          <div class="daw-desc-row">
             <input type="text" maxlength="200"
                    [(ngModel)]="description"
                    placeholder="Description de votre maquette (optionnel)"
                    class="ms-desc-input">
           </div>
 
-          <!-- Actions -->
-          @if (!hasTrack()) {
-            <div class="ms-actions">
-              <button class="ms-btn-primary" (click)="addAndRecord()">
-                <i class="bi bi-mic-fill"></i>
+          <!-- Action principale -->
+          <div class="daw-cta-row">
+            @if (!hasTrack()) {
+              <button class="daw-btn-record-first" (click)="startFirstRecording()">
+                <i class="bi bi-record-circle-fill"></i>
                 Commencer à enregistrer
               </button>
-            </div>
-          } @else {
-            <div class="ms-actions ms-actions--row">
-              <button class="ms-btn-preview"
-                      [class.ms-btn-preview--playing]="isPlayingPreview()"
-                      (click)="isPlayingPreview() ? stopPreview() : previewMix()">
-                @if (isPlayingPreview()) {
-                  <i class="bi bi-stop-fill"></i> Arrêter
-                } @else {
-                  <i class="bi bi-headphones"></i> Écouter le mix
+            } @else {
+              <div class="daw-cta-actions">
+                <button class="daw-btn-export-main" (click)="exportAndPublish()">
+                  <i class="bi bi-cloud-arrow-up-fill"></i>
+                  Publier sur LaProd
+                </button>
+                <button class="daw-btn-save-local" (click)="exportLocal()">
+                  <i class="bi bi-download"></i>
+                  Télécharger sur mon téléphone
+                </button>
+                @if (draftSaved()) {
+                  <div class="daw-local-saved" role="status">
+                    <i class="bi bi-check-circle-fill"></i>
+                    Enregistrement sauvegardé localement
+                  </div>
                 }
-              </button>
-              <button class="ms-btn-export" (click)="exportAndPublish()">
-                <i class="bi bi-cloud-arrow-up-fill"></i> Exporter & Publier
-              </button>
-            </div>
-          }
+              </div>
+            }
+          </div>
 
         </div>
       }
 
-      <!-- ── Calibration Bluetooth (modal superposée) ──────────────────── -->
+      <!-- ── Calibration Bluetooth (modal superposée) ──────────────── -->
       @if (showCalibration()) {
         <app-bluetooth-calibration
           (done)="onCalibrationDone($event)"
           (cancelled)="onCalibrationCancelled()"/>
+      }
+
+      <!-- ── Guest gate — connexion requise pour publier ──────────────── -->
+      @if (showGuestGate()) {
+        <div class="daw-guest-gate" role="dialog" aria-modal="true" aria-label="Connexion requise">
+          <div class="daw-guest-gate__card">
+            <i class="bi bi-lock-fill daw-guest-gate__icon"></i>
+            <h3 class="daw-guest-gate__title">Connexion requise</h3>
+            <p class="daw-guest-gate__body">
+              Créez un compte gratuit pour publier votre maquette et la partager avec des beatmakers.
+            </p>
+            <button class="daw-guest-gate__cta" (click)="goToLogin()">
+              <i class="bi bi-person-fill"></i>
+              Se connecter / S'inscrire
+            </button>
+            <button class="daw-btn-save-local daw-guest-gate__dl" (click)="showGuestGate.set(false); exportLocal()">
+              <i class="bi bi-download"></i>
+              Télécharger sans compte
+            </button>
+            <button class="daw-guest-gate__cancel" (click)="showGuestGate.set(false)">
+              Annuler
+            </button>
+          </div>
+        </div>
       }
 
       <!-- ── Toast undo — 6 s après un re-enregistrement ──────────────── -->

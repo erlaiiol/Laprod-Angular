@@ -8,6 +8,10 @@
       [ngModel]="newGroupDesc()" (ngModelChange)="newGroupDesc.set($event)" />
     <input placeholder="Tooltip (optionnel)"
       [ngModel]="newGroupTip()" (ngModelChange)="newGroupTip.set($event)" />
+    <select [ngModel]="newGroupType()" (ngModelChange)="newGroupType.set($event)" title="Famille de contrat">
+      <option value="exploitation">Exploitation</option>
+      <option value="performance">Représentation</option>
+    </select>
     <button class="btn-primary" (click)="createGroup()" [disabled]="!newGroupName().trim()">
       <i class="bi bi-plus"></i> Créer
     </button>
@@ -26,7 +30,9 @@
         <div class="cat-header">
           <span class="cat-dot" [style.background]="group.is_active ? '#8b5cf6' : '#6b7280'"></span>
           <strong>{{ group.name }}</strong>
-          <span class="small">({{ group.clauses.length }} clause{{ group.clauses.length > 1 ? 's' : '' }}
+          <span class="small">
+            [{{ group.contract_type === 'performance' ? 'Représentation' : 'Exploitation' }}]
+            ({{ group.clauses.length }} clause{{ group.clauses.length > 1 ? 's' : '' }}
             — ordre {{ group.sort_order }}{{ group.is_active ? '' : ' — inactif' }})</span>
           <button class="btn-icon-sm" (click)="toggleGroup(group.id)" title="Voir les clauses">
             <i class="bi" [class.bi-chevron-down]="expandedGroupId() !== group.id"

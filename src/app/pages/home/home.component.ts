@@ -19,6 +19,7 @@ import { ToastService } from '../../services/toast.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
 import { RevealOnScrollDirective } from '../../directives/reveal-on-scroll.directive';
+import { environment } from '../../../environments/environment';
 
 const PER_PAGE = 20;
 
@@ -64,6 +65,8 @@ export class HomeComponent implements OnInit {
   // Pagination
   page       = signal(1);
   totalPages = signal(1);
+
+  readonly apiUrl = environment.apiUrl;
 
   // Stats landing — count-up déclenché par lpReveal sur le bandeau
   readonly landingStats = LANDING_STATS;
@@ -130,6 +133,10 @@ export class HomeComponent implements OnInit {
 
   dismissHero(): void {
     this.showHero.set(false);
+    // Wait one tick for Angular to remove the hero from the DOM before scrolling,
+    // otherwise the browser tries to maintain the old scroll offset and lands at
+    // the bottom of the (now shorter) page on mobile.
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'instant' }), 0);
   }
 
   startStatsCountUp(): void {

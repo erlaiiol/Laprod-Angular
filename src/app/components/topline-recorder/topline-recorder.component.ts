@@ -1,11 +1,11 @@
 import {
   Component, Input, Output, EventEmitter, OnDestroy,
-  signal, computed, effect, inject, ChangeDetectionStrategy, ChangeDetectorRef,
+  signal, computed, effect, untracked, inject, ChangeDetectionStrategy, ChangeDetectorRef,
   ElementRef, ViewChild, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Capacitor } from '@capacitor/core';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
@@ -15,7 +15,6 @@ import { ToplineStatusService } from '../../services/topline-status.service';
 import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { GuestToplineService } from '../../services/guest-topline.service';
-import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
@@ -59,27 +58,23 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   readonly auth            = inject(AuthService);
   readonly guestSvc        = inject(GuestToplineService);
   private http             = inject(HttpClient);
-  private router           = inject(Router);
-  private toast            = inject(ToastService);
 
   readonly isNative = Capacitor.isNativePlatform();
 
-  readonly isGuest            = computed(() => !this.auth.isLoggedIn());
-  readonly guestSentTopline   = signal(false);
+  readonly isGuest          = computed(() => !this.auth.isLoggedIn());
+  readonly guestSentTopline = signal(false);
 
-  // Pas de mode guest sur mobile natif (l'endpoint d'upload natif exige un JWT) :
-  // on laisse l'utilisateur parcourir/écouter librement, et on ne demande la
-  // connexion qu'à l'instant précis où il ouvre le studio d'enregistrement —
-  // jamais au lancement de l'app.
+  // Flag interne : un upload guest est en cours de traitement (polling actif)
+  private _guestPolling = false;
+
   constructor() {
+    // Dès que le job guest est traité, passer en state 'result' pour permettre l'écoute
     effect(() => {
-      if (this.isNative && !this.auth.isLoggedIn()) {
-        // Couvre aussi bien le tap sur "Enregistrer" sans compte que l'expiration
-        // de session en cours d'enregistrement (silentLogout() de l'intercepteur JWT
-        // fait retomber isLoggedIn() à false, ce qui redéclenche cet effect).
-        this.toast.showToast({ level: 'info', message: 'Connexion requise pour enregistrer une topline.' });
-        this.closed.emit();
-        this.router.navigate(['/login']);
+      const tid = this.toplineStatusSvc.toplineId();
+      const st  = this.toplineStatusSvc.status();
+      if (tid && st === 'done' && this._guestPolling) {
+        this._guestPolling = false;
+        untracked(() => this._onGuestPollDone(parseInt(tid, 10)));
       }
     });
   }
@@ -308,6 +303,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
             this.guestSvc.syncFromServer(res.data.remaining_guest_attempts ?? null);
             this.guestSvc.markPendingClaim();
             this.guestSentTopline.set(true);
+            // Démarre le polling pour suivre la progression ET permettre l'écoute
+            this._guestPolling = true;
+            this.toplineStatusSvc.startPolling(res.data.job_id);
             this.state.set('idle');
           } else {
             this.toplineStatusSvc.startPolling(res.data.job_id);
@@ -340,11 +338,14 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Fetch avec JWT (topline non publiée = accès protégé)
+    // Fetch avec JWT (connecté) ou X-Guest-Session (guest)
     this.loadingAudio.set(true);
     this.cdr.markForCheck();
+    const authHeader: Record<string, string> = this.isGuest()
+      ? { 'X-Guest-Session': this.guestSvc.sessionId() }
+      : { 'Authorization': `Bearer ${this.auth.getToken()}` };
     this.http.get(`${environment.apiUrl}${tl.stream_url}`, {
-      headers:      { Authorization: `Bearer ${this.auth.getToken()}` },
+      headers:      authHeader,
       responseType: 'blob',
     }).subscribe({
       next: (blob) => {
@@ -431,6 +432,23 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  private _onGuestPollDone(toplineId: number): void {
+    // Construit un PublishedTopline minimal pour permettre l'écoute
+    const tl: PublishedTopline = {
+      id:           toplineId,
+      artist_id:    0,
+      stream_url:   `/api/stream/toplines/${toplineId}`,
+      description:  null,
+      created_at:   new Date().toISOString(),
+      is_published: false,
+      artist_user:  { username: '', profile_image: null },
+    };
+    this.resultTopline.set(tl);
+    this.guestSentTopline.set(false);
+    this.state.set('result');
+    this.cdr.markForCheck();
+  }
+
   resetToIdle(): void {
     if (this.resultBlobUrl) { URL.revokeObjectURL(this.resultBlobUrl); this.resultBlobUrl = null; }
     this.resultTopline.set(null);
@@ -438,6 +456,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.loadingAudio.set(false);
     this.errorMsg.set(null);
     this.timer.set(0);
+    this.guestSentTopline.set(false);
+    this._guestPolling = false;
     this.state.set('idle');
     this.cdr.markForCheck();
   }

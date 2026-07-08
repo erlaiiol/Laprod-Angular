@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChild, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -9,6 +9,7 @@ import { CudTrackService, UploadResponse } from '../../services/cud-track.servic
 import { AuthService } from '../../services/auth.service';
 import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
+import { YoutubeTemplateService } from '../../services/youtube-template.service';
 import { Playlist, PlaylistService } from '../../services/playlist.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { environment } from '../../../environments/environment';
@@ -29,8 +30,6 @@ interface TagGroup {
   styleUrl:    './upload-track.component.scss',
 })
 export class UploadTrackComponent implements OnInit {
-
-  @ViewChild('ytSection') ytSectionRef?: ElementRef<HTMLElement>;
 
   readonly DEFAULT_CONTRACT_PRICES = {
     exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
@@ -207,10 +206,8 @@ export class UploadTrackComponent implements OnInit {
   });
 
   /* ── State ──────────────────────────────────────────────────────────────── */
-  loading    = signal(false);
-  error      = signal<string | null>(null);
-  uploadDone = signal(false);
-  copyDone   = signal(false);
+  loading = signal(false);
+  error   = signal<string | null>(null);
 
   submitErrors = computed(() => {
     const errs: string[] = [];
@@ -238,18 +235,12 @@ export class UploadTrackComponent implements OnInit {
     private router:                Router,
     readonly auth:                 AuthService,
     private uploadStatusSvc:       UploadStatusService,
+    private ytTemplateSvc:         YoutubeTemplateService,
     private playlistService:       PlaylistService,
     private similarArtistsSvc:     SimilarArtistsService,
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
-    effect(() => {
-      if (this.uploadDone()) {
-        setTimeout(() => {
-          this.ytSectionRef?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 80);
-      }
-    });
   }
 
   ngOnInit(): void {
@@ -348,21 +339,6 @@ export class UploadTrackComponent implements OnInit {
     return lines.join('\n');
   });
 
-  copyYoutubeTemplate(): void {
-    navigator.clipboard.writeText(this.youtubeTemplate()).then(() => {
-      this.copyDone.set(true);
-      setTimeout(() => this.copyDone.set(false), 2500);
-    });
-  }
-
-  goHome(): void {
-    this.router.navigate(['/dashboard/beatmaker']);
-  }
-
-  goToTracks(): void {
-    this.router.navigate(['/']);
-  }
-
   onSubmit(): void {
     if (!this.canSubmit()) return;
     this.loading.set(true);
@@ -429,8 +405,8 @@ export class UploadTrackComponent implements OnInit {
           if (res?.success && res.data?.job_id) {
             this.auth.me().subscribe();
             this.uploadStatusSvc.startPolling(res.data.job_id);
-            // Montrer le template YouTube avant de naviguer
-            this.uploadDone.set(true);
+            this.ytTemplateSvc.set(this.youtubeTemplate());
+            this.router.navigate(['/']);
           } else {
             this.uploadStatusSvc.stopPolling();
             this.error.set(res?.feedback?.message ?? 'Erreur lors de la soumission.');

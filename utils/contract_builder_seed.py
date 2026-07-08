@@ -5,18 +5,36 @@ and example quasi-legal French texts.
 Called by the `flask seed-contract-builder` CLI command in app.py.
 """
 
-from models import ContractClause, ContractClauseGroup, ClauseTypeEnum
+from models import ContractClause, ContractClauseGroup, ClauseTypeEnum, ContractTemplateTypeEnum
 from extensions import db
+
+
+def _exploitation_clauses_query(name: str):
+    """Clauses du template exploitation portant ce nom (exclut les autres familles)."""
+    return (
+        db.session.query(ContractClause)
+        .join(ContractClauseGroup, ContractClause.group_id == ContractClauseGroup.id)
+        .filter(
+            ContractClause.name == name,
+            ContractClauseGroup.contract_type == ContractTemplateTypeEnum.exploitation,
+        )
+    )
 
 
 def run_seed() -> None:
     """Insert all contract builder groups and clauses. No-op if data already exists."""
-    if db.session.query(ContractClauseGroup).count() > 0:
+    existing = (
+        db.session.query(ContractClauseGroup)
+        .filter_by(contract_type=ContractTemplateTypeEnum.exploitation)
+        .count()
+    )
+    if existing > 0:
         return
 
     def _g(name, description=None, tooltip=None, sort_order=0):
         g = ContractClauseGroup(
-            name=name, description=description, tooltip=tooltip, sort_order=sort_order
+            name=name, description=description, tooltip=tooltip, sort_order=sort_order,
+            contract_type=ContractTemplateTypeEnum.exploitation,
         )
         db.session.add(g)
         db.session.flush()
@@ -1008,11 +1026,7 @@ def update_examples() -> int:
     """Patch example_text on existing clauses (overwrites any existing value)."""
     updated = 0
     for name, text in _EXAMPLES.items():
-        rows = (
-            db.session.query(ContractClause)
-            .filter(ContractClause.name == name)
-            .all()
-        )
+        rows = _exploitation_clauses_query(name).all()
         for row in rows:
             row.example_text = text
             updated += 1
@@ -2182,8 +2196,8 @@ def update_tooltips() -> int:
     updated = 0
     for name, text in _TOOLTIPS_LONG.items():
         rows = (
-            db.session.query(ContractClause)
-            .filter(ContractClause.name == name, ContractClause.tooltip_long.is_(None))
+            _exploitation_clauses_query(name)
+            .filter(ContractClause.tooltip_long.is_(None))
             .all()
         )
         for row in rows:
@@ -2201,7 +2215,7 @@ def update_plain_texts(force: bool = False) -> int:
     """
     updated = 0
     for name, text in _PLAIN_TEXTS.items():
-        q = db.session.query(ContractClause).filter(ContractClause.name == name)
+        q = _exploitation_clauses_query(name)
         if not force:
             q = q.filter(ContractClause.tooltip_plain.is_(None))
         for row in q.all():

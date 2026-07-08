@@ -162,7 +162,7 @@ export class AdminToplineComponent implements OnInit, OnDestroy {
   loadingId  = signal<number | null>(null);
   blobUrl    = signal<string | null>(null);
 
-  private static base = '/db_assets/';
+  private static base = `${environment.apiUrl}/db_assets/`;
 
   ngOnInit(): void { this.load(); }
 

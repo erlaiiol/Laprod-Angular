@@ -99,7 +99,8 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id       = Number(this.route.snapshot.paramMap.get('id'));
+    const autoplay = !!this.route.snapshot.queryParamMap.get('autoplay');
     if (!id) { this.error.set('ID invalide'); this.loading.set(false); return; }
 
     this.trackSvc.getTrackDetail(id).subscribe({
@@ -115,6 +116,7 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
           this.track.set({ ...t, toplines: merged });
           this.player.viewingTrack.set(t as any);
           this.trackSvc.recordView(t.id, 'detail');
+          if (autoplay) this.player.play(t as any, 'share');
         } else {
           this.error.set('Track introuvable.');
         }

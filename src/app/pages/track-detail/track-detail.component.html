@@ -47,7 +47,7 @@
         <div class="track-title-row">
           <h1 class="track-title">{{ track()!.title }}</h1>
           <app-favorite-button [trackId]="track()!.id"></app-favorite-button>
-          <app-share-button [url]="'/track/' + track()!.id" [title]="track()!.title"></app-share-button>
+          <app-share-button [url]="'/track/' + track()!.id + '?autoplay=1'" [title]="track()!.title"></app-share-button>
           @if (canEditTrack()) {
             <a [routerLink]="['/edit-track', track()!.id]" class="btn-edit">
               <i class="bi bi-pencil-fill"></i> Modifier
@@ -114,24 +114,14 @@
     <!-- ── TOPLINE CTA BLOCK ───────────────────────────────────────────── -->
     @if (!isExclusiveSold()) {
       <div class="topline-cta-block">
-        <div class="topline-cta-icon">
-          <i class="bi bi-mic-fill"></i>
-        </div>
         <div class="topline-cta-content">
           <h3>Chante dessus avant d'acheter.</h3>
           <p>Enregistre ta topline en un clic — autotune intégré, zéro logiciel. Tu sais si ça marche avant de dépenser un centime.</p>
         </div>
-        @if (auth.isLoggedIn()) {
-          <button class="topline-cta-btn" (click)="toggleRecorder()">
-            <i class="bi bi-mic-fill"></i>
-            {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
-          </button>
-        } @else {
-          <a routerLink="/register" class="topline-cta-btn topline-cta-btn--guest">
-            <i class="bi bi-mic-fill"></i>
-            Essayer gratuitement
-          </a>
-        }
+        <button class="topline-cta-btn" (click)="toggleRecorder()">
+          <i class="bi bi-mic-fill"></i>
+          {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
+        </button>
       </div>
     }
 
@@ -147,12 +137,10 @@
             </span>
           }
         </div>
-        @if (auth.isLoggedIn()) {
-          <button class="btn-record" (click)="toggleRecorder()">
-            <i class="bi bi-mic-fill"></i>
-            {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
-          </button>
-        }
+        <button class="btn-record" (click)="toggleRecorder()">
+          <i class="bi bi-mic-fill"></i>
+          {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
+        </button>
       </div>
 
       @if (showRecorder() && track()) {

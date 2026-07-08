@@ -1,7 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ContractBuilderService, ClauseGroupDTO, ClauseDTO } from '../../../services/contract-builder.service';
+import { ContractBuilderService, ClauseGroupDTO, ClauseDTO, ContractType } from '../../../services/contract-builder.service';
 
 
 @Component({
@@ -20,6 +20,7 @@ export class AdminContractBuilderComponent implements OnInit {
   newGroupName  = signal('');
   newGroupDesc  = signal('');
   newGroupTip   = signal('');
+  newGroupType  = signal<ContractType>('exploitation');
 
   // Expanded group
   expandedGroupId = signal<number | null>(null);
@@ -79,6 +80,7 @@ export class AdminContractBuilderComponent implements OnInit {
     this.svc.adminCreateGroup({
       name, description: this.newGroupDesc().trim() || null,
       tooltip: this.newGroupTip().trim() || null,
+      contract_type: this.newGroupType(),
     }).subscribe({
       next: res => {
         if (res.success) {

@@ -2,7 +2,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { ContractBuilderService, ContractSummary } from '../../services/contract-builder.service';
+import { ContractBuilderService, ContractSummary, ContractType } from '../../services/contract-builder.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 import { PremiumLockComponent } from '../../components/premium-lock/premium-lock.component';
@@ -24,6 +24,32 @@ export class ContractBuilderComponent implements OnInit {
   creating  = signal(false);
   contracts = signal<ContractSummary[]>([]);
   newTitle  = signal('');
+  newType   = signal<ContractType>('exploitation');
+
+  readonly contractTypes: { value: ContractType; icon: string; label: string; desc: string; placeholder: string }[] = [
+    {
+      value: 'exploitation',
+      icon: 'bi-vinyl-fill',
+      label: "Contrat d'exploitation",
+      desc: 'Licence, cession, édition, distribution d\'une œuvre musicale.',
+      placeholder: "Titre de l'œuvre ou du projet...",
+    },
+    {
+      value: 'performance',
+      icon: 'bi-mic-fill',
+      label: 'Contrat de représentation',
+      desc: 'Concert, festival, DJ set, showcase, évènement privé.',
+      placeholder: "Nom de l'évènement ou du concert...",
+    },
+  ];
+
+  typeLabel(t: ContractType): string {
+    return this.contractTypes.find(ct => ct.value === t)?.label ?? '';
+  }
+
+  placeholderForType(): string {
+    return this.contractTypes.find(ct => ct.value === this.newType())?.placeholder ?? '';
+  }
 
   constructor(
     private svc:    ContractBuilderService,
@@ -50,7 +76,7 @@ export class ContractBuilderComponent implements OnInit {
     const title = this.newTitle().trim();
     if (!title) return;
     this.creating.set(true);
-    this.svc.createContract(title).subscribe({
+    this.svc.createContract(title, this.newType()).subscribe({
       next: res => {
         this.creating.set(false);
         if (res.success && res.data) {

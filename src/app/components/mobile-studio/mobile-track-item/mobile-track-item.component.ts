@@ -20,16 +20,20 @@ import { MobileAudioProcessorService } from '../../../services/mobile-audio-proc
 export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, OnDestroy {
 
   @Input({ required: true }) track!: VocalTrack;
-  @Input() trackKey = '';
+  @Input() trackKey    = '';
+  /** Fraction [0–1] de la position de lecture dans cette piste, null si hors portée. */
+  @Input() playheadPct: number | null = null;
 
   @Output() startRecord = new EventEmitter<string>();
   @Output() remove      = new EventEmitter<string>();
   @Output() punchIn     = new EventEmitter<string>();
+  /** Émet la fraction [0–1] sur laquelle l'utilisateur a cliqué dans la waveform. */
+  @Output() seekTo      = new EventEmitter<number>();
 
   @ViewChild('wfCanvas')   wfCanvasRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('nameInput')  nameInputRef?: ElementRef<HTMLInputElement>;
 
-  readonly expanded         = signal(false);
+  readonly expanded         = signal(true);
   readonly editingName      = signal(false);
   readonly isPlayingPreview = signal(false);
   editNameValue             = '';
@@ -101,6 +105,17 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
 
   private _fmtTime(s: number): string {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  // ── Seek sur clic waveform ────────────────────────────────────────────────────
+
+  onWaveformClick(event: MouseEvent): void {
+    const canvas = this.wfCanvasRef?.nativeElement;
+    if (!canvas || !this.track.rawBlob) return;
+    event.stopPropagation();
+    const rect = canvas.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    this.seekTo.emit(frac);
   }
 
   // ── Renommage double-tap ──────────────────────────────────────────────────────

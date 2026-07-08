@@ -6,6 +6,7 @@ import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
+import { environment } from '../../../../environments/environment';
 
 type Mode = 'quick' | 'advanced';
 
@@ -215,6 +216,6 @@ export class MixmasterOrderComponent implements OnInit {
   imgUrl(path: string | null): string {
     if (!path) return '/assets/placeholders/default_profile.png';
     if (path.startsWith('http')) return path;
-    return `/db_assets/${path}`;
+    return `${environment.apiUrl}/db_assets/${path}`;
   }
 }

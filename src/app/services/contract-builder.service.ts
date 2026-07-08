@@ -14,6 +14,7 @@ export type ClauseType =
 
 export type PartyType = 'physical' | 'company';
 export type ContractStatus = 'draft' | 'final';
+export type ContractType = 'exploitation' | 'performance';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -37,8 +38,9 @@ export interface ClauseDTO {
 }
 
 export interface ClauseGroupDTO {
-  id:          number;
-  name:        string;
+  id:            number;
+  name:          string;
+  contract_type?: ContractType;
   description: string | null;
   tooltip:     string | null;
   sort_order:  number;
@@ -79,11 +81,12 @@ export interface ContractValue {
 }
 
 export interface ContractSummary {
-  id:         number;
-  title:      string;
-  status:     ContractStatus;
-  created_at: string;
-  updated_at: string | null;
+  id:            number;
+  title:         string;
+  contract_type: ContractType;
+  status:        ContractStatus;
+  created_at:    string;
+  updated_at:    string | null;
 }
 
 export interface ContractDetail extends ContractSummary {
@@ -120,8 +123,8 @@ export class ContractBuilderService {
 
   // ── Utilisateur ───────────────────────────────────────────────────────────
 
-  getTemplate(): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {
-    return this.http.get<any>(`${this.base}/template`, { headers: this.headers });
+  getTemplate(type: ContractType = 'exploitation'): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {
+    return this.http.get<any>(`${this.base}/template`, { headers: this.headers, params: { type } });
   }
 
   listContracts(): Observable<ApiResponse<{ contracts: ContractSummary[] }>> {
@@ -132,8 +135,8 @@ export class ContractBuilderService {
     return this.http.get<any>(`${this.base}/contracts/${id}`, { headers: this.headers });
   }
 
-  createContract(title: string): Observable<ApiResponse<{ contract: ContractSummary }>> {
-    return this.http.post<any>(`${this.base}/contracts`, { title }, { headers: this.headers });
+  createContract(title: string, type: ContractType = 'exploitation'): Observable<ApiResponse<{ contract: ContractSummary }>> {
+    return this.http.post<any>(`${this.base}/contracts`, { title, contract_type: type }, { headers: this.headers });
   }
 
   updateContract(id: number, payload: UpdateContractPayload): Observable<ApiResponse<{ contract: ContractDetail }>> {
@@ -153,8 +156,9 @@ export class ContractBuilderService {
 
   // ── Admin — Groupes ───────────────────────────────────────────────────────
 
-  adminGetGroups(): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {
-    return this.http.get<any>(`${this.adminBase}/groups`, { headers: this.headers });
+  adminGetGroups(type?: ContractType): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {
+    const params: Record<string, string> = type ? { type } : {};
+    return this.http.get<any>(`${this.adminBase}/groups`, { headers: this.headers, params });
   }
 
   adminCreateGroup(payload: Partial<ClauseGroupDTO>): Observable<ApiResponse<{ group: ClauseGroupDTO }>> {

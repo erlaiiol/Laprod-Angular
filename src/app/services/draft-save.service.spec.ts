@@ -1,39 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { DraftSaveService } from './draft-save.service';
+import { DraftSaveService, CAPACITOR_FILESYSTEM, IS_NATIVE_PLATFORM } from './draft-save.service';
 
-// ── Mock Capacitor avant l'import du service ──────────────────────────────────
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+//
+// Fournis via les tokens d'injection du service (pas vi.mock('@capacitor/...')) :
+// remplacer ces modules entiers s'est révélé peu fiable dans la suite complète
+// (hoisting Vitest partagé entre fichiers, cf. commentaire dans draft-save.service.ts)
+// — l'injection Angular via TestBed est garantie indépendante de l'ordre d'exécution.
 
 const mockMkdir      = vi.fn().mockResolvedValue({});
 const mockWriteFile  = vi.fn().mockResolvedValue({ uri: 'file:///Documents/laprod_drafts/x.mp3' });
 const mockReaddir    = vi.fn().mockResolvedValue({ files: [] });
 const mockDeleteFile = vi.fn().mockResolvedValue({});
 
-vi.mock('@capacitor/filesystem', () => ({
-  Filesystem: {
-    mkdir:      (...args: unknown[]) => mockMkdir(...args),
-    writeFile:  (...args: unknown[]) => mockWriteFile(...args),
-    readdir:    (...args: unknown[]) => mockReaddir(...args),
-    deleteFile: (...args: unknown[]) => mockDeleteFile(...args),
-  },
-  Directory: { Documents: 'DOCUMENTS' },
-}));
-
-vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true },
-}));
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function makeBlob(content = 'audio'): Blob {
-  return new Blob([content], { type: 'audio/mpeg' });
-}
-
 function resetMocks(): void {
   mockMkdir.mockClear().mockResolvedValue({});
   mockWriteFile.mockClear().mockResolvedValue({ uri: 'file:///Documents/laprod_drafts/x.mp3' });
   mockReaddir.mockClear().mockResolvedValue({ files: [] });
   mockDeleteFile.mockClear().mockResolvedValue({});
+}
+
+function makeBlob(content = 'audio'): Blob {
+  return new Blob([content], { type: 'audio/mpeg' });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -44,7 +33,20 @@ describe('DraftSaveService', () => {
 
   beforeEach(() => {
     resetMocks();
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: CAPACITOR_FILESYSTEM,
+          useValue: {
+            mkdir:      mockMkdir,
+            writeFile:  mockWriteFile,
+            readdir:    mockReaddir,
+            deleteFile: mockDeleteFile,
+          },
+        },
+        { provide: IS_NATIVE_PLATFORM, useValue: true },
+      ],
+    });
     svc = TestBed.inject(DraftSaveService);
   });
 

@@ -81,7 +81,7 @@
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse order-lg-3" id="navbarNav">
+    <div class="collapse navbar-collapse order-lg-3" id="navbarNav" (click)="onNavLinkClick($event)">
       <ul class="navbar-nav ms-auto">
 
         <li class="nav-item">
@@ -207,6 +207,18 @@
               <li><hr class="dropdown-divider"></li>
 
               <li>
+                <button class="dropdown-item dropdown-item--theme" (click)="themeSvc.toggle()">
+                  @if (themeSvc.theme() === 'dark') {
+                    <i class="bi bi-sun"></i> Mode clair
+                  } @else {
+                    <i class="bi bi-moon-stars"></i> Mode sombre
+                  }
+                </button>
+              </li>
+
+              <li><hr class="dropdown-divider"></li>
+
+              <li>
                 <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
                   <i class="bi bi-box-arrow-right"></i> Déconnexion
                 </a>
@@ -216,6 +228,18 @@
           </li>
 
         } @else {
+
+          <li class="nav-item">
+            <button class="nav-link btn-theme-toggle"
+                    (click)="themeSvc.toggle()"
+                    [title]="themeSvc.theme() === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'">
+              @if (themeSvc.theme() === 'dark') {
+                <i class="bi bi-sun"></i>
+              } @else {
+                <i class="bi bi-moon-stars"></i>
+              }
+            </button>
+          </li>
 
           <li class="nav-item">
             <a class="nav-link" [routerLink]="['/login']" routerLinkActive="active">

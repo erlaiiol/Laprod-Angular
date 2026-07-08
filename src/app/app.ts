@@ -6,15 +6,18 @@ import { ToastComponent } from './components/ui/toast.component/toast.component'
 import { FooterComponent } from './layout/footer/footer.component';
 import { PlayerComponent } from './layout/player/player.component';
 import { AuthService } from './services/auth.service';
+import { PlayerService } from './services/player.service';
 import { NotificationService } from './services/notification.service';
 import { UploadProgressToastComponent } from './components/ui/upload-progress-toast/upload-progress-toast.component';
 import { ToplineProgressToastComponent } from './components/ui/topline-progress-toast/topline-progress-toast.component';
 import { UserflowComponent } from './components/userflow/userflow.component';
 import { NativeShellService } from './services/native-shell.service';
+import { YoutubeBubbleComponent } from './components/ui/youtube-bubble/youtube-bubble.component';
+import { SidebarFabsComponent } from './components/ui/sidebar-fabs/sidebar-fabs.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent],
+  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent, YoutubeBubbleComponent, SidebarFabsComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -22,6 +25,7 @@ export class App implements OnInit {
   protected readonly title = signal('Laprod-Angular');
 
   readonly auth    = inject(AuthService);
+  readonly player  = inject(PlayerService);
   private notifSvc = inject(NotificationService);
   private router   = inject(Router);
   private shell    = inject(NativeShellService);

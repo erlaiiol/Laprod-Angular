@@ -251,8 +251,9 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
     )
 
     # ── Titre ──────────────────────────────────────────────────────────────────
+    heading = (contract_data.get('type_label') or "Contrat d'exploitation d'une œuvre musicale").upper()
     story.append(Paragraph(
-        f"CONTRAT D'EXPLOITATION D'UNE ŒUVRE MUSICALE",
+        heading,
         title_style,
     ))
     story.append(Paragraph(

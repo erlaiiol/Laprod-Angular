@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Build debug uniquement (src/debug/, jamais mergé en release) : autorise le trafic
+  HTTP en clair vers l'alias réseau de l'émulateur Android (10.0.2.2 → localhost de
+  la machine hôte) pour parler au backend Flask lancé via docker-compose.dev.yml.
+  Voir environment.mobile-dev-android.ts et scripts/dev-android.sh.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

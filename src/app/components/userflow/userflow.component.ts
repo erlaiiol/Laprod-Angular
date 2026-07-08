@@ -1,5 +1,6 @@
-import { ChangeDetectorRef, Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { UserflowService } from '../../services/userflow.service';
 
 interface FlowStep {
   text: string;
@@ -16,52 +17,29 @@ interface Flow {
   cta: { label: string; link: string };
 }
 
-const LS_KEY = 'laprod_guide_opened';
-
 @Component({
   selector: 'app-userflow',
   standalone: true,
   imports: [RouterLink],
   templateUrl: './userflow.component.html',
   styleUrl: './userflow.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserflowComponent implements OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
+  readonly svc       = inject(UserflowService);
+  readonly openIndex = signal<number | null>(null);
 
-  isOpen        = false;
-  hasEverOpened = localStorage.getItem(LS_KEY) === '1';
-  openIndex: number | null = null;
-
-  open(): void {
-    this.isOpen = true;
-    if (!this.hasEverOpened) {
-      this.hasEverOpened = true;
-      localStorage.setItem(LS_KEY, '1');
-    }
-    document.body.style.overflow = 'hidden';
-    this.cdr.detectChanges();
-  }
-
-  close(): void {
-    this.isOpen = false;
-    document.body.style.overflow = '';
-    this.cdr.detectChanges();
+  toggle(i: number): void {
+    this.openIndex.update(cur => (cur === i ? null : i));
   }
 
   onBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      this.close();
-    }
-  }
-
-  toggle(i: number): void {
-    this.openIndex = this.openIndex === i ? null : i;
-    this.cdr.detectChanges();
+    if (event.target === event.currentTarget) this.svc.close();
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.isOpen) this.close();
+    if (this.svc.isOpen()) this.svc.close();
   }
 
   ngOnDestroy(): void {

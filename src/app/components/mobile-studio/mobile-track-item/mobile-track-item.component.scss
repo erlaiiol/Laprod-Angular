@@ -50,11 +50,34 @@
   &:focus { border-color: rgba(255, 255, 255, 0.45); }
 }
 
+.mti-wf-wrap {
+  position:      relative;
+  flex:          1;
+  cursor:        pointer;
+  border-radius: 4px;
+  overflow:      hidden;
+
+  &:active { opacity: 0.85; }
+}
+
 .mti-waveform {
-  flex:            1;
-  height:          46px;
-  border-radius:   4px;
-  background:      rgba(255, 255, 255, 0.04);
+  display:       block;
+  width:         100%;
+  height:        46px;
+  border-radius: 4px;
+  background:    rgba(255, 255, 255, 0.04);
+}
+
+.mti-playhead {
+  position:      absolute;
+  top:           0;
+  bottom:        0;
+  width:         2px;
+  margin-left:   -1px;
+  background:    rgba(255, 255, 255, 0.82);
+  pointer-events: none;
+  border-radius: 1px;
+  box-shadow:    0 0 5px rgba(0, 0, 0, 0.45);
 }
 
 .mti-actions {
