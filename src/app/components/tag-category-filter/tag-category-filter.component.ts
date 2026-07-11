@@ -1,10 +1,11 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { TagsService } from '../../services/tags.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tag-category-filter',
   standalone: true,
   imports: [CommonModule],
@@ -14,6 +15,12 @@ import { AuthService } from '../../services/auth.service';
 export class TagCategoryFilterComponent {
   private tagsService = inject(TagsService);
   private authService = inject(AuthService);
+
+  constructor() {
+    // Le composant est responsable de ses données : requête partagée/cachée,
+    // gratuite si un autre consommateur a déjà chargé les tags.
+    this.tagsService.ensureLoaded().subscribe({ error: () => {} });
+  }
 
   categories = computed(() => {
     const seen = new Set<string>();

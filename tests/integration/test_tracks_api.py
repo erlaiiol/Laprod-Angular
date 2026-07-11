@@ -70,6 +70,118 @@ class TestGetTracks:
         assert 'pages' in pagination
 
 
+# ── GET /api/tracks/tracks?sort=recommended — cohérence cache reco ─────────────
+# Le job RQ qui calcule les recommandations tourne en fond et peut remplir
+# laprod:reco:result:{user_id} entre deux requêtes de pagination du même
+# utilisateur. Sans garde-fou, la page 2 basculerait sur un ordre totalement
+# différent de celui vu en page 1. Le snapshot "fallback" doit rester la
+# source de vérité tant qu'il existe, même si le cache perso devient dispo.
+
+class _FakeRedis:
+    def __init__(self):
+        self.store: dict[str, str] = {}
+
+    def get(self, key):
+        val = self.store.get(key)
+        return val.encode() if val is not None else None
+
+    def setex(self, key, ttl, value):
+        self.store[key] = value
+
+
+class TestRecommendedPaginationConsistency:
+
+    def test_reuses_fallback_snapshot_over_fresher_personalized_cache(self, client, db, user, track, auth_headers, monkeypatch):
+        fake = _FakeRedis()
+        monkeypatch.setattr('routes.tracks_api.redis_client', fake)
+
+        fallback_key = f'laprod:reco:fallback:{user.id}'
+        result_key   = f'laprod:reco:result:{user.id}'
+
+        # Une pagination fallback est déjà entamée pour cet utilisateur...
+        fake.store[fallback_key] = json.dumps([track.id])
+        # ...et le job RQ vient de terminer son calcul perso entre-temps,
+        # avec un ordre différent (ID inexistant pour bien distinguer les deux).
+        fake.store[result_key] = json.dumps([999999])
+
+        resp = client.get('/api/tracks/tracks?sort=recommended', headers=auth_headers)
+        assert resp.status_code == 200
+        data = json.loads(resp.data)['data']
+
+        assert data['personalized'] is False
+        returned_ids = [t['id'] for t in data['tracks']]
+        assert track.id in returned_ids
+
+    def test_computes_and_caches_fallback_snapshot_on_full_cache_miss(self, client, db, user, track, auth_headers, monkeypatch):
+        fake = _FakeRedis()
+        monkeypatch.setattr('routes.tracks_api.redis_client', fake)
+
+        resp = client.get('/api/tracks/tracks?sort=recommended', headers=auth_headers)
+        assert resp.status_code == 200
+        data = json.loads(resp.data)['data']
+
+        assert data['personalized'] is False
+        returned_ids = [t['id'] for t in data['tracks']]
+        assert track.id in returned_ids
+
+        fallback_key = f'laprod:reco:fallback:{user.id}'
+        assert fallback_key in fake.store
+        assert track.id in json.loads(fake.store[fallback_key])
+
+    def test_filters_reco_cache_while_keeping_personalized_order(self, client, db, user, auth_headers, monkeypatch):
+        """Le cache reco est calculé sur tout le catalogue, sans filtre — mais
+        l'ORDRE qu'il contient encode le classement de préférence. Un filtre
+        actif (ex: recherche) doit restreindre les résultats au sous-ensemble
+        qui matche, sans pour autant désactiver la personnalisation : le rang
+        relatif des tracks retenues doit venir du cache, pas de l'ID/l'insertion."""
+        from models import Track
+
+        other = Track(
+            title='Completely Different Title', composer_id=user.id,
+            file_hash='other-hash-1234', audio_file='other_preview.mp3',
+            bpm=90, key='D minor', is_approved=True,
+        )
+        match_low = Track(
+            title='Trap Banger Beta', composer_id=user.id,
+            file_hash='match-low-hash', audio_file='match_low_preview.mp3',
+            bpm=140, key='A minor', is_approved=True,
+        )
+        match_high = Track(
+            title='Trap Banger Alpha', composer_id=user.id,
+            file_hash='match-high-hash', audio_file='match_high_preview.mp3',
+            bpm=140, key='A minor', is_approved=True,
+        )
+        db.session.add_all([other, match_low, match_high])
+        db.session.commit()
+
+        fake = _FakeRedis()
+        monkeypatch.setattr('routes.tracks_api.redis_client', fake)
+
+        # Cache reco (tout le catalogue, sans filtre) : match_low classé avant
+        # match_high, avec other quelque part au milieu.
+        result_key = f'laprod:reco:result:{user.id}'
+        fake.store[result_key] = json.dumps([match_low.id, other.id, match_high.id])
+
+        resp = client.get(
+            '/api/tracks/tracks?sort=recommended&search=Trap+Banger',
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = json.loads(resp.data)['data']
+
+        # La personnalisation reste active : 'other' (hors-filtre) est exclu,
+        # mais l'ordre entre match_low et match_high reflète le cache, pas l'ID.
+        assert data['personalized'] is True
+        returned_ids = [t['id'] for t in data['tracks']]
+        assert other.id not in returned_ids
+        assert returned_ids == [match_low.id, match_high.id]
+
+        db.session.delete(other)
+        db.session.delete(match_low)
+        db.session.delete(match_high)
+        db.session.commit()
+
+
 # ── DELETE /api/tracks/delete/<id> ────────────────────────────────────────────
 
 class TestDeleteTrack:

@@ -1,12 +1,25 @@
-import { Component, OnInit, DestroyRef, signal, inject, effect, untracked, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, DestroyRef, signal, inject, effect, untracked, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
-import { Chart, registerables } from 'chart.js';
-Chart.register(...registerables);
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Legend,
+  Tooltip,
+  Filler,
+} from 'chart.js';
+// Enregistrement sélectif : le dashboard n'affiche qu'une courbe temporelle
+// (type "line" + fill). registerables embarquerait tous les contrôleurs
+// (bar, pie, radar…) dans le chunk pour rien.
+Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler);
 import { AuthService } from '../../../services/auth.service';
 import {
   DashboardService, BeatmakerDashboard, BeatmakerTrack, SaleRecord,
@@ -23,6 +36,7 @@ import { catchError, EMPTY, switchMap } from 'rxjs';
 import { TrackQualityScoreComponent } from '../../../components/track-quality-score/track-quality-score.component';
 import { AppRefreshService } from '../../../services/app-refresh.service';
 import { environment } from '../../../../environments/environment';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
 export interface TrackViewStat {
   track_id:    number;
@@ -58,9 +72,10 @@ export interface BeatmakerAnalytics {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-beatmaker',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent, FormatDatePipe],
   templateUrl: './dashboard-beatmaker.component.html',
   styleUrls: ['./dashboard-beatmaker.component.scss'],
 })
@@ -75,10 +90,10 @@ export class DashboardBeatmakerComponent implements OnInit {
   playlists        = signal<Playlist[]>([]);
   playlistsLoading = signal(false);
   showCreateForm   = signal(false);
-  newTitle         = '';
+  newTitle         = signal('');
   creating         = signal(false);
   editingId        = signal<number | null>(null);
-  editTitle        = '';
+  editTitle        = signal('');
   renameSaving     = signal(false);
 
   // Image pour la création
@@ -305,7 +320,7 @@ export class DashboardBeatmakerComponent implements OnInit {
 
   cancelCreate(): void {
     this.showCreateForm.set(false);
-    this.newTitle = '';
+    this.newTitle.set('');
     const prev = this.newImagePreview();
     if (prev) URL.revokeObjectURL(prev);
     this.newImageFile.set(null);
@@ -313,7 +328,7 @@ export class DashboardBeatmakerComponent implements OnInit {
   }
 
   createPlaylist(): void {
-    const title = this.newTitle.trim();
+    const title = this.newTitle().trim();
     if (!title) return;
     this.creating.set(true);
     const fd = new FormData();
@@ -354,11 +369,11 @@ export class DashboardBeatmakerComponent implements OnInit {
 
   startRename(pl: Playlist): void {
     this.editingId.set(pl.id);
-    this.editTitle = pl.title;
+    this.editTitle.set(pl.title);
   }
 
   saveRename(pl: Playlist): void {
-    const title = this.editTitle.trim();
+    const title = this.editTitle().trim();
     if (!title || title === pl.title) { this.cancelRename(); return; }
     this.renameSaving.set(true);
     const fd = new FormData();
@@ -376,7 +391,7 @@ export class DashboardBeatmakerComponent implements OnInit {
     });
   }
 
-  cancelRename(): void { this.editingId.set(null); this.editTitle = ''; }
+  cancelRename(): void { this.editingId.set(null); this.editTitle.set(''); }
 
   deletePlaylist(pl: Playlist): void {
     if (!confirm(`Supprimer la playlist "${pl.title}" ?`)) return;
@@ -390,9 +405,6 @@ export class DashboardBeatmakerComponent implements OnInit {
     return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/placeholder-track.png';
   }
 
-  formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
 
   formatLabel(format: string): string {
     const labels: Record<string, string> = { mp3: 'MP3', wav: 'WAV', stems: 'STEMS' };

@@ -63,12 +63,21 @@ describe('ContractBuilderService', () => {
 
   // -- getTemplate() --
 
-  it('getTemplate() GETs /api/contract-builder/template', () => {
+  it('getTemplate() GETs /api/contract-builder/template avec type=exploitation par défaut', () => {
     service.getTemplate().subscribe();
 
-    const req = httpMock.expectOne(`${BASE_URL}/template`);
+    const req = httpMock.expectOne(`${BASE_URL}/template?type=exploitation`);
     expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('type')).toBe('exploitation');
     req.flush({ success: true, data: { groups: [mockGroup] } });
+  });
+
+  it('getTemplate() transmet le type de contrat demandé', () => {
+    service.getTemplate('performance').subscribe();
+
+    const req = httpMock.expectOne(`${BASE_URL}/template?type=performance`);
+    expect(req.request.params.get('type')).toBe('performance');
+    req.flush({ success: true, data: { groups: [] } });
   });
 
   it('getTemplate() returns groups with clauses including tooltip_plain', () => {
@@ -77,7 +86,7 @@ describe('ContractBuilderService', () => {
       groups = res.data?.groups;
     });
 
-    httpMock.expectOne(`${BASE_URL}/template`).flush({
+    httpMock.expectOne(`${BASE_URL}/template?type=exploitation`).flush({
       success: true,
       data: { groups: [mockGroup] },
     });
@@ -98,12 +107,12 @@ describe('ContractBuilderService', () => {
 
   // -- createContract() --
 
-  it('createContract() POSTs title to /api/contract-builder/contracts', () => {
+  it('createContract() POSTs title + contract_type to /api/contract-builder/contracts', () => {
     service.createContract('Mon contrat test').subscribe();
 
     const req = httpMock.expectOne(`${BASE_URL}/contracts`);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ title: 'Mon contrat test' });
+    expect(req.request.body).toEqual({ title: 'Mon contrat test', contract_type: 'exploitation' });
     req.flush({ success: true, data: { contract: { id: 42, title: 'Mon contrat test' } } });
   });
 

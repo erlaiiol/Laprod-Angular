@@ -32,7 +32,7 @@
   }
   @for (e of pending(); track e.id) {
     <div class="engineer-card">
-      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <img loading="lazy" decoding="async" [src]="imgUrl(e.profile_image)" class="avatar" alt="">
       <div class="engineer-info">
         <strong>{{ e.username }}</strong>
         <span class="small">{{ e.email }}</span>
@@ -62,7 +62,7 @@
   }
   @for (e of certified(); track e.id) {
     <div class="engineer-card">
-      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <img loading="lazy" decoding="async" [src]="imgUrl(e.profile_image)" class="avatar" alt="">
       <div class="engineer-info">
         <strong>{{ e.username }}</strong>
         <span class="small">Réf : {{ e.mixmaster_reference_price }}€ · Min : {{ e.mixmaster_price_min }}€</span>
@@ -118,7 +118,7 @@
   }
   @for (e of paRequests(); track e.id) {
     <div class="engineer-card">
-      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <img loading="lazy" decoding="async" [src]="imgUrl(e.profile_image)" class="avatar" alt="">
       <div class="engineer-info">
         <strong>{{ e.username }}</strong>
         <span class="small">Engineer certifié — demande certification Producteur/Arrangeur</span>
@@ -138,7 +138,7 @@
   }
   @for (e of masterPending(); track e.id) {
     <div class="engineer-card">
-      <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+      <img loading="lazy" decoding="async" [src]="imgUrl(e.profile_image)" class="avatar" alt="">
       <div class="engineer-info">
         <strong>{{ e.username }}</strong>
         <span class="small">{{ e.email }}</span>
@@ -175,7 +175,7 @@
   } @else {
     @for (e of allMixEngineers(); track e.id) {
       <div class="engineer-card direct-card">
-        <img [src]="imgUrl(e.profile_image)" class="avatar" alt="">
+        <img loading="lazy" decoding="async" [src]="imgUrl(e.profile_image)" class="avatar" alt="">
 
         <div class="engineer-info">
           <strong>{{ e.username }}</strong>
@@ -191,15 +191,15 @@
           <div class="direct-form">
             <div class="direct-row">
               <label>Prix réf. (€)</label>
-              <input type="number" [ngModel]="directRefPrice[e.id]" (ngModelChange)="directRefPrice[e.id] = +$event" min="20" max="500">
+              <input type="number" [ngModel]="directRefPrice()[e.id]" (ngModelChange)="setDirectRefPrice(e.id, +$event)" min="20" max="500">
             </div>
             <div class="direct-row">
               <label>Prix min (€)</label>
-              <input type="number" [ngModel]="directMinPrice[e.id]" (ngModelChange)="directMinPrice[e.id] = +$event" min="20" max="500">
+              <input type="number" [ngModel]="directMinPrice()[e.id]" (ngModelChange)="setDirectMinPrice(e.id, +$event)" min="20" max="500">
             </div>
             <div class="direct-row full">
               <label>Bio</label>
-              <input type="text" [ngModel]="directBio[e.id]" (ngModelChange)="directBio[e.id] = $event" placeholder="Présentation de l'engineer...">
+              <input type="text" [ngModel]="directBio()[e.id]" (ngModelChange)="setDirectBio(e.id, $event)" placeholder="Présentation de l'engineer...">
             </div>
             <div class="direct-row full">
               <label>Sample brut</label>

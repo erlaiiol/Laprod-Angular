@@ -137,7 +137,7 @@
 
             <div class="order-header">
               <div class="order-artist">
-                <img class="artist-avatar" [src]="imgUrl(order.artist_image)" [alt]="order.artist_username ?? ''">
+                <img loading="lazy" decoding="async" class="artist-avatar" [src]="imgUrl(order.artist_image)" [alt]="order.artist_username ?? ''">
                 <div>
                   <span class="order-title">{{ order.title }}</span>
                   <span class="artist-name">{{ order.artist_username ?? '—' }}</span>
@@ -159,15 +159,15 @@
                 }
               </div>
               <div class="order-dates">
-                <span><i class="bi bi-calendar3"></i> Reçue le {{ formatDate(order.created_at) }}</span>
+                <span><i class="bi bi-calendar3"></i> Reçue le {{ (order.created_at | formatDate) }}</span>
                 @if (order.deadline) {
-                  <span><i class="bi bi-alarm"></i> Deadline {{ formatDate(order.deadline) }}</span>
+                  <span><i class="bi bi-alarm"></i> Deadline {{ (order.deadline | formatDate) }}</span>
                 }
                 @if (order.delivered_at) {
-                  <span><i class="bi bi-send"></i> Livrée le {{ formatDate(order.delivered_at) }}</span>
+                  <span><i class="bi bi-send"></i> Livrée le {{ (order.delivered_at | formatDate) }}</span>
                 }
                 @if (order.completed_at) {
-                  <span><i class="bi bi-check2"></i> Terminée le {{ formatDate(order.completed_at) }}</span>
+                  <span><i class="bi bi-check2"></i> Terminée le {{ (order.completed_at | formatDate) }}</span>
                 }
                 @if (order.engineer_revenue !== null && order.engineer_revenue > 0) {
                   <span class="text-green"><i class="bi bi-currency-euro"></i> Gain : {{ order.engineer_revenue.toFixed(2) }}€</span>
@@ -301,7 +301,7 @@
           En tant qu'abonné Pro, vous pouvez mettre à jour vos fichiers de preview de mix
           sans validation admin. Vos anciennes previews sont conservées si vous ne changez pas un fichier.
         </p>
-        @if (!uploadPreviewRaw && !uploadPreviewProc) {
+        @if (!uploadPreviewRaw() && !uploadPreviewProc()) {
           <div class="preview-file-row">
             <label>
               Brut (optionnel)
@@ -315,16 +315,16 @@
         } @else {
           <div class="preview-file-row">
             <label>
-              Brut <span class="file-ok">{{ uploadPreviewRaw?.name || 'inchangé' }}</span>
+              Brut <span class="file-ok">{{ uploadPreviewRaw()?.name || 'inchangé' }}</span>
               <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('raw', $event)">
             </label>
             <label>
-              Traité <span class="file-ok">{{ uploadPreviewProc?.name || 'inchangé' }}</span>
+              Traité <span class="file-ok">{{ uploadPreviewProc()?.name || 'inchangé' }}</span>
               <input type="file" accept=".mp3,.wav" (change)="onPreviewFileChange('proc', $event)">
             </label>
           </div>
-          <button class="btn-upload-preview" (click)="submitPreviewUpdate()" [disabled]="uploadingPreview">
-            @if (uploadingPreview) { <span class="spinner-sm"></span> Envoi… }
+          <button class="btn-upload-preview" (click)="submitPreviewUpdate()" [disabled]="uploadingPreview()">
+            @if (uploadingPreview()) { <span class="spinner-sm"></span> Envoi… }
             @else { <i class="bi bi-cloud-upload-fill"></i> Mettre à jour }
           </button>
         }

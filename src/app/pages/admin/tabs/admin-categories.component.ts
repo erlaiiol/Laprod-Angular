@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminCategory } from '../../../services/admin.service';
@@ -8,6 +8,7 @@ import { TagsService } from '../../../services/tags.service';
 interface ArtistScene { name: string; artists: { id: number; name: string }[] }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-categories',
   standalone: true,
   imports: [CommonModule, FormsModule],
@@ -27,7 +28,8 @@ export class AdminCategoriesComponent implements OnInit {
   editColor    = signal('#6b7280');
   editDesc     = signal<string>('');
 
-  tagInputs: Record<number, string> = {};
+  // Saisie par catégorie : signal pour que l'input se vide bien après l'ajout (callback HTTP).
+  tagInputs = signal<Record<number, string>>({});
 
   // Similar artists section
   artistScenes      = signal<ArtistScene[]>([]);
@@ -99,15 +101,15 @@ export class AdminCategoriesComponent implements OnInit {
     });
   }
 
-  tagInput(catId: number): string { return this.tagInputs[catId] ?? ''; }
-  setTagInput(catId: number, val: string): void { this.tagInputs[catId] = val; }
+  tagInput(catId: number): string { return this.tagInputs()[catId] ?? ''; }
+  setTagInput(catId: number, val: string): void { this.tagInputs.update(m => ({ ...m, [catId]: val })); }
 
   createTag(cat: AdminCategory): void {
-    const name = (this.tagInputs[cat.id] ?? '').trim();
+    const name = (this.tagInputs()[cat.id] ?? '').trim();
     if (!name) return;
     this.adminSvc.createTag(name, cat.id).subscribe({
       next: res => {
-        if (res.success) { this.tagInputs[cat.id] = ''; this.load(); this.TagsService.refreshTags(); }
+        if (res.success) { this.setTagInput(cat.id, ''); this.load(); this.TagsService.refreshTags(); }
       },
       error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },
     });

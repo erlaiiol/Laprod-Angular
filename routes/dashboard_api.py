@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import json
 from extensions import db, csrf, redis_client
 from models import Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory, TrackView, ListenEvent
+from utils.image_variants import variant_or_original
 from serializers import ok, err, mix_order_full as ser_order_full
 from utils.auth_helpers import require_user
 
@@ -51,7 +52,7 @@ def get_beatmaker_dashboard(current_user):
         {
             'id':              t.id,
             'title':           t.title,
-            'image_file':      t.image_file,
+            'image_file':      variant_or_original(t.image_file, 'thumb'),
             'is_approved':     t.is_approved,
             'is_ai_suggested': getattr(t, 'is_ai_suggested', False),
             'created_at':      t.created_at.isoformat(),
@@ -75,7 +76,7 @@ def get_beatmaker_dashboard(current_user):
             'id':               s.id,
             'track_id':         s.track_id,
             'track_title':      s.track.title if s.track else None,
-            'track_image':      s.track.image_file if s.track else None,
+            'track_image':      variant_or_original(s.track.image_file, 'thumb') if s.track else None,
             'buyer_name':       s.buyer_name,
             'format':           s.format_purchased,
             'price_paid':       float(s.price_paid)       if s.price_paid       is not None else None,
@@ -224,7 +225,7 @@ def get_beatmaker_analytics(current_user):
         per_track.append({
             'track_id':           t.id,
             'title':              t.title,
-            'image_file':         t.image_file,
+            'image_file':         variant_or_original(t.image_file, 'thumb'),
             'bpm':                t.bpm,
             'tags':               [tg.name for tg in t.tags],
             'views':              v,
@@ -310,7 +311,7 @@ def get_artist_dashboard(current_user):
             'id':           tl.id,
             'track_id':     tl.track_id,
             'track_title':  tl.track.title if tl.track else None,
-            'track_image':  tl.track.image_file if tl.track else None,
+            'track_image':  variant_or_original(tl.track.image_file, 'thumb') if tl.track else None,
             'description':  tl.description,
             'is_published': tl.is_published,
             'created_at':   tl.created_at.isoformat(),
@@ -330,7 +331,7 @@ def get_artist_dashboard(current_user):
         {
             'id':           fav.track_id,
             'title':        fav.track.title if fav.track else None,
-            'image_file':   fav.track.image_file if fav.track else None,
+            'image_file':   variant_or_original(fav.track.image_file, 'thumb') if fav.track else None,
             'composer':     fav.track.composer_user.username if fav.track and fav.track.composer_user else None,
             'stream_url':   f'/api/stream/tracks/{fav.track_id}/preview',
             'favorited_at': fav.created_at.isoformat(),
@@ -351,7 +352,7 @@ def get_artist_dashboard(current_user):
         {
             'id':          h.track_id,
             'title':       h.track.title if h.track else None,
-            'image_file':  h.track.image_file if h.track else None,
+            'image_file':  variant_or_original(h.track.image_file, 'thumb') if h.track else None,
             'composer':    h.track.composer_user.username if h.track and h.track.composer_user else None,
             'stream_url':  f'/api/stream/tracks/{h.track_id}/preview',
             'listened_at': h.listened_at.isoformat(),

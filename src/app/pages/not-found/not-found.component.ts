@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ErrorService, AppError, ErrorCode } from '../../services/error.service';
@@ -63,6 +63,7 @@ const CONFIGS: Record<ErrorCode, Omit<ErrorConfig, 'code'>> = {
 };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-not-found',
   standalone: true,
   imports: [RouterLink],

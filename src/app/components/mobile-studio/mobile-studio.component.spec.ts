@@ -76,7 +76,24 @@ class ProcessorStub {
 }
 
 class PlayerStub {
-  audioEl = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn(), currentTime: 0, volume: 1 };
+  // Surface complète consommée par mobile-studio (ngOnInit charge le beat via
+  // src/load/addEventListener ; ngOnDestroy remet studioOpen/loop à zéro).
+  // Un membre manquant fait jeter les hooks → rejections non gérées qui
+  // polluent tous les fichiers de spec du même worker Vitest.
+  audioEl = {
+    play:                vi.fn().mockResolvedValue(undefined),
+    pause:               vi.fn(),
+    load:                vi.fn(),
+    addEventListener:    vi.fn(),
+    removeEventListener: vi.fn(),
+    currentTime: 0,
+    duration:    0,
+    volume:      1,
+    loop:        false,
+    src:         '',
+  };
+  studioOpen = signal(false);
+  pause = vi.fn();
 }
 
 class AuthStub   { isPremium = () => false; getToken = () => 'tok'; }

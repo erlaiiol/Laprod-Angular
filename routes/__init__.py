@@ -23,6 +23,7 @@ from .mixmaster_api import (
     cud_mixmaster_engineer_api_bp,
 )
 from .payment_mixmaster_api import payment_mixmaster_api_bp
+from .stripe_webhook_api import stripe_webhook_bp
 from .mixmaster_media_api import mixmaster_media_api_bp
 from .admin_api import admin_api_bp
 from .job_status_api import job_status_api
@@ -51,6 +52,7 @@ __all__ = [
     'cud_mixmaster_artist_api_bp',
     'cud_mixmaster_engineer_api_bp',
     'payment_mixmaster_api_bp',
+    'stripe_webhook_bp',
     'mixmaster_media_api_bp',
     'admin_api_bp',
     'job_status_api',

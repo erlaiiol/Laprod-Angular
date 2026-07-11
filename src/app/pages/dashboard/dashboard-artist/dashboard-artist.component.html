@@ -130,13 +130,13 @@
         <div class="items-list">
           @for (tl of data()!.toplines; track tl.id) {
             <div class="item-row">
-              <img class="item-cover" [src]="imgUrl(tl.track_image)" [alt]="tl.track_title ?? ''">
+              <img loading="lazy" decoding="async" class="item-cover" [src]="imgUrl(tl.track_image)" [alt]="tl.track_title ?? ''">
               <div class="item-info">
                 <a [routerLink]="['/track', tl.track_id]" class="item-title">{{ tl.track_title ?? 'Beat inconnu' }}</a>
                 @if (tl.description) {
                   <p class="item-desc">{{ tl.description }}</p>
                 }
-                <span class="item-date">{{ formatDate(tl.created_at) }}</span>
+                <span class="item-date">{{ (tl.created_at | formatDate) }}</span>
               </div>
               <div class="item-right">
                 <span class="status-badge" [class.status-published]="tl.is_published" [class.status-draft]="!tl.is_published">
@@ -165,11 +165,11 @@
         <div class="items-list">
           @for (fav of data()!.favorites; track fav.id) {
             <div class="item-row">
-              <img class="item-cover" [src]="imgUrl(fav.image_file)" [alt]="fav.title ?? ''">
+              <img loading="lazy" decoding="async" class="item-cover" [src]="imgUrl(fav.image_file)" [alt]="fav.title ?? ''">
               <div class="item-info">
                 <a [routerLink]="['/track', fav.id]" class="item-title">{{ fav.title ?? '—' }}</a>
                 @if (fav.composer) { <span class="item-composer">{{ fav.composer }}</span> }
-                <span class="item-date">Ajouté le {{ formatDate(fav.favorited_at) }}</span>
+                <span class="item-date">Ajouté le {{ (fav.favorited_at | formatDate) }}</span>
               </div>
             </div>
           }
@@ -188,11 +188,11 @@
         <div class="items-list">
           @for (h of data()!.history; track h.id) {
             <div class="item-row">
-              <img class="item-cover" [src]="imgUrl(h.image_file)" [alt]="h.title ?? ''">
+              <img loading="lazy" decoding="async" class="item-cover" [src]="imgUrl(h.image_file)" [alt]="h.title ?? ''">
               <div class="item-info">
                 <a [routerLink]="['/track', h.id]" class="item-title">{{ h.title ?? '—' }}</a>
                 @if (h.composer) { <span class="item-composer">{{ h.composer }}</span> }
-                <span class="item-date">Écouté le {{ formatDate(h.listened_at) }}</span>
+                <span class="item-date">Écouté le {{ (h.listened_at | formatDate) }}</span>
               </div>
             </div>
           }
@@ -214,7 +214,7 @@
             <div class="mm-card">
               <div class="mm-header">
                 <div class="mm-identity">
-                  <img class="mm-avatar" [src]="imgUrl(req.engineer_image)" [alt]="req.engineer_username ?? ''">
+                  <img loading="lazy" decoding="async" class="mm-avatar" [src]="imgUrl(req.engineer_image)" [alt]="req.engineer_username ?? ''">
                   <div>
                     <span class="mm-title">{{ req.title }}</span>
                     <span class="mm-engineer">{{ req.engineer_username ?? '—' }}</span>
@@ -233,12 +233,12 @@
                   }
                 </div>
                 <div class="mm-dates">
-                  <span><i class="bi bi-calendar3"></i> {{ formatDate(req.created_at) }}</span>
+                  <span><i class="bi bi-calendar3"></i> {{ (req.created_at | formatDate) }}</span>
                   @if (req.deadline) {
-                    <span><i class="bi bi-alarm"></i> Deadline {{ formatDate(req.deadline) }}</span>
+                    <span><i class="bi bi-alarm"></i> Deadline {{ (req.deadline | formatDate) }}</span>
                   }
                   @if (req.delivered_at) {
-                    <span><i class="bi bi-send"></i> Livrée le {{ formatDate(req.delivered_at) }}</span>
+                    <span><i class="bi bi-send"></i> Livrée le {{ (req.delivered_at | formatDate) }}</span>
                   }
                 </div>
               </div>
@@ -357,7 +357,7 @@
             @for (p of purchases()!.purchases; track p.id) {
               <div class="purchase-card">
                 <a [routerLink]="['/track', p.track?.id]" class="purchase-cover-link">
-                  <img class="purchase-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
+                  <img loading="lazy" decoding="async" class="purchase-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
                 </a>
                 <div class="purchase-info">
                   <a [routerLink]="['/track', p.track?.id]" class="purchase-title">
@@ -368,7 +368,7 @@
                   }
                   <div class="purchase-meta">
                     <span class="fmt-badge fmt-{{ p.format }}">{{ formatLabel(p.format) }}</span>
-                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(p.created_at) }}</span>
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ (p.created_at | formatDate) }}</span>
                   </div>
                 </div>
                 <div class="purchase-right">
@@ -410,9 +410,9 @@
                     <span class="purchase-composer"><i class="bi bi-person-badge"></i> {{ mm.engineer_username }}</span>
                   }
                   <div class="purchase-meta">
-                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(mm.created_at) }}</span>
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ (mm.created_at | formatDate) }}</span>
                     @if (mm.completed_at) {
-                      <span class="purchase-date text-green"><i class="bi bi-check2"></i> Terminé le {{ formatDate(mm.completed_at) }}</span>
+                      <span class="purchase-date text-green"><i class="bi bi-check2"></i> Terminé le {{ (mm.completed_at | formatDate) }}</span>
                     }
                   </div>
                 </div>
@@ -464,7 +464,7 @@
             @for (l of activeLicenses(); track l.id) {
               <div class="license-card" [class.license-card--urgent]="licenseUrgency(l) === 'urgent'">
                 <a [routerLink]="['/track', l.track?.id]" class="purchase-cover-link">
-                  <img class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
+                  <img loading="lazy" decoding="async" class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
                 </a>
                 <div class="purchase-info">
                   <a [routerLink]="['/track', l.track?.id]" class="purchase-title">
@@ -478,7 +478,7 @@
                     @if (l.territory) {
                       <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
                     }
-                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(l.created_at) }}</span>
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ (l.created_at | formatDate) }}</span>
                   </div>
                   <app-license-badge
                     [licenseStatus]="l.license_status"
@@ -524,7 +524,7 @@
             @for (l of expiredLicenses(); track l.id) {
               <div class="license-card license-card--expired">
                 <a [routerLink]="['/track', l.track?.id]" class="purchase-cover-link">
-                  <img class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
+                  <img loading="lazy" decoding="async" class="purchase-cover" [src]="imgUrl(l.track?.image_file ?? null)" [alt]="l.track?.title ?? ''">
                 </a>
                 <div class="purchase-info">
                   <a [routerLink]="['/track', l.track?.id]" class="purchase-title">
@@ -538,7 +538,7 @@
                     @if (l.territory) {
                       <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
                     }
-                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ formatDate(l.created_at) }}</span>
+                    <span class="purchase-date"><i class="bi bi-calendar3"></i> {{ (l.created_at | formatDate) }}</span>
                   </div>
                   <app-license-badge
                     [licenseStatus]="l.license_status"

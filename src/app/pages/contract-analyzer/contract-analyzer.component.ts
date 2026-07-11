@@ -1,4 +1,4 @@
-import { Component, OnDestroy, HostListener, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, HostListener, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import {
@@ -24,6 +24,7 @@ const LOADING_MESSAGES = [
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 Mo
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contract-analyzer',
   standalone: true,
   imports: [CommonModule, RouterModule, PremiumLockComponent],

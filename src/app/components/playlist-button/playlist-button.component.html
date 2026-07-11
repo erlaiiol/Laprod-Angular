@@ -6,7 +6,7 @@
     <div class="pl-stack">
       @if (track.playlist_count >= 3) { <div class="pl-ghost pl-ghost--3"></div> }
       @if (track.playlist_count >= 2) { <div class="pl-ghost pl-ghost--2"></div> }
-      <img class="pl-cover"
+      <img loading="lazy" decoding="async" class="pl-cover"
            [src]="coverUrl()"
            onerror="this.src='assets/placeholders/placeholder-track.png'"
            alt="">

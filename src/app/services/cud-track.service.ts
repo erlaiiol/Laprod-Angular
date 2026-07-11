@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Tag } from './tags.service';
+import { TrackService } from './track.service';
 
 export interface TrackData {
   title: string;
@@ -58,8 +59,14 @@ export interface EditResponse {
 })
 export class CudTrackService {
   private apiUrl = environment.apiUrl;
+  private trackSvc = inject(TrackService);
 
   constructor(private http: HttpClient) {}
+
+  // Les listes de tracks sont mises en cache court dans TrackService :
+  // toute mutation doit l'invalider pour que les pages reflètent le changement.
+  // `complete` ne se déclenche que sur succès HTTP (une erreur ne complète pas).
+  private invalidateOnSuccess = tap<any>({ complete: () => this.trackSvc.invalidateTracks() });
 
   /**
    * Upload un nouveau track.
@@ -128,7 +135,7 @@ export class CudTrackService {
     return this.http.post<UploadResponse>(`${this.apiUrl}/api/tracks/post`, formData, {
       reportProgress: true,
       observe: 'events',
-    });
+    }).pipe(this.invalidateOnSuccess);
   }
 
   putTrack(trackId: number, trackData: TrackData): Observable<EditResponse> {
@@ -185,17 +192,20 @@ export class CudTrackService {
       formData.append('regenerate_preview', '1');
     }
 
-    return this.http.put<EditResponse>(`${this.apiUrl}/api/tracks/put/${trackId}`, formData);
+    return this.http.put<EditResponse>(`${this.apiUrl}/api/tracks/put/${trackId}`, formData)
+      .pipe(this.invalidateOnSuccess);
   }
 
   deleteTrack(trackId: number): Observable<EditResponse> {
-    return this.http.delete<EditResponse>(`${this.apiUrl}/api/tracks/delete/${trackId}`);
+    return this.http.delete<EditResponse>(`${this.apiUrl}/api/tracks/delete/${trackId}`)
+      .pipe(this.invalidateOnSuccess);
   }
 
 
 
   validateAiSuggestion(trackId: number): Observable<{ success: boolean }> {
-    return this.http.patch<{ success: boolean }>(`${this.apiUrl}/api/tracks/${trackId}/validate-suggestion`, {});
+    return this.http.patch<{ success: boolean }>(`${this.apiUrl}/api/tracks/${trackId}/validate-suggestion`, {})
+      .pipe(this.invalidateOnSuccess);
   }
 
   /**

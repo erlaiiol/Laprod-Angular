@@ -90,9 +90,10 @@ export interface ContractSummary {
 }
 
 export interface ContractDetail extends ContractSummary {
-  pdf_file: string | null;
-  parties:  ContractParty[];
-  values:   ContractValue[];
+  pdf_file:  string | null;
+  parties:   ContractParty[];
+  values:    ContractValue[];
+  can_edit?: boolean;
 }
 
 export interface UpdateContractPayload {
@@ -124,7 +125,10 @@ export class ContractBuilderService {
   // ── Utilisateur ───────────────────────────────────────────────────────────
 
   getTemplate(type: ContractType = 'exploitation'): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {
-    return this.http.get<any>(`${this.base}/template`, { headers: this.headers, params: { type } });
+    // Endpoint public (aucune donnée utilisateur) : pas de header requis pour les invités.
+    const token = this.auth.getToken();
+    const headers = token ? this.headers : undefined;
+    return this.http.get<any>(`${this.base}/template`, { headers, params: { type } });
   }
 
   listContracts(): Observable<ApiResponse<{ contracts: ContractSummary[] }>> {

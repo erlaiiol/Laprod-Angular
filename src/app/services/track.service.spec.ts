@@ -45,6 +45,33 @@ describe('TrackService', () => {
     req.flush({ success: true, data: { tracks: [], pagination: { page: 1, per_page: 20, total: 0, pages: 1 } } });
   });
 
+  it('getTracks() sert le cache pour des filtres identiques (une seule requête)', () => {
+    const flushBody = { success: true, data: { tracks: [], pagination: { page: 1, per_page: 20, total: 0, pages: 1 } } };
+
+    service.getTracks({ bpm_min: 80 }).subscribe();
+    service.getTracks({ bpm_min: 80 }).subscribe();
+    httpMock.expectOne((r) => r.url === `${BASE_URL}/tracks`).flush(flushBody);
+
+    // Même clé de cache → aucune requête supplémentaire.
+    service.getTracks({ bpm_min: 80 }).subscribe();
+    httpMock.expectNone((r) => r.url === `${BASE_URL}/tracks`);
+
+    // Filtres différents → nouvelle requête.
+    service.getTracks({ bpm_min: 100 }).subscribe();
+    httpMock.expectOne((r) => r.url === `${BASE_URL}/tracks`).flush(flushBody);
+  });
+
+  it('invalidateTracks() vide le cache des listes', () => {
+    const flushBody = { success: true, data: { tracks: [], pagination: { page: 1, per_page: 20, total: 0, pages: 1 } } };
+
+    service.getTracks().subscribe();
+    httpMock.expectOne(`${BASE_URL}/tracks`).flush(flushBody);
+
+    service.invalidateTracks();
+    service.getTracks().subscribe();
+    httpMock.expectOne(`${BASE_URL}/tracks`).flush(flushBody);
+  });
+
   it('getTrack(id) GETs /api/tracks/track/:id', () => {
     service.getTrack(42).subscribe();
 

@@ -11,6 +11,7 @@ export interface Playlist {
   id:                 number;
   title:              string;
   image_file:         string | null;
+  image_thumb?:       string | null;
   track_count:        number;
   beatmaker_username: string;
   created_at:         string | null;

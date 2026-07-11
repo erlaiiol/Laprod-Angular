@@ -10,7 +10,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 //        │              └── construit les query strings (?bpm_min=80&style=Trap)
 //        └── service Angular qui effectue les requêtes HTTP (fetch côté navigateur)
 
-import { Observable, tap } from 'rxjs';
+import { Observable, shareReplay, tap } from 'rxjs';
 import { ApiResponse } from './topline.service';
 // Observable = "promesse améliorée" de RxJS.
 // Représente une valeur qui arrivera dans le futur (la réponse HTTP).
@@ -37,6 +37,10 @@ export interface Track {
   composer_user: { username: string };  // objet imbriqué  ← {'username': ...}
   stream_url:    string;
   image_file:    string;
+  // Variantes WebP redimensionnées servies par le backend (fallback : le
+  // serializer renvoie image_file tant que la variante n'existe pas sur disque).
+  image_thumb?:  string;
+  image_large?:  string;
   bpm:           number;
   key:           string;
   style:         string;
@@ -159,6 +163,14 @@ export class TrackService {
   // → 'http://localhost:5000/tracks'
   private tracksApiUrl = `${environment.apiUrl}/api/tracks`;
 
+  // Cache court des listes de tracks, keyé par filtres : 8 pages consomment
+  // getTracks() indépendamment (home, playlist, admin, dashboards…) — sans
+  // cache, chaque navigation refait la même requête. TTL court pour rester
+  // frais, invalidé par CudTrackService après création/édition/suppression.
+  private tracksCache = new Map<string, { at: number; response$: Observable<TracksResponse> }>();
+  private static readonly TRACKS_TTL_MS = 60_000;
+  private static readonly TRACKS_CACHE_MAX_ENTRIES = 20;
+
   constructor(private http: HttpClient) {}
   // Angular injecte HttpClient automatiquement (déclaré dans app.config.ts).
 
@@ -168,6 +180,12 @@ export class TrackService {
   // Flask reçoit les filtres en query string et retourne le JSON paginé.
 
   getTracks(filters?: TrackFilters): Observable<TracksResponse> {
+
+    const cacheKey = this._tracksCacheKey(filters);
+    const cached = this.tracksCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < TrackService.TRACKS_TTL_MS) {
+      return cached.response$;
+    }
 
     // HttpParams construit le query string de façon sécurisée.
     // Ex : filters = { bpm_min: 80, style: 'Trap' }
@@ -181,11 +199,33 @@ export class TrackService {
       });
     }
 
-    // http.get<T>(url, options) envoie une requête GET et retourne
-    // un Observable qui émettra un objet de type T (ici TracksResponse).
-    // Rien n'est envoyé tant que le composant ne s'abonne pas (.subscribe()).
-    return this.http.get<TracksResponse>(`${this.tracksApiUrl}/tracks`, { params })
-    .pipe(tap(data=> console.log('TrackService called getTracks()', data)));
+    const response$ = this.http.get<TracksResponse>(`${this.tracksApiUrl}/tracks`, { params }).pipe(
+      // Une réponse en erreur ne doit pas être servie depuis le cache.
+      tap({ error: () => this.tracksCache.delete(cacheKey) }),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+
+    this.tracksCache.set(cacheKey, { at: Date.now(), response$ });
+    // Éviction de la plus ancienne entrée (ordre d'insertion de Map).
+    if (this.tracksCache.size > TrackService.TRACKS_CACHE_MAX_ENTRIES) {
+      const oldestKey = this.tracksCache.keys().next().value;
+      if (oldestKey !== undefined) this.tracksCache.delete(oldestKey);
+    }
+    return response$;
+  }
+
+  /** À appeler après toute mutation de track (create/update/delete). */
+  invalidateTracks(): void {
+    this.tracksCache.clear();
+  }
+
+  private _tracksCacheKey(filters?: TrackFilters): string {
+    if (!filters) return '';
+    return JSON.stringify(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .sort(([a], [b]) => a.localeCompare(b))
+    );
   }
 
 
@@ -195,7 +235,7 @@ export class TrackService {
   getTrack(trackId: number): Observable<{ success: boolean; data: { track: Track } }> {
     return this.http.get<{ success: boolean; data: { track: Track } }>(
       `${this.tracksApiUrl}/track/${trackId}`
-    ).pipe(tap(data => console.log('TrackService called getTrack()', data)));
+    );
   }
 
   // ── GET /tracks/track/:id (version enrichie pour TrackDetailComponent) ───

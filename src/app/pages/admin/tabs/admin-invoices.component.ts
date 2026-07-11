@@ -1,13 +1,16 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AdminService, AdminPurchaseInvoice, AdminMixmasterInvoice, AdminInvoicesData } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { FormatAmountPipe } from '../../../pipes/format-amount.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-invoices',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormatDatePipe, FormatAmountPipe],
   templateUrl: './admin-invoices.component.html',
   styleUrl: '../admin.component.scss',
 })
@@ -45,14 +48,7 @@ export class AdminInvoicesComponent implements OnInit {
     return `${environment.apiUrl}${path}`;
   }
 
-  fmtDate(d: string | null): string {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('fr-FR');
-  }
 
-  fmtAmount(n: number): string {
-    return n.toFixed(2) + ' €';
-  }
 
   mmStatusLabel(status: string): string {
     const labels: Record<string, string> = {

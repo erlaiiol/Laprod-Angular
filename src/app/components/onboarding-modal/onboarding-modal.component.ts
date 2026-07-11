@@ -1,4 +1,4 @@
-import { Component, computed, output, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, output, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TagsService } from '../../services/tags.service';
 import { AuthService } from '../../services/auth.service';
@@ -7,6 +7,7 @@ const STORAGE_KEY      = 'laprod_onboarding_done';
 const ARTISTS_SENTINEL = '__artists__';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-onboarding-modal',
   standalone: true,
   imports: [CommonModule],
@@ -18,6 +19,11 @@ export class OnboardingModalComponent {
 
   private tagsService = inject(TagsService);
   private authService = inject(AuthService);
+
+  constructor() {
+    // Les catégories proposées viennent des tags : charger si pas déjà en cache.
+    this.tagsService.ensureLoaded().subscribe({ error: () => {} });
+  }
 
   private readonly artistsEntry = {
     name: ARTISTS_SENTINEL,

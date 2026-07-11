@@ -1,8 +1,9 @@
-import { Component, Input, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LicenseService } from '../../services/license.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-license-badge',
   standalone: true,
   imports: [CommonModule],

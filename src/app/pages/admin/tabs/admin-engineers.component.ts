@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminMixEngineer, PriceRequest } from '../../../services/admin.service';
@@ -8,6 +8,7 @@ import { environment } from '../../../../environments/environment';
 type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'master' | 'direct';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-engineers',
   standalone: true,
   imports: [CommonModule, FormsModule],
@@ -39,9 +40,9 @@ export class AdminEngineersComponent implements OnInit {
   // Per-engineer upload state
   directUploadRaw:  Record<number, File | null> = {};
   directUploadProc: Record<number, File | null> = {};
-  directRefPrice:   Record<number, number> = {};
-  directMinPrice:   Record<number, number> = {};
-  directBio:        Record<number, string> = {};
+  directRefPrice = signal<Record<number, number>>({});
+  directMinPrice = signal<Record<number, number>>({});
+  directBio      = signal<Record<number, string>>({});
 
   constructor(private adminSvc: AdminService, private toast: ToastService) {}
 
@@ -61,11 +62,17 @@ export class AdminEngineersComponent implements OnInit {
         this.loadingDirect.set(false);
         if (res.success && res.data) {
           this.allMixEngineers.set(res.data.engineers);
+          const refPrices: Record<number, number> = {};
+          const minPrices: Record<number, number> = {};
+          const bios:      Record<number, string> = {};
           for (const e of res.data.engineers) {
-            this.directRefPrice[e.id] = e.mixmaster_reference_price ?? 50;
-            this.directMinPrice[e.id] = e.mixmaster_price_min ?? 30;
-            this.directBio[e.id]      = e.mixmaster_bio ?? '';
+            refPrices[e.id] = e.mixmaster_reference_price ?? 50;
+            minPrices[e.id] = e.mixmaster_price_min ?? 30;
+            bios[e.id]      = e.mixmaster_bio ?? '';
           }
+          this.directRefPrice.set(refPrices);
+          this.directMinPrice.set(minPrices);
+          this.directBio.set(bios);
         }
       },
       error: err => {
@@ -79,6 +86,18 @@ export class AdminEngineersComponent implements OnInit {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
     if (field === 'raw') this.directUploadRaw[engineerId] = file;
     else this.directUploadProc[engineerId] = file;
+  }
+
+  setDirectRefPrice(engineerId: number, value: number): void {
+    this.directRefPrice.update(m => ({ ...m, [engineerId]: value }));
+  }
+
+  setDirectMinPrice(engineerId: number, value: number): void {
+    this.directMinPrice.update(m => ({ ...m, [engineerId]: value }));
+  }
+
+  setDirectBio(engineerId: number, value: string): void {
+    this.directBio.update(m => ({ ...m, [engineerId]: value }));
   }
 
   uploadSample(e: AdminMixEngineer): void {
@@ -108,9 +127,9 @@ export class AdminEngineersComponent implements OnInit {
 
   saveDirectInfo(e: AdminMixEngineer): void {
     this.adminSvc.setEngineerInfo(e.id, {
-      reference_price: this.directRefPrice[e.id],
-      price_min:       this.directMinPrice[e.id],
-      bio:             this.directBio[e.id],
+      reference_price: this.directRefPrice()[e.id],
+      price_min:       this.directMinPrice()[e.id],
+      bio:             this.directBio()[e.id],
     }).subscribe({
       next: () => { },
       error: err => { if (!err?.error?.feedback) this.toast.showToast({ level: 'error', message: 'Erreur.' }); },

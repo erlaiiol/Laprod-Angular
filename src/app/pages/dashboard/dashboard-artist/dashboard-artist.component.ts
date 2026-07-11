@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, signal, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,13 +13,15 @@ import { ToastService } from '../../../services/toast.service';
 import { LicenseService, LicenseItem } from '../../../services/license.service';
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
 import { environment } from '../../../../environments/environment';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
 type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases' | 'licenses';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-artist',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, FormatDatePipe],
   templateUrl: './dashboard-artist.component.html',
   styleUrls: ['./dashboard-artist.component.scss'],
 })
@@ -51,6 +54,7 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   private toast        = inject(ToastService);
   private http         = inject(HttpClient);
   private route        = inject(ActivatedRoute);
+  private destroyRef   = inject(DestroyRef);
 
   // Blob URLs gérés localement (libérés dans ngOnDestroy)
   private blobUrls = new Map<string, string>();
@@ -61,12 +65,14 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     this.loadDashboard();
 
     // Synchronisation tab <-> query param
-    this.route.queryParamMap.subscribe(params => {
-      const tab = params.get('tab') as Tab | null;
-      if (tab) {
-        this.setTab(tab as any);
-      }
-    })
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const tab = params.get('tab') as Tab | null;
+        if (tab) {
+          this.setTab(tab);
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -176,10 +182,6 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/placeholder-track.png';
   }
 
-  formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
 
   statusLabel(status: string): string {
     const labels: Record<string, string> = {

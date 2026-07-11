@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -8,6 +8,7 @@ import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-add-to-playlist-modal',
   standalone: true,
   imports: [CommonModule, FormsModule],
@@ -22,18 +23,19 @@ export class AddToPlaylistModalComponent implements OnInit {
   playlists        = signal<Playlist[]>([]);
   loading          = signal(true);
   showCreate       = signal(false);
-  newTitle         = '';
+  newTitle         = signal('');
   creating         = signal(false);
   saving           = signal(false);
 
-  // État initial (vient de l'API) — ne change qu'après sauvegarde
-  initialIds       = new Set<number>();
+  // État initial (vient de l'API) — ne change qu'après sauvegarde.
+  // Signal : arrive en asynchrone et hasPendingChanges doit recalculer.
+  initialIds       = signal(new Set<number>());
   // État en cours d'édition (local, pas encore persisté)
   pendingIds       = signal(new Set<number>());
 
   hasPendingChanges = computed(() => {
     const p = this.pendingIds();
-    const i = this.initialIds;
+    const i = this.initialIds();
     if (p.size !== i.size) return true;
     for (const id of p) if (!i.has(id)) return true;
     return false;
@@ -56,7 +58,7 @@ export class AddToPlaylistModalComponent implements OnInit {
           this.playlistSvc.getContaining(this.trackId, username).subscribe({
             next: r => {
               const ids = new Set<number>(r.data ?? []);
-              this.initialIds = ids;
+              this.initialIds.set(ids);
               this.pendingIds.set(new Set(ids));
               this.loading.set(false);
             },
@@ -79,8 +81,8 @@ export class AddToPlaylistModalComponent implements OnInit {
   async saveChanges(): Promise<void> {
     if (this.saving()) return;
     this.saving.set(true);
-    const toAdd    = [...this.pendingIds()].filter(id => !this.initialIds.has(id));
-    const toRemove = [...this.initialIds].filter(id => !this.pendingIds().has(id));
+    const toAdd    = [...this.pendingIds()].filter(id => !this.initialIds().has(id));
+    const toRemove = [...this.initialIds()].filter(id => !this.pendingIds().has(id));
     try {
       for (const id of toAdd)    await firstValueFrom(this.playlistSvc.addTrack(id, this.trackId));
       for (const id of toRemove) await firstValueFrom(this.playlistSvc.removeTrack(id, this.trackId));
@@ -102,7 +104,7 @@ export class AddToPlaylistModalComponent implements OnInit {
   }
 
   createAndAdd(): void {
-    const title = this.newTitle.trim();
+    const title = this.newTitle().trim();
     if (!title) return;
     this.creating.set(true);
     const fd = new FormData();
@@ -114,7 +116,7 @@ export class AddToPlaylistModalComponent implements OnInit {
         const pl = res.data!;
         this.playlists.update(list => [pl, ...list]);
         this.creating.set(false);
-        this.newTitle = '';
+        this.newTitle.set('');
         this.newImageFile.set(null);
         const prev = this.newImagePreview();
         if (prev) URL.revokeObjectURL(prev);

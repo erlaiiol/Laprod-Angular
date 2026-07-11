@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -7,11 +7,13 @@ import {
 } from '../../services/wallet.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
+import { FormatDatePipe } from '../../pipes/format-date.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-wallet',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, FormatDatePipe],
   templateUrl: './wallet.component.html',
   styleUrls: ['./wallet.component.scss'],
 })
@@ -191,11 +193,5 @@ export class WalletComponent implements OnInit {
     return txn.type === 'withdrawal' || txn.type === 'expiration';
   }
 
-  formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
 
-  formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  }
 }

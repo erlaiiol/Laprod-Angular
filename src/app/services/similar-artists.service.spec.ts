@@ -42,4 +42,22 @@ describe('SimilarArtistsService', () => {
     expect(result.scenes.length).toBe(1);
     expect(result.scenes[0].name).toBe('UK Drill');
   });
+
+  it('ensureLoaded() partage une seule requête HTTP et peuple le signal scenes', () => {
+    service.ensureLoaded().subscribe();
+    service.getSimilarArtists().subscribe();
+
+    httpMock.expectOne(URL).flush({
+      success: true,
+      data: {
+        scenes: [{ name: 'UK Drill', artists: [{ id: 1, name: 'Central Cee', scene: 'UK Drill' }] }],
+      },
+    });
+
+    expect(service.scenes().length).toBe(1);
+
+    // Abonné tardif : servi depuis le cache, aucune requête supplémentaire.
+    service.ensureLoaded().subscribe();
+    httpMock.expectNone(URL);
+  });
 });

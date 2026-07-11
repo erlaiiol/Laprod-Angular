@@ -335,6 +335,21 @@ details.filter-accordion[open] .filter-accordion-arrow {
   }
 }
 
+// ── Positionnement des dropdowns (pas de bootstrap.bundle.js/Popper) ─────────
+// bootstrap.css ne pose top/right/left sur .dropdown-menu(-end) que sous
+// [data-bs-popper], un attribut que seul Popper (chargé par bootstrap.bundle.js)
+// ajoute. Comme ce fichier n'appelle que .show manuellement (cf. NavbarComponent),
+// ces règles ne s'appliquent jamais : le menu retombe en position "statique" du
+// flux normal et déborde de l'écran. On restaure ici le seul cas utilisé —
+// ancré sous le toggle, aligné à droite.
+.nav-item.dropdown .dropdown-menu.show {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: auto;
+  margin-top: 0.125rem;
+}
+
 // ── Lien "Publier" — léger accent sans être un CTA plein ─────────────────────
 
 .nav-link--publish {
@@ -408,6 +423,11 @@ details.filter-accordion[open] .filter-accordion-arrow {
     box-shadow: v.$glow-primary;
     transform: scale(1.06);
   }
+}
+
+.nav-avatar--img {
+  object-fit: cover;
+  background: v.$bg-elevated;
 }
 
 // ── Dropdown item déconnexion ──────────────────────────────────────────────────

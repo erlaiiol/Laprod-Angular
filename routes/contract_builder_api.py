@@ -145,9 +145,10 @@ def _check_ownership(contract, user_id: int):
 
 
 # ── GET /api/contract-builder/template ─────────────────────────────────────────
+# Public : structure de clauses (aucune donnée utilisateur), consultable sans compte
+# pour permettre l'aperçu du générateur (page démo côté front).
 
 @contract_builder_api_bp.route('/template', methods=['GET'])
-@jwt_required()
 @csrf.exempt
 def get_template():
     ctype = _parse_contract_type(request.args.get('type'))
@@ -204,11 +205,13 @@ def list_contracts():
 @jwt_required()
 @csrf.exempt
 def get_contract(contract_id):
-    user_id  = int(get_jwt_identity())
+    user     = _get_user()
     contract = db.get_or_404(UserContract, contract_id)
-    if err := _check_ownership(contract, user_id):
+    if err := _check_ownership(contract, user.id):
         return err
-    return _ok(data={'contract': _contract_detail_dto(contract)})
+    dto = _contract_detail_dto(contract)
+    dto['can_edit'] = user.is_pro
+    return _ok(data={'contract': dto})
 
 
 # ── PUT /api/contract-builder/contracts/<id> ───────────────────────────────────
@@ -217,10 +220,12 @@ def get_contract(contract_id):
 @jwt_required()
 @csrf.exempt
 def update_contract(contract_id):
-    user_id  = int(get_jwt_identity())
+    user     = _get_user()
     contract = db.get_or_404(UserContract, contract_id)
-    if err := _check_ownership(contract, user_id):
+    if err := _check_ownership(contract, user.id):
         return err
+    if not user.is_pro:
+        return _err('Cette action est réservée aux abonnés Pro LaProd+.', status=403)
     if contract.status == UserContractStatus.final:
         return _err('Ce contrat est finalisé et ne peut plus être modifié.', status=409)
 
@@ -295,10 +300,12 @@ def update_contract(contract_id):
 @jwt_required()
 @csrf.exempt
 def generate_contract(contract_id):
-    user_id  = int(get_jwt_identity())
+    user     = _get_user()
     contract = db.get_or_404(UserContract, contract_id)
-    if err := _check_ownership(contract, user_id):
+    if err := _check_ownership(contract, user.id):
         return err
+    if not user.is_pro:
+        return _err('Cette action est réservée aux abonnés Pro LaProd+.', status=403)
     if len(contract.parties) < 2:
         return _err('Le contrat doit comporter au moins deux parties.')
 

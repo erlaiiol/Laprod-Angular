@@ -110,8 +110,15 @@ def download_license_contract(purchase_id, current_user):
     if not purchase.contract_file:
         return err('Aucun contrat disponible.', code='NO_CONTRACT', status=404)
 
-    contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
-    contract_path = contracts_dir / purchase.contract_file
+    contracts_dir = (Path(current_app.root_path) / 'db_assets' / 'contracts').resolve()
+    contract_path = (contracts_dir / purchase.contract_file).resolve()
+
+    # Défense en profondeur : confiner le chemin sous db_assets/contracts.
+    if not contract_path.is_relative_to(contracts_dir):
+        current_app.logger.warning(
+            f'[SECURITY] Path traversal bloqué contrat purchase #{purchase_id}: {purchase.contract_file!r}'
+        )
+        return err('Accès refusé.', code='FORBIDDEN', status=403)
 
     if not contract_path.exists():
         return err('Fichier contrat introuvable.', code='FILE_NOT_FOUND', status=404)
@@ -336,7 +343,9 @@ def verify_renewal_payment(current_user):
             from utils.contract_generator import generate_contract_pdf
             contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
             contracts_dir.mkdir(parents=True, exist_ok=True)
-            contract_filename = f"contract_{new_purchase.id}_{track_id}_renewal.pdf"
+            # uuid non-devinable : empêche l'énumération des contrats (PII).
+            import uuid as _uuid
+            contract_filename = f"contract_{new_purchase.id}_{track_id}_renewal_{_uuid.uuid4().hex[:8]}.pdf"
             contract_path     = contracts_dir / contract_filename
             generate_contract_pdf(str(contract_path), {
                 'track_title':            track.title,

@@ -14,7 +14,9 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
-import WaveSurfer from 'wavesurfer.js';
+// Import type-only : wavesurfer.js n'entre pas dans le bundle initial,
+// il est chargé dynamiquement à la première lecture (voir initWavesurfer).
+import type WaveSurfer from 'wavesurfer.js';
 import { PlayerService } from '../../services/player.service';
 import { TrackService } from '../../services/track.service';
 import { AuthService } from '../../services/auth.service';
@@ -58,6 +60,11 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   private pendingAction: 'download' | 'rec' | null = null;
 
   private wavesurfer: WaveSurfer | null = null;
+  private initPromise: Promise<void> | null = null;
+  private destroyed = false;
+  // La vue doit exister avant de créer WaveSurfer (#waveformContainer) ;
+  // signal lu dans l'effect pour qu'il se rejoue après ngAfterViewInit.
+  private viewReady = signal(false);
   // Dernière URL chargée dans WaveSurfer — évite les rechargements quand seul
   // le contexte change (ex: viewingTrack s'active sur le même track en lecture).
   private _lastLoadedUrl = '';
@@ -66,35 +73,37 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const track = this.player.currentTrack();
-      if (!track || !this.wavesurfer) return;
+      if (!track || !this.viewReady()) return;
       const url = this.player.buildAudioUrl(track);
       if (!url) return;
-      if (url === this._lastLoadedUrl) {
-        // Même URL → WaveSurfer ne recharge pas, 'ready' ne refirend pas.
-        // Si play() a posé playOnReady, on joue directement.
-        if (this.player.playOnReady) {
-          this.player.playOnReady = false;
-          this.player.audioEl.play().catch(err => console.warn('PlayerComponent: play() direct failed', err));
-        }
+
+      if (!this.wavesurfer) {
+        // Première lecture : on charge le moteur à la demande, puis on
+        // recharge le track le plus récent (il a pu changer pendant l'import).
+        this.initPromise ??= this.initWavesurfer();
+        this.initPromise.then(() => {
+          if (this.destroyed || !this.wavesurfer) return;
+          const latest = untracked(() => this.player.currentTrack());
+          if (!latest) return;
+          const latestUrl = this.player.buildAudioUrl(latest);
+          if (latestUrl) this.loadIfNeeded(latest.id, latestUrl);
+        });
         return;
       }
-      // Même track en cours de lecture, URL différente → changement de contexte
-      // (ex: viewingTrack effacé en quittant track-detail). Ne pas recharger pour
-      // ne pas couper la lecture. On met à jour la référence silencieusement.
-      if (track.id > 0
-          && track.id === this._lastLoadedTrackId
-          && untracked(() => this.player.isPlaying())) {
-        this._lastLoadedUrl = url;
-        return;
-      }
-      this._lastLoadedUrl = url;
-      this._lastLoadedTrackId = track.id;
-      this.wavesurfer.load(url);
+
+      this.loadIfNeeded(track.id, url);
     });
   }
 
   ngAfterViewInit(): void {
-    this.wavesurfer = WaveSurfer.create({
+    this.viewReady.set(true);
+  }
+
+  private async initWavesurfer(): Promise<void> {
+    const { default: WaveSurfer } = await import('wavesurfer.js');
+    if (this.destroyed) return;
+
+    const ws = WaveSurfer.create({
       container:     this.waveformContainer.nativeElement,
       waveColor:     '#4a5568',
       progressColor: '#ffffff',
@@ -106,7 +115,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       media: this.player.audioEl,
     });
 
-    this.wavesurfer.on('ready', () => {
+    ws.on('ready', () => {
       if (this.player.playOnReady) {
         this.player.playOnReady = false;
         this.player.audioEl.play().catch(err =>
@@ -115,20 +124,35 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    this.wavesurfer.on('interaction', (newTime) => {
+    ws.on('interaction', (newTime) => {
       this.player.seek(newTime);
     });
 
-    // Fix race condition: effect() fires before ngAfterViewInit (wavesurfer null → skip).
-    const pending = this.player.currentTrack();
-    if (pending && this.player.playOnReady) {
-      const url = this.player.buildAudioUrl(pending);
-      if (url && url !== this._lastLoadedUrl) {
-        this._lastLoadedUrl = url;
-        this._lastLoadedTrackId = pending.id;
-        this.wavesurfer.load(url);
+    this.wavesurfer = ws;
+  }
+
+  private loadIfNeeded(trackId: number, url: string): void {
+    if (url === this._lastLoadedUrl) {
+      // Même URL → WaveSurfer ne recharge pas, 'ready' ne refirend pas.
+      // Si play() a posé playOnReady, on joue directement.
+      if (this.player.playOnReady) {
+        this.player.playOnReady = false;
+        this.player.audioEl.play().catch(err => console.warn('PlayerComponent: play() direct failed', err));
       }
+      return;
     }
+    // Même track en cours de lecture, URL différente → changement de contexte
+    // (ex: viewingTrack effacé en quittant track-detail). Ne pas recharger pour
+    // ne pas couper la lecture. On met à jour la référence silencieusement.
+    if (trackId > 0
+        && trackId === this._lastLoadedTrackId
+        && untracked(() => this.player.isPlaying())) {
+      this._lastLoadedUrl = url;
+      return;
+    }
+    this._lastLoadedUrl = url;
+    this._lastLoadedTrackId = trackId;
+    this.wavesurfer!.load(url);
   }
 
   @HostListener('window:keydown.space', ['$event'])
@@ -200,7 +224,8 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   getImageUrl(): string {
     const track = this.player.currentTrack();
     if (!track?.image_file) return 'assets/placeholders/placeholder-track.png';
-    return this.trackSvc.getStaticFileUrl(track.image_file);
+    // Pochette miniature de la barre du player → variante thumb.
+    return this.trackSvc.getStaticFileUrl(track.image_thumb ?? track.image_file);
   }
 
   mixStatusLabel(ctx: MixOrderContext): string {
@@ -231,6 +256,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.wavesurfer?.destroy();
     this.wavesurfer = null;
   }

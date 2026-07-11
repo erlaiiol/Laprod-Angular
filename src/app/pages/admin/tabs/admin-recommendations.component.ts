@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AdminService, RecommendationStats } from '../../../services/admin.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-recommendations',
   standalone: true,
   imports: [CommonModule],

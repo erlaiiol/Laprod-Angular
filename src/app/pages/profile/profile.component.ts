@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
@@ -11,14 +12,16 @@ import { PaginationComponent } from '../../components/pagination/pagination.comp
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { environment } from '../../../environments/environment';
+import { FormatDatePipe } from '../../pipes/format-date.pipe';
 
 const TRACKS_PER_PAGE    = 12;
 const PLAYLISTS_PER_PAGE = 8;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent],
+  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent, FormatDatePipe],
   templateUrl: './profile.component.html',
   styleUrl:    './profile.component.scss',
 })
@@ -60,6 +63,7 @@ export class ProfileComponent implements OnInit {
   });
 
   private playlistSvc = inject(PlaylistService);
+  private destroyRef  = inject(DestroyRef);
 
   constructor(
     private route:    ActivatedRoute,
@@ -72,10 +76,14 @@ export class ProfileComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
-      const username = params.get('username') ?? '';
-      this.loadProfile(username);
-    });
+    // paramMap ne complète jamais : sans teardown, l'abonnement survivrait
+    // à chaque destruction du composant.
+    this.route.paramMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const username = params.get('username') ?? '';
+        this.loadProfile(username);
+      });
   }
 
   loadProfile(username: string): void {
@@ -171,9 +179,6 @@ export class ProfileComponent implements OnInit {
     return this.staticBase + path;
   }
 
-  formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  }
 
   setDisplayMode(mode: 'list' | 'gallery' | 'compact'): void {
     this.displayMode.set(mode);
@@ -187,6 +192,8 @@ export class ProfileComponent implements OnInit {
       composer_user:        { username: this.profile()!.username },
       stream_url:           t.stream_url,
       image_file:           t.image_file,
+      image_thumb:          t.image_thumb,
+      image_large:          t.image_large,
       bpm:                  t.bpm,
       key:                  t.key,
       style:                t.style ?? '',

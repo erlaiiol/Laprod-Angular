@@ -67,7 +67,7 @@ describe('TrackDetailComponent — licences et confirmation', () => {
   let component: TrackDetailComponent;
   let router: { navigate: ReturnType<typeof vi.fn> };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     router = { navigate: vi.fn() };
 
     const trackSvc = {
@@ -101,6 +101,10 @@ describe('TrackDetailComponent — licences et confirmation', () => {
         },
       ],
     });
+
+    // Le template contient un bloc @defer (topline-recorder) : la compilation
+    // du composant devient asynchrone.
+    await TestBed.compileComponents();
 
     const fixture = TestBed.createComponent(TrackDetailComponent);
     component     = fixture.componentInstance;

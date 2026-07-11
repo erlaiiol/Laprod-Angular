@@ -54,7 +54,16 @@ def get_media(order_id: int, media_type: str, current_user):
         return err('Fichier non disponible.', status=404)
 
     # Le chemin en DB est relatif à la racine Flask (ex: static/mixmaster/uploads/...)
-    file_path = Path(current_app.root_path) / relative_path
+    root = Path(current_app.root_path).resolve()
+    file_path = (root / relative_path).resolve()
+
+    # Défense en profondeur : confiner le chemin sous la racine Flask, même si la
+    # valeur en DB devenait manipulable (path traversal en lecture).
+    if not file_path.is_relative_to(root):
+        current_app.logger.warning(
+            f'[SECURITY] Path traversal bloqué order #{order_id} {media_type}: {relative_path!r}'
+        )
+        abort(403)
 
     if not file_path.exists():
         current_app.logger.warning(

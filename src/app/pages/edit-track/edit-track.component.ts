@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CudTrackService } from '../../services/cud-track.service';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -18,6 +18,7 @@ interface TagGroup {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-edit-track',
   imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent],
   templateUrl: './edit-track.component.html',
@@ -141,7 +142,9 @@ export class EditTrackComponent implements OnInit {
 
   ngOnInit() : void {
 
-    this.tagsService.loadTags();
+    // ensureLoaded() ne déclenche la requête qu'à la souscription
+    // (l'ancien loadTags() s'abonnait en interne).
+    this.tagsService.ensureLoaded().subscribe({ error: () => {} });
 
     this.similarArtistsSvc.getSimilarArtists().subscribe({
       next: res => { if (res.success) this.availableArtistScenes.set(res.data.scenes); },

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -6,11 +6,13 @@ import { AuthService } from '../../services/auth.service';
 import { PurchasesService, PurchasesData, PurchaseItem } from '../../services/purchases.service';
 import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
+import { FormatDatePipe } from '../../pipes/format-date.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-purchases',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormatDatePipe],
   templateUrl: './purchases.component.html',
   styleUrls: ['./purchases.component.scss'],
 })
@@ -49,9 +51,6 @@ export class PurchasesComponent implements OnInit {
     return path ? `${environment.apiUrl}/db_assets/${path}` : '/assets/placeholders/placeholder-track.png';
   }
 
-  formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
 
   formatLabel(format: string): string {
     const labels: Record<string, string> = { mp3: 'MP3', wav: 'WAV', stems: 'STEMS' };

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -8,8 +8,6 @@ import {
   ContractDetail, ContractStatus, ContractType,
 } from '../../../services/contract-builder.service';
 import { ToastService } from '../../../services/toast.service';
-import { AuthService } from '../../../services/auth.service';
-import { PremiumLockComponent } from '../../../components/premium-lock/premium-lock.component';
 import {
   CONTRACT_TYPE_CONFIGS, ContractTypeConfig, IntroFieldDef,
 } from '../contract-type-configs';
@@ -20,16 +18,14 @@ interface LocalValue {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-builder-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, PremiumLockComponent],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './builder-form.component.html',
   styleUrl: './builder-form.component.scss',
 })
 export class BuilderFormComponent implements OnInit {
-
-  private auth   = inject(AuthService);
-  readonly isPro = this.auth.isPro;
 
   // ── State ──────────────────────────────────────────────────────────────────
   loading    = signal(true);
@@ -40,6 +36,14 @@ export class BuilderFormComponent implements OnInit {
   title      = signal('');
   status     = signal<ContractStatus>('draft');
   pdfFile    = signal<string | null>(null);
+
+  // ── Autorisation ───────────────────────────────────────────────────────────
+  // Vérité serveur : can_edit renvoyé par GET /contracts/:id (recalculé côté back
+  // à chaque appel de mutation). En mode démo, toujours false.
+  isDemo   = signal(false);
+  canEdit  = signal(true);
+  locked   = computed(() => !this.canEdit());
+  readOnly = computed(() => this.isFinal() || this.locked());
 
   groups  = signal<ClauseGroupDTO[]>([]);
   parties = signal<ContractParty[]>([]);
@@ -197,9 +201,79 @@ export class BuilderFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (this.route.snapshot.data['demo']) {
+      this.isDemo.set(true);
+      this.canEdit.set(false);
+      this.loadDemo();
+      return;
+    }
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.contractId.set(id);
     this.loadAll(id);
+  }
+
+  // ── Démo publique (invités et utilisateurs non-Pro) ─────────────────────────
+  // Charge un contrat d'exemple pour laisser découvrir l'intérieur du générateur
+  // sans compte ni contrat réel. Utilise le vrai template de clauses (public),
+  // avec des parties et valeurs fictives pour donner un aperçu concret.
+
+  loadDemo(): void {
+    this.loading.set(true);
+    this.title.set('Exemple — Cession de droits musicaux');
+    this.contractType.set('exploitation');
+    this.status.set('draft');
+    this.pdfFile.set(null);
+    this.parties.set([
+      {
+        party_type: 'physical', sort_order: 0, role: 'Auteur-compositeur',
+        first_name: 'Jean', last_name: 'Dupont', pseudonym: 'JD Prod',
+        address: '12 rue de la Musique, 75011 Paris', email: 'jean.dupont@example.com',
+      },
+      {
+        party_type: 'company', sort_order: 1, role: 'Éditeur',
+        company_name: 'Label Music SAS', legal_form: 'SAS', siren: '123 456 789',
+        address: '8 avenue des Studios, 75010 Paris', email: 'contact@labelmusic.example',
+      },
+    ]);
+    this.svc.getTemplate('exploitation').subscribe({
+      next: res => {
+        if (res.success && res.data) {
+          this.groups.set(res.data.groups);
+          this.populateDemoValues();
+        }
+        this.loading.set(false);
+        this.activeGroup.set(0);
+        this.showIntroTab.set(true);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private populateDemoValues(): void {
+    const demoVars: Record<string, string> = {
+      '[Contractant 1]': 'Jean Dupont',
+      '[Rôle 1]':        'Auteur-compositeur',
+      '[Contractant 2]': 'Label Music SAS',
+      '[Rôle 2]':        'Éditeur',
+    };
+    const map: Record<number, LocalValue> = {};
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        if (clause.example_text && ['text', 'textarea', 'toggle_with_details'].includes(clause.clause_type)) {
+          let text = clause.example_text;
+          for (const [bracket, value] of Object.entries(demoVars)) text = text.replaceAll(bracket, value);
+          const value = clause.clause_type === 'toggle_with_details' ? { details: text } : { text };
+          map[clause.id] = { is_enabled: true, value };
+        } else if (clause.is_enabled_by_default || clause.is_required) {
+          map[clause.id] = { is_enabled: true, value: clause.default_value ?? this.defaultForType(clause.clause_type) };
+        }
+      }
+    }
+    this.valuesMap.set(map);
+  }
+
+  goToPremium(): void {
+    this.router.navigate(['/premium']);
   }
 
   // ── Load ───────────────────────────────────────────────────────────────────
@@ -238,6 +312,7 @@ export class BuilderFormComponent implements OnInit {
     this.contractType.set(c.contract_type ?? 'exploitation');
     this.status.set(c.status);
     this.pdfFile.set(c.pdf_file);
+    this.canEdit.set(c.can_edit ?? true);
     this.parties.set(c.parties.length ? c.parties : []);
     const map: Record<number, LocalValue> = {};
     for (const v of c.values) {
@@ -484,7 +559,7 @@ export class BuilderFormComponent implements OnInit {
   }
 
   save(): void {
-    if (this.isFinal()) return;
+    if (this.readOnly()) return;
     this.saving.set(true);
     this.svc.updateContract(this.contractId(), this.buildPayload()).subscribe({
       next: res => {
@@ -503,7 +578,7 @@ export class BuilderFormComponent implements OnInit {
   }
 
   generate(): void {
-    if (this.isFinal()) return;
+    if (this.readOnly()) return;
     if (!confirm('Générer le PDF ? Le contrat sera finalisé et ne pourra plus être modifié.')) return;
     this.saving.set(true);
     this.svc.updateContract(this.contractId(), this.buildPayload()).subscribe({

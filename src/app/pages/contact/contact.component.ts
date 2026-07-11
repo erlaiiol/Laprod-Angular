@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -12,6 +13,7 @@ const CONTACT_REASONS: Record<string, string> = {
 };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contact',
   standalone: true,
   imports: [CommonModule, FormsModule],
@@ -32,6 +34,8 @@ export class ContactComponent implements OnInit {
     !!this.subject().trim() && !!this.message().trim() && !this.loading(),
   );
 
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private route:   ActivatedRoute,
     private router:  Router,
@@ -42,12 +46,14 @@ export class ContactComponent implements OnInit {
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
-    this.route.queryParamMap.subscribe(params => {
-      const reason = params.get('reason') ?? '';
-      const ref    = params.get('ref')    ?? '';
-      this.subject.set(CONTACT_REASONS[reason] ?? '');
-      this.ref.set(ref);
-    });
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const reason = params.get('reason') ?? '';
+        const ref    = params.get('ref')    ?? '';
+        this.subject.set(CONTACT_REASONS[reason] ?? '');
+        this.ref.set(ref);
+      });
   }
 
   onSubmit(): void {

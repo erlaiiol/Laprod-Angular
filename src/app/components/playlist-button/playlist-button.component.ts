@@ -1,10 +1,11 @@
-import { Component, Input, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Track } from '../../services/track.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-playlist-button',
   standalone: true,
   imports: [CommonModule],

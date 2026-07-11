@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -23,6 +23,7 @@ interface TagGroup {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector:    'app-upload-track',
   standalone:  true,
   imports:     [CommonModule, FormsModule, RouterLink],

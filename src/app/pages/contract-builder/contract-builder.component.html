@@ -1,13 +1,13 @@
-<div class="cb-list-page"
-     [class.page-locked]="isLoggedIn() && !isPro()">
-
-  @if (isLoggedIn() && !isPro()) {
-    <app-premium-lock requiredPlan="pro" />
-  }
+<div class="cb-list-page">
 
   <div class="cb-list-header">
     <h1>Générateur de contrats</h1>
     <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale ou de représentation live (concert, festival, DJ set…), adapté au droit français.</p>
+    @if (!isPro()) {
+      <a routerLink="/contract-builder/demo" class="cb-demo-link">
+        <i class="bi bi-eye"></i> Voir un exemple de contrat rempli
+      </a>
+    }
   </div>
 
   @if (!isLoggedIn()) {
@@ -16,6 +16,14 @@
       <span>Connectez-vous pour créer et gérer vos contrats musicaux.</span>
       <a routerLink="/login" class="cb-guest-banner-btn">
         <i class="bi bi-box-arrow-in-right"></i> Se connecter
+      </a>
+    </div>
+  } @else if (!isPro()) {
+    <div class="cb-guest-banner">
+      <i class="bi bi-stars"></i>
+      <span>La création de contrats est réservée au plan Pro LaProd+.</span>
+      <a routerLink="/premium" class="cb-guest-banner-btn">
+        <i class="bi bi-stars"></i> Passer Pro
       </a>
     </div>
   }
@@ -29,7 +37,7 @@
         <button type="button" class="cb-type-card"
           [class.selected]="newType() === t.value"
           (click)="newType.set(t.value)"
-          [disabled]="creating()">
+          [disabled]="creating() || !isPro()">
           <i class="bi {{ t.icon }}"></i>
           <span class="cb-type-label">{{ t.label }}</span>
           <span class="cb-type-desc">{{ t.desc }}</span>
@@ -44,17 +52,21 @@
         [placeholder]="placeholderForType()"
         [ngModel]="newTitle()"
         (ngModelChange)="newTitle.set($event)"
-        (keydown.enter)="isLoggedIn() && create()"
-        [disabled]="creating() || !isLoggedIn()"
+        (keydown.enter)="isPro() && create()"
+        [disabled]="creating() || !isPro()"
       />
-      @if (isLoggedIn()) {
-        <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
-          @if (creating()) { Création... } @else { Créer le contrat }
-        </button>
-      } @else {
+      @if (!isLoggedIn()) {
         <a routerLink="/login" class="btn-primary cb-login-btn">
           <i class="bi bi-box-arrow-in-right"></i> Se connecter pour créer
         </a>
+      } @else if (!isPro()) {
+        <a routerLink="/premium" class="btn-primary cb-login-btn">
+          <i class="bi bi-lock-fill"></i> Premium uniquement
+        </a>
+      } @else {
+        <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
+          @if (creating()) { Création... } @else { Créer le contrat }
+        </button>
       }
     </div>
   </div>
@@ -76,7 +88,7 @@
         <div class="cb-contract-row" (click)="open(contract.id)">
           <div class="cb-contract-info">
             <span class="cb-contract-title">{{ contract.title }}</span>
-            <span class="cb-contract-date">{{ fmtDate(contract.created_at) }}</span>
+            <span class="cb-contract-date">{{ (contract.created_at | formatDate) }}</span>
           </div>
           <span class="cb-type-badge" [class.cb-type-badge--perf]="contract.contract_type === 'performance'">
             {{ typeLabel(contract.contract_type || 'exploitation') }}

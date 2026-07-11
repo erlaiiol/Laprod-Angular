@@ -12,16 +12,16 @@
       <div class="stat-card">
         <span class="stat-label">Achats de tracks</span>
         <span class="stat-value">{{ totals()!.purchases_count }}</span>
-        <span class="stat-sub">{{ fmtAmount(totals()!.purchases_revenue) }}</span>
+        <span class="stat-sub">{{ (totals()!.purchases_revenue | formatAmount) }}</span>
       </div>
       <div class="stat-card">
         <span class="stat-label">Demandes MixMaster</span>
         <span class="stat-value">{{ totals()!.mm_count }}</span>
-        <span class="stat-sub">{{ fmtAmount(totals()!.mm_revenue) }}</span>
+        <span class="stat-sub">{{ (totals()!.mm_revenue | formatAmount) }}</span>
       </div>
       <div class="stat-card stat-card--total">
         <span class="stat-label">Volume total</span>
-        <span class="stat-value">{{ fmtAmount(totals()!.purchases_revenue + totals()!.mm_revenue) }}</span>
+        <span class="stat-value">{{ (totals()!.purchases_revenue + totals()!.mm_revenue | formatAmount) }}</span>
       </div>
     </div>
   }
@@ -61,7 +61,7 @@
             @for (p of purchases(); track p.id) {
               <tr>
                 <td class="id-cell">{{ p.id }}</td>
-                <td>{{ fmtDate(p.created_at) }}</td>
+                <td>{{ (p.created_at | formatDate) }}</td>
                 <td>
                   <span class="user-name">{{ p.buyer }}</span>
                   <span class="user-email">{{ p.buyer_email }}</span>
@@ -69,7 +69,7 @@
                 <td>{{ p.composer }}</td>
                 <td class="track-title">{{ p.track_title }}</td>
                 <td><span class="format-badge {{ p.format }}">{{ p.format.toUpperCase() }}</span></td>
-                <td class="amount">{{ fmtAmount(p.amount) }}</td>
+                <td class="amount">{{ (p.amount | formatAmount) }}</td>
                 <td class="actions-cell">
                   <a [href]="downloadUrl(p.invoice_url)" target="_blank" class="btn-dl btn-dl--buyer" title="Facture acheteur">
                     <i class="bi bi-file-earmark-arrow-down"></i> Acheteur
@@ -111,12 +111,12 @@
             @for (mm of mmRequests(); track mm.id) {
               <tr>
                 <td class="id-cell">{{ mm.id }}</td>
-                <td>{{ fmtDate(mm.created_at) }}</td>
+                <td>{{ (mm.created_at | formatDate) }}</td>
                 <td>{{ mm.artist }}</td>
                 <td>{{ mm.engineer }}</td>
                 <td class="track-title">{{ mm.title }}</td>
                 <td><span class="status-badge status-{{ mm.status }}">{{ mmStatusLabel(mm.status) }}</span></td>
-                <td class="amount">{{ fmtAmount(mm.amount) }}</td>
+                <td class="amount">{{ (mm.amount | formatAmount) }}</td>
                 <td class="actions-cell actions-cell--mm">
                   <a [href]="downloadUrl(mm.invoice_url)" target="_blank" class="btn-dl btn-dl--buyer" title="Facture artiste">
                     <i class="bi bi-file-earmark-arrow-down"></i> Artiste

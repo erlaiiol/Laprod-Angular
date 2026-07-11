@@ -11,6 +11,8 @@ export interface UserTrack {
   key:           string;
   style:         string | null;
   image_file:    string;
+  image_thumb?:  string;
+  image_large?:  string;
   stream_url:    string;
   price_mp3:     number | null;
   price_wav:     number | null;

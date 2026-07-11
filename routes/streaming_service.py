@@ -6,7 +6,7 @@ GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
 """
-from flask import Blueprint, current_app, send_file, abort, make_response
+from flask import Blueprint, current_app, send_file, abort, make_response, request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
 from flask_jwt_extended.exceptions import JWTExtendedException
 from pathlib import Path
@@ -121,14 +121,28 @@ def stream_track_preview(track_id):
 def stream_track_full(track_id, current_user):
     """
     Sert le MP3 complet d'un track approuvé en streaming pur (sans attachment).
-    Requiert un compte — évite l'accès anonyme au fichier payant identique à /download/mp3.
-    Le téléchargement avec contrat reste réservé à /download/<format> (achat vérifié).
+    Le fichier `file_mp3` est le produit PAYANT (identique à /download/mp3) : l'accès
+    est donc réservé au compositeur et aux acheteurs du format MP3. L'écoute libre
+    passe par /preview (fichier watermarqué).
     """
     track = db.session.get(Track, track_id)
     if not track or not track.is_approved:
         abort(404)
     if not track.file_mp3:
         abort(404)
+
+    # Vérification d'achat — même règle que download_track_file.
+    is_composer = (track.composer_id == current_user.id)
+    if not is_composer:
+        purchase = db.session.execute(
+            select(Purchase).where(
+                Purchase.track_id         == track_id,
+                Purchase.buyer_id         == current_user.id,
+                Purchase.format_purchased == 'mp3',
+            )
+        ).scalar_one_or_none()
+        if not purchase:
+            return err("Accès non autorisé. Achetez ce fichier d'abord.", status=403)
 
     return _send(f'db_assets/audio/{track.file_mp3}', 'audio/mpeg')
 

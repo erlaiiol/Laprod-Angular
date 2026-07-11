@@ -1,10 +1,11 @@
-import { Component, OnInit, signal, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AdminService, AdminStats } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-dashboard',
   standalone: true,
   imports: [CommonModule],

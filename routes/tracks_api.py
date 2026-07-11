@@ -24,6 +24,7 @@ import json
 from extensions import db, limiter, csrf, redis_client
 from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist, Purchase
 from helpers import generate_track_image
+from utils.image_variants import generate_variants, delete_variants
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
 from utils.search import normalize_search_term, extract_bpm, fuzzy_name_matches, split_search_words
@@ -355,49 +356,110 @@ def get_tracks():
 
         sort = request.args.get('sort', 'recent')
 
+        # Un filtre actif (recherche/BPM/tags/...) restreint le catalogue à un
+        # sous-ensemble ; le classement de préférence, lui, reste valable sur ce
+        # sous-ensemble (cf. _paginated_reco_response ci-dessous).
+        has_active_filters = bool(
+            search or bpm_min is not None or bpm_max is not None
+            or keys_param or styles_param or tags_param
+            or tag_category or similar_artists_param
+        )
+
         # ── Recommandations personnalisées — cache-first ──────────────────────
-        # Chemin rapide : lecture d'une liste d'IDs pré-calculés (TTL 30 min).
-        # Sur cache miss : retour immédiat "recent" + enqueue calcul en fond.
+        # Chemin rapide : lecture d'une liste d'IDs pré-calculés, triée par ordre
+        # de préférence décroissant (TTL 30 min). Le calcul tourne en fond (RQ) et
+        # peut se terminer entre deux requêtes de pagination du même utilisateur —
+        # sans garde-fou, la page 2 basculerait sur un ordre totalement différent
+        # de celui vu en page 1. Le snapshot "fallback" (TTL courte) fige donc
+        # l'ordre pour toute la session de pagination en cours ; les recos
+        # fraîches ne s'appliquent qu'au prochain chargement, une fois ce
+        # snapshot expiré.
+        #
+        # Ce cache couvre tout le catalogue, sans tenir compte des filtres actifs
+        # (recalculer le classement par combinaison de filtres n'aurait pas de
+        # sens pour un score de goût global). Un filtre ne doit donc jamais
+        # écarter la personnalisation : on restreint la liste triée au
+        # sous-ensemble qui matche le filtre, EN CONSERVANT son ordre — le rang
+        # dans le cache fait office de score. Coûte une requête ID-only
+        # supplémentaire, seulement quand un filtre est actif.
         if sort == 'recommended' and user_id and redis_client:
-            result_key = f'laprod:reco:result:{user_id}'
+            result_key   = f'laprod:reco:result:{user_id}'
+            fallback_key = f'laprod:reco:fallback:{user_id}'
+
+            def _paginated_reco_response(all_ids: list[int], personalized: bool):
+                if has_active_filters:
+                    matching_ids = set(
+                        db.session.execute(track_query.with_only_columns(Track.id)).scalars().all()
+                    )
+                    all_ids = [tid for tid in all_ids if tid in matching_ids]
+
+                total = len(all_ids)
+                page_ids = all_ids[(page - 1) * per_page: page * per_page]
+                if page_ids:
+                    id_rank = {tid: idx for idx, tid in enumerate(page_ids)}
+                    rows = db.session.execute(
+                        select(Track).options(
+                            selectinload(Track.tags).selectinload(Tag.category_obj),
+                            selectinload(Track.composer_user),
+                            selectinload(Track.similar_artists),
+                        ).where(Track.id.in_(page_ids))
+                    ).scalars().all()
+                    tracks = sorted(rows, key=lambda t: id_rank.get(t.id, 999))
+                else:
+                    tracks = []
+                pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
+                return ok({
+                    'tracks': [track_card(t, pl_counts, pl_images) for t in tracks],
+                    'pagination': {
+                        'page':        page,
+                        'per_page':    per_page,
+                        'total':       total,
+                        'pages':       max(1, (total + per_page - 1) // per_page),
+                    },
+                    'personalized': personalized,
+                })
+
             try:
+                fallback_cached = redis_client.get(fallback_key)
+                if fallback_cached:
+                    return _paginated_reco_response(json.loads(fallback_cached), personalized=False)
+
                 cached = redis_client.get(result_key)
                 if cached:
-                    all_ids = json.loads(cached)
-                    total   = len(all_ids)
-                    page_ids = all_ids[(page - 1) * per_page: page * per_page]
-                    if page_ids:
-                        id_rank = {tid: idx for idx, tid in enumerate(page_ids)}
-                        rows = db.session.execute(
-                            select(Track).options(
-                                selectinload(Track.tags).selectinload(Tag.category_obj),
-                                selectinload(Track.composer_user),
-                                selectinload(Track.similar_artists),
-                            ).where(Track.id.in_(page_ids))
-                        ).scalars().all()
-                        tracks = sorted(rows, key=lambda t: id_rank.get(t.id, 999))
-                    else:
-                        tracks = []
-                    pl_counts, pl_images = playlist_stats_for_tracks([t.id for t in tracks])
-                    return ok({
-                        'tracks': [track_card(t, pl_counts, pl_images) for t in tracks],
-                        'pagination': {
-                            'page':        page,
-                            'per_page':    per_page,
-                            'total':       total,
-                            'pages':       max(1, (total + per_page - 1) // per_page),
-                        },
-                        'personalized': True,
-                    })
+                    return _paginated_reco_response(json.loads(cached), personalized=True)
             except Exception as exc:
                 current_app.logger.warning(f'[reco] Lecture cache échouée : {exc}')
 
-            # Cache miss — enqueue calcul en fond, fallback tri récent
+            # Rien en cache : figer un snapshot "recent" (TTL 5 min) pour stabiliser
+            # toute la pagination de cette session, puis enqueue le calcul perso —
+            # qui alimentera laprod:reco:result: pour la prochaine visite. Basé sur
+            # tout le catalogue (pas track_query, qui porte les filtres de CETTE
+            # requête) pour rester réutilisable par n'importe quelle combinaison de
+            # filtres tant que le snapshot vit.
+            fallback_ids = None
+            try:
+                base_ids_query = select(Track.id)
+                if not is_admin:
+                    base_ids_query = base_ids_query.where(
+                        Track.is_approved.is_(True),
+                        Track.is_exclusive_sold.is_(False),
+                    )
+                fallback_ids = db.session.execute(
+                    base_ids_query.order_by(Track.created_at.desc())
+                ).scalars().all()
+                redis_client.setex(fallback_key, 300, json.dumps(fallback_ids))
+            except Exception as exc:
+                current_app.logger.warning(f'[reco] Snapshot fallback échoué : {exc}')
+                fallback_ids = None
+
             try:
                 q = Queue(connection=redis_client)
                 q.enqueue('tasks.recommendation.compute_recommendations', user_id, job_timeout=60)
             except Exception as exc:
                 current_app.logger.debug(f'[reco] Impossible d\'enqueuer : {exc}')
+
+            if fallback_ids is not None:
+                return _paginated_reco_response(fallback_ids, personalized=False)
 
         # ── Tri récent (défaut) + fallback recommandation ─────────────────────
         tracks = db.session.execute(
@@ -812,11 +874,13 @@ def put_track(track_id, current_user):
         except Exception as e:
             current_app.logger.error(f'Erreur sauvegarde image: {e}')
             return err("Erreur lors du téléchargement de l'image", status=500)
+        generate_variants(new_img_path)
 
         if track.image_file and 'default_track' not in track.image_file:
             old_img_path = Path(current_app.root_path) / 'db_assets' / track.image_file
             if old_img_path.exists():
                 old_img_path.unlink()
+            delete_variants(old_img_path)
 
         track.image_file = f'images/tracks/{new_img_filename}'
 
@@ -906,7 +970,8 @@ def put_track(track_id, current_user):
     # ── Régénération preview (async via RQ) ────────────────────────────────────
     if request.form.get('regenerate_preview') == '1' and primary_audio_for_preview:
         try:
-            from rq import Queue
+            # Queue vient de l'import module (haut du fichier) : un import local
+            # ici masquerait le patch des tests et divergerait des autres enqueues.
             new_preview_name = f"preview_{safe_title}_{uid}.mp3"
             new_preview_path = config.UPLOAD_FOLDER / new_preview_name
             q = Queue(connection=redis_client)
@@ -977,6 +1042,7 @@ def delete_track(track_id, current_user):
         image_path = Path(current_app.root_path) / 'db_assets' / track.image_file
         if image_path.exists():
             image_path.unlink()
+        delete_variants(image_path)
 
     db.session.delete(track)
     db.session.commit()

@@ -349,7 +349,10 @@ def verify_payment(current_user):
             end_date      = end_date_str
             duration_text = duration_text_val
 
-            contract_filename = f"contract_{purchase.id}_{track_id}.pdf"
+            # Composant uuid non-devinable : empêche l'énumération des contrats
+            # (chaque PDF contient des données personnelles acheteur + compositeur).
+            import uuid as _uuid
+            contract_filename = f"contract_{purchase.id}_{track_id}_{_uuid.uuid4().hex[:8]}.pdf"
             contract_path = contracts_dir / contract_filename
 
             contract_data = {

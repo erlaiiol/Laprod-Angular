@@ -29,8 +29,10 @@ def safe_join_path(base_path, user_path):
     abs_base = Path(base_path).resolve()
     abs_user = (abs_base / user_path).resolve()
 
-    # Vérifier que le chemin résolu est bien dans le dossier de base
-    if not str(abs_user).startswith(str(abs_base)):
+    # Vérifier que le chemin résolu est bien dans le dossier de base.
+    # is_relative_to (et non str.startswith) : une comparaison de préfixe de
+    # chaîne accepterait à tort /app/db_assets-secret pour une base /app/db_assets.
+    if not abs_user.is_relative_to(abs_base):
         current_app.logger.error(
             f"SECURITY: Path traversal detecte - Base: {abs_base}, User: {user_path}, Result: {abs_user}"
         )

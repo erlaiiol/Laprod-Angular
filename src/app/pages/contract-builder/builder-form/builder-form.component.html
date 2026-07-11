@@ -4,10 +4,22 @@
   </div>
 } @else {
 
-<div class="bf-page" [class.page-locked]="!isPro()">
+<div class="bf-page">
 
-  @if (!isPro()) {
-    <app-premium-lock requiredPlan="pro" />
+  @if (locked()) {
+    <div class="bf-locked-banner">
+      <div class="bf-locked-banner-text">
+        <i class="bi bi-lock-fill"></i>
+        @if (isDemo()) {
+          <span>Aperçu du générateur avec un contrat d'exemple — contenu non modifiable.</span>
+        } @else {
+          <span>Vous consultez ce contrat en lecture seule.</span>
+        }
+      </div>
+      <a routerLink="/premium" class="bf-locked-banner-cta">
+        <i class="bi bi-stars"></i> Passer Pro pour créer et modifier vos contrats
+      </a>
+    </div>
   }
 
   <!-- Header -->
@@ -19,7 +31,7 @@
       <input class="bf-title-input"
         [value]="title()"
         (input)="title.set($any($event.target).value)"
-        [disabled]="isFinal()"
+        [disabled]="readOnly()"
         placeholder="Titre du contrat" />
       <span class="bf-status" [class.final]="isFinal()">
         {{ isFinal() ? 'Finalisé' : 'Brouillon' }}
@@ -115,7 +127,7 @@
                       <i class="bi bi-building"></i> Contractant {{ $index + 1 }}
                     }
                   </span>
-                  @if (!isFinal()) {
+                  @if (!readOnly()) {
                     <button type="button" class="bf-intro-party-remove" (click)="removeParty($index)" title="Supprimer cette partie">
                       <i class="bi bi-trash"></i>
                     </button>
@@ -127,7 +139,7 @@
                     <input type="text" class="bf-input" [placeholder]="config().rolePlaceholder"
                       [value]="p.role"
                       (input)="updatePartyField($index, 'role', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   @if (p.party_type === 'physical') {
                     <label class="bf-intro-field">
@@ -135,14 +147,14 @@
                       <input type="text" class="bf-input" placeholder="ex : Jean"
                         [value]="p.first_name ?? ''"
                         (input)="updatePartyField($index, 'first_name', $any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                     </label>
                     <label class="bf-intro-field">
                       <span>Nom</span>
                       <input type="text" class="bf-input" placeholder="ex : Dupont"
                         [value]="p.last_name ?? ''"
                         (input)="updatePartyField($index, 'last_name', $any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                     </label>
                   } @else {
                     <label class="bf-intro-field bf-intro-field--wide">
@@ -150,7 +162,7 @@
                       <input type="text" class="bf-input" placeholder="ex : Label Music SAS"
                         [value]="p.company_name ?? ''"
                         (input)="updatePartyField($index, 'company_name', $any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                     </label>
                   }
                 </div>
@@ -161,7 +173,7 @@
               </div>
             }
 
-            @if (!isFinal()) {
+            @if (!readOnly()) {
               <div class="bf-intro-party-add">
                 <button type="button" class="btn-add-party" (click)="addParty('physical')">
                   <i class="bi bi-person-plus"></i> Personne physique
@@ -187,7 +199,8 @@
                     @if (field.inputType === 'select') {
                       <select class="bf-select"
                         [value]="introValue(field.id)"
-                        (change)="setIntroValue(field.id, $any($event.target).value)">
+                        (change)="setIntroValue(field.id, $any($event.target).value)"
+                        [disabled]="readOnly()">
                         <option value="">—</option>
                         @for (opt of field.options ?? []; track opt) {
                           <option [value]="opt">{{ opt }}</option>
@@ -199,7 +212,8 @@
                           [attr.min]="field.min" [attr.max]="field.max"
                           [placeholder]="field.placeholder ?? ''"
                           [value]="introValue(field.id)"
-                          (input)="setIntroValue(field.id, $any($event.target).value)" />
+                          (input)="setIntroValue(field.id, $any($event.target).value)"
+                          [disabled]="readOnly()" />
                         <span class="bf-unit">{{ field.suffix }}</span>
                       </div>
                     } @else {
@@ -207,7 +221,8 @@
                         [attr.min]="field.min" [attr.max]="field.max"
                         [placeholder]="field.placeholder ?? ''"
                         [value]="introValue(field.id)"
-                        (input)="setIntroValue(field.id, $any($event.target).value)" />
+                        (input)="setIntroValue(field.id, $any($event.target).value)"
+                        [disabled]="readOnly()" />
                     }
                   </label>
                 }
@@ -275,8 +290,13 @@
                     </span>
                   }
                 </div>
-                <button type="button" class="bf-qs-banner-btn" [class.bf-qs-banner-btn--warn]="!hasKeyInfo()" (click)="applyQuickStart()">
-                  @if (hasKeyInfo()) {
+                <button type="button" class="bf-qs-banner-btn"
+                  [class.bf-qs-banner-btn--warn]="!hasKeyInfo()"
+                  [class.bf-qs-banner-btn--locked]="locked()"
+                  (click)="locked() ? goToPremium() : applyQuickStart()">
+                  @if (locked()) {
+                    <i class="bi bi-lock-fill"></i> Premium uniquement
+                  } @else if (hasKeyInfo()) {
                     Pré-remplir les clauses <i class="bi bi-arrow-right"></i>
                   } @else {
                     Compléter les infos clés
@@ -296,7 +316,7 @@
             <p class="bf-section-desc">Identifiez chaque partie (auteur, éditeur, distributeur, etc.).</p>
           </div>
 
-          @if (!isFinal()) {
+          @if (!readOnly()) {
             <div class="bf-party-add">
               <button class="btn-add-party" (click)="addParty('physical')">
                 <i class="bi bi-person-plus"></i> Personne physique
@@ -321,7 +341,7 @@
                     <i class="bi bi-building"></i> Société
                   }
                 </span>
-                @if (!isFinal()) {
+                @if (!readOnly()) {
                   <button class="btn-remove-party" (click)="removeParty($index)" title="Supprimer cette partie">
                     <i class="bi bi-trash"></i>
                   </button>
@@ -335,7 +355,7 @@
                   <input type="text" placeholder="ex: Compositeur, Éditeur, Distributeur..."
                     [value]="party.role"
                     (input)="updatePartyField($index, 'role', $any($event.target).value)"
-                    [disabled]="isFinal()" />
+                    [disabled]="readOnly()" />
                 </label>
 
                 @if (party.party_type === 'physical') {
@@ -344,38 +364,38 @@
                     <span>Prénom</span>
                     <input type="text" [value]="party.first_name ?? ''"
                       (input)="updatePartyField($index, 'first_name', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nom</span>
                     <input type="text" [value]="party.last_name ?? ''"
                       (input)="updatePartyField($index, 'last_name', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Date de naissance</span>
                     <input type="text" placeholder="JJ/MM/AAAA"
                       [value]="party.date_of_birth ?? ''"
                       (input)="updatePartyField($index, 'date_of_birth', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nationalité</span>
                     <input type="text" [value]="party.nationality ?? ''"
                       (input)="updatePartyField($index, 'nationality', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nom de scène / Pseudonyme</span>
                     <input type="text" [value]="party.pseudonym ?? ''"
                       (input)="updatePartyField($index, 'pseudonym', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Numéro fiscal</span>
                     <input type="text" [value]="party.tax_id ?? ''"
                       (input)="updatePartyField($index, 'tax_id', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                 } @else {
                   <!-- Company fields -->
@@ -383,53 +403,53 @@
                     <span>Dénomination sociale</span>
                     <input type="text" [value]="party.company_name ?? ''"
                       (input)="updatePartyField($index, 'company_name', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Forme juridique</span>
                     <input type="text" placeholder="SARL, SAS, SASU..."
                       [value]="party.legal_form ?? ''"
                       (input)="updatePartyField($index, 'legal_form', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Capital social</span>
                     <input type="text" placeholder="ex: 50 000 €"
                       [value]="party.capital ?? ''"
                       (input)="updatePartyField($index, 'capital', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>SIREN</span>
                     <input type="text" [value]="party.siren ?? ''"
                       (input)="updatePartyField($index, 'siren', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>SIRET</span>
                     <input type="text" [value]="party.siret ?? ''"
                       (input)="updatePartyField($index, 'siret', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>RCS</span>
                     <input type="text" placeholder="ex: RCS Paris B 123 456 789"
                       [value]="party.rcs ?? ''"
                       (input)="updatePartyField($index, 'rcs', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Représentant légal</span>
                     <input type="text" [value]="party.legal_rep ?? ''"
                       (input)="updatePartyField($index, 'legal_rep', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Qualité du signataire</span>
                     <input type="text" placeholder="Gérant, Directeur général..."
                       [value]="party.signatory_title ?? ''"
                       (input)="updatePartyField($index, 'signatory_title', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   </label>
                 }
 
@@ -438,13 +458,13 @@
                   <span>Adresse</span>
                   <input type="text" [value]="party.address ?? ''"
                     (input)="updatePartyField($index, 'address', $any($event.target).value)"
-                    [disabled]="isFinal()" />
+                    [disabled]="readOnly()" />
                 </label>
                 <label class="bf-field">
                   <span>E-mail</span>
                   <input type="email" [value]="party.email ?? ''"
                     (input)="updatePartyField($index, 'email', $any($event.target).value)"
-                    [disabled]="isFinal()" />
+                    [disabled]="readOnly()" />
                 </label>
               </div>
             </div>
@@ -480,7 +500,7 @@
                   <input type="checkbox"
                     [checked]="lv.is_enabled"
                     (change)="setEnabled(clause.id, clause, $any($event.target).checked)"
-                    [disabled]="isFinal()"
+                    [disabled]="readOnly()"
                     class="bf-clause-check" />
                 }
                 @if (clauseNumbers()[clause.id]) {
@@ -535,7 +555,7 @@
                   <div class="bf-example-header">
                     <span>Exemple de rédaction</span>
                     @if (['text','textarea','toggle_with_details'].includes(clause.clause_type)) {
-                      <button class="bf-use-example" (click)="useExample(clause.id, clause)">
+                      <button class="bf-use-example" (click)="useExample(clause.id, clause)" [disabled]="readOnly()">
                         <i class="bi bi-clipboard-check"></i> Utiliser cet exemple
                       </button>
                     }
@@ -557,7 +577,7 @@
                       placeholder="Précisions..."
                       [value]="lv.value?.details ?? ''"
                       (input)="patchField(clause.id, clause, 'details', $any($event.target).value)"
-                      [disabled]="isFinal()"
+                      [disabled]="readOnly()"
                       rows="3"></textarea>
                   }
 
@@ -567,8 +587,8 @@
                       [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
-                      [disabled]="isFinal()" />
-                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                      [disabled]="readOnly()" />
+                    @if (!readOnly() && hasBrackets(clause.id, clause)) {
                       <div class="bf-resolver">
                         @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
                           <div class="bf-resolver-row">
@@ -587,7 +607,7 @@
                         </button>
                       </div>
                     }
-                    @if (!isFinal() && hasAnyIntroVar()) {
+                    @if (!readOnly() && hasAnyIntroVar()) {
                       <div class="bf-insert-chips">
                         @for (entry of definedIntroVars(); track entry.key) {
                           <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
@@ -603,9 +623,9 @@
                       [id]="'bf-ta-' + clause.id"
                       [value]="lv.value?.text ?? ''"
                       (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
-                      [disabled]="isFinal()"
+                      [disabled]="readOnly()"
                       rows="5"></textarea>
-                    @if (!isFinal() && hasBrackets(clause.id, clause)) {
+                    @if (!readOnly() && hasBrackets(clause.id, clause)) {
                       <div class="bf-resolver">
                         @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
                           <div class="bf-resolver-row">
@@ -624,7 +644,7 @@
                         </button>
                       </div>
                     }
-                    @if (!isFinal() && hasAnyIntroVar()) {
+                    @if (!readOnly() && hasAnyIntroVar()) {
                       <div class="bf-insert-chips">
                         @for (entry of definedIntroVars(); track entry.key) {
                           <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
@@ -639,7 +659,7 @@
                     <input class="bf-input bf-input-sm" type="number"
                       [value]="lv.value?.number ?? ''"
                       (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   }
 
                   <!-- percentage -->
@@ -648,7 +668,7 @@
                       <input class="bf-input bf-input-sm" type="number" min="0" max="100"
                         [value]="lv.value?.number ?? ''"
                         (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                       <span class="bf-unit">%</span>
                     </div>
                   }
@@ -658,7 +678,7 @@
                     <select class="bf-select"
                       [value]="lv.value?.selected ?? ''"
                       (change)="patchField(clause.id, clause, 'selected', $any($event.target).value)"
-                      [disabled]="isFinal()">
+                      [disabled]="readOnly()">
                       <option value="">— Choisir —</option>
                       @for (opt of (clause.options ?? []); track opt) {
                         <option [value]="opt">{{ opt }}</option>
@@ -671,7 +691,7 @@
                     <input class="bf-input bf-input-sm" type="date"
                       [value]="lv.value?.date ?? ''"
                       (input)="patchField(clause.id, clause, 'date', $any($event.target).value)"
-                      [disabled]="isFinal()" />
+                      [disabled]="readOnly()" />
                   }
 
                   <!-- date_range -->
@@ -680,12 +700,12 @@
                       <input class="bf-input bf-input-sm" type="date"
                         [value]="lv.value?.start ?? ''"
                         (input)="patchField(clause.id, clause, 'start', $any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                       <span class="bf-range-sep">au</span>
                       <input class="bf-input bf-input-sm" type="date"
                         [value]="lv.value?.end ?? ''"
                         (input)="patchField(clause.id, clause, 'end', $any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                     </div>
                   }
 
@@ -694,7 +714,7 @@
                     <select class="bf-select bf-select-sm"
                       [value]="lv.value?.territory ?? 'France'"
                       (change)="patchField(clause.id, clause, 'territory', $any($event.target).value)"
-                      [disabled]="isFinal()">
+                      [disabled]="readOnly()">
                       <option>France</option>
                       <option>Union européenne</option>
                       <option>Monde entier</option>
@@ -708,11 +728,11 @@
                       <input class="bf-input bf-input-sm" type="number" min="1"
                         [value]="lv.value?.amount ?? ''"
                         (input)="patchField(clause.id, clause, 'amount', +$any($event.target).value)"
-                        [disabled]="isFinal()" />
+                        [disabled]="readOnly()" />
                       <select class="bf-select-inline"
                         [value]="lv.value?.unit ?? 'ans'"
                         (change)="patchField(clause.id, clause, 'unit', $any($event.target).value)"
-                        [disabled]="isFinal()">
+                        [disabled]="readOnly()">
                         <option>ans</option>
                         <option>mois</option>
                         <option>jours</option>
@@ -724,11 +744,11 @@
                   @else if (clause.clause_type === 'multi_toggle') {
                     <div class="bf-multi-toggle">
                       @for (opt of (clause.options ?? []); track opt) {
-                        <label class="bf-check-label" [class.disabled]="isFinal()">
+                        <label class="bf-check-label" [class.disabled]="readOnly()">
                           <input type="checkbox"
                             [checked]="isMultiSelected(clause.id, clause, opt)"
                             (change)="toggleMulti(clause.id, clause, opt)"
-                            [disabled]="isFinal()" />
+                            [disabled]="readOnly()" />
                           {{ opt }}
                         </label>
                       }
@@ -770,8 +790,13 @@
               </div>
               @if (hasKeyInfo()) {
                 <p class="bf-qs-card-desc">Remplissage automatique depuis vos variables d'introduction.</p>
-                <button type="button" class="bf-qs-card-btn" (click)="applyQuickStart()">
-                  <i class="bi bi-lightning-charge-fill"></i> Lancer le Quick Start
+                <button type="button" class="bf-qs-card-btn" [class.bf-qs-card-btn--locked]="locked()"
+                  (click)="locked() ? goToPremium() : applyQuickStart()">
+                  @if (locked()) {
+                    <i class="bi bi-lock-fill"></i> Premium uniquement
+                  } @else {
+                    <i class="bi bi-lightning-charge-fill"></i> Lancer le Quick Start
+                  }
                 </button>
               } @else {
                 <p class="bf-qs-card-desc bf-qs-card-desc--warn">
@@ -792,22 +817,32 @@
                   <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
                 </div>
                 <p class="bf-fill-card-desc">Applique les textes d'exemple sur toutes les clauses actives. Personnalisez ensuite.</p>
-                <button type="button" class="bf-fill-card-btn" (click)="fillAllExamples()">
-                  <i class="bi bi-pen-fill"></i> Tout remplir avec les exemples
+                <button type="button" class="bf-fill-card-btn" [class.bf-fill-card-btn--locked]="locked()"
+                  (click)="locked() ? goToPremium() : fillAllExamples()">
+                  @if (locked()) {
+                    <i class="bi bi-lock-fill"></i> Premium uniquement
+                  } @else {
+                    <i class="bi bi-pen-fill"></i> Tout remplir avec les exemples
+                  }
                 </button>
               </div>
               <div class="bf-guide-sep"></div>
             }
           }
           @for (preset of presets; track preset.id) {
-            <button class="bf-preset-card" (click)="applyPreset(preset.id)" [disabled]="isFinal()">
+            <button class="bf-preset-card" [class.locked]="locked()" [disabled]="isFinal()"
+              (click)="locked() ? goToPremium() : applyPreset(preset.id)">
               <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
               <div class="bf-preset-info">
                 <span class="bf-preset-label">{{ preset.label }}</span>
                 <span class="bf-preset-desc">{{ preset.description }}</span>
                 <span class="bf-preset-meta">{{ preset.meta }}</span>
               </div>
-              <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
+              @if (locked()) {
+                <span class="bf-preset-badge badge-locked"><i class="bi bi-lock-fill"></i> Premium</span>
+              } @else {
+                <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
+              }
             </button>
           }
           <p class="bf-guide-note">
@@ -890,18 +925,27 @@
             <button class="btn-reset-cancel" (click)="cancelReset()">Annuler</button>
           </div>
         } @else {
-          <button class="btn-reset" (click)="resetContract()" [disabled]="saving() || generating()" title="Réinitialiser toutes les clauses">
+          <button class="btn-reset" (click)="resetContract()" [disabled]="saving() || generating() || readOnly()" title="Réinitialiser toutes les clauses">
             <i class="bi bi-trash"></i>
           </button>
         }
       </div>
       <div class="bf-footer-right">
-        <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
-          @if (saving() && !generating()) { Enregistrement... } @else { <i class="bi bi-floppy"></i> Enregistrer le brouillon }
-        </button>
-        <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
-          @if (generating()) { <i class="bi bi-hourglass-split"></i> Génération du PDF... } @else { <i class="bi bi-file-earmark-pdf"></i> Générer le PDF }
-        </button>
+        @if (locked()) {
+          <button class="btn-secondary btn-secondary--locked" (click)="goToPremium()">
+            <i class="bi bi-lock-fill"></i> Premium uniquement
+          </button>
+          <button class="btn-primary btn-primary--locked" (click)="goToPremium()">
+            <i class="bi bi-stars"></i> Passer Pro pour générer le PDF
+          </button>
+        } @else {
+          <button class="btn-secondary" (click)="save()" [disabled]="saving() || generating()">
+            @if (saving() && !generating()) { Enregistrement... } @else { <i class="bi bi-floppy"></i> Enregistrer le brouillon }
+          </button>
+          <button class="btn-primary" (click)="generate()" [disabled]="saving() || generating()">
+            @if (generating()) { <i class="bi bi-hourglass-split"></i> Génération du PDF... } @else { <i class="bi bi-file-earmark-pdf"></i> Générer le PDF }
+          </button>
+        }
       </div>
     </div>
   }
