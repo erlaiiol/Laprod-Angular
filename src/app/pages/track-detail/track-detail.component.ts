@@ -20,11 +20,12 @@ import { ShareButtonComponent } from '../../components/share-button/share-button
 import { LicenseBadgeComponent } from '../../components/license-badge/license-badge.component';
 import { FavoritesService } from '../../services/favorites.service';
 import { ToastService } from '../../services/toast.service';
+import { FormatDatePipe } from '../../pipes/format-date.pipe';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent, LicenseBadgeComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent, LicenseBadgeComponent, FormatDatePipe],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -169,10 +170,6 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   tagBgColor(color: string): string     { return this.trackSvc.darkenColor(color, 0.15); }
   tagBorderColor(color: string): string { return this.trackSvc.darkenColor(color, 0.35); }
 
-  formatDate(iso: string | null): string {
-    if (!iso) return '';
-    return new Date(iso).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
-  }
 
   isThisTrackPlaying(): boolean {
     const t = this.track();

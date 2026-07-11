@@ -92,8 +92,6 @@ STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 if not all([STRIPE_PUBLIC_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET]):
     raise ValueError("️ ERREUR : Clés Stripe manquantes dans .env !")
 
-DEMO_MODE = os.environ.get('DEMO_MODE', 'True').lower() == 'true'
-
 # Commission de la plateforme (10%)
 PLATFORM_COMMISSION = 0.10
 

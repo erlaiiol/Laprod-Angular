@@ -5,7 +5,7 @@ from flask import Flask, session, jsonify, send_from_directory
 import os
 from dotenv import load_dotenv
 from helpers import admin_required
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
@@ -282,11 +282,24 @@ def create_app(test_config=None):
             app.logger.info(f"{n} clause(s) réécrites avec une explication simplifiée.")
 
     # ============================================
-    # ROUTE STATIQUE DB_ASSETS (images, profils…)
+    # ROUTE STATIQUE DB_ASSETS (assets PUBLICS uniquement)
     # ============================================
+    # SÉCURITÉ : cette route ne dessert QUE les sous-dossiers publics
+    # (images de couverture, avatars, visuels marketing, fonts). Les contenus
+    # sensibles — audio complet payant, stems, contrats, factures, fichiers
+    # mixmaster — ne doivent JAMAIS transiter par ici : ils sont servis
+    # exclusivement par les endpoints authentifiés (streaming_service,
+    # mixmaster_media_api, licenses_api, invoice_api) après vérification
+    # d'achat / de propriété. En production nginx applique la même allowlist.
+    _PUBLIC_DB_ASSETS_DIRS = {'images', 'main', 'fonts'}
 
     @app.route('/db_assets/<path:filename>')
     def serve_db_assets(filename):
+        from flask import abort
+        # Premier segment du chemin = sous-dossier de premier niveau
+        top_level = PurePosixPath(filename).parts[0] if filename else ''
+        if top_level not in _PUBLIC_DB_ASSETS_DIRS:
+            abort(404)
         return send_from_directory(str(config.BASE_DIR / 'db_assets'), filename)
 
     # ============================================
@@ -311,6 +324,7 @@ def create_app(test_config=None):
         cud_mixmaster_engineer_api_bp,
         cud_mixmaster_artist_api_bp,
         payment_mixmaster_api_bp,
+        stripe_webhook_bp,
         mixmaster_media_api_bp,
         admin_api_bp,
         job_status_api,
@@ -343,6 +357,7 @@ def create_app(test_config=None):
     app.register_blueprint(cud_mixmaster_engineer_api_bp)
     app.register_blueprint(cud_mixmaster_artist_api_bp)
     app.register_blueprint(payment_mixmaster_api_bp)
+    app.register_blueprint(stripe_webhook_bp)
     app.register_blueprint(mixmaster_media_api_bp)
     app.register_blueprint(admin_api_bp)
     app.register_blueprint(job_status_api)

@@ -41,14 +41,15 @@
               ]
             },
             "styles": [
-              "node_modules/@fontsource-variable/inter/index.css",
-              "node_modules/@fontsource-variable/space-grotesk/index.css",
+              "src/styles/fonts.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
               "src/styles.scss"
             ],
-            "scripts": [
-              "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
+            "allowedCommonJsDependencies": [
+              "soundtouchjs",
+              "pitchy",
+              "@breezystack/lamejs"
             ]
           },
           "configurations": {
@@ -56,8 +57,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "2MB",
-                  "maximumError": "4MB"
+                  "maximumWarning": "850kB",
+                  "maximumError": "1MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -82,8 +83,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "3MB",
-                  "maximumError": "6MB"
+                  "maximumWarning": "1MB",
+                  "maximumError": "1.5MB"
                 },
                 {
                   "type": "anyComponentStyle",

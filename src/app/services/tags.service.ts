@@ -1,7 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay, tap } from 'rxjs';
 
 export interface Tag {
   id:       number;
@@ -48,29 +48,55 @@ export class TagsService {
     return result;
   });
 
+  // Données quasi statiques : une requête partagée entre tous les abonnés
+  // (shareReplay) et réutilisée pendant TTL_MS avant re-fetch.
+  private cache$: Observable<TagsResponse> | null = null;
+  private fetchedAt = 0;
+  private static readonly TTL_MS = 5 * 60_000;
+
   constructor(private http: HttpClient ) {}
 
+  /**
+   * Source unique pour /filters/tags/all : les signals tags/keys/styles sont
+   * alimentés en interne, tous les abonnés partagent la même requête HTTP.
+   */
+  ensureLoaded(): Observable<TagsResponse> {
+    if (!this.cache$ || Date.now() - this.fetchedAt > TagsService.TTL_MS) {
+      this.fetchedAt = Date.now();
+      this.cache$ = this.http.get<TagsResponse>(this.tagsApiUrl).pipe(
+        tap({
+          next: res => {
+            if (res.success) {
+              this._tags.set(res.data.tags);
+              this._keys.set(res.data.keys);
+              this._styles.set(res.data.styles);
+            }
+          },
+          // Ne pas rester bloqué sur un cache en erreur : le prochain appel re-fetche.
+          error: () => { this.cache$ = null; },
+        }),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+    }
+    return this.cache$;
+  }
+
+  invalidate(): void {
+    this.cache$ = null;
+  }
+
+  /** @deprecated Alias de compatibilité — préférer ensureLoaded(). */
   getTags(): Observable<TagsResponse> {
-    return this.http.get<TagsResponse>(this.tagsApiUrl);
+    return this.ensureLoaded();
   }
 
+  /** @deprecated Alias de compatibilité — préférer ensureLoaded(). */
   loadTags(): Observable<TagsResponse> {
-    const obs = this.http.get<TagsResponse>(this.tagsApiUrl);
-    obs.subscribe({
-      next: res => {
-        if (res.success) {
-          this._tags.set(res.data.tags);
-          this._keys.set(res.data.keys);
-          this._styles.set(res.data.styles);
-        }
-      },
-    });
-    return obs;
+    return this.ensureLoaded();
   }
 
-  refreshTags() {
-    this.loadTags();
+  refreshTags(): void {
+    this.invalidate();
+    this.ensureLoaded().subscribe({ error: () => {} });
   }
-
-
 }

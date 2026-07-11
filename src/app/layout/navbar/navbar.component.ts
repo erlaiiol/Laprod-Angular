@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { environment } from '../../../environments/environment';
@@ -11,15 +11,16 @@ import { SimilarArtistsService, SimilarArtistScene } from '../../services/simila
 import { ThemeService } from '../../services/theme.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-navbar',
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })
-export class NavbarComponent implements OnInit {
+export class NavbarComponent {
 
-  loading = signal(true);
+  loading = signal(false);
   error   = signal<string | null>(null);
 
   selectedKeys           = signal<string[]>([]);
@@ -33,11 +34,21 @@ export class NavbarComponent implements OnInit {
 
   filtersOpen = signal(false);
 
-  artistScenes = signal<SimilarArtistScene[]>([]);
+  // Menu burger + dropdowns gérés en signals : le CSS Bootstrap
+  // (.collapse.show / .dropdown-menu.show) suffit, sans bootstrap.bundle.js.
+  menuOpen     = signal(false);
+  openDropdown = signal<'contracts' | 'user' | null>(null);
+
+  // Tags/gammes/styles/scènes ne sont chargés qu'à la première ouverture du
+  // panneau de filtres : un visiteur qui ne filtre jamais ne coûte aucun appel.
+  private filterDataRequested = false;
 
   private notifSvc          = inject(NotificationService);
   private similarArtistsSvc = inject(SimilarArtistsService);
   readonly themeSvc         = inject(ThemeService);
+
+  // L'état vit dans SimilarArtistsService ; la navbar n'en garde pas de copie.
+  readonly artistScenes = this.similarArtistsSvc.scenes;
 
   private router = inject(Router);
 
@@ -82,6 +93,16 @@ export class NavbarComponent implements OnInit {
   isPremium     = computed(() => this.authService.isPremium());
   username      = computed(() => this.authService.currentUser()?.username || '');
   userInitial   = computed(() => (this.authService.currentUser()?.username || '?').charAt(0).toUpperCase());
+
+  private readonly staticBase = `${environment.apiUrl}/db_assets/`;
+
+  // null tant que l'utilisateur n'a pas mis de photo perso — le chip d'initiale
+  // (nav-avatar) sert alors de fallback, comme sur le reste du site.
+  avatarUrl = computed(() => {
+    const path = this.authService.currentUser()?.profile_image;
+    if (!path || path === 'images/default_profile.png') return null;
+    return path.startsWith('http') ? path : this.staticBase + path;
+  });
   notifCount    = computed(() => this.notifSvc.unreadCount());
   isLoggedIn    = computed(() => this.authService.isLoggedIn());
 
@@ -96,19 +117,19 @@ export class NavbarComponent implements OnInit {
     localStorage.clear();
   }
 
-  ngOnInit(): void {
-    this.tagsService.loadTags().subscribe({
-      next:     () => this.loading.set(false),
-      error:    () => this.loading.set(false),
-      complete: () => this.loading.set(false),
-    });
-
-    this.similarArtistsSvc.getSimilarArtists().subscribe({
-      next: (res) => {
-        if (res.success) this.artistScenes.set(res.data.scenes);
+  private ensureFilterData(): void {
+    if (this.filterDataRequested) return;
+    this.filterDataRequested = true;
+    this.loading.set(true);
+    this.tagsService.ensureLoaded().subscribe({
+      next:  () => this.loading.set(false),
+      error: () => {
+        this.loading.set(false);
+        // Autoriser un retry à la prochaine ouverture du panneau.
+        this.filterDataRequested = false;
       },
-      error: () => {},
     });
+    this.similarArtistsSvc.ensureLoaded().subscribe({ error: () => {} });
   }
 
   toggleKey(key: string): void {
@@ -188,28 +209,50 @@ export class NavbarComponent implements OnInit {
     if (this.router.url.split('?')[0] !== '/') {
       this.router.navigate(['/']);
     }
-    this._closeNavbarCollapse();
+    this.menuOpen.set(false);
   }
 
-  private _closeNavbarCollapse(): void {
-    const el = document.getElementById('navbarNav');
-    if (!el) return;
-    const bsCollapse = (window as any).bootstrap?.Collapse?.getInstance(el);
-    bsCollapse?.hide();
+  toggleMenu(): void {
+    this.menuOpen.update(open => !open);
   }
 
-  // Délégation d'événement sur le menu mobile : Bootstrap ne referme le
-  // collapse qu'au clic sur le toggler, pas sur les liens à l'intérieur.
-  // On ferme au clic sur tout lien qui navigue réellement (nav-link,
-  // dropdown-item) — pas sur les toggles de sous-menu (Contrats, avatar),
-  // qui ne font qu'ouvrir un dropdown sans changer de page.
+  toggleDropdown(name: 'contracts' | 'user', event: Event): void {
+    event.preventDefault();
+    // Sans stopPropagation, le listener document:click refermerait
+    // immédiatement le dropdown qu'on vient d'ouvrir.
+    event.stopPropagation();
+    this.openDropdown.update(current => (current === name ? null : name));
+  }
+
+  // Clic n'importe où hors du toggle (y compris sur un item du menu) :
+  // fermeture, même comportement que l'auto-close Bootstrap.
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.openDropdown.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.openDropdown.set(null);
+    this.menuOpen.set(false);
+    this.closeFilters();
+  }
+
+  // Délégation d'événement sur le menu mobile : on ferme au clic sur tout
+  // lien qui navigue réellement (nav-link, dropdown-item) — pas sur les
+  // toggles de sous-menu (Contrats, avatar), qui ne font qu'ouvrir un
+  // dropdown sans changer de page.
   onNavLinkClick(event: MouseEvent): void {
     const link = (event.target as HTMLElement).closest('a');
     if (link && !link.classList.contains('dropdown-toggle')) {
-      this._closeNavbarCollapse();
+      this.menuOpen.set(false);
     }
   }
 
-  toggleFilters(): void { this.filtersOpen.set(!this.filtersOpen()); }
+  toggleFilters(): void {
+    const opening = !this.filtersOpen();
+    if (opening) this.ensureFilterData();
+    this.filtersOpen.set(opening);
+  }
   closeFilters():  void { this.filtersOpen.set(false); }
 }

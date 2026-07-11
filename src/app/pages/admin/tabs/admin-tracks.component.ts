@@ -1,14 +1,16 @@
-import { Component, OnInit, signal, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminTrack } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-tracks',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FormatDatePipe],
   templateUrl: './admin-tracks.component.html',
   styleUrl: '../admin.component.scss',
 })
@@ -96,8 +98,4 @@ export class AdminTracksComponent implements OnInit {
     return this.staticBase + path;
   }
 
-  fmtDate(d: string | null): string {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('fr-FR');
-  }
 }

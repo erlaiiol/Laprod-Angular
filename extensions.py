@@ -116,7 +116,20 @@ def init_extensions(app):
     mail.init_app(app)
 
     # flask-CORS
-    _cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',')
+    _cors_origins = [o.strip() for o in os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',') if o.strip()]
+    # SÉCURITÉ : en production, on rejette les origines http:// en clair (sauf
+    # localhost pour d'éventuels outils internes). Avec supports_credentials=True,
+    # une origine http:// autoriserait des requêtes credentialisées interceptables.
+    # Les schemes natifs (capacitor://, ionic://) et https:// sont conservés.
+    if not _is_dev:
+        _filtered = [
+            o for o in _cors_origins
+            if not (o.startswith('http://') and 'localhost' not in o and '127.0.0.1' not in o)
+        ]
+        _dropped = set(_cors_origins) - set(_filtered)
+        if _dropped:
+            app.logger.warning(f"  CORS : origines http:// non sécurisées ignorées en prod : {sorted(_dropped)}")
+        _cors_origins = _filtered
     CORS(app, origins=_cors_origins, supports_credentials=True)
     app.logger.info(f"  OK CORS (origins: {_cors_origins})")
 

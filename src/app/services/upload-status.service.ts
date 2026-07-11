@@ -67,7 +67,7 @@ export class UploadStatusService {
   openForUpload(title: string, imageUrl: string | null): void {
     this.pollingSub?.unsubscribe();
     this._title.set(title);
-    this._imageUrl.set(imageUrl);
+    this._setImageUrl(imageUrl);
     this._status.set('uploading');
     this._progress.set(0);
     this._trackId.set(null);
@@ -90,7 +90,7 @@ export class UploadStatusService {
   startPolling(jobId: string, title?: string | null, imageUrl?: string | null): void {
     this._jobId.set(jobId);
     if (title)    this._title.set(title);
-    if (imageUrl) this._imageUrl.set(imageUrl);
+    if (imageUrl) this._setImageUrl(imageUrl);
 
     // Si l'upload XHR vient de finir, progress ≈ 65%. On passe à 68% pour
     // signaler la transition vers la phase traitement worker.
@@ -98,8 +98,12 @@ export class UploadStatusService {
     this._status.set('queued');
 
     localStorage.setItem(this.KEY_JOB, jobId);
-    if (this._title())    localStorage.setItem(this.KEY_TITLE, this._title()!);
-    if (this._imageUrl()) localStorage.setItem(this.KEY_IMAGE, this._imageUrl()!);
+    if (this._title()) localStorage.setItem(this.KEY_TITLE, this._title()!);
+    // Une URL blob: est morte après un reload : inutile (et trompeur) de la persister.
+    const imageUrlToStore = this._imageUrl();
+    if (imageUrlToStore && !imageUrlToStore.startsWith('blob:')) {
+      localStorage.setItem(this.KEY_IMAGE, imageUrlToStore);
+    }
 
     this.pollingSub?.unsubscribe();
     this._startTimer(jobId);
@@ -114,12 +118,24 @@ export class UploadStatusService {
     this._trackId.set(null);
     this._errorMessage.set(null);
     this._title.set(null);
-    this._imageUrl.set(null);
+    this._setImageUrl(null);
     this._progress.set(0);
 
     localStorage.removeItem(this.KEY_JOB);
     localStorage.removeItem(this.KEY_TITLE);
     localStorage.removeItem(this.KEY_IMAGE);
+  }
+
+  /**
+   * Écrase l'image du toast en révoquant l'éventuel blob: précédent,
+   * sinon l'objet reste retenu en mémoire pour toute la session.
+   */
+  private _setImageUrl(url: string | null): void {
+    const previous = this._imageUrl();
+    if (previous?.startsWith('blob:') && previous !== url) {
+      URL.revokeObjectURL(previous);
+    }
+    this._imageUrl.set(url);
   }
 
   /**

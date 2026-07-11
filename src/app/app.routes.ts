@@ -3,9 +3,13 @@ import { authGuard }         from './guards/auth.guard';
 import { adminGuard }        from './guards/admin.guard';
 import { testimonialsGuard } from './guards/testimonials.guard';
 
+// data.preload = true → chunk préchargé en idle après le premier rendu
+// (voir routing/idle-preload.strategy.ts). Réservé aux routes du parcours
+// principal ; ne pas le poser partout.
 export const routes: Routes = [
   { path: '',
-    loadComponent: () => import('./pages/home/home.component').then(m => m.HomeComponent) },
+    loadComponent: () => import('./pages/home/home.component').then(m => m.HomeComponent),
+    data: { preload: true } },
 
   { path: 'upload-track',
     loadComponent: () => import('./pages/upload-track/upload-track.component').then(m => m.UploadTrackComponent),
@@ -30,7 +34,8 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/select-role/select-role.component').then(m => m.SelectRoleComponent) },
 
   { path: 'track/:id',
-    loadComponent: () => import('./pages/track-detail/track-detail.component').then(m => m.TrackDetailComponent) },
+    loadComponent: () => import('./pages/track-detail/track-detail.component').then(m => m.TrackDetailComponent),
+    data: { preload: true } },
 
   { path: 'playlist/:id',
     loadComponent: () => import('./pages/playlist/playlist.component').then(m => m.PlaylistComponent) },
@@ -104,6 +109,11 @@ export const routes: Routes = [
 
   { path: 'contract-builder',
     loadComponent: () => import('./pages/contract-builder/contract-builder.component').then(m => m.ContractBuilderComponent) },
+
+  // Aperçu public (invités et non-Pro) : contrat d'exemple, lecture seule.
+  { path: 'contract-builder/demo',
+    loadComponent: () => import('./pages/contract-builder/builder-form/builder-form.component').then(m => m.BuilderFormComponent),
+    data: { demo: true } },
 
   { path: 'contract-builder/:id',
     loadComponent: () => import('./pages/contract-builder/builder-form/builder-form.component').then(m => m.BuilderFormComponent),

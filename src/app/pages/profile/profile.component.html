@@ -20,7 +20,7 @@
     <!-- En-tête -->
     <div class="profile-header">
       <div class="profile-avatar">
-        <img [src]="imgUrl(p.profile_image)" [alt]="p.username"
+        <img decoding="async" [src]="imgUrl(p.profile_image)" [alt]="p.username"
              onerror="this.onerror=null;this.src='assets/placeholders/default_profile.png'" />
       </div>
 
@@ -50,7 +50,7 @@
           }
         </div>
 
-        <p class="profile-since">Membre depuis {{ formatDate(p.created_at) }}</p>
+        <p class="profile-since">Membre depuis {{ (p.created_at | formatDate:'monthYear') }}</p>
 
         @if (p.bio) {
           <p class="profile-bio">{{ p.bio }}</p>
@@ -116,8 +116,8 @@
             <div class="pl-card-wrap">
               <a class="pl-card" [routerLink]="['/playlist', pl.id]">
                 <div class="pl-card-img-wrap">
-                  <img class="pl-card-img"
-                       [src]="playlistImgUrl(pl.image_file)"
+                  <img loading="lazy" decoding="async" class="pl-card-img"
+                       [src]="playlistImgUrl(pl.image_thumb ?? pl.image_file)"
                        onerror="this.src='assets/placeholders/placeholder-track.png'"
                        alt="">
                   @if (containingIds().has(pl.id)) {

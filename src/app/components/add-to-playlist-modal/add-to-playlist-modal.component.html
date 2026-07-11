@@ -17,12 +17,12 @@
       <div class="pl-list">
         @for (pl of playlists(); track pl.id) {
           <label class="pl-check-row"
-                 [class.pl-check-row--added]="pendingIds().has(pl.id) && !initialIds.has(pl.id)"
-                 [class.pl-check-row--removed]="!pendingIds().has(pl.id) && initialIds.has(pl.id)">
+                 [class.pl-check-row--added]="pendingIds().has(pl.id) && !initialIds().has(pl.id)"
+                 [class.pl-check-row--removed]="!pendingIds().has(pl.id) && initialIds().has(pl.id)">
             <input type="checkbox"
                    [checked]="pendingIds().has(pl.id)"
                    (change)="togglePending(pl)">
-            <img class="pl-thumb" [src]="imgUrl(pl.image_file)"
+            <img loading="lazy" decoding="async" class="pl-thumb" [src]="imgUrl(pl.image_thumb ?? pl.image_file)"
                  onerror="this.src='assets/placeholders/placeholder-track.png'" alt="">
             <span class="pl-row-title">{{ pl.title }}</span>
             <small class="pl-track-count">{{ pl.track_count }} track(s)</small>
@@ -43,7 +43,7 @@
         <div class="create-form-row">
           <label class="create-img-mini" [class.has-image]="newImagePreview()">
             @if (newImagePreview()) {
-              <img [src]="newImagePreview()" alt="aperçu">
+              <img loading="lazy" decoding="async" [src]="newImagePreview()" alt="aperçu">
             } @else {
               <i class="bi bi-camera-fill"></i>
             }
@@ -57,7 +57,7 @@
             <div class="create-actions-row">
               <button class="btn-primary btn-sm"
                       (click)="createAndAdd()"
-                      [disabled]="!newTitle.trim() || creating()">
+                      [disabled]="!newTitle().trim() || creating()">
                 @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
               </button>
               <button class="btn-ghost btn-sm" (click)="showCreate.set(false)">Annuler</button>

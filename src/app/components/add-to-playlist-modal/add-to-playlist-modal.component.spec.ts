@@ -98,7 +98,7 @@ describe('AddToPlaylistModalComponent', () => {
     playlistSvc.createPlaylist.mockReturnValue(of({ success: true, data: newPl }));
     fixture.detectChanges();
 
-    component.newTitle = 'New PL';
+    component.newTitle.set('New PL');
     component.showCreate.set(true);
     component.createAndAdd();
 
@@ -106,7 +106,7 @@ describe('AddToPlaylistModalComponent', () => {
     expect(component.playlists().some(p => p.id === 3)).toBe(true);
     expect(component.pendingIds().has(3)).toBe(true);
     expect(component.showCreate()).toBe(false);
-    expect(component.newTitle).toBe('');
+    expect(component.newTitle()).toBe('');
   });
 
   it('emits closed event when close() is called', () => {

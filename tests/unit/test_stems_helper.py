@@ -2,9 +2,9 @@
 Tests unitaires — utils/stems_helper.py
 
 Couvre extract_primary_from_stems() :
-  - Priorité *_current.* > *_master.*
+  - Priorité *_current.* > *_master.* > premier WAV > premier audio
   - Fallback *_master.* si *_current.* absent
-  - (None, None, None) si aucun fichier primaire trouvable
+  - (None, None, None) si aucun fichier audio dans l'archive
   - Nommage de sortie : {safe_title}_{unique_id}_full{ext}
   - Tolérance : __MACOSX, sous-dossiers, casse
   - Robustesse : archive vide, fichier non-archive, erreur I/O
@@ -199,15 +199,31 @@ class TestExtractPrimaryFiltering:
 
 class TestExtractPrimaryFailures:
 
-    def test_no_current_or_master_returns_none(self, tmp_path):
-        """Archive sans _current.* ni _master.* → (None, None, None)."""
+    def test_no_current_or_master_falls_back_to_first_wav(self, tmp_path):
+        """Sans _current./_master., le premier WAV sert de piste principale
+        (priorité 5 du helper) : mieux vaut une preview imparfaite qu'un
+        upload en échec."""
         archive = _make_zip(
             {'kick.wav': b'\x00' * 100, 'snare.wav': b'\x00' * 100},
             tmp_path / 'stems.zip',
         )
         from utils.stems_helper import extract_primary_from_stems
-        result = extract_primary_from_stems(archive, tmp_path, 'Beat', 'abc')
-        assert result == (None, None, None)
+        out_path, out_name, ext = extract_primary_from_stems(archive, tmp_path, 'Beat', 'abc')
+        assert out_name == 'Beat_abc_full.wav'
+        assert ext == '.wav'
+        assert out_path.exists()
+
+    def test_no_wav_falls_back_to_first_audio(self, tmp_path):
+        """Sans WAV du tout, le premier fichier audio est retenu (priorité 6)."""
+        archive = _make_zip(
+            {'lead.mp3': FAKE_MP3, 'notes.txt': b'infos'},
+            tmp_path / 'stems.zip',
+        )
+        from utils.stems_helper import extract_primary_from_stems
+        out_path, out_name, ext = extract_primary_from_stems(archive, tmp_path, 'Beat', 'abc')
+        assert out_name == 'Beat_abc_full.mp3'
+        assert ext == '.mp3'
+        assert out_path.exists()
 
     def test_empty_zip_returns_none(self, tmp_path):
         """ZIP vide → (None, None, None)."""

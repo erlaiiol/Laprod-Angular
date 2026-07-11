@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster.service';
@@ -13,6 +13,7 @@ import { environment } from '../../../../environments/environment';
 const PER_PAGE = 9;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-mixmaster-engineers',
   standalone: true,
   imports: [CommonModule, RouterModule, MixmasterGuideComponent, PaginationComponent, ShareButtonComponent],

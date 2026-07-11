@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { GuestToplineService } from '../../../services/guest-topline.service';
@@ -9,6 +9,7 @@ import { finalize } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-login',
   standalone : true,
   imports: [ CommonModule, RouterModule, FormsModule ],

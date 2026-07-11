@@ -19,6 +19,7 @@ from serializers import ok, err, track_card as ser_track_card
 from helpers import sanitize_html
 from utils import email_service, notification_service
 from utils.file_validator import validate_image_file
+from utils.image_variants import generate_variants, delete_variants
 from utils.auth_helpers import require_user
 
 main_api_bp = Blueprint('main_api', __name__, url_prefix='/api/main')
@@ -205,9 +206,11 @@ def edit_profile(current_user):
                     old_path.unlink()
                 except OSError:
                     pass
+            delete_variants(old_path)
 
         picture.seek(0)
         picture.save(str(config.PROFILES_FOLDER / filename))
+        generate_variants(config.PROFILES_FOLDER / filename)
         current_user.profile_image       = f"images/profiles/{filename}"
         current_user.profile_picture_url = None
 

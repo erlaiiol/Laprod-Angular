@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, afterNextRender, inject, OnInit, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
 import { NavbarComponent } from './layout/navbar/navbar.component';
@@ -30,12 +30,26 @@ export class App implements OnInit {
   private router   = inject(Router);
   private shell    = inject(NativeShellService);
 
+  constructor() {
+    // Compteur de notifications : hors du chemin critique du premier rendu.
+    // Chargé quand le navigateur est idle (badge visible ~1-3 s après le
+    // premier paint) ; le heartbeat 90 s d'AppRefreshService prend le relais.
+    afterNextRender(() => {
+      if (!this.auth.isLoggedIn()) return;
+      const scheduleWhenIdle = 'requestIdleCallback' in window
+        ? (cb: () => void) => (window as Window).requestIdleCallback(cb, { timeout: 5000 })
+        : (cb: () => void) => setTimeout(cb, 2500); // vieux WebViews sans requestIdleCallback
+      scheduleWhenIdle(() => this.notifSvc.load().subscribe({ error: () => {} }));
+    });
+  }
+
   ngOnInit(): void {
     this.shell.init();
 
     if (this.auth.isLoggedIn()) {
       // Vérifie que le user localStorage est toujours valide en DB.
       // Si le token est expiré ou l'user supprimé, l'interceptor appelle silentLogout().
+      // Reste éager : c'est le check de session qui gate complete-profile.
       this.auth.me().subscribe({
         next: (res) => {
           if (res.success && res.data?.user && !res.data.user.user_type_selected) {
@@ -43,7 +57,6 @@ export class App implements OnInit {
           }
         },
       });
-      this.notifSvc.load().subscribe();
     }
 
     // Vérification silencieuse à chaque navigation :

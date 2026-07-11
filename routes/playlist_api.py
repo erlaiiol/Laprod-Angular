@@ -28,6 +28,7 @@ from utils.crud_helpers import (
     handle_route_exceptions, commit_or_rollback,
 )
 from utils.file_validator import validate_image_file
+from utils.image_variants import generate_variants, variant_or_original
 
 playlist_bp = Blueprint('playlist', __name__, url_prefix='/api/playlists')
 
@@ -45,6 +46,7 @@ def _serialize_playlist(pl, track_count=None):
         'id':                 pl.id,
         'title':              pl.title,
         'image_file':         pl.image_file,
+        'image_thumb':        variant_or_original(pl.image_file, 'thumb'),
         'beatmaker_username': pl.beatmaker.username,
         'track_count':        track_count if track_count is not None else len(pl.tracks),
         'created_at':         pl.created_at.isoformat() if pl.created_at else None,
@@ -112,6 +114,7 @@ def _save_playlist_image(file, app) -> str | None:
     filename = f"{uuid.uuid4()}{ext}"
     img_dir = _ensure_img_dir(app)
     file.save(img_dir / filename)
+    generate_variants(img_dir / filename)
     return f"images/playlists/{filename}"
 
 

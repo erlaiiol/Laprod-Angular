@@ -98,7 +98,8 @@ export class TrackCardComponent {
   }
 
   getImageUrl(): string {
-    return this.trackService.getStaticFileUrl(this.track.image_file);
+    // Carte ~200 px : la variante thumb (~30 kB) au lieu du PNG original (~2 MB).
+    return this.trackService.getStaticFileUrl(this.track.image_thumb ?? this.track.image_file);
   }
 
   tagBgColor(color: string): string {

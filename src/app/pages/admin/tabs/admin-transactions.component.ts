@@ -1,14 +1,16 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AdminService, AdminTransaction } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
 type TxStatus = 'all' | 'awaiting' | 'in_progress' | 'completed';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-transactions',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormatDatePipe],
   templateUrl: './admin-transactions.component.html',
   styleUrl: '../admin.component.scss',
 })
@@ -47,8 +49,4 @@ export class AdminTransactionsComponent implements OnInit {
     this.load();
   }
 
-  fmtDate(d: string | null): string {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('fr-FR');
-  }
 }

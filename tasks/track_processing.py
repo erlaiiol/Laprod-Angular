@@ -1,13 +1,26 @@
 from uuid import uuid4
 
 import config
+import re
 from pathlib import Path
 import shutil, logging
+
+
+def _safe_name_base(title: str) -> str:
+    """
+    Base de nom de fichier sûre à partir d'un titre utilisateur arbitraire.
+    Empêche tout path traversal (../, /, null byte) et tout caractère spécial :
+    on ne conserve que [a-zA-Z0-9_-]. Fallback 'track' si le titre ne produit rien.
+    """
+    base = re.sub(r'[^a-zA-Z0-9_-]', '_', (title or '').strip())
+    base = base.strip('_')
+    return base[:80] if base else 'track'
 from extensions import db
 from app import create_app
 from models import Track, User, Tag, Playlist, playlist_track, SimilarArtist
 from sqlalchemy import func
 from helpers import generate_track_image
+from utils.image_variants import generate_variants
 
 try:
     from utils.audio_processing import apply_watermark_and_trim, convert_to_mp3
@@ -147,8 +160,9 @@ def process_track_data(job_payload : dict):
             # ── Génération ou copie de l'image ────────────────────────────────────
             image_filename = None
 
+            safe_base = _safe_name_base(job_payload['title'])
             if job_payload['image_filename'] is None:
-                image_filename = f"{job_payload['title']}_{uuid4().hex[:8]}.png"
+                image_filename = f"{safe_base}_{uuid4().hex[:8]}.png"
                 image_disk_path = config.IMAGES_FOLDER / 'tracks' / image_filename
 
                 try:
@@ -159,7 +173,7 @@ def process_track_data(job_payload : dict):
                     raise TrackProcessingError(f"Job {job_id} failed during image generation: {e}") from e
             else:
                 orig_ext = Path(job_payload['image_disk_path']).suffix or '.png'
-                image_filename = f"{job_payload['title']}_{uuid4().hex[:8]}{orig_ext}"
+                image_filename = f"{safe_base}_{uuid4().hex[:8]}{orig_ext}"
 
                 try:
                     image_disk_path = Path(config.IMAGES_FOLDER) / 'tracks' / image_filename
@@ -168,6 +182,9 @@ def process_track_data(job_payload : dict):
                     logging.error(f"Error occurred while copying uploaded image: {e}", exc_info=True)
                     redis_client.hset(f"job:{job_id}", mapping={'status': 'error', 'error_message': 'Image copying failed (track_processing.py shutil.copy())'})
                     raise TrackProcessingError(f"Job {job_id} failed during image copying: {e}") from e
+
+            # Variantes WebP (cartes/détail) — best-effort, jamais bloquant.
+            generate_variants(image_disk_path)
 
             # ── Création Track en DB ──────────────────────────────────────────────
             selected_tags    = db.session.query(Tag).filter(Tag.id.in_(job_payload['tag_ids'])).all()

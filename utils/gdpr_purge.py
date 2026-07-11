@@ -11,8 +11,10 @@ Le job /purge-now (route admin uniquement) court-circuite le délai — utile en
 et pour les cas urgents (CNIL, plainte utilisateur).
 """
 
+import os
 import uuid
 import logging
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
@@ -20,10 +22,76 @@ logger = logging.getLogger(__name__)
 DELETION_DELAY_DAYS = 30
 
 
+def _safe_delete_pdf(filename: str, base_dir) -> None:
+    """
+    Supprime un PDF sur disque en garantissant qu'il reste confiné dans base_dir
+    (défense en profondeur contre un champ DB manipulé). No-op si absent/hors zone.
+    """
+    if not filename:
+        return
+    try:
+        base = Path(base_dir).resolve()
+        target = (base / filename).resolve()
+        if not target.is_relative_to(base):
+            logger.warning(f'[RGPD] Suppression PDF hors zone ignorée : {filename!r}')
+            return
+        if target.exists():
+            target.unlink()
+    except OSError as e:
+        logger.error(f'[RGPD] Échec suppression PDF {filename!r} : {e}')
+
+
+def _purge_related_pii(user, db) -> None:
+    """
+    Efface les PII de l'utilisateur disséminées hors de la table User :
+    contrats de tracks, contrats builder + parties, nom d'acheteur, et les PDF
+    correspondants sur disque. Conserve les lignes pour l'intégrité référentielle.
+    """
+    import config
+    from models import Purchase, Contract, UserContract
+
+    # ── Achats : nom d'acheteur + PDF contrat associé ────────────────────────
+    for purchase in db.session.query(Purchase).filter(Purchase.buyer_id == user.id).all():
+        purchase.buyer_name = 'Acheteur supprimé'
+        _safe_delete_pdf(purchase.contract_file, config.CONTRACTS_FOLDER)
+        purchase.contract_file = None
+
+    # ── Contrats de tracks : PII compositeur et/ou client + PDF ──────────────
+    contracts = db.session.query(Contract).filter(
+        (Contract.composer_id == user.id) | (Contract.client_id == user.id)
+    ).all()
+    for contract in contracts:
+        if contract.composer_id == user.id:
+            contract.composer_email   = None
+            contract.composer_address = None
+        if contract.client_id == user.id:
+            contract.client_email   = None
+            contract.client_address = None
+        _safe_delete_pdf(contract.contract_file, config.CONTRACTS_FOLDER)
+        contract.contract_file = None
+
+    # ── Contrats builder : parties (état civil, adresse, email) + PDF ─────────
+    builder_dir = config.CONTRACTS_FOLDER / 'builder'
+    for uc in db.session.query(UserContract).filter(UserContract.user_id == user.id).all():
+        for party in uc.parties:
+            party.first_name    = None
+            party.last_name     = None
+            party.date_of_birth = None
+            party.nationality   = None
+            party.pseudonym     = None
+            party.tax_id        = None
+            party.address       = None
+            party.email         = None
+            party.legal_rep     = None
+        _safe_delete_pdf(uc.pdf_file, builder_dir)
+        uc.pdf_file = None
+
+
 def anonymize_user(user, db) -> None:
     """
     Remplace toutes les PII par des valeurs anonymes et marque le compte 'deleted'.
     L'enregistrement est conservé pour l'intégrité référentielle (tracks, paiements).
+    Efface aussi les PII liées hors table User (contrats, parties, PDF disque).
     """
     token = uuid.uuid4().hex[:10]
 
@@ -44,11 +112,14 @@ def anonymize_user(user, db) -> None:
     user.youtube    = None
     user.soundcloud = None
 
+    # PII disséminées hors table User (contrats, parties, PDF)
+    _purge_related_pii(user, db)
+
     # Statut final
     user.account_status = 'deleted'
 
     db.session.commit()
-    logger.info(f'[RGPD] Compte #{user.id} anonymisé (purge RGPD).')
+    logger.info(f'[RGPD] Compte #{user.id} anonymisé (purge RGPD, PII liées incluses).')
 
 
 def run_gdpr_purge_job(app) -> None:

@@ -39,7 +39,7 @@
 
             <!-- Cover + infos ─────────────────────────────────────────────── -->
             <a [routerLink]="['/track', p.track?.id]" class="card-cover-link">
-              <img class="card-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
+              <img loading="lazy" decoding="async" class="card-cover" [src]="imgUrl(p.track?.image_file ?? null)" [alt]="p.track?.title ?? ''">
             </a>
 
             <div class="card-info">
@@ -53,7 +53,7 @@
               }
               <div class="card-meta">
                 <span class="fmt-badge" [class]="'fmt-' + p.format">{{ formatLabel(p.format) }}</span>
-                <span class="card-date"><i class="bi bi-calendar3"></i> {{ formatDate(p.created_at) }}</span>
+                <span class="card-date"><i class="bi bi-calendar3"></i> {{ (p.created_at | formatDate) }}</span>
               </div>
             </div>
 

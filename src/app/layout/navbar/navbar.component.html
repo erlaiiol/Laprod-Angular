@@ -76,12 +76,13 @@
     </div>
 
     <button class="navbar-toggler order-lg-2" type="button"
-            data-bs-toggle="collapse" data-bs-target="#navbarNav"
-            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            (click)="toggleMenu()"
+            aria-controls="navbarNav" [attr.aria-expanded]="menuOpen()" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse order-lg-3" id="navbarNav" (click)="onNavLinkClick($event)">
+    <div class="collapse navbar-collapse order-lg-3" id="navbarNav"
+         [class.show]="menuOpen()" (click)="onNavLinkClick($event)">
       <ul class="navbar-nav ms-auto">
 
         <li class="nav-item">
@@ -107,10 +108,12 @@
 
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button"
-             data-bs-toggle="dropdown" aria-expanded="false">
+             (click)="toggleDropdown('contracts', $event)"
+             [attr.aria-expanded]="openDropdown() === 'contracts'">
             <i class="bi bi-file-earmark-text"></i> Contrats
           </a>
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
+              [class.show]="openDropdown() === 'contracts'">
             <li>
               <a class="dropdown-item" [routerLink]="['/contract-builder']" routerLinkActive="active">
                 <i class="bi bi-pencil-square"></i> Créer un contrat
@@ -148,10 +151,16 @@
           <!-- Avatar dropdown — tout ce qui est "mon espace" -->
           <li class="nav-item dropdown">
             <a class="nav-link nav-user-toggle dropdown-toggle" href="#" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              <span class="nav-avatar">{{ userInitial() }}</span>
+               (click)="toggleDropdown('user', $event)"
+               [attr.aria-expanded]="openDropdown() === 'user'">
+              @if (avatarUrl(); as url) {
+                <img [src]="url" [alt]="username()" class="nav-avatar nav-avatar--img">
+              } @else {
+                <span class="nav-avatar">{{ userInitial() }}</span>
+              }
             </a>
-            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
+                [class.show]="openDropdown() === 'user'">
 
               @if (isBeatmaker()) {
                 <li>

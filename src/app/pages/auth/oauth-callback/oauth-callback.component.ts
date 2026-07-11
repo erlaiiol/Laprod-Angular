@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
@@ -9,6 +9,7 @@ import { take } from 'rxjs/internal/operators/take';
  * échange le code contre les JWT, puis navigue vers la bonne destination.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-oauth-callback',
   standalone: true,
   imports: [CommonModule],

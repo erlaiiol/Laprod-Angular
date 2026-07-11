@@ -8,9 +8,10 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
+from sqlalchemy import select
 
 from extensions import db, csrf
-from models import User, WalletTransaction
+from models import User, WalletTransaction, Wallet
 from utils.wallet_service import perform_withdrawal, process_pending_to_available, process_expirations
 from serializers import ok, err, wallet_transaction as ser_wallet_txn
 from utils.auth_helpers import require_user
@@ -32,12 +33,22 @@ def get_wallet(current_user):
             code='FORBIDDEN', status=403,
         )
 
-    wallet = current_user.get_or_create_wallet()
+    # S'assurer que le wallet existe, puis VERROUILLER sa ligne avant les
+    # transitions lazy (pending→available, expirations). Sans ce verrou, deux
+    # GET concurrents lisent les mêmes transactions non transitionées et
+    # double-comptent les soldes (lost update). Le verrou sérialise la section
+    # critique : le second GET attend le commit du premier puis relit des
+    # transactions déjà basculées → aucun double-comptage.
+    current_user.get_or_create_wallet()
+    wallet = db.session.execute(
+        select(Wallet).where(Wallet.user_id == current_user.id).with_for_update()
+    ).scalar_one()
 
-    transitioned = process_pending_to_available(wallet)
-    expired      = process_expirations(wallet)
-    if transitioned > 0 or expired > 0:
-        db.session.commit()
+    process_pending_to_available(wallet)
+    process_expirations(wallet)
+    # Commit systématique : persiste la création éventuelle du wallet et RELÂCHE
+    # le verrou de ligne (un commit sans modification reste peu coûteux).
+    db.session.commit()
 
     show_connect_alert = False
     if not current_user.stripe_onboarding_complete:

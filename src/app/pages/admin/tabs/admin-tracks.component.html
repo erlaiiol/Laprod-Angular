@@ -23,7 +23,7 @@
       <tbody>
         @for (t of tracks(); track t.id) {
           <tr>
-            <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+            <td><img loading="lazy" decoding="async" [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
             <td>
               {{ t.title }}
               @if (t.is_exclusive_sold) {
@@ -33,7 +33,7 @@
             <td>{{ t.composer?.username ?? '—' }}</td>
             <td>{{ t.bpm }} / {{ t.key }}</td>
             <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
-            <td>{{ fmtDate(t.created_at) }}</td>
+            <td>{{ (t.created_at | formatDate) }}</td>
             <td class="actions">
               @if (!t.is_approved) {
                 <button class="btn-success" (click)="approve(t)"><i class="bi bi-check-lg"></i> Approuver</button>
@@ -64,7 +64,7 @@
       <tbody>
         @for (t of tracks(); track t.id) {
           <tr class="exclusive-row">
-            <td><img [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
+            <td><img loading="lazy" decoding="async" [src]="imgUrl(t.image_file)" class="thumb" alt=""></td>
             <td>
               <span class="exclusive-tag"><i class="bi bi-star-fill"></i></span>
               {{ t.title }}
@@ -78,7 +78,7 @@
               }
             </td>
             <td>{{ t.price_mp3 ? (t.price_mp3 + '€') : '—' }}</td>
-            <td>{{ fmtDate(t.exclusive_sold_at) }}</td>
+            <td>{{ (t.exclusive_sold_at | formatDate) }}</td>
             <td class="actions">
               <button class="btn-edit" (click)="openEdit(t)"><i class="bi bi-pencil"></i></button>
               <button class="btn-danger" (click)="reject(t)"><i class="bi bi-trash"></i></button>

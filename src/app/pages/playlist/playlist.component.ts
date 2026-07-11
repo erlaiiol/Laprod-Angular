@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +14,7 @@ import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-playlist',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, TrackCardComponent],
@@ -28,7 +29,7 @@ export class PlaylistComponent implements OnInit {
 
   // ── État édition ────────────────────────────────────────────────────────────
   editMode         = signal(false);
-  editTitle        = '';
+  editTitle        = signal('');
   editImageFile    = signal<File | null>(null);
   editImagePreview = signal<string | null>(null);
   metaSaving       = signal(false);
@@ -99,7 +100,7 @@ export class PlaylistComponent implements OnInit {
   // ── Édition ─────────────────────────────────────────────────────────────────
 
   enterEditMode(): void {
-    this.editTitle = this.playlist()!.title;
+    this.editTitle.set(this.playlist()!.title);
     this.editMode.set(true);
     if (this.ownerTracks().length === 0) {
       this.tracksLoading.set(true);
@@ -131,7 +132,7 @@ export class PlaylistComponent implements OnInit {
   }
 
   saveMeta(): void {
-    const title = this.editTitle.trim();
+    const title = this.editTitle().trim();
     if (!title || this.metaSaving()) return;
     const pl = this.playlist()!;
     this.metaSaving.set(true);

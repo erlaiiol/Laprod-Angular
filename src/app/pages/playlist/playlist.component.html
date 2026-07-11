@@ -15,8 +15,8 @@
 
       <!-- ── Cover (avec picker en mode édition) ──────────────────────────── -->
       <div class="playlist-cover-wrap">
-        <img class="playlist-cover"
-             [src]="editImagePreview() ?? coverUrl(playlist()!.image_file)"
+        <img decoding="async" class="playlist-cover"
+             [src]="editImagePreview() ?? coverUrl(playlist()!.image_thumb ?? playlist()!.image_file)"
              onerror="this.src='assets/placeholders/placeholder-track.png'"
              alt="">
         @if (editMode()) {
@@ -49,7 +49,7 @@
         @if (isOwner()) {
           <div class="owner-actions">
             @if (editMode()) {
-              <button class="btn-save" (click)="saveMeta()" [disabled]="!editTitle.trim() || metaSaving()">
+              <button class="btn-save" (click)="saveMeta()" [disabled]="!editTitle().trim() || metaSaving()">
                 @if (metaSaving()) { <i class="bi bi-arrow-repeat spin"></i> } @else { <i class="bi bi-check-lg"></i> Sauvegarder }
               </button>
               <button class="btn-cancel" (click)="cancelEdit()">Annuler</button>
@@ -91,8 +91,8 @@
                    [class.beat-mini-card--in]="inPlaylist || pending"
                    (click)="!inPlaylist && !pending && addTrack(t.id)">
                 <div class="beat-mini-card__img-wrap">
-                  <img class="beat-mini-card__img"
-                       [src]="coverUrl(t.image_file)"
+                  <img loading="lazy" decoding="async" class="beat-mini-card__img"
+                       [src]="coverUrl(t.image_thumb ?? t.image_file)"
                        onerror="this.src='assets/placeholders/placeholder-track.png'"
                        [alt]="t.title">
                   <div class="beat-mini-card__overlay">

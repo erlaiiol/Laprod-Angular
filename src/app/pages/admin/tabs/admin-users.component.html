@@ -15,11 +15,11 @@
     <tbody>
       @for (u of users(); track u.id) {
         <tr [class.disabled]="u.account_status !== 'active'">
-          <td><img [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
+          <td><img loading="lazy" decoding="async" [src]="imgUrl(u.profile_image)" class="thumb round" alt=""></td>
           <td>
             {{ u.username }}
             @if (u.is_premium) {
-              <span class="badge-premium" [title]="'Plan ' + planLabel(u.subscription_plan) + ' — expire le ' + fmtDate(u.premium_expires_at)">
+              <span class="badge-premium" [title]="'Plan ' + planLabel(u.subscription_plan) + ' — expire le ' + (u.premium_expires_at | formatDate)">
                 {{ u.subscription_plan === 'pro' ? '★ Pro' : '★' }}
               </span>
             }
@@ -224,7 +224,7 @@
           @if (planUser()!.premium_expires_at) {
             <div class="plan-current-row">
               <span class="plan-current-label"><i class="bi bi-clock"></i> Expire le</span>
-              <span>{{ fmtDate(planUser()!.premium_expires_at) }}
+              <span>{{ (planUser()!.premium_expires_at | formatDate) }}
                 @if (daysRemaining(planUser()!.premium_expires_at) !== null) {
                   &nbsp;<em class="plan-days-left">({{ daysRemaining(planUser()!.premium_expires_at) }} j restants)</em>
                 }

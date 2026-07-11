@@ -1,16 +1,17 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ContractBuilderService, ContractSummary, ContractType } from '../../services/contract-builder.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
-import { PremiumLockComponent } from '../../components/premium-lock/premium-lock.component';
+import { FormatDatePipe } from '../../pipes/format-date.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contract-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, PremiumLockComponent],
+  imports: [CommonModule, FormsModule, RouterModule, FormatDatePipe],
   templateUrl: './contract-builder.component.html',
   styleUrl: './contract-builder.component.scss',
 })
@@ -97,7 +98,4 @@ export class ContractBuilderComponent implements OnInit {
     this.router.navigate(['/contract-builder', id]);
   }
 
-  fmtDate(d: string): string {
-    return new Date(d).toLocaleDateString('fr-FR');
-  }
 }

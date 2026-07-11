@@ -26,7 +26,7 @@
           <td>{{ t.engineer?.username ?? '—' }}</td>
           <td>{{ t.total_price | number:'1.2-2' }}€</td>
           <td><span class="status-chip" [class.active]="t.status === 'completed'">{{ t.status }}</span></td>
-          <td>{{ fmtDate(t.created_at) }}</td>
+          <td>{{ (t.created_at | formatDate) }}</td>
         </tr>
       }
     </tbody>

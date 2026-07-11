@@ -27,6 +27,8 @@ Usage dans un blueprint :
 from flask import jsonify
 from sqlalchemy import func
 
+from utils.image_variants import variant_or_original
+
 
 # =============================================================================
 # Response envelope helpers
@@ -68,7 +70,9 @@ def user_ref(u) -> dict | None:
     return {
         'id':            u.id,
         'username':      u.username,
-        'profile_image': u.profile_picture_url or u.profile_image,
+        # Avatar affiché petit partout → variante thumb si dispo. Les URLs
+        # externes (profile_picture_url OAuth) passent au travers inchangées.
+        'profile_image': variant_or_original(u.profile_picture_url or u.profile_image, 'thumb'),
     }
 
 
@@ -187,6 +191,10 @@ def track_card(t, playlist_counts: dict | None = None, playlist_images: dict | N
         'key':         t.key,
         'style':       t.style,
         'image_file':  t.image_file,
+        # Variantes WebP redimensionnées — fallback : l'original tant que la
+        # migration scripts/generate_image_variants.py n'a pas tourné.
+        'image_thumb': variant_or_original(t.image_file, 'thumb'),
+        'image_large': variant_or_original(t.image_file, 'large'),
         'stream_url':      f'/api/stream/tracks/{t.id}/preview',
         'full_stream_url': f'/api/stream/tracks/{t.id}/full' if t.file_mp3 else None,
         'price_mp3':   float(t.price_mp3)   if t.price_mp3   else None,
@@ -199,7 +207,7 @@ def track_card(t, playlist_counts: dict | None = None, playlist_images: dict | N
         'similar_artists': [similar_artist(a) for a in (t.similar_artists or [])],
         # Données playlist (champ toujours présent, 0 / None si non renseigné)
         'playlist_count':       (playlist_counts or {}).get(t.id, 0),
-        'first_playlist_image': (playlist_images or {}).get(t.id),
+        'first_playlist_image': variant_or_original((playlist_images or {}).get(t.id), 'thumb'),
     }
 
 

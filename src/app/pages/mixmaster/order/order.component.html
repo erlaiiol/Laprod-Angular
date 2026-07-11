@@ -13,7 +13,7 @@
 
       <!-- ── Sidebar ingénieur ──────────────────────────────────────────── -->
       <aside class="eng-sidebar">
-        <img class="eng-avatar" [src]="imgUrl(engineer()!.profile_image)" [alt]="engineer()!.username">
+        <img loading="lazy" decoding="async" class="eng-avatar" [src]="imgUrl(engineer()!.profile_image)" [alt]="engineer()!.username">
         <h2 class="eng-name">{{ engineer()!.username }}</h2>
         <p class="eng-bio">{{ engineer()!.mixmaster_bio || '' }}</p>
 

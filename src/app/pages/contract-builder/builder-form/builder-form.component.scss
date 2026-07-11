@@ -13,19 +13,57 @@
   position: relative;
   display: flex; flex-direction: column; height: calc(100vh - 64px); overflow: hidden;
   color: v.$text-primary;
+}
 
-  &.page-locked {
-    pointer-events: none;
-    user-select: none;
-    filter: blur(3px);
-    opacity: 0.5;
+// ── Bannière lecture seule (invités & non-Pro) ─────────────────────────────────
+// Le contenu reste pleinement lisible ; seuls les contrôles sont désactivés
+// (via l'attribut disabled natif) et les actions clés se transforment en CTA.
 
-    app-premium-lock {
-      pointer-events: all;
-      filter: none;
-      opacity: 1;
-    }
+.bf-locked-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1.5rem;
+  background: color-mix(in srgb, v.$tag-orange 10%, v.$bg-surface);
+  border-bottom: 1px solid rgba(v.$tag-orange, 0.35);
+  flex-shrink: 0;
+}
+
+.bf-locked-banner-text {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.82rem; color: v.$text-secondary;
+  i { color: v.$tag-orange; font-size: 1rem; flex-shrink: 0; }
+}
+
+.bf-locked-banner-cta {
+  display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  background: v.$tag-orange-dark; border: 1px solid v.$tag-orange; color: #fff;
+  border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.82rem; font-weight: 700;
+  text-decoration: none; transition: background 0.15s;
+  &:hover { background: v.$tag-orange; }
+}
+
+// ── Boutons transformés en CTA premium ─────────────────────────────────────────
+
+.bf-qs-banner-btn--locked,
+.bf-qs-card-btn--locked,
+.bf-fill-card-btn--locked {
+  background: v.$tag-orange-dark !important; border-color: v.$tag-orange !important;
+  color: #fff !important;
+  &:hover { background: v.$tag-orange !important; }
+}
+
+.bf-preset-card.locked {
+  border-style: dashed;
+  .bf-preset-badge.badge-locked {
+    background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; border: 1px solid rgba(v.$tag-orange, 0.4);
+    display: inline-flex; align-items: center; gap: 0.25rem;
   }
+}
+
+.btn-secondary--locked,
+.btn-primary--locked {
+  background: v.$tag-orange-dark; border-color: v.$tag-orange; color: #fff;
+  &:hover { background: v.$tag-orange; color: #fff; }
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────

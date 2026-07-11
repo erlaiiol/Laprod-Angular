@@ -111,7 +111,7 @@ def ping():
 
 
 @auth_api_bp.route('/login', methods=['POST'])
-@limiter.limit('25 per minute')
+@limiter.limit('10 per minute;60 per hour')
 @csrf.exempt
 def login():
 
@@ -128,7 +128,9 @@ def login():
     if not identifier or not password:
         return err('Identifiant ou mot de passe requis', level='warning')
 
-    if len(password) > 50:
+    # Borne alignée sur l'inscription (≤200) : sans ça, un compte dont le mot de
+    # passe fait 51–200 caractères ne pourrait jamais se reconnecter.
+    if len(password) > 200:
         return err('Identifiants incorrects', level='warning', status=401)
 
     user = db.session.query(User).filter(

@@ -100,8 +100,8 @@
             @for (txn of transactions(); track txn.id) {
               <tr>
                 <td class="td-date">
-                  <span>{{ formatDate(txn.created_at) }}</span>
-                  <small>{{ formatTime(txn.created_at) }}</small>
+                  <span>{{ (txn.created_at | formatDate) }}</span>
+                  <small>{{ (txn.created_at | formatDate:'time') }}</small>
                 </td>
                 <td>
                   <span class="txn-badge" [class]="'txn-' + txn.type">
@@ -150,7 +150,7 @@
                 </td>
                 <td class="td-muted">
                   @if (txn.available_at && txn.status === 'pending') {
-                    {{ formatDate(txn.available_at) }}
+                    {{ (txn.available_at | formatDate) }}
                   } @else {
                     —
                   }

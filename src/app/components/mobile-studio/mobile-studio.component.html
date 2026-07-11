@@ -18,7 +18,7 @@
       <div class="ms-header">
         <div class="ms-track-info">
           @if (track.image_file) {
-            <img [src]="env.apiUrl + '/db_assets/' + track.image_file"
+            <img loading="lazy" decoding="async" [src]="env.apiUrl + '/db_assets/' + track.image_file"
                  class="ms-cover" alt="">
           } @else {
             <div class="ms-cover ms-cover--placeholder">

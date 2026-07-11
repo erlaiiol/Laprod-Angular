@@ -3,16 +3,6 @@
 .cb-list-page {
   position: relative;
   max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
-
-  &.page-locked {
-    pointer-events: none;
-    user-select: none;
-
-    app-premium-lock {
-      pointer-events: all;
-    }
-  }
-
 }
 
 // ── Guest banner ───────────────────────────────────────────────────────────────
@@ -55,6 +45,13 @@
 
 .cb-list-subtitle {
   color: v.$text-secondary; font-size: 0.9rem; margin: 0;
+}
+
+.cb-demo-link {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  margin-top: 0.75rem; font-size: 0.85rem; font-weight: 600;
+  color: v.$tag-violet-light; text-decoration: none;
+  &:hover { text-decoration: underline; }
 }
 
 // ── New contract card ──────────────────────────────────────────────────────────

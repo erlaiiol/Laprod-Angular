@@ -13,7 +13,7 @@
 
     <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────── -->
     <aside class="contract-sidebar">
-      <img class="sidebar-cover"
+      <img loading="lazy" decoding="async" class="sidebar-cover"
            [src]="getImageUrl(track()!.image_file)"
            [alt]="track()!.title"
            onerror="this.src='assets/placeholders/placeholder-track.png'">

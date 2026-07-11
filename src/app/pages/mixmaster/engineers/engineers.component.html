@@ -42,7 +42,7 @@
 
             <!-- Avatar + nom -->
             <div class="eng-top">
-              <img class="eng-avatar" [src]="imgUrl(eng.profile_image)" [alt]="eng.username">
+              <img loading="lazy" decoding="async" class="eng-avatar" [src]="imgUrl(eng.profile_image)" [alt]="eng.username">
               <div class="eng-identity">
                 <span class="eng-name">{{ eng.username }}</span>
                 <span class="badge-eng-mix"><i class="bi bi-patch-check-fill"></i> Certifié Mix</span>

@@ -81,7 +81,7 @@
         <div class="tracks-list">
           @for (track of data()!.tracks; track track.id) {
             <div class="track-row">
-              <img class="track-cover" [src]="imgUrl(track.image_file)" [alt]="track.title"
+              <img loading="lazy" decoding="async" class="track-cover" [src]="imgUrl(track.image_file)" [alt]="track.title"
                    onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
               <div class="track-info">
                 <a [routerLink]="['/track', track.id]" class="track-title">{{ track.title }}</a>
@@ -170,14 +170,14 @@
               @for (sale of data()!.sales; track sale.id) {
                 <tr>
                   <td class="td-track">
-                    <img [src]="imgUrl(sale.track_image)" class="mini-cover" [alt]="sale.track_title ?? ''">
+                    <img loading="lazy" decoding="async" [src]="imgUrl(sale.track_image)" class="mini-cover" [alt]="sale.track_title ?? ''">
                     <span>{{ sale.track_title ?? '—' }}</span>
                   </td>
                   <td>{{ sale.buyer_name }}</td>
                   <td><span class="fmt-badge" [class]="'fmt-' + sale.format">{{ formatLabel(sale.format) }}</span></td>
                   <td class="text-right">{{ sale.price_paid.toFixed(2) }}€</td>
                   <td class="text-right text-green">+{{ sale.composer_revenue.toFixed(2) }}€</td>
-                  <td class="td-muted">{{ formatDate(sale.created_at) }}</td>
+                  <td class="td-muted">{{ (sale.created_at | formatDate) }}</td>
                 </tr>
               }
             </tbody>
@@ -203,7 +203,7 @@
           <div class="create-form">
             <label class="create-image-picker" [class.has-image]="newImagePreview()">
               @if (newImagePreview()) {
-                <img [src]="newImagePreview()" alt="aperçu" />
+                <img loading="lazy" decoding="async" [src]="newImagePreview()" alt="aperçu" />
               } @else {
                 <i class="bi bi-camera-fill"></i>
                 <span>Image</span>
@@ -215,7 +215,7 @@
                      (keydown.enter)="createPlaylist()">
               <div class="create-actions">
                 <button class="btn-primary btn-sm" (click)="createPlaylist()"
-                        [disabled]="!newTitle.trim() || creating()">
+                        [disabled]="!newTitle().trim() || creating()">
                   @if (creating()) { <i class="bi bi-arrow-repeat spin"></i> } @else { Créer }
                 </button>
                 <button class="btn-ghost btn-sm" (click)="cancelCreate()">Annuler</button>
@@ -237,8 +237,8 @@
               <div class="pl-dash-card">
                 <div class="pl-cover-wrap">
                   <a [routerLink]="['/playlist', pl.id]">
-                    <img class="pl-dash-img"
-                         [src]="imgUrl(pl.image_file)"
+                    <img loading="lazy" decoding="async" class="pl-dash-img"
+                         [src]="imgUrl(pl.image_thumb ?? pl.image_file)"
                          onerror="this.src='assets/placeholders/placeholder-track.png'"
                          alt="">
                   </a>
@@ -258,7 +258,7 @@
                              (keydown.enter)="saveRename(pl)"
                              (keydown.escape)="cancelRename()">
                       <button class="btn-primary btn-sm" (click)="saveRename(pl)"
-                              [disabled]="!editTitle.trim() || renameSaving()">
+                              [disabled]="!editTitle().trim() || renameSaving()">
                         @if (renameSaving()) { <i class="bi bi-arrow-repeat spin"></i> } @else { OK }
                       </button>
                       <button class="btn-ghost btn-sm" (click)="cancelRename()">✕</button>
@@ -348,7 +348,7 @@
                 @if (l.territory) {
                   <span class="license-territory"><i class="bi bi-geo-alt"></i> {{ l.territory }}</span>
                 }
-                <span class="sold-license-date">{{ formatDate(l.created_at) }}</span>
+                <span class="sold-license-date">{{ (l.created_at | formatDate) }}</span>
               </div>
               <app-license-badge
                 [licenseStatus]="l.license_status"
@@ -428,7 +428,7 @@
                   @for (t of analyticsData()!.per_track; track t.track_id) {
                     <tr>
                       <td class="track-cell">
-                        <img class="track-thumb"
+                        <img loading="lazy" decoding="async" class="track-thumb"
                              [src]="t.image_file ? (apiUrl + '/db_assets/' + t.image_file) : 'assets/placeholders/placeholder-track.png'"
                              alt="">
                         <span>{{ t.title }}</span>

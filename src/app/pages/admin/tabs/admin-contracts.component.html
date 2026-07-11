@@ -28,7 +28,7 @@
           <td>{{ c.price | number:'1.2-2' }}€</td>
           <td><span class="badge" [class.exclusive]="c.is_exclusive">{{ c.is_exclusive ? 'Exclusif' : 'Non-exclusif' }}</span></td>
           <td>{{ c.format ?? '—' }}</td>
-          <td>{{ fmtDate(c.created_at) }}</td>
+          <td>{{ (c.created_at | formatDate) }}</td>
         </tr>
       }
     </tbody>

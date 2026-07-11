@@ -1,13 +1,15 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminContract, UserSearchResult, TrackSearchResult } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
+import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-contracts',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FormatDatePipe],
   templateUrl: './admin-contracts.component.html',
   styleUrl: '../admin.component.scss',
 })
@@ -137,8 +139,4 @@ export class AdminContractsComponent implements OnInit {
     });
   }
 
-  fmtDate(d: string | null): string {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('fr-FR');
-  }
 }

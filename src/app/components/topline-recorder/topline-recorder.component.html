@@ -1,8 +1,12 @@
 <!-- Sur mobile natif → interface premium dédiée.
      Les guests peuvent enregistrer et télécharger ; la connexion est demandée
      uniquement au moment de publier (showGuestGate dans MobileStudioComponent). -->
-@if (isNative) {
-  <app-mobile-studio [track]="track" (closed)="closed.emit()" />
+@defer (when isNative) {
+  <!-- @defer : le studio (1600 lignes + soundtouch/pitchy/lamejs) reste dans un
+       chunk séparé jamais téléchargé sur le web, où isNative est toujours false. -->
+  @if (isNative) {
+    <app-mobile-studio [track]="track" (closed)="closed.emit()" />
+  }
 }
 
 <!-- Sur web → interface modale existante -->

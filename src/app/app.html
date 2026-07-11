@@ -11,6 +11,14 @@
 @if (!player.studioOpen()) {
   <app-player></app-player>
 }
-<app-userflow></app-userflow>
-<app-youtube-bubble></app-youtube-bubble>
-<app-sidebar-fabs></app-sidebar-fabs>
+<!-- Widgets non critiques : instanciés après le premier rendu (requestIdleCallback),
+     leur code sort du bundle initial. -->
+@defer (on idle) {
+  <app-userflow></app-userflow>
+}
+@defer (on idle) {
+  <app-youtube-bubble></app-youtube-bubble>
+}
+@defer (on idle) {
+  <app-sidebar-fabs></app-sidebar-fabs>
+}
