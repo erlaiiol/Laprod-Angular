@@ -225,3 +225,84 @@ class TestRunContractExpiryUpdate:
         db.session.refresh(track)
         assert track.is_exclusive_sold is False
         assert track.exclusive_buyer_id is None
+
+
+# ── run_premium_expiry_downgrade ──────────────────────────────────────────────
+
+class TestRunPremiumExpiryDowngrade:
+
+    def _make_lapsed_user(self, db, bound_factories, plan='pro', expires_in_days=-1):
+        from tests.factories.user_factory import UserFactory
+        u = UserFactory(
+            subscription_plan=plan,
+            premium_since=datetime.now() - timedelta(days=60),
+            premium_expires_at=datetime.now() + timedelta(days=expires_in_days),
+        )
+        db.session.commit()
+        return u
+
+    def test_downgrades_lapsed_pro_user_to_free(self, app, db, bound_factories):
+        user = self._make_lapsed_user(db, bound_factories, plan='pro', expires_in_days=-1)
+
+        with patch('utils.notification_service.notify_plan_changed'), \
+             patch('utils.email_service.send_plan_changed_email'):
+            from utils.scheduled_tasks import run_premium_expiry_downgrade
+            run_premium_expiry_downgrade(app)
+
+        db.session.refresh(user)
+        assert user.subscription_plan == 'free'
+
+    def test_notifies_and_emails_the_downgraded_user(self, app, db, bound_factories):
+        user = self._make_lapsed_user(db, bound_factories, plan='amateur', expires_in_days=-3)
+
+        notified_ids: list[int] = []
+        emailed_ids: list[int] = []
+
+        def _capture_notif(u, new_plan, old_plan, **kwargs):
+            notified_ids.append(u.id)
+            assert new_plan == 'free'
+            assert old_plan == 'amateur'
+
+        def _capture_email(u, new_plan, **kwargs):
+            emailed_ids.append(u.id)
+
+        with patch('utils.notification_service.notify_plan_changed', side_effect=_capture_notif), \
+             patch('utils.email_service.send_plan_changed_email', side_effect=_capture_email):
+            from utils.scheduled_tasks import run_premium_expiry_downgrade
+            run_premium_expiry_downgrade(app)
+
+        assert user.id in notified_ids
+        assert user.id in emailed_ids
+
+    def test_does_not_touch_active_premium_user(self, app, db, bound_factories):
+        active_user = self._make_lapsed_user(db, bound_factories, plan='pro', expires_in_days=10)
+
+        with patch('utils.notification_service.notify_plan_changed') as mock_notif, \
+             patch('utils.email_service.send_plan_changed_email'):
+            from utils.scheduled_tasks import run_premium_expiry_downgrade
+            run_premium_expiry_downgrade(app)
+            mock_notif.assert_not_called()
+
+        db.session.refresh(active_user)
+        assert active_user.subscription_plan == 'pro'
+
+    def test_is_idempotent_across_consecutive_runs(self, app, db, bound_factories):
+        self._make_lapsed_user(db, bound_factories, plan='pro', expires_in_days=-1)
+
+        notified_ids: list[int] = []
+
+        def _capture(u, new_plan, old_plan, **kwargs):
+            notified_ids.append(u.id)
+
+        with patch('utils.notification_service.notify_plan_changed', side_effect=_capture), \
+             patch('utils.email_service.send_plan_changed_email'):
+            from utils.scheduled_tasks import run_premium_expiry_downgrade
+            run_premium_expiry_downgrade(app)
+            first_run_count = len(notified_ids)
+            run_premium_expiry_downgrade(app)
+            second_run_count = len(notified_ids)
+
+        # Une fois passé à 'free', l'utilisateur ne matche plus la requête :
+        # aucune notification supplémentaire au second run.
+        assert first_run_count == 1
+        assert second_run_count == first_run_count

@@ -20,6 +20,7 @@ const mockUser: User = {
     is_artist: false,
     is_mixmaster_engineer: false,
     is_certified_producer_arranger: false,
+    mixmaster_sample_submitted: false,
   },
   user_type_selected: true,
   email_verified: true,

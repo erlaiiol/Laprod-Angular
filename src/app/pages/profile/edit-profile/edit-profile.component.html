@@ -20,6 +20,15 @@
       </div>
     }
 
+    <!-- ── Banner preview mix engineer non soumise ───────────────────────────── -->
+    @if (auth.mixSamplePending()) {
+      <div class="stripe-setup-banner">
+        <i class="bi bi-upload"></i>
+        <span>Vous n'avez pas encore soumis votre preview de mix engineer — votre profil n'est pas visible par les artistes.</span>
+        <a routerLink="/submit-sample" class="stripe-setup-link">Soumettre →</a>
+      </div>
+    }
+
     <!-- ── Avatar ─────────────────────────────────────────────────────────── -->
     <div class="avatar-section">
       <div class="avatar-preview">

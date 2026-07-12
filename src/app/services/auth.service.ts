@@ -36,6 +36,7 @@ export interface User {
       is_artist:                      boolean;
       is_mixmaster_engineer:          boolean;
       is_certified_producer_arranger: boolean;
+      mixmaster_sample_submitted:     boolean;
     },
     user_type_selected:  boolean,
     email_verified:      boolean,
@@ -162,6 +163,11 @@ export class AuthService {
   readonly isBeatmaker = computed(() => this._currentUser()?.roles?.is_beatmaker || false);
   readonly isMixEngineer = computed(() => this._currentUser()?.roles?.is_mix_engineer || false);
   readonly isArtist = computed(() => this._currentUser()?.roles?.is_artist || false);
+
+  readonly mixSamplePending = computed(() =>
+    this._currentUser()?.roles?.is_mix_engineer === true &&
+    this._currentUser()?.roles?.mixmaster_sample_submitted === false
+  );
 
   readonly isPremium = computed(() => {
     const u = this._currentUser();

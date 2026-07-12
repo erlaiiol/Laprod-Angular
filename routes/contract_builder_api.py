@@ -379,6 +379,10 @@ def generate_contract(contract_id):
 
 
 # ── GET /api/contract-builder/contracts/<id>/download ──────────────────────────
+# Pas de re-check is_pro ici (contrairement à update/generate) : télécharger un PDF
+# déjà généré n'est pas une action d'édition, et l'utilisateur y avait droit au
+# moment de la génération. Un downgrade ultérieur ne doit pas lui bloquer l'accès
+# à un livrable déjà produit.
 
 @contract_builder_api_bp.route('/contracts/<int:contract_id>/download', methods=['GET'])
 @jwt_required()

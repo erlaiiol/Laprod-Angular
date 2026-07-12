@@ -394,6 +394,22 @@ details.filter-accordion[open] .filter-accordion-arrow {
   line-height: 1;
 }
 
+.role-pending-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  margin-left: 0.4rem;
+  background: v.$primary;
+  color: v.$white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: v.$radius-pill;
+  padding: 0 3px;
+  line-height: 1;
+}
+
 // ── Avatar utilisateur ─────────────────────────────────────────────────────────
 
 .nav-user-toggle {

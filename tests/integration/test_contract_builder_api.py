@@ -1,8 +1,9 @@
 """
 Tests d'intégration — routes/contract_builder_api.py
 
-Requiert un utilisateur authentifié via JWT.
-Les routes utilisent @jwt_required() et récupèrent le user par son ID JWT.
+Toutes les routes requièrent un utilisateur authentifié via JWT et récupèrent
+le user par son ID JWT, sauf GET /template qui est public (aucune donnée
+utilisateur, consultable pour la démo /contract-builder/demo côté front).
 """
 
 import json
@@ -13,9 +14,14 @@ import pytest
 
 class TestTemplate:
 
-    def test_template_requires_authentication(self, client):
+    def test_template_is_public(self, client):
+        """Public depuis l'ajout de la démo /contract-builder/demo : aucune donnée
+        utilisateur dans le template, consultable sans authentification."""
         resp = client.get('/api/contract-builder/template')
-        assert resp.status_code == 401
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data['success'] is True
+        assert 'groups' in data['data']
 
     def test_authenticated_user_gets_template(self, client, auth_headers, db):
         """La réponse doit contenir une liste de groupes (même vide sans seed)."""
@@ -182,6 +188,30 @@ class TestUpdateContract:
         db.session.delete(contract)
         db.session.commit()
 
+    def test_non_pro_owner_cannot_update_contract(self, client, auth_headers, user, db):
+        """Le propriétaire perd le droit d'édition dès qu'il n'est plus Pro (ex: downgrade
+        après création du brouillon) — vérifié à chaque appel, pas seulement à la création."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Brouillon créé pendant l\'abonnement Pro',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        user.subscription_plan = 'free'
+        db.session.commit()
+
+        resp = client.put(
+            f'/api/contract-builder/contracts/{contract.id}',
+            json={'title': 'Tentative après downgrade', 'parties': [], 'values': []},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 403
+
+        db.session.delete(contract)
+        db.session.commit()
+
 
 # ── GET /api/contract-builder/contracts/<id> ──────────────────────────────────
 
@@ -214,6 +244,33 @@ class TestGetContractDetail:
         assert detail['title'] == 'Détail contrat test'
         assert 'parties' in detail
         assert 'values' in detail
+        assert detail['can_edit'] is True  # user (fixture) est Pro
+
+        db.session.delete(contract)
+        db.session.commit()
+
+    def test_can_edit_false_for_non_pro_owner(self, client, auth_headers, user, db):
+        """Un propriétaire non-Pro garde l'accès en lecture à son brouillon (ex: après
+        downgrade) mais can_edit doit refléter qu'il ne peut plus le modifier — c'est ce
+        flag que le front utilise pour verrouiller l'UI (pas un simple statut local)."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Brouillon après downgrade',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        user.subscription_plan = 'free'
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/contract-builder/contracts/{contract.id}',
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200  # toujours consultable
+        detail = json.loads(resp.data)['data']['contract']
+        assert detail['can_edit'] is False
 
         db.session.delete(contract)
         db.session.commit()
@@ -232,6 +289,55 @@ class TestGetContractDetail:
 
         resp = client.get(
             f'/api/contract-builder/contracts/{contract.id}',
+            headers=admin_headers,
+        )
+        assert resp.status_code in (403, 404)
+
+        db.session.delete(contract)
+        db.session.commit()
+
+
+# ── POST /api/contract-builder/contracts/<id>/generate ────────────────────────
+
+class TestGenerateContract:
+
+    def test_non_pro_owner_cannot_generate_pdf(self, client, auth_headers, user, db):
+        """Comme pour update : la génération PDF revérifie is_pro à chaque appel,
+        pas seulement à la création du brouillon."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Brouillon prêt à générer',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        user.subscription_plan = 'free'
+        db.session.commit()
+
+        resp = client.post(
+            f'/api/contract-builder/contracts/{contract.id}/generate',
+            headers=auth_headers,
+        )
+        assert resp.status_code == 403
+
+        db.session.delete(contract)
+        db.session.commit()
+
+    def test_other_user_cannot_generate_pdf(self, client, admin_headers, user, db):
+        """Un autre utilisateur ne peut pas générer le PDF du contrat d'autrui."""
+        from models import UserContract, UserContractStatus
+
+        contract = UserContract(
+            user_id=user.id,
+            title='Contrat privé',
+            status=UserContractStatus.draft,
+        )
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.post(
+            f'/api/contract-builder/contracts/{contract.id}/generate',
             headers=admin_headers,
         )
         assert resp.status_code in (403, 404)

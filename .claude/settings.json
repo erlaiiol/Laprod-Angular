@@ -88,7 +88,28 @@
       "Bash(dig +short laprod.net A laprod.net AAAA www.laprod.net A)",
       "Bash(curl -s -D - -o /tmp/laprod_v2.html --resolve laprod.net:443:51.77.192.230 --http1.1 \"https://laprod.net/\")",
       "Bash(curl -s -D - -o /dev/null -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15\" \"https://laprod.net/\")",
-      "Bash(/Users/eliott/Documents/Dev/Laprod-Angular/.venv/bin/python -c \"import pytest; print\\(pytest.__version__\\)\")"
+      "Bash(/Users/eliott/Documents/Dev/Laprod-Angular/.venv/bin/python -c \"import pytest; print\\(pytest.__version__\\)\")",
+      "Bash(grep -n '\\\\$warning\\\\|\\\\$primary\\\\|\\\\$white\\\\|\\\\$radius' /Users/eliott/Documents/Dev/Laprod-Angular/src/styles/_variables.scss)",
+      "Bash(grep -n '\\\\$text-primary\\\\|\\\\$text-secondary' /Users/eliott/Documents/Dev/Laprod-Angular/src/styles/_variables.scss)",
+      "Bash(python3 -c ' *)",
+      "Bash(zsh -lc \"which node ng\")",
+      "Bash(cat > *)",
+      "Bash(python3 -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['scripts/backfill_lapsed_premium_plan.py','utils/scheduled_tasks.py','extensions.py','routes/contract_builder_api.py']]\")",
+      "Bash(.venv/bin/pytest tests/ -x --tb=short -q)",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node ~/.nvm/versions/node/v24.15.0/bin/ng test --watch=false --browsers=ChromeHeadless)",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node ~/.nvm/versions/node/v24.15.0/bin/vitest run --reporter=verbose)",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/vitest run --reporter=verbose)",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/vitest run src/app/layout/navbar/navbar.component.spec.ts src/app/pages/upload-track/upload-track.component.spec.ts src/app/services/auth.spec.ts --reporter=verbose)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); t=d['projects']['Laprod-Angular']['architect'].get\\('test',{}\\); print\\(json.dumps\\(t, indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('angular.json'\\)\\); print\\(list\\(d['projects'].keys\\(\\)\\)\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('angular.json'\\)\\); proj=list\\(d['projects'].values\\(\\)\\)[0]; print\\(json.dumps\\(proj.get\\('architect',{}\\).get\\('test',{}\\), indent=2\\)\\)\")",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false)",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false --include=\"**/navbar.component.spec.ts,**/upload-track.component.spec.ts,**/auth.spec.ts,**/scheduled_tasks*,**/contract-analyzer*,**/contract-builder.component.spec.ts\")",
+      "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false --reporter=verbose)",
+      "Bash(.venv/bin/pytest tests/integration/test_scheduled_tasks.py -v)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

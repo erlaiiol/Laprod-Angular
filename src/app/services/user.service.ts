@@ -41,6 +41,7 @@ export interface UserProfile {
     is_mix_engineer:                boolean;
     is_mixmaster_engineer:          boolean;
     is_certified_producer_arranger: boolean;
+    mixmaster_sample_submitted:     boolean;
   };
   created_at: string;
   tracks:     UserTrack[];

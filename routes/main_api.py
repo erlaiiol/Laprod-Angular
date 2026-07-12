@@ -214,12 +214,21 @@ def edit_profile(current_user):
         current_user.profile_image       = f"images/profiles/{filename}"
         current_user.profile_picture_url = None
 
+    if newly_mix_engineer:
+        notification_service.notify_mix_sample_pending(current_user.id)
+
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'edit_profile error: {e}', exc_info=True)
         return err('Erreur serveur.', status=500)
+
+    if newly_mix_engineer:
+        try:
+            email_service.send_mix_sample_pending_email(current_user)
+        except Exception as e:
+            current_app.logger.error(f"Erreur email mix_sample_pending user #{current_user.id}: {e}")
 
     next_step = 'submit-sample' if newly_mix_engineer and not current_user.mixmaster_sample_submitted else None
 
@@ -241,6 +250,7 @@ def edit_profile(current_user):
                 'is_mix_engineer':                current_user.is_mix_engineer,
                 'is_mixmaster_engineer':          current_user.is_mixmaster_engineer,
                 'is_certified_producer_arranger': getattr(current_user, 'is_certified_producer_arranger', False),
+                'mixmaster_sample_submitted':     current_user.mixmaster_sample_submitted,
             },
         },
         'next': next_step,

@@ -14,10 +14,11 @@ import { UserflowComponent } from './components/userflow/userflow.component';
 import { NativeShellService } from './services/native-shell.service';
 import { YoutubeBubbleComponent } from './components/ui/youtube-bubble/youtube-bubble.component';
 import { SidebarFabsComponent } from './components/ui/sidebar-fabs/sidebar-fabs.component';
+import { MixSampleBannerComponent } from './components/mix-sample-banner/mix-sample-banner.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent, YoutubeBubbleComponent, SidebarFabsComponent],
+  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent, YoutubeBubbleComponent, SidebarFabsComponent, MixSampleBannerComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

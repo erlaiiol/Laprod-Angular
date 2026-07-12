@@ -1356,6 +1356,39 @@ L'équipe LaProd
     )
 
 
+def send_mix_sample_pending_email(user):
+    """
+    Invite/relance un mix engineer à soumettre sa preview de mix.
+    Réutilisée pour le déclencheur initial (rôle activé) et le rappel hebdomadaire.
+    """
+    submit_url = _fe('/submit-sample')
+
+    text_body = f"""Bonjour {user.username},
+
+Vous avez activé le rôle Mix/Master Engineer sur LaProd mais votre échantillon de preview
+n'a pas encore été soumis. Sans échantillon validé, votre profil n'est pas visible par les
+artistes et vous ne pouvez pas recevoir de commandes.
+
+Soumettre ma preview : {submit_url}
+
+---
+L'équipe LaProd
+"""
+
+    html_body = render_template(
+        'emails/mix_sample_pending.html',
+        user=user,
+        submit_url=submit_url,
+    )
+
+    return send_email(
+        subject="Finalisez votre profil Mix Engineer — LaProd",
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
 def send_renewal_confirmation_email(purchase):
     """Confirmation de renouvellement de licence (artiste)."""
     buyer = purchase.buyer_user

@@ -5,7 +5,7 @@
 // Si l'utilisateur est connecté et n'a pas de filtres actifs → recommandations.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Component, OnInit, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, untracked, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
@@ -89,9 +89,14 @@ export class HomeComponent implements OnInit {
       this.auth.preferredTagCategory();
 
       if (this._lastApplied === -1) {
-        // Premier rendu : restaurer la page mémorisée (retour depuis track-detail)
+        // Premier rendu : restaurer la page mémorisée (retour depuis track-detail).
+        // untracked() : lire savedPage() ici ne doit PAS l'ajouter aux dépendances
+        // de cet effect — sinon le premier clic pagination (qui écrit savedPage
+        // via loadTracks) re-déclenche cet effect et loadTracks(1) écrase la page
+        // qu'on vient de choisir. Bug réel observé : cassé au 1er clic seulement,
+        // car la branche else ci-dessous ne relit plus savedPage() ensuite.
         this._lastApplied = applied;
-        this.loadTracks(this.filterStateService.savedPage());
+        this.loadTracks(untracked(() => this.filterStateService.savedPage()));
       } else {
         // Filtre ou catégorie changés → page 1
         this._lastApplied = applied;

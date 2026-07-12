@@ -180,6 +180,9 @@
                 <li>
                   <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
                     <i class="bi bi-sliders"></i> Espace Mix Engineer
+                    @if (mixSamplePending()) {
+                      <span class="role-pending-dot" title="Preview à soumettre">!</span>
+                    }
                   </a>
                 </li>
               }

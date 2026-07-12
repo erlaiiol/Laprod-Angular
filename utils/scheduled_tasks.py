@@ -6,6 +6,8 @@ run_expiry_notifications(app)        → Quotidien à 8h : rappels 90/30/7/1 jou
 run_sole_licensee_notifications(app) → 1er du mois à 9h : "vous êtes le seul licencié"
 run_stripe_reminder_job(app)         → Chaque lundi à 9h : rappel Stripe Connect aux non-configurés
 run_reengagement_emails(app)         → Chaque mercredi à 10h : re-engagement des utilisateurs inactifs 7j+
+run_mix_sample_reminder_job(app)     → Chaque jeudi à 9h : rappel preview de mix non soumise
+run_premium_expiry_downgrade(app)    → Quotidien à 5h : repasse en Free les abonnements premium expirés
 """
 from datetime import date, datetime, timedelta
 
@@ -134,6 +136,47 @@ def run_stripe_reminder_job(app):
                 app.logger.error(f"[scheduler] stripe_reminder user #{user.id}: {exc}")
 
         app.logger.info(f"[scheduler] run_stripe_reminder_job : {sent}/{len(users)} rappel(s) envoyé(s)")
+
+
+def run_mix_sample_reminder_job(app):
+    """
+    Chaque jeudi à 9h.
+    Envoie un rappel in-app + email aux mix engineers qui n'ont pas encore soumis
+    leur preview de mix. Dédupliqué dans notify_mix_sample_pending_reminder() : pas
+    de doublon si une notif non lue de ce type existe depuis moins de 7 jours.
+    L'email n'est envoyé que si une nouvelle notification a effectivement été créée.
+    """
+    with app.app_context():
+        from extensions import db
+        from models import User
+        from utils.notification_service import notify_mix_sample_pending_reminder
+        from utils.email_service import send_mix_sample_pending_email
+
+        users = User.query.filter(
+            User.is_mix_engineer == True,
+            User.mixmaster_sample_submitted == False,
+            User.email_verified == True,
+            User.account_status == 'active',
+        ).all()
+
+        sent = 0
+        for user in users:
+            try:
+                notif = notify_mix_sample_pending_reminder(user.id)
+                if notif:
+                    db.session.commit()
+                    try:
+                        send_mix_sample_pending_email(user)
+                    except Exception as email_exc:
+                        app.logger.error(f"[scheduler] mix_sample_reminder email user #{user.id}: {email_exc}")
+                    sent += 1
+                else:
+                    db.session.rollback()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[scheduler] mix_sample_reminder user #{user.id}: {exc}")
+
+        app.logger.info(f"[scheduler] run_mix_sample_reminder_job : {sent}/{len(users)} rappel(s) envoyé(s)")
 
 
 def run_reengagement_emails(app):
@@ -340,3 +383,53 @@ def run_guest_topline_cleanup(app):
             db.session.commit()
 
         app.logger.info(f"[scheduler] run_guest_topline_cleanup : {count} topline(s) purgée(s)")
+
+
+def run_premium_expiry_downgrade(app):
+    """
+    Quotidien à 5h.
+    Repasse subscription_plan à 'free' pour les comptes dont l'abonnement premium
+    (amateur ou pro) est expiré, puis notifie (in-app + email) via le même chemin
+    que les changements de plan déclenchés par un admin.
+
+    Idempotent : une fois passé à 'free', l'utilisateur ne matche plus la requête,
+    donc pas de double notification au run suivant.
+    """
+    with app.app_context():
+        from extensions import db
+        from models import User
+        from utils.notification_service import notify_plan_changed
+        from utils.email_service import send_plan_changed_email
+
+        lapsed = User.query.filter(
+            User.subscription_plan != 'free',
+            User.premium_expires_at.isnot(None),
+            User.premium_expires_at < datetime.now(),
+        ).all()
+
+        downgraded = 0
+        for user in lapsed:
+            old_plan = user.subscription_plan
+            try:
+                user.subscription_plan = 'free'
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[scheduler] premium_expiry_downgrade user #{user.id}: {exc}")
+                continue
+
+            try:
+                notify_plan_changed(user, 'free', old_plan)
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[scheduler] notif premium_expiry_downgrade user #{user.id}: {exc}")
+
+            try:
+                send_plan_changed_email(user, 'free')
+            except Exception as exc:
+                app.logger.error(f"[scheduler] email premium_expiry_downgrade user #{user.id}: {exc}")
+
+            downgraded += 1
+
+        app.logger.info(f"[scheduler] run_premium_expiry_downgrade : {downgraded} compte(s) repassé(s) en Free")

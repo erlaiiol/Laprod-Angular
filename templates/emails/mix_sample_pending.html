@@ -1,0 +1,41 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+
+<h2 style="color: #e94560; margin: 0 0 8px; font-size: 22px;">
+  Finalisez votre profil Mix/Master Engineer 🎚️
+</h2>
+<p style="color: #aabbcc; margin: 0 0 20px; font-size: 15px;">
+  Bonjour {{ user.username }}, vous avez activé le rôle Mix/Master Engineer sur LaProd
+  mais votre échantillon de preview n'a pas encore été soumis.
+</p>
+
+<!-- Message clé -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+  <tr>
+    <td style="background: #0f3460; border-radius: 8px; padding: 16px 20px;">
+      <p style="color: #ffffff; font-size: 14px; font-weight: bold; margin: 0 0 6px;">
+        Votre profil n'est pas encore visible par les artistes
+      </p>
+      <p style="color: #aabbcc; font-size: 13px; margin: 0; line-height: 1.6;">
+        Sans échantillon avant/après validé par notre équipe, les artistes ne peuvent ni vous
+        trouver, ni vous passer commande. Il vous suffit d'envoyer un fichier brut et un fichier
+        traité pour que votre candidature soit examinée.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- CTA principal -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+  <tr>
+    <td align="center">
+      <a href="{{ submit_url }}"
+         style="display: inline-block; background: #e94560; color: #ffffff; text-decoration: none;
+                font-size: 15px; font-weight: bold; padding: 14px 32px; border-radius: 6px;">
+        Soumettre ma preview
+      </a>
+    </td>
+  </tr>
+</table>
+
+{% endblock %}

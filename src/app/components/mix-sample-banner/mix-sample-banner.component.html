@@ -1,0 +1,12 @@
+@if (visible()) {
+  <div class="mix-sample-banner">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>
+      <strong>Action requise :</strong> vous n'avez pas encore soumis votre preview de mix engineer —
+      votre profil n'est pas visible par les artistes.
+    </span>
+    <a class="mix-sample-banner__cta" [routerLink]="['/submit-sample']">
+      <i class="bi bi-upload"></i> Soumettre ma preview
+    </a>
+  </div>
+}

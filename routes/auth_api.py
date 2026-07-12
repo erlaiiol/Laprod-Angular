@@ -436,7 +436,17 @@ def select_role(current_user):
     if first_selection and (is_beatmaker or is_mix_engineer):
         notification_service.notify_stripe_connect_setup(current_user.id)
 
+    # Notification "preview à soumettre" à la première activation du rôle mix engineer
+    if first_selection and is_mix_engineer:
+        notification_service.notify_mix_sample_pending(current_user.id)
+
     db.session.commit()
+
+    if first_selection and is_mix_engineer:
+        try:
+            email_service.send_mix_sample_pending_email(current_user)
+        except Exception as e:
+            current_app.logger.error(f"Erreur email mix_sample_pending user #{current_user.id}: {e}")
 
     # Mix/master → page de soumission d'échantillon ; sinon → accueil
     next_page = 'submit-sample' if is_mix_engineer else '/'
@@ -466,6 +476,7 @@ def _user_payload(user):
             'is_artist':                      user.is_artist,
             'is_mixmaster_engineer':          user.is_mixmaster_engineer,
             'is_certified_producer_arranger': user.is_certified_producer_arranger,
+            'mixmaster_sample_submitted':     user.mixmaster_sample_submitted,
         },
         'user_type_selected': user.user_type_selected,
         'email_verified':     user.email_verified,
