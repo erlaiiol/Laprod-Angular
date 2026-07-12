@@ -68,7 +68,27 @@
       "Bash(pkill -f \"python app.py\")",
       "Bash(lsof -ti:5000)",
       "Bash(xargs -r kill)",
-      "Bash(jobs)"
+      "Bash(jobs)",
+      "Bash(curl -s -D - -o /tmp/laprod_index.html \"https://laprod.net/\")",
+      "Read(//tmp/**)",
+      "Bash(nslookup laprod.net)",
+      "Bash(curl -s -o /dev/null -w \"%{remote_ip}\\\\n\" https://laprod.net/)",
+      "Bash(curl -s https://laprod.net/styles-4PBJASP2.css -o /tmp/prod_styles.css)",
+      "Bash(timeout 10 ssh -o ConnectTimeout=6 -o BatchMode=yes deploy@51.77.192.230 \"hostname; date; echo CONNECTED\")",
+      "Bash(echo \"SSH_FAILED_OR_TIMEOUT exit=$?\")",
+      "Bash(ssh -o ConnectTimeout=6 -o BatchMode=yes -o StrictHostKeyChecking=no deploy@51.77.192.230 \"hostname; date; echo CONNECTED\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(env)",
+      "Read(//private/etc/**)",
+      "Bash(curl -s -D - -o /dev/null \"https://example.com/\")",
+      "Bash(curl -s -D - -o /dev/null \"https://laprod.net/?cachebuster=$\\(date +%s\\)\")",
+      "Bash(curl -s -o /dev/null -w \"main.js: %{http_code} size=%{size_download}\\\\n\" \"https://laprod.net/main-HQAI7T2G.js\")",
+      "Bash(curl -s -o /dev/null -w \"styles.css: %{http_code} size=%{size_download}\\\\n\" \"https://laprod.net/styles-4PBJASP2.css\")",
+      "Bash(curl -s -o /dev/null -w \"bootstrap-icons woff: %{http_code} size=%{size_download}\\\\n\" \"https://laprod.net/media/bootstrap-icons-DW64OPFI.woff2\")",
+      "Bash(dig +short laprod.net A laprod.net AAAA www.laprod.net A)",
+      "Bash(curl -s -D - -o /tmp/laprod_v2.html --resolve laprod.net:443:51.77.192.230 --http1.1 \"https://laprod.net/\")",
+      "Bash(curl -s -D - -o /dev/null -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15\" \"https://laprod.net/\")",
+      "Bash(/Users/eliott/Documents/Dev/Laprod-Angular/.venv/bin/python -c \"import pytest; print\\(pytest.__version__\\)\")"
     ]
   }
 }

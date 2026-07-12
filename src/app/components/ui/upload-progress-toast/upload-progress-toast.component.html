@@ -8,7 +8,7 @@
     <!-- Miniature cover -->
     <img class="upload-toast__cover"
          [src]="uploadStatusSvc.imageUrl() ?? 'assets/placeholders/placeholder-track.png'"
-         onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'"
+         [appImgFallback]="'assets/placeholders/placeholder-track.png'"
          alt="" aria-hidden="true" />
 
     <!-- Contenu principal -->

@@ -72,7 +72,19 @@
                   "replace": "src/environments/environment.ts",
                   "with": "src/environments/environment.prod.ts"
                 }
-              ]
+              ],
+              // L'inlining CSS critique (Beasties) génère un
+              // <link media="print" onload="this.media='all'"> pour charger le
+              // reste du CSS — un attribut onload inline, bloqué par la CSP prod
+              // (script-src sans 'unsafe-inline', voir nginx/nginx.conf). Résultat
+              // en prod : le CSS non-critique (dont l'essentiel de Bootstrap) ne
+              // s'appliquait jamais. On désactive uniquement inlineCritical ;
+              // minification des styles/scripts et inlining des fonts restent actifs.
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              }
             },
             "development": {
               "optimization": false,

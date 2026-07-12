@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Track } from '../../services/track.service';
 import { environment } from '../../../environments/environment';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-playlist-button',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ImgFallbackDirective],
   templateUrl: './playlist-button.component.html',
   styleUrls: ['./playlist-button.component.scss'],
 })

@@ -16,7 +16,7 @@
       <img loading="lazy" decoding="async" class="sidebar-cover"
            [src]="getImageUrl(track()!.image_file)"
            [alt]="track()!.title"
-           onerror="this.src='assets/placeholders/placeholder-track.png'">
+           [appImgFallback]="'assets/placeholders/placeholder-track.png'">
 
       <!-- .sidebar-info wraps text so the mobile flex row works correctly -->
       <div class="sidebar-info">

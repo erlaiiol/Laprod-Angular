@@ -6,12 +6,13 @@ import { PlaylistService, Playlist } from '../../services/playlist.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-add-to-playlist-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImgFallbackDirective],
   templateUrl: './add-to-playlist-modal.component.html',
   styleUrls: ['./add-to-playlist-modal.component.scss'],
 })

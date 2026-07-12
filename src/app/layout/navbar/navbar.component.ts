@@ -9,12 +9,13 @@ import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { ThemeService } from '../../services/theme.service';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ImgFallbackDirective],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })

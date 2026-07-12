@@ -17,7 +17,7 @@
       [alt]="track.title"
       class="music-card-img"
       loading="lazy"
-      onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'">
+      [appImgFallback]="'assets/placeholders/placeholder-track.png'">
     @if (compactMode && isLoggedIn()) {
       <div class="tc-price-badge">{{ formatPrice(track.price_mp3) }}</div>
     }

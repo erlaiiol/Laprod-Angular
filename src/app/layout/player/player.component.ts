@@ -22,11 +22,12 @@ import { TrackService } from '../../services/track.service';
 import { AuthService } from '../../services/auth.service';
 import { MixOrderContext } from '../../services/player.service';
 import { environment } from '../../../environments/environment';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   selector: 'app-player',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ImgFallbackDirective],
   templateUrl: './player.component.html',
   styleUrls: ['./player.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
