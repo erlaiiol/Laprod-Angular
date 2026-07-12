@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, computed, input } from '@angular/core';
+import { Component, Output, EventEmitter, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -9,14 +9,23 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./pagination.component.scss'],
 })
 export class PaginationComponent {
-  @Input() currentPage = 1;
-  @Input() totalPages  = 1;
+  // Inputs signal (pas @Input() classique) : un simple @Input() ne notifie
+  // le graphe de signals Angular que via la passe de CD du PARENT. Quand le
+  // changement de page part d'un clic DANS ce composant lui-même (bouton →
+  // pageChange → le parent écrit son signal "page"), la passe de rafraîchissement
+  // locale déclenchée par cet événement ne redescend pas forcément re-vérifier
+  // CE composant pour lui faire relire son propre @Input() à jour — d'où la
+  // pagination visuellement bloquée sur l'ancienne page au premier clic. Un
+  // input signal crée un vrai lien producteur/consommateur : peu importe quel
+  // composant a déclenché l'écriture, ce composant est notifié directement.
+  currentPage = input(1);
+  totalPages  = input(1);
   @Output() pageChange = new EventEmitter<number>();
 
   // Fenêtre de pages : toujours 1-2, toujours n-1/n, et current ±1 — gaps → null
-  get pages(): (number | null)[] {
-    const total   = this.totalPages;
-    const current = this.currentPage;
+  pages = computed<(number | null)[]>(() => {
+    const total   = this.totalPages();
+    const current = this.currentPage();
 
     if (total <= 7) {
       return Array.from({ length: total }, (_, i) => i + 1);
@@ -36,10 +45,10 @@ export class PaginationComponent {
       }
     }
     return result;
-  }
+  });
 
   go(page: number): void {
-    if (page < 1 || page > this.totalPages || page === this.currentPage) return;
+    if (page < 1 || page > this.totalPages() || page === this.currentPage()) return;
     this.pageChange.emit(page);
   }
 }

@@ -460,6 +460,53 @@ def notify_stripe_connect_reminder(user_id):
     )
 
 
+def notify_mix_sample_pending(user_id):
+    """
+    Notification persistante invitant le mix engineer à soumettre sa preview.
+    Appelée une seule fois quand is_mix_engineer devient True (select-role ou edit-profile).
+    """
+    create_notification(
+        user_id=user_id,
+        notif_type='mix_sample_pending',
+        title='Soumettez votre preview de mix',
+        message=(
+            'Vous avez activé le rôle Mix/Master Engineer. Sans échantillon soumis, '
+            'votre profil ne sera pas visible par les artistes et vous ne pourrez pas '
+            'recevoir de commandes. Soumettez votre preview pour finaliser votre inscription.'
+        ),
+        link='/submit-sample',
+    )
+
+
+def notify_mix_sample_pending_reminder(user_id):
+    """
+    Rappel hebdomadaire pour les mix engineers qui n'ont pas encore soumis leur preview.
+    Dédupliqué : ne crée pas de notif si une notification non lue de ce type existe déjà
+    depuis moins de 7 jours. Doit être suivi d'un db.session.commit() par l'appelant.
+    """
+    from datetime import datetime, timedelta
+    recent_cutoff = datetime.now() - timedelta(days=7)
+    already_pending = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.type    == 'mix_sample_pending',
+        Notification.is_read == False,
+        Notification.created_at >= recent_cutoff,
+    ).first()
+    if already_pending:
+        return None
+
+    return create_notification(
+        user_id=user_id,
+        notif_type='mix_sample_pending',
+        title='Rappel : preview de mix non soumise',
+        message=(
+            'Vous n\'avez toujours pas soumis votre preview de mix engineer. '
+            'Sans échantillon, les artistes ne peuvent pas vous trouver ni vous passer commande.'
+        ),
+        link='/submit-sample',
+    )
+
+
 def notify_tokens_low(user, token_type='upload'):
     """
     Notifie l'utilisateur que ses tokens sont bientôt épuisés

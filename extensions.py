@@ -371,6 +371,18 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque jeudi à 9h : rappel preview de mix engineer non soumise
+        from utils.scheduled_tasks import run_mix_sample_reminder_job
+        scheduler.add_job(
+            func=run_mix_sample_reminder_job,
+            trigger='cron',
+            day_of_week='thu',
+            hour=9,
+            minute=0,
+            id='mix_sample_reminder',
+            replace_existing=True,
+            args=[app]
+        )
         # Chaque mercredi à 10h : re-engagement des utilisateurs inactifs 7j+
         from utils.scheduled_tasks import run_reengagement_emails
         scheduler.add_job(
@@ -393,5 +405,16 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque nuit à 5h : repasse en Free les abonnements premium expirés + notifie
+        from utils.scheduled_tasks import run_premium_expiry_downgrade
+        scheduler.add_job(
+            func=run_premium_expiry_downgrade,
+            trigger='cron',
+            hour=5,
+            minute=0,
+            id='premium_expiry_downgrade',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement + premium)")

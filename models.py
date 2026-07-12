@@ -1167,6 +1167,7 @@ class Notification(db.Model):
     # - 'mixmaster_status' : Changement de statut (artist)
     # - 'tokens_recharged' : Tokens rechargés
     # - 'topline_submitted' : Topline soumise sur votre track (beatmaker)
+    # - 'mix_sample_pending' : Rappel de soumission de preview (mix/master engineer)
     # - 'system' : Notification système
 
     # Content

@@ -1,20 +1,20 @@
-@if (totalPages > 1) {
+@if (totalPages() > 1) {
   <nav class="pagination" aria-label="Pagination">
 
     <button class="page-btn page-btn--nav"
-            [disabled]="currentPage === 1"
-            (click)="go(currentPage - 1)"
+            [disabled]="currentPage() === 1"
+            (click)="go(currentPage() - 1)"
             aria-label="Page précédente">
       ‹
     </button>
 
-    @for (p of pages; track $index) {
+    @for (p of pages(); track $index) {
       @if (p === null) {
         <span class="page-ellipsis" aria-hidden="true">…</span>
       } @else {
         <button class="page-btn"
-                [class.page-btn--active]="p === currentPage"
-                [attr.aria-current]="p === currentPage ? 'page' : null"
+                [class.page-btn--active]="p === currentPage()"
+                [attr.aria-current]="p === currentPage() ? 'page' : null"
                 (click)="go(p)">
           {{ p }}
         </button>
@@ -22,8 +22,8 @@
     }
 
     <button class="page-btn page-btn--nav"
-            [disabled]="currentPage === totalPages"
-            (click)="go(currentPage + 1)"
+            [disabled]="currentPage() === totalPages()"
+            (click)="go(currentPage() + 1)"
             aria-label="Page suivante">
       ›
     </button>

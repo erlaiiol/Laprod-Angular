@@ -90,6 +90,7 @@ export class NavbarComponent {
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
   isArtist      = computed(() => this.authService.isArtist());
   isMixEngineer = computed(() => this.authService.isMixEngineer());
+  mixSamplePending = computed(() => this.authService.mixSamplePending());
   isAdmin       = computed(() => this.authService.isAdmin());
   isPremium     = computed(() => this.authService.isPremium());
   username      = computed(() => this.authService.currentUser()?.username || '');

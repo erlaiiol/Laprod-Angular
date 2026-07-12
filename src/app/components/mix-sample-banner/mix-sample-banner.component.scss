@@ -1,0 +1,39 @@
+@use 'variables' as v;
+
+.mix-sample-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(v.$warning, 0.1);
+  border-bottom: 1px solid rgba(v.$warning, 0.3);
+  padding: 0.65rem 1.25rem;
+  font-size: 0.85rem;
+  color: v.$text-secondary;
+
+  i.bi-exclamation-triangle-fill { color: v.$warning; font-size: 1rem; flex-shrink: 0; }
+
+  span { flex: 1; }
+
+  strong { color: v.$text-primary; }
+
+  &__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: v.$white;
+    background: v.$primary;
+    padding: 0.4rem 0.9rem;
+    border-radius: v.$radius-pill;
+    text-decoration: none;
+
+    &:hover { background: v.$primary-dark; }
+  }
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    span { flex-basis: 100%; }
+  }
+}

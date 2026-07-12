@@ -9,7 +9,6 @@ import {
 } from '../../services/contract-analyzer.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
-import { PremiumLockComponent } from '../../components/premium-lock/premium-lock.component';
 
 const LOADING_MESSAGES = [
   'Lecture du PDF en cours...',
@@ -27,7 +26,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 Mo
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contract-analyzer',
   standalone: true,
-  imports: [CommonModule, RouterModule, PremiumLockComponent],
+  imports: [CommonModule, RouterModule],
   templateUrl: './contract-analyzer.component.html',
   styleUrl: './contract-analyzer.component.scss',
 })
