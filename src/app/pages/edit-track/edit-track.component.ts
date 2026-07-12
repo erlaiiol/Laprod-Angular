@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { TrackQualityScoreComponent } from '../../components/track-quality-score/track-quality-score.component';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 interface TagGroup {
   name:  string;
@@ -20,7 +21,7 @@ interface TagGroup {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-edit-track',
-  imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent],
+  imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent, ImgFallbackDirective],
   templateUrl: './edit-track.component.html',
   styleUrl: './edit-track.component.scss',
 })

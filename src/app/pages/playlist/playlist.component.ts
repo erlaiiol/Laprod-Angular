@@ -12,12 +12,13 @@ import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-playlist',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, TrackCardComponent],
+  imports: [CommonModule, RouterModule, FormsModule, TrackCardComponent, ImgFallbackDirective],
   templateUrl: './playlist.component.html',
   styleUrls: ['./playlist.component.scss'],
 })

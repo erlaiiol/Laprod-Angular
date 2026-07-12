@@ -8,7 +8,7 @@
     <!-- Miniature cover du beat -->
     <img class="topline-toast__cover"
          [src]="toplineStatusSvc.trackImageUrl() ?? 'assets/placeholders/placeholder-track.png'"
-         onerror="this.onerror=null; this.src='assets/placeholders/placeholder-track.png'"
+         [appImgFallback]="'assets/placeholders/placeholder-track.png'"
          alt="" aria-hidden="true" />
 
     <!-- Contenu principal -->

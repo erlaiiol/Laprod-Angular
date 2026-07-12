@@ -37,6 +37,7 @@ import { TrackQualityScoreComponent } from '../../../components/track-quality-sc
 import { AppRefreshService } from '../../../services/app-refresh.service';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { ImgFallbackDirective } from '../../../directives/img-fallback.directive';
 
 export interface TrackViewStat {
   track_id:    number;
@@ -75,7 +76,7 @@ export interface BeatmakerAnalytics {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-beatmaker',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent, FormatDatePipe],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent, FormatDatePipe, ImgFallbackDirective],
   templateUrl: './dashboard-beatmaker.component.html',
   styleUrls: ['./dashboard-beatmaker.component.scss'],
 })

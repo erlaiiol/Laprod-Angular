@@ -18,13 +18,14 @@ import { FavoriteButtonComponent } from '../favorite-button/favorite-button.comp
 import { PlaylistButtonComponent } from '../playlist-button/playlist-button.component';
 import { ShareButtonComponent } from '../share-button/share-button.component';
 import { environment } from '../../../environments/environment';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 const MAX_TAGS = 2;
 
 @Component({
   selector: 'app-track-card',
   standalone: true,
-  imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent, ShareButtonComponent],
+  imports: [CommonModule, RouterModule, FavoriteButtonComponent, PlaylistButtonComponent, ShareButtonComponent, ImgFallbackDirective],
   templateUrl: './track-card.component.html',
   styleUrls:   ['./track-card.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

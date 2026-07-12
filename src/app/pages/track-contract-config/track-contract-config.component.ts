@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { TrackService, TrackDetail } from '../../services/track.service';
 import { PaymentService } from '../../services/payment.service';
 import { AuthService } from '../../services/auth.service';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 type Format      = 'mp3' | 'wav' | 'stems';
 type Territory   = 'France' | 'Europe' | 'Monde entier';
@@ -35,7 +36,7 @@ interface LicensePreset {
 @Component({
   selector: 'app-track-contract-config',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, ImgFallbackDirective],
   templateUrl: './track-contract-config.component.html',
   styleUrls: ['./track-contract-config.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

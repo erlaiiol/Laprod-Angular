@@ -23,7 +23,7 @@
                    [checked]="pendingIds().has(pl.id)"
                    (change)="togglePending(pl)">
             <img loading="lazy" decoding="async" class="pl-thumb" [src]="imgUrl(pl.image_thumb ?? pl.image_file)"
-                 onerror="this.src='assets/placeholders/placeholder-track.png'" alt="">
+                 [appImgFallback]="'assets/placeholders/placeholder-track.png'" alt="">
             <span class="pl-row-title">{{ pl.title }}</span>
             <small class="pl-track-count">{{ pl.track_count }} track(s)</small>
           </label>

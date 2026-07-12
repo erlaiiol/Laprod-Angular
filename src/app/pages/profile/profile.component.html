@@ -21,7 +21,7 @@
     <div class="profile-header">
       <div class="profile-avatar">
         <img decoding="async" [src]="imgUrl(p.profile_image)" [alt]="p.username"
-             onerror="this.onerror=null;this.src='assets/placeholders/default_profile.png'" />
+             [appImgFallback]="'assets/placeholders/default_profile.png'" />
       </div>
 
       <div class="profile-info">
@@ -118,7 +118,7 @@
                 <div class="pl-card-img-wrap">
                   <img loading="lazy" decoding="async" class="pl-card-img"
                        [src]="playlistImgUrl(pl.image_thumb ?? pl.image_file)"
-                       onerror="this.src='assets/placeholders/placeholder-track.png'"
+                       [appImgFallback]="'assets/placeholders/placeholder-track.png'"
                        alt="">
                   @if (containingIds().has(pl.id)) {
                     <span class="pl-check-badge">

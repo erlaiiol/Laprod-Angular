@@ -13,6 +13,7 @@ import { ShareButtonComponent } from '../../components/share-button/share-button
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { environment } from '../../../environments/environment';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 const TRACKS_PER_PAGE    = 12;
 const PLAYLISTS_PER_PAGE = 8;
@@ -21,7 +22,7 @@ const PLAYLISTS_PER_PAGE = 8;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent, FormatDatePipe],
+  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent, FormatDatePipe, ImgFallbackDirective],
   templateUrl: './profile.component.html',
   styleUrl:    './profile.component.scss',
 })

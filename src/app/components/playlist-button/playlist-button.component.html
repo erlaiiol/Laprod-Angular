@@ -8,7 +8,7 @@
       @if (track.playlist_count >= 2) { <div class="pl-ghost pl-ghost--2"></div> }
       <img loading="lazy" decoding="async" class="pl-cover"
            [src]="coverUrl()"
-           onerror="this.src='assets/placeholders/placeholder-track.png'"
+           [appImgFallback]="'assets/placeholders/placeholder-track.png'"
            alt="">
     </div>
     @if (track.playlist_count >= 2) {

@@ -21,11 +21,12 @@ import { LicenseBadgeComponent } from '../../components/license-badge/license-ba
 import { FavoritesService } from '../../services/favorites.service';
 import { ToastService } from '../../services/toast.service';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
+import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 @Component({
   selector: 'app-track-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent, LicenseBadgeComponent, FormatDatePipe],
+  imports: [CommonModule, FormsModule, RouterModule, ToplineRecorderComponent, FavoriteButtonComponent, AddToPlaylistModalComponent, ShareButtonComponent, LicenseBadgeComponent, FormatDatePipe, ImgFallbackDirective],
   templateUrl: './track-detail.component.html',
   styleUrls: ['./track-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

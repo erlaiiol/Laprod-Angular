@@ -17,7 +17,7 @@
       <div class="playlist-cover-wrap">
         <img decoding="async" class="playlist-cover"
              [src]="editImagePreview() ?? coverUrl(playlist()!.image_thumb ?? playlist()!.image_file)"
-             onerror="this.src='assets/placeholders/placeholder-track.png'"
+             [appImgFallback]="'assets/placeholders/placeholder-track.png'"
              alt="">
         @if (editMode()) {
           <label class="cover-edit-overlay" title="Changer l'image">
@@ -93,7 +93,7 @@
                 <div class="beat-mini-card__img-wrap">
                   <img loading="lazy" decoding="async" class="beat-mini-card__img"
                        [src]="coverUrl(t.image_thumb ?? t.image_file)"
-                       onerror="this.src='assets/placeholders/placeholder-track.png'"
+                       [appImgFallback]="'assets/placeholders/placeholder-track.png'"
                        [alt]="t.title">
                   <div class="beat-mini-card__overlay">
                     @if (pending) {

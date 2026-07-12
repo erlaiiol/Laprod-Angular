@@ -14,7 +14,7 @@
           class="player-cover"
           [src]="getImageUrl()"
           [alt]="player.currentTrack()?.title ?? ''"
-          onerror="this.src='assets/placeholders/placeholder-track.png'">
+          [appImgFallback]="'assets/placeholders/placeholder-track.png'">
         <div class="player-play-overlay">
           @if (player.isPlaying()) {
             <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
