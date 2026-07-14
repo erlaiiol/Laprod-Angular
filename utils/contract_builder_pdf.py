@@ -5,6 +5,20 @@ from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Flowable
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas as rl_canvas
+from xml.sax.saxutils import escape as _xml_escape
+
+
+def _esc(value) -> str:
+    """Échappe une donnée dynamique destinée au mini-markup XML de ReportLab.
+
+    Le contract builder est intégralement pilotable par l'utilisateur (noms de
+    parties, clauses en texte libre, territoire…). Sans échappement, un '<' ou
+    '&' casse la génération du PDF, et des balises injectées (<b>, <font>…)
+    altèrent un document contractuel. Toute donnée dynamique DOIT passer par ce
+    helper ; le markup <b>/<i>/<br/> volontaire reste écrit en clair, hors _esc().
+    """
+    return _xml_escape('' if value is None else str(value))
+
 
 # ── Checkbox dessiné (évite les carrés noirs liés au manque de glyphes Helvetica) ──
 
@@ -253,11 +267,11 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
     # ── Titre ──────────────────────────────────────────────────────────────────
     heading = (contract_data.get('type_label') or "Contrat d'exploitation d'une œuvre musicale").upper()
     story.append(Paragraph(
-        heading,
+        _esc(heading),
         title_style,
     ))
     story.append(Paragraph(
-        f"{contract_data.get('title', '')} — Généré le {contract_data.get('generated_at', '')}",
+        f"{_esc(contract_data.get('title', ''))} — Généré le {_esc(contract_data.get('generated_at', ''))}",
         subtitle_style,
     ))
 
@@ -273,48 +287,48 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
         if party.get('party_type') == 'company':
             lines = []
             if party.get('company_name'):
-                lines.append(f"<b>{party['company_name']}</b>")
+                lines.append(f"<b>{_esc(party['company_name'])}</b>")
             if party.get('legal_form'):
-                lines.append(f"Forme juridique : {party['legal_form']}")
+                lines.append(f"Forme juridique : {_esc(party['legal_form'])}")
             if party.get('capital'):
-                lines.append(f"Capital : {party['capital']}")
+                lines.append(f"Capital : {_esc(party['capital'])}")
             if party.get('siren'):
-                lines.append(f"SIREN : {party['siren']}")
+                lines.append(f"SIREN : {_esc(party['siren'])}")
             if party.get('siret'):
-                lines.append(f"SIRET : {party['siret']}")
+                lines.append(f"SIRET : {_esc(party['siret'])}")
             if party.get('rcs'):
-                lines.append(f"RCS : {party['rcs']}")
+                lines.append(f"RCS : {_esc(party['rcs'])}")
             if party.get('address'):
-                lines.append(f"Siège social : {party['address']}")
+                lines.append(f"Siège social : {_esc(party['address'])}")
             if party.get('legal_rep'):
-                rep_line = f"Représentée par : {party['legal_rep']}"
+                rep_line = f"Représentée par : {_esc(party['legal_rep'])}"
                 if party.get('signatory_title'):
-                    rep_line += f", {party['signatory_title']}"
+                    rep_line += f", {_esc(party['signatory_title'])}"
                 lines.append(rep_line)
             if party.get('email'):
-                lines.append(f"Email : {party['email']}")
+                lines.append(f"Email : {_esc(party['email'])}")
         else:
             lines = []
             name_parts = [party.get('first_name', ''), party.get('last_name', '')]
             full_name = ' '.join(p for p in name_parts if p)
             if full_name:
-                lines.append(f"<b>{full_name}</b>")
+                lines.append(f"<b>{_esc(full_name)}</b>")
             if party.get('pseudonym'):
-                lines.append(f"Nom de scène : {party['pseudonym']}")
+                lines.append(f"Nom de scène : {_esc(party['pseudonym'])}")
             if party.get('date_of_birth'):
-                lines.append(f"Né(e) le : {party['date_of_birth']}")
+                lines.append(f"Né(e) le : {_esc(party['date_of_birth'])}")
             if party.get('nationality'):
-                lines.append(f"Nationalité : {party['nationality']}")
+                lines.append(f"Nationalité : {_esc(party['nationality'])}")
             if party.get('address'):
-                lines.append(f"Adresse : {party['address']}")
+                lines.append(f"Adresse : {_esc(party['address'])}")
             if party.get('email'):
-                lines.append(f"Email : {party['email']}")
+                lines.append(f"Email : {_esc(party['email'])}")
             if party.get('tax_id'):
-                lines.append(f"N° fiscal : {party['tax_id']}")
+                lines.append(f"N° fiscal : {_esc(party['tax_id'])}")
 
         role = party.get('role', '')
         if role:
-            lines.append(f"<i>Ci-après désigné « {role} »</i>")
+            lines.append(f"<i>Ci-après désigné « {_esc(role)} »</i>")
 
         story.append(Paragraph('<br/>'.join(lines), normal_style))
         story.append(Spacer(1, 0.3 * cm))
@@ -346,7 +360,7 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
 
         art_counter += 1
         story.append(Paragraph(
-            f"<b>Art. {art_counter} — {group_name.upper()}</b>",
+            f"<b>Art. {art_counter} — {_esc(group_name.upper())}</b>",
             section_style,
         ))
 
@@ -393,7 +407,7 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
                     name = ' '.join(p for p in name_parts if p) or '______________________'
                 role = party.get('role', '')
                 col_data.append(
-                    f"<b>{role}</b><br/>{name}<br/><br/>"
+                    f"<b>{_esc(role)}</b><br/>{_esc(name)}<br/><br/>"
                     "Signature : ________________________<br/><br/>"
                     "Date : ____________________________"
                 )
@@ -431,11 +445,12 @@ def _render_clause(
     art_num: int | None = None,
     clause_num: int | None = None,
 ):
-    name       = clause.get('name', '')
+    # name/legal_ref échappés dès la lecture → couvre tous leurs usages en aval.
+    name       = _esc(clause.get('name', ''))
     ctype      = clause.get('clause_type', 'text')
     value      = clause.get('value')
     is_enabled = clause.get('is_enabled', True)
-    legal_ref  = clause.get('legal_reference')
+    legal_ref  = _esc(clause.get('legal_reference')) if clause.get('legal_reference') else ''
     is_req     = clause.get('is_required', False)
 
     # Numéro de sous-paragraphe (ex. "3.2 ") — uniquement si les deux sont définis
@@ -462,7 +477,7 @@ def _render_clause(
         ))
 
     elif ctype == 'toggle_with_details':
-        details = (value or {}).get('details', '') if value else ''
+        details = _esc((value or {}).get('details', '') if value else '')
         label   = f"{num_prefix}<b>{name}</b>" + (f" : {details}" if details else "")
         story.append(_cb_row(Paragraph(label, clause_style), state='checked'))
 
@@ -474,7 +489,7 @@ def _render_clause(
             for opt in options:
                 state = 'checked' if opt in selected else 'unchecked'
                 story.append(_cb_row(
-                    Paragraph(opt, clause_style),
+                    Paragraph(_esc(opt), clause_style),
                     state=state,
                     indent=0.6 * cm,
                 ))
@@ -482,7 +497,7 @@ def _render_clause(
             # Fallback si options absentes mais selected présent
             for opt in selected:
                 story.append(_cb_row(
-                    Paragraph(opt, clause_style),
+                    Paragraph(_esc(opt), clause_style),
                     state='checked',
                     indent=0.6 * cm,
                 ))
@@ -490,20 +505,20 @@ def _render_clause(
             story.append(Paragraph("<i>Aucun élément sélectionné</i>", clause_style))
 
     elif ctype in ('text', 'textarea'):
-        text = (value or {}).get('text', '') if value else ''
+        text = _esc((value or {}).get('text', '') if value else '')
         story.append(Paragraph(f"{num_prefix}<b>{name}</b>", label_style))
         story.append(Paragraph(text if text else "<i>—</i>", clause_style))
 
     elif ctype == 'number':
-        number = (value or {}).get('number', '') if value else ''
+        number = _esc((value or {}).get('number', '') if value else '')
         story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {number}", clause_style))
 
     elif ctype == 'percentage':
-        number = (value or {}).get('number', '') if value else ''
+        number = _esc((value or {}).get('number', '') if value else '')
         story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {number} %", clause_style))
 
     elif ctype == 'select':
-        selected = (value or {}).get('selected', '') if value else ''
+        selected = _esc((value or {}).get('selected', '') if value else '')
         story.append(_cb_row(
             Paragraph(f"{num_prefix}<b>{name} :</b> {selected}", clause_style),
             state='checked',
@@ -511,20 +526,20 @@ def _render_clause(
 
     elif ctype == 'date':
         d = (value or {}).get('date', '') if value else ''
-        story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {_fmt_date(d)}", clause_style))
+        story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {_esc(_fmt_date(d))}", clause_style))
 
     elif ctype == 'date_range':
-        start = _fmt_date((value or {}).get('start', '') if value else '')
-        end   = _fmt_date((value or {}).get('end', '') if value else '')
+        start = _esc(_fmt_date((value or {}).get('start', '') if value else ''))
+        end   = _esc(_fmt_date((value or {}).get('end', '') if value else ''))
         story.append(Paragraph(f"{num_prefix}<b>{name} :</b> du {start} au {end}", clause_style))
 
     elif ctype == 'territory':
-        territory = (value or {}).get('territory', '') if value else ''
+        territory = _esc((value or {}).get('territory', '') if value else '')
         story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {territory}", clause_style))
 
     elif ctype == 'duration':
-        amount = (value or {}).get('amount', '') if value else ''
-        unit   = (value or {}).get('unit', '') if value else ''
+        amount = _esc((value or {}).get('amount', '') if value else '')
+        unit   = _esc((value or {}).get('unit', '') if value else '')
         story.append(Paragraph(f"{num_prefix}<b>{name} :</b> {amount} {unit}", clause_style))
 
     else:

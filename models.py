@@ -557,6 +557,15 @@ class Track(db.Model):
     # Analyse IA — BPM/gamme/style détectés automatiquement, en attente de validation
     is_ai_suggested = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
 
+    # ── Attestations légales (droits voisins / samples) ──────────────────────
+    # phonogram_producer_attested : le compositeur atteste être producteur du
+    # phonogramme (CPI L.213-1) sur le fichier fourni (ou détenir les droits
+    # nécessaires) — condition posée à l'upload pour pouvoir céder ces droits
+    # dans le contrat de licence (cf. utils/contract_generator.py).
+    phonogram_producer_attested = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    has_third_party_samples     = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    sample_clearance_details    = db.Column(db.Text, nullable=True)
+
     # Exclusivité vendue
     is_exclusive_sold  = db.Column(db.Boolean, default=False, nullable=False)
     exclusive_sold_at  = db.Column(db.DateTime, nullable=True)
@@ -774,6 +783,28 @@ class Contract(db.Model):
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
     status      = db.Column(db.String(50), default='active', nullable=False)
                   # 'active' | 'expired' | 'renewed' | 'cancelled'
+
+    # ── Conformité légale (ajouté v3) ────────────────────────────────────────
+    # Snapshot, au moment de la vente, des attestations du Track (cf. plus haut) :
+    # figées ici pour que l'édition ultérieure du Track ne réécrive pas
+    # rétroactivement ce qui a été représenté à l'acheteur au moment de l'achat.
+    phonogram_producer_attested = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    has_third_party_samples     = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    sample_clearance_details    = db.Column(db.Text, nullable=True)
+
+    # Déclaration de l'acheteur au moment de l'achat : a-t-il écrit des paroles
+    # originales sur ce titre ? Conditionne la présentation de la répartition
+    # SACEM dans le contrat (cf. utils/contract_generator.py) — par défaut,
+    # non déclaré = traité comme non-auteur (droits voisins d'artiste-interprète
+    # hors périmètre de ce contrat), jamais l'inverse.
+    buyer_declares_original_lyrics = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+
+    # Preuve de consentement (RGPD / art. L.221-28 13° C. conso) : posées
+    # côté serveur au moment de la création du Contract, jamais fournies
+    # telles quelles par le client — cf. utils/contract_data_builder.py.
+    legal_terms_accepted    = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    withdrawal_right_waived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    consent_recorded_at     = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
 

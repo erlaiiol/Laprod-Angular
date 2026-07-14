@@ -117,9 +117,9 @@ describe('LicenseBadgeComponent — label()', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  it("affiche 'Droits à vie' pour une licence lifetime", () => {
+  it("affiche 'Droits sans échéance' pour une licence sans terme", () => {
     const c = makeComp({ isLifetime: true, expiresAt: null });
-    expect(c.label).toBe('Droits à vie');
+    expect(c.label).toBe('Droits sans échéance');
   });
 
   it("n'affiche jamais 'Licence à vie'", () => {

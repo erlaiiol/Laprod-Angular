@@ -44,6 +44,13 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   licensesLoading = signal(false);
   renewingId      = signal<number | null>(null);
 
+  // Renouvellement = un nouveau paiement : la modale re-capte un nouvel acte
+  // de consentement (mêmes exigences que l'achat initial), pas de reprise
+  // silencieuse du consentement du contrat d'origine.
+  renewLicenseTarget    = signal<LicenseItem | null>(null);
+  renewLegalAccepted    = signal(false);
+  renewWithdrawalWaived = signal(false);
+
   readonly auth        = inject(AuthService);
   readonly player      = inject(PlayerService);
   private dashSvc      = inject(DashboardService);
@@ -63,6 +70,11 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     this.loadDashboard();
+    // Chargés dès l'entrée sur le dashboard (pas au clic sur l'onglet) : les
+    // badges de comptage (achats, licences) doivent être à jour immédiatement,
+    // pas seulement après avoir ouvert cet onglet spécifique une première fois.
+    this.loadPurchases();
+    this.loadLicenses();
 
     // Synchronisation tab <-> query param
     this.route.queryParamMap
@@ -150,17 +162,33 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     return this.licenseSvc.urgency(days) as any;
   }
 
-  renewLicense(l: LicenseItem): void {
+  openRenewModal(l: LicenseItem): void {
     if (!l.track?.id) return;
+    this.renewLegalAccepted.set(false);
+    this.renewWithdrawalWaived.set(false);
+    this.renewLicenseTarget.set(l);
+  }
+
+  closeRenewModal(): void {
+    this.renewLicenseTarget.set(null);
+  }
+
+  confirmRenewal(): void {
+    const l = this.renewLicenseTarget();
+    if (!l?.track?.id) return;
+    if (!this.renewLegalAccepted() || !this.renewWithdrawalWaived()) return;
     if (this.renewingId() !== null) return;
     this.renewingId.set(l.id);
     this.licenseSvc.initiateRenewal(l.track.id, l.id, {
       duration_years: l.duration_years ?? undefined,
       is_lifetime:    l.is_lifetime,
       territory:      l.territory ?? undefined,
+      legal_terms_accepted:    this.renewLegalAccepted(),
+      withdrawal_right_waived: this.renewWithdrawalWaived(),
     }).subscribe({
       next: (res) => {
         this.renewingId.set(null);
+        this.renewLicenseTarget.set(null);
         if (res.success && res.data?.checkout_url) {
           window.location.href = res.data.checkout_url;
         }

@@ -106,7 +106,24 @@
       "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false)",
       "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false --include=\"**/navbar.component.spec.ts,**/upload-track.component.spec.ts,**/auth.spec.ts,**/scheduled_tasks*,**/contract-analyzer*,**/contract-builder.component.spec.ts\")",
       "Bash(~/.nvm/versions/node/v24.15.0/bin/node node_modules/.bin/ng test --watch=false --reporter=verbose)",
-      "Bash(.venv/bin/pytest tests/integration/test_scheduled_tasks.py -v)"
+      "Bash(.venv/bin/pytest tests/integration/test_scheduled_tasks.py -v)",
+      "Skill(code-review)",
+      "Skill(code-review:*)",
+      "Bash(wc -l /tmp/scoped_review.diff)",
+      "Bash(find /Users/eliott/Documents/Dev/Laprod-Angular -iname \"CLAUDE.md\" -o -iname \"CLAUDE.local.md\" 2>/dev/null; echo \"---USER---\"; ls -la ~/.claude/CLAUDE.md 2>/dev/null)",
+      "Read(//Users/eliott/.claude/**)",
+      "Bash(grep -n \"^diff --git\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"is_exclusive\\\\|has_third_party_samples\\\\|phonogram_producer_attested\\\\|contract_data.get\" /tmp/scoped_review.diff | sed -n '1,80p')",
+      "Bash(grep -n \"3-BIS\\\\|is_exclusive_contract\\\\|EXPIRATION\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"contracts_dir = Path\\(current_app.root_path\\)\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"LEGAL_TERMS_REQUIRED\\\\|WITHDRAWAL_WAIVER_REQUIRED\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"legal-notice__accept\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"purchase.contract\\\\b\" /tmp/scoped_review.diff | head -30)",
+      "Bash(grep -n \"end_str\\\\|end_date_str\\\\|31/12/\\\\|datetime.now\\(\\).year\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"^-.*assert\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"db.session.flush\\(\\)\\\\|db.session.add\\(contract\\)\\\\|Contract\\(\\\\*\\\\*kwargs\\)\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"from utils.license_service import\\\\|compute_expires_at\" /tmp/scoped_review.diff)",
+      "Bash(grep -n \"'price':\\\\s*total_price\\\\|'price': *total_price\\\\|composer_email=track.composer_user.email if track.composer_user\\\\|price=int\\(total_price\\)\\\\|'price': *int\\(total_price\\)\" /tmp/scoped_review.diff)"
     ],
     "additionalDirectories": [
       "/tmp"

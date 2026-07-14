@@ -14,6 +14,9 @@ export interface TrackData {
   price_wav: number;
   price_stems?: number;
   sacem_percentage_composer?: number;
+  phonogram_producer_attested?: boolean;
+  has_third_party_samples?:     boolean;
+  sample_clearance_details?:    string;
   tag_ids?: string;
   similar_artist_ids?: string;
   playlist_ids?: string;
@@ -86,6 +89,11 @@ export class CudTrackService {
       formData.append('price_stems', trackData.price_stems.toString());
     }
     formData.append('sacem_percentage_composer', trackData.sacem_percentage_composer?.toString() || '0');
+    formData.append('phonogram_producer_attested', trackData.phonogram_producer_attested ? '1' : '0');
+    formData.append('has_third_party_samples',     trackData.has_third_party_samples     ? '1' : '0');
+    if (trackData.sample_clearance_details) {
+      formData.append('sample_clearance_details', trackData.sample_clearance_details);
+    }
 
     if (trackData.tag_ids) {
       formData.append('tag_ids', trackData.tag_ids);
@@ -157,6 +165,16 @@ export class CudTrackService {
     }
     if (trackData.similar_artist_ids !== undefined) {
       formData.append('similar_artist_ids', trackData.similar_artist_ids);
+    }
+
+    // Attestations légales : conditionnelles — une édition de métadonnées ne
+    // doit pas réinitialiser silencieusement une déclaration déjà faite.
+    if (trackData.phonogram_producer_attested !== undefined) {
+      formData.append('phonogram_producer_attested', trackData.phonogram_producer_attested ? '1' : '0');
+    }
+    if (trackData.has_third_party_samples !== undefined) {
+      formData.append('has_third_party_samples', trackData.has_third_party_samples ? '1' : '0');
+      formData.append('sample_clearance_details', trackData.sample_clearance_details ?? '');
     }
 
     const contractFields: (keyof TrackData)[] = [

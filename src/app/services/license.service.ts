@@ -81,7 +81,11 @@ export class LicenseService {
   initiateRenewal(
     trackId: number,
     purchaseId: number,
-    options: { duration_years?: number; is_lifetime?: boolean; territory?: string },
+    options: {
+      duration_years?: number; is_lifetime?: boolean; territory?: string;
+      legal_terms_accepted: boolean; withdrawal_right_waived: boolean;
+      buyer_declares_original_lyrics?: boolean;
+    },
   ): Observable<ApiResponse<RenewalData>> {
     return this.http.post<ApiResponse<RenewalData>>(
       `${this.apiUrl}/api/track-payment/track/${trackId}/renew/${purchaseId}`,

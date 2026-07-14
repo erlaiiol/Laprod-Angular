@@ -33,7 +33,7 @@ interface TagGroup {
 export class UploadTrackComponent implements OnInit {
 
   readonly DEFAULT_CONTRACT_PRICES = {
-    exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
+    exclusive: 150, duration10y: 15, lifetime: 50,
     mechanical: 30, publicShow: 40, arrangement: 10, territoryEu: 5, territoryWorld: 10,
   };
 
@@ -47,10 +47,13 @@ export class UploadTrackComponent implements OnInit {
   priceStems    = signal(49.99);
   sacemComposer = signal(50);
 
+  /* ── Attestations légales (droits voisins / samples) ─────────────────────── */
+  phonogramProducerAttested = signal(false);
+  hasThirdPartySamples      = signal(false);
+  sampleClearanceDetails    = signal('');
+
   // Prix des droits de contrat (initialisés aux prix standards)
   cpExclusive    = signal(this.DEFAULT_CONTRACT_PRICES.exclusive);
-  cpDuration3y   = signal(this.DEFAULT_CONTRACT_PRICES.duration3y);
-  cpDuration5y   = signal(this.DEFAULT_CONTRACT_PRICES.duration5y);
   cpDuration10y  = signal(this.DEFAULT_CONTRACT_PRICES.duration10y);
   cpLifetime     = signal(this.DEFAULT_CONTRACT_PRICES.lifetime);
   cpMechanical   = signal(this.DEFAULT_CONTRACT_PRICES.mechanical);
@@ -73,8 +76,6 @@ export class UploadTrackComponent implements OnInit {
   hasCustomPrices = computed(() => {
     const d = this.DEFAULT_CONTRACT_PRICES;
     return this.cpExclusive()    !== d.exclusive    ||
-           this.cpDuration3y()   !== d.duration3y   ||
-           this.cpDuration5y()   !== d.duration5y   ||
            this.cpDuration10y()  !== d.duration10y  ||
            this.cpLifetime()     !== d.lifetime      ||
            this.cpMechanical()   !== d.mechanical    ||
@@ -86,7 +87,7 @@ export class UploadTrackComponent implements OnInit {
 
   /* ── Preview state ──────────────────────────────────────────────────────── */
   previewFormat      = signal<'mp3' | 'wav' | 'stems'>('mp3');
-  previewDuration    = signal<'stream' | '3' | '5' | '10' | 'lifetime'>('3');
+  previewDuration    = signal<'stream' | '10' | 'lifetime'>('stream');
   previewTerritory   = signal<'France' | 'Europe' | 'Monde entier'>('France');
   previewExclusive   = signal(false);
   previewMechanical  = signal(false);
@@ -106,8 +107,6 @@ export class UploadTrackComponent implements OnInit {
 
   previewDurationFee = computed(() => {
     const d = this.previewDuration();
-    if (d === '3')        return this.cpDuration3y();
-    if (d === '5')        return this.cpDuration5y();
     if (d === '10')       return this.cpDuration10y();
     if (d === 'lifetime') return this.cpLifetime();
     return 0;
@@ -152,8 +151,6 @@ export class UploadTrackComponent implements OnInit {
   applyStandardPrices(): void {
     const d = this.DEFAULT_CONTRACT_PRICES;
     this.cpExclusive.set(d.exclusive);
-    this.cpDuration3y.set(d.duration3y);
-    this.cpDuration5y.set(d.duration5y);
     this.cpDuration10y.set(d.duration10y);
     this.cpLifetime.set(d.lifetime);
     this.cpMechanical.set(d.mechanical);
@@ -222,6 +219,12 @@ export class UploadTrackComponent implements OnInit {
     if (!this.autoStyle() && !this.style()) errs.push('Style non sélectionné');
     if (!this.fileMp3() && !this.fileWav() && !this.fileStems()) {
       errs.push('Au moins un fichier audio requis (MP3, WAV ou archive stems)');
+    }
+    if (!this.phonogramProducerAttested()) {
+      errs.push('Attestation producteur du phonogramme requise');
+    }
+    if (this.hasThirdPartySamples() && !this.sampleClearanceDetails().trim()) {
+      errs.push('Merci de décrire le statut de clearance des samples');
     }
     return errs;
   });
@@ -354,8 +357,6 @@ export class UploadTrackComponent implements OnInit {
 
     const contractPrices = this.auth.isPremium() ? {
       contract_price_exclusive:       this.cpExclusive(),
-      contract_price_duration_3y:     this.cpDuration3y(),
-      contract_price_duration_5y:     this.cpDuration5y(),
       contract_price_duration_10y:    this.cpDuration10y(),
       contract_price_lifetime:        this.cpLifetime(),
       contract_price_mechanical:      this.cpMechanical(),
@@ -382,6 +383,9 @@ export class UploadTrackComponent implements OnInit {
         price_wav:                this.priceWav(),
         price_stems:              this.priceStems(),
         sacem_percentage_composer: this.sacemComposer(),
+        phonogram_producer_attested: this.phonogramProducerAttested(),
+        has_third_party_samples:     this.hasThirdPartySamples(),
+        sample_clearance_details:    this.sampleClearanceDetails().trim() || undefined,
         tag_ids:                  this.selectedTagIds().join(','),
         similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
         playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
@@ -431,6 +435,9 @@ export class UploadTrackComponent implements OnInit {
     this.priceWav.set(19.99);
     this.priceStems.set(49.99);
     this.sacemComposer.set(50);
+    this.phonogramProducerAttested.set(false);
+    this.hasThirdPartySamples.set(false);
+    this.sampleClearanceDetails.set('');
     this.applyStandardPrices();
     this.selectedTagIds.set([]);
     this.fileMp3.set(null);

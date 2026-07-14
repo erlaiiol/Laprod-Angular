@@ -292,7 +292,7 @@ class TestVerifyPaymentSuccess:
         _route = 'routes.payment_track_api'
         with patch('stripe.checkout.Session.retrieve', return_value=session), \
              patch('stripe.PaymentIntent.retrieve',    return_value=pi), \
-             patch('utils.contract_generator.generate_contract_pdf'), \
+             patch('utils.contract_data_builder.generate_contract_pdf'), \
              patch(f'{_route}.notify_purchase_confirmed'), \
              patch(f'{_route}.notify_sale_completed'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \

@@ -120,6 +120,43 @@ describe('UploadTrackComponent', () => {
       component.key.set('C');
       component.style.set('Trap');
       component.fileMp3.set(new File([new Uint8Array(10)], 'b.mp3'));
+      component.phonogramProducerAttested.set(true);
+      expect(component.canSubmit()).toBe(true);
+    });
+  });
+
+  // ── Attestations légales (droits voisins / samples) ─────────────────────────
+
+  describe('attestations légales', () => {
+    const fillBaseForm = () => {
+      component.title.set('Beat');
+      component.bpm.set(120);
+      component.key.set('C');
+      component.style.set('Trap');
+      component.fileMp3.set(new File([new Uint8Array(10)], 'b.mp3'));
+    };
+
+    it('canSubmit est false sans attestation producteur du phonogramme', () => {
+      fillBaseForm();
+      component.phonogramProducerAttested.set(false);
+      expect(component.canSubmit()).toBe(false);
+      expect(component.submitErrors()).toContain('Attestation producteur du phonogramme requise');
+    });
+
+    it('canSubmit est false si samples déclarés sans description', () => {
+      fillBaseForm();
+      component.phonogramProducerAttested.set(true);
+      component.hasThirdPartySamples.set(true);
+      component.sampleClearanceDetails.set('');
+      expect(component.canSubmit()).toBe(false);
+      expect(component.submitErrors()).toContain('Merci de décrire le statut de clearance des samples');
+    });
+
+    it('canSubmit est true si samples déclarés avec description', () => {
+      fillBaseForm();
+      component.phonogramProducerAttested.set(true);
+      component.hasThirdPartySamples.set(true);
+      component.sampleClearanceDetails.set('Cleared via Splice.');
       expect(component.canSubmit()).toBe(true);
     });
   });
@@ -133,6 +170,7 @@ describe('UploadTrackComponent', () => {
       component.key.set('C major');
       component.style.set('Trap');
       component.fileMp3.set(new File([new Uint8Array(100)], 'beat.mp3', { type: 'audio/mpeg' }));
+      component.phonogramProducerAttested.set(true);
     };
 
     it('ne lance pas l\'upload si le formulaire est invalide', () => {
@@ -150,6 +188,17 @@ describe('UploadTrackComponent', () => {
       component.onSubmit();
 
       expect(callOrder).toEqual(['open', 'http']);
+    });
+
+    it('transmet les attestations légales dans le payload postTrack', () => {
+      fillForm();
+      component.hasThirdPartySamples.set(true);
+      component.sampleClearanceDetails.set('Cleared via Splice.');
+      component.onSubmit();
+      const payload = mockCudTrack.postTrack.mock.calls[0][0];
+      expect(payload.phonogram_producer_attested).toBe(true);
+      expect(payload.has_third_party_samples).toBe(true);
+      expect(payload.sample_clearance_details).toBe('Cleared via Splice.');
     });
 
     it('appelle openForUpload avec le titre du formulaire', () => {

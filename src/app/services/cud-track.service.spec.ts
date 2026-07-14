@@ -53,6 +53,54 @@ describe('CudTrackService', () => {
     req.flush({ success: true });
   });
 
+  it('postTrack() inclut les attestations légales dans le FormData', () => {
+    service.postTrack({
+      ...minimalTrack,
+      phonogram_producer_attested: true,
+      has_third_party_samples: true,
+      sample_clearance_details: 'Cleared via Splice.',
+    }).subscribe();
+    const req = httpMock.expectOne(`${API}/api/tracks/post`);
+    const fd: FormData = req.request.body;
+    expect(fd.get('phonogram_producer_attested')).toBe('1');
+    expect(fd.get('has_third_party_samples')).toBe('1');
+    expect(fd.get('sample_clearance_details')).toBe('Cleared via Splice.');
+    req.flush({ success: true });
+  });
+
+  it('postTrack() envoie phonogram_producer_attested=0 par défaut si non fourni', () => {
+    service.postTrack(minimalTrack).subscribe();
+    const req = httpMock.expectOne(`${API}/api/tracks/post`);
+    const fd: FormData = req.request.body;
+    expect(fd.get('phonogram_producer_attested')).toBe('0');
+    expect(fd.get('has_third_party_samples')).toBe('0');
+    req.flush({ success: true });
+  });
+
+  it('putTrack() n\'envoie pas les attestations légales si non fournies (ne réinitialise pas une déclaration existante)', () => {
+    service.putTrack(1, minimalTrack).subscribe();
+    const req = httpMock.expectOne(`${API}/api/tracks/put/1`);
+    const fd: FormData = req.request.body;
+    expect(fd.get('phonogram_producer_attested')).toBeNull();
+    expect(fd.get('has_third_party_samples')).toBeNull();
+    req.flush({ success: true });
+  });
+
+  it('putTrack() envoie les attestations légales si explicitement fournies', () => {
+    service.putTrack(1, {
+      ...minimalTrack,
+      phonogram_producer_attested: true,
+      has_third_party_samples: true,
+      sample_clearance_details: 'Cleared via Splice.',
+    }).subscribe();
+    const req = httpMock.expectOne(`${API}/api/tracks/put/1`);
+    const fd: FormData = req.request.body;
+    expect(fd.get('phonogram_producer_attested')).toBe('1');
+    expect(fd.get('has_third_party_samples')).toBe('1');
+    expect(fd.get('sample_clearance_details')).toBe('Cleared via Splice.');
+    req.flush({ success: true });
+  });
+
   it('postTrack() inclut le fichier MP3 si fourni', () => {
     const file = new File(['audio'], 'beat.mp3', { type: 'audio/mpeg' });
     service.postTrack({ ...minimalTrack, file_mp3: file }).subscribe();

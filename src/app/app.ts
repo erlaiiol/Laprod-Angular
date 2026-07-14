@@ -1,4 +1,4 @@
-import { Component, afterNextRender, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
 import { NavbarComponent } from './layout/navbar/navbar.component';
@@ -32,15 +32,27 @@ export class App implements OnInit {
   private shell    = inject(NativeShellService);
 
   constructor() {
-    // Compteur de notifications : hors du chemin critique du premier rendu.
-    // Chargé quand le navigateur est idle (badge visible ~1-3 s après le
-    // premier paint) ; le heartbeat 90 s d'AppRefreshService prend le relais.
-    afterNextRender(() => {
+    // Compteur de notifications : rechargé à CHAQUE transition anonyme → connecté
+    // (login, register, OAuth…), pas seulement au premier rendu — sinon un visiteur
+    // qui se connecte en cours de session garde un badge à 0 jusqu'au prochain
+    // heartbeat 90s (AppRefreshService) ou jusqu'à cliquer sur la cloche. isLoggedIn()
+    // est un booléen mémoïsé (computed) : cet effect ne se redéclenche que sur un
+    // vrai flip false→true/true→false, pas sur chaque rafraîchissement de currentUser.
+    let firstLoad = true;
+    effect(() => {
       if (!this.auth.isLoggedIn()) return;
-      const scheduleWhenIdle = 'requestIdleCallback' in window
-        ? (cb: () => void) => (window as Window).requestIdleCallback(cb, { timeout: 5000 })
-        : (cb: () => void) => setTimeout(cb, 2500); // vieux WebViews sans requestIdleCallback
-      scheduleWhenIdle(() => this.notifSvc.load().subscribe({ error: () => {} }));
+      if (firstLoad) {
+        // Premier chargement : hors du chemin critique du premier rendu,
+        // différé jusqu'à ce que le navigateur soit idle.
+        firstLoad = false;
+        const scheduleWhenIdle = 'requestIdleCallback' in window
+          ? (cb: () => void) => (window as Window).requestIdleCallback(cb, { timeout: 5000 })
+          : (cb: () => void) => setTimeout(cb, 2500); // vieux WebViews sans requestIdleCallback
+        scheduleWhenIdle(() => this.notifSvc.load().subscribe({ error: () => {} }));
+      } else {
+        // Connexion survenue pendant cette session : badge à jour immédiatement.
+        this.notifSvc.load().subscribe({ error: () => {} });
+      }
     });
   }
 

@@ -12,9 +12,14 @@ import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 type Format      = 'mp3' | 'wav' | 'stems';
 type Territory   = 'France' | 'Europe' | 'Monde entier';
-type DurationKey = 'stream' | '3' | '5' | '10' | 'lifetime';
+// Barème volontairement court. `isLifetime` (durée légale de protection) est
+// porté par un signal séparé et reste la 3e option du sélecteur.
+// Les paliers 3 et 5 ans ont été retirés : un titre sorti ne se dépublie jamais,
+// donc une échéance courte ne fait que mettre l'acheteur hors licence à son insu.
+type DurationKey = 'stream' | '10';
 type PresetKey   = 'starter' | 'standard' | 'integral';
 type Mode        = 'quick' | 'advanced';
+type LangLevel   = 'plain' | 'legal';
 
 const MECHANICAL_THRESHOLD  = 199.99;
 const PUBLIC_SHOW_THRESHOLD = 74.99;
@@ -59,6 +64,15 @@ export class TrackContractConfigComponent implements OnInit {
   rightArrangement = signal(false);
   buyerAddress     = signal('');
   legalAccepted    = signal(false);
+  withdrawalWaived = signal(false);
+  buyerDeclaresOriginalLyrics = signal(false);
+
+  // Niveau de langage des mentions légales — "En clair" par défaut : le
+  // public cible (artiste qui veut juste sortir un titre) n'a pas besoin
+  // du jargon juridique pour comprendre ses droits. "Juridique" reste
+  // disponible pour qui veut la formulation exacte/citée (même principe
+  // que le double niveau de langage du Contract Builder).
+  legalLanguageLevel = signal<LangLevel>('plain');
 
   private route      = inject(ActivatedRoute);
   private router     = inject(Router);
@@ -71,7 +85,8 @@ export class TrackContractConfigComponent implements OnInit {
     const cp = this.track()?.contract_prices;
     return {
       exclusive:   cp?.exclusive   ?? 150,
-      duration:    { stream: 0, '3': cp?.duration_3y ?? 5, '5': cp?.duration_5y ?? 10, '10': cp?.duration_10y ?? 15, lifetime: cp?.lifetime ?? 50 } as Record<DurationKey, number>,
+      duration:    { stream: 0, '10': cp?.duration_10y ?? 15 } as Record<DurationKey, number>,
+      lifetime:    cp?.lifetime ?? 50,
       territory:   { France: 0, Europe: cp?.territory_eu ?? 5, 'Monde entier': cp?.territory_world ?? 10 } as Record<Territory, number>,
       mechanical:  cp?.mechanical  ?? 30,
       publicShow:  cp?.public_show ?? 40,
@@ -88,7 +103,7 @@ export class TrackContractConfigComponent implements OnInit {
          : (t.price_stems ?? 0);
   });
 
-  durationFee  = computed(() => this.isLifetime() ? this.prices().duration.lifetime : this.prices().duration[this.duration()]);
+  durationFee  = computed(() => this.isLifetime() ? this.prices().lifetime : this.prices().duration[this.duration()]);
   territoryFee = computed(() => this.prices().territory[this.territory()]);
   exclusiveFee = computed(() => this.rightExclusive() ? this.prices().exclusive : 0);
 
@@ -129,9 +144,16 @@ export class TrackContractConfigComponent implements OnInit {
 
   formatLabel = computed(() => ({ mp3: 'MP3 320kbps', wav: 'WAV 24-bit', stems: 'STEMS' }[this.format()]));
 
+  // On n'écrit plus « à vie » nulle part : un engagement perpétuel est prohibé
+  // (art. 1210 C. civ.) et un contrat à durée indéterminée est résiliable
+  // unilatéralement (art. 1211) — l'acheteur y perdrait. Le terme légal de
+  // protection (L.123-1 CPI) est un terme *déterminé*, donc opposable.
   durationLabel = computed(() =>
-    this.isLifetime() ? 'À vie + 70 ans'
-    : ({ stream: 'Streaming seul · à vie', '3': '3 ans', '5': '5 ans', '10': '10 ans', lifetime: 'À vie' } as Record<DurationKey, string>)[this.duration()]
+    this.isLifetime() ? 'Durée légale de protection (vie de l\'auteur + 70 ans)'
+    : ({
+        stream: 'Streaming seul · durée légale de protection',
+        '10':   '10 ans, renouvelable',
+      } as Record<DurationKey, string>)[this.duration()]
   );
 
   readonly presets: readonly LicensePreset[] = [
@@ -142,11 +164,11 @@ export class TrackContractConfigComponent implements OnInit {
     },
     {
       key: 'standard', name: 'Standard', tagline: 'Sorties officielles + concerts',
-      icon: 'bi-vinyl-fill', duration: '5', isLifetime: false,
+      icon: 'bi-vinyl-fill', duration: '10', isLifetime: false,
       territory: 'Europe', mechanical: true, publicShow: true, arrangement: false, popular: true,
     },
     {
-      key: 'integral', name: 'Liberté totale', tagline: 'Tous droits · monde entier · à vie',
+      key: 'integral', name: 'Liberté totale', tagline: 'Tous droits · monde entier · sans échéance',
       icon: 'bi-globe2', duration: 'stream', isLifetime: true,
       territory: 'Monde entier', mechanical: true, publicShow: true, arrangement: true,
     },
@@ -212,6 +234,11 @@ export class TrackContractConfigComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  setLegalLanguage(level: LangLevel): void {
+    this.legalLanguageLevel.set(level);
+    this.cdr.markForCheck();
+  }
+
   applyPreset(p: LicensePreset): void {
     this.duration.set(p.duration);
     this.isLifetime.set(p.isLifetime);
@@ -248,6 +275,11 @@ export class TrackContractConfigComponent implements OnInit {
       this.cdr.markForCheck();
       return;
     }
+    if (!this.withdrawalWaived()) {
+      this.error.set('Veuillez confirmer la renonciation à votre droit de rétractation.');
+      this.cdr.markForCheck();
+      return;
+    }
     if (this.paying()) return;
     this.paying.set(true);
     this.error.set(null);
@@ -267,6 +299,9 @@ export class TrackContractConfigComponent implements OnInit {
       total_price:             Math.round(this.totalPrice() * 100) / 100,
       buyer_address:           this.buyerAddress(),
       buyer_email:             this.auth.currentUser()?.email,
+      legal_terms_accepted:            this.legalAccepted(),
+      withdrawal_right_waived:         this.withdrawalWaived(),
+      buyer_declares_original_lyrics:  this.buyerDeclaresOriginalLyrics(),
     }).subscribe({
       next: (res) => {
         if (res.success && res.data?.checkout_url) {

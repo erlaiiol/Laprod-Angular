@@ -54,6 +54,16 @@
   }
 }
 
+.tag-cat-filter--disabled {
+  margin: 0;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: v.$text-muted;
+
+  i { font-size: 0.85rem; flex-shrink: 0; }
+}
+
 .filter-separator {
   width: 1px;
   height: 1.1rem;

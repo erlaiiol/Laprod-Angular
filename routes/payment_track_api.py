@@ -14,9 +14,10 @@ import stripe
 import stripe._error as stripe_error
 import os
 from datetime import datetime
+from pathlib import Path
 
 from extensions import db, csrf
-from models import Track, User, Purchase, Contract
+from models import Track, User, Purchase
 from serializers import ok, err
 from utils.auth_helpers import require_user
 
@@ -25,7 +26,13 @@ from utils.payment_validator import TrackPriceCalculator
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
 from utils.email_service import send_purchase_confirmation_email, send_sale_notification_email
-from utils.license_service import compute_expires_at, build_duration_text
+from utils.license_service import (
+    ALLOWED_DURATION_YEARS,
+    compute_expires_at,
+    build_duration_text,
+    build_end_date_text,
+)
+from utils.contract_data_builder import build_contract_data, create_contract_and_pdf
 
 payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api/track-payment')
 
@@ -42,15 +49,18 @@ def create_checkout(track_id, format_type, current_user):
 
     Corps JSON :
       {
-        "is_lifetime":              bool,
-        "duration_years":           int  (3 | 5 | 10),
+        "is_lifetime":              bool,  (durée légale de protection)
+        "duration_years":           int  (0 = streaming seul | 10 = terme de 10 ans),
         "territory":                str  ("France" | "Europe" | "Monde entier"),
         "mechanical_reproduction":  bool,
         "public_show":              bool,
         "arrangement":              bool,
         "total_price":              float  (prix calculé côté client — validé serveur),
         "buyer_address":            str  (optionnel),
-        "buyer_email":              str  (optionnel)
+        "buyer_email":              str  (optionnel),
+        "legal_terms_accepted":     bool (obligatoire),
+        "withdrawal_right_waived":  bool (obligatoire — renonciation art. L.221-28 13° C. conso),
+        "buyer_declares_original_lyrics": bool (optionnel)
       }
 
     Retourne :
@@ -77,14 +87,53 @@ def create_checkout(track_id, format_type, current_user):
 
     data = request.get_json() or {}
 
+    # ── Consentement (RGPD / droit de rétractation) ──────────────────────────
+    # Deux actes positifs distincts exigés à l'achat : les CGU/conditions de
+    # licence, et la renonciation expresse au droit de rétractation de 14 jours
+    # sur ce contenu numérique immédiatement disponible (art. L.221-28 13° C. conso).
+    # Non re-dérivables plus tard : sans preuve de consentement au moment de
+    # l'achat, la charge de la preuve pèse sur le professionnel.
+    legal_terms_accepted    = bool(data.get('legal_terms_accepted', False))
+    withdrawal_right_waived = bool(data.get('withdrawal_right_waived', False))
+    buyer_declares_original_lyrics = bool(data.get('buyer_declares_original_lyrics', False))
+
+    if not legal_terms_accepted:
+        return err(
+            'Vous devez accepter les conditions légales de la licence.',
+            code='LEGAL_TERMS_REQUIRED', status=400,
+        )
+    if not withdrawal_right_waived:
+        return err(
+            'Vous devez renoncer expressément à votre droit de rétractation pour ce '
+            'contenu numérique immédiatement disponible.',
+            code='WITHDRAWAL_WAIVER_REQUIRED', status=400,
+        )
+
+    # Barème fermé : 0 (streaming seul) ou 10 ans. Sans cette liste blanche, une
+    # durée hors barème (7 ans…) retomberait sur le fee par défaut du calculateur
+    # tout en étant écrite telle quelle dans le contrat.
+    is_lifetime_opt = bool(data.get('is_lifetime', False))
+    try:
+        duration_years_opt = int(data.get('duration_years', 0))
+    except (TypeError, ValueError):
+        return err('Durée invalide.', code='INVALID_DURATION', status=400)
+    if not is_lifetime_opt and duration_years_opt not in ALLOWED_DURATION_YEARS:
+        return err('Durée invalide.', code='INVALID_DURATION', status=400)
+
+    # « Streaming seul » : aucun droit additionnel n'est concédé. Le PDF imprime
+    # d'ailleurs « aucun autre droit d'exploitation n'est accordé » dans ce cas —
+    # sans cette normalisation, une requête forgée produirait un contrat qui se
+    # contredit lui-même (art. 3 vs art. 5) et ferait payer des droits fantômes.
+    stream_only = not is_lifetime_opt and duration_years_opt == 0
+
     options = {
         'is_exclusive':            bool(data.get('is_exclusive', False)),
-        'is_lifetime':             bool(data.get('is_lifetime', False)),
-        'duration_years':          int(data.get('duration_years', 3)),
+        'is_lifetime':             is_lifetime_opt,
+        'duration_years':          duration_years_opt,
         'territory':               data.get('territory', 'Monde entier'),
-        'mechanical_reproduction': bool(data.get('mechanical_reproduction', False)),
-        'public_show':             bool(data.get('public_show', False)),
-        'arrangement':             bool(data.get('arrangement', False)),
+        'mechanical_reproduction': not stream_only and bool(data.get('mechanical_reproduction', False)),
+        'public_show':             not stream_only and bool(data.get('public_show', False)),
+        'arrangement':             not stream_only and bool(data.get('arrangement', False)),
     }
 
     # ── Validation du prix côté serveur ──────────────────────────────────────
@@ -106,7 +155,7 @@ def create_checkout(track_id, format_type, current_user):
 
     # ── Créer la session Stripe Checkout ─────────────────────────────────────
     try:
-        duration_years = str(data.get('duration_years', 3))
+        duration_years = str(duration_years_opt)
         is_lifetime    = options['is_lifetime']
         buyer_email    = data.get('buyer_email') or current_user.email
 
@@ -129,6 +178,9 @@ def create_checkout(track_id, format_type, current_user):
             'buyer_address':          data.get('buyer_address', ''),
             'buyer_email':            buyer_email,
             'track_price':            str(server_total),
+            'legal_terms_accepted':           str(legal_terms_accepted),
+            'withdrawal_right_waived':        str(withdrawal_right_waived),
+            'buyer_declares_original_lyrics': str(buyer_declares_original_lyrics),
         }
 
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
@@ -279,47 +331,37 @@ def verify_payment(current_user):
         db.session.add(purchase)
         db.session.flush()  # obtenir purchase.id
 
-        # ── Créer le Contract record lié au Purchase ─────────────────────────
-        try:
-            from datetime import date as _date
-            duration_text_val = build_duration_text(is_lifetime, duration_years)
-            start_date_str    = datetime.now().strftime('%d/%m/%Y')
-            end_date_str      = ('À vie' if is_lifetime or not duration_years
-                                 else f"31/12/{datetime.now().year + (duration_years or 0)}")
+        # ── Créer le Contract record + PDF (builder partagé) ─────────────────
+        duration_text_val = build_duration_text(is_lifetime, duration_years)
+        start_date_str    = datetime.now().strftime('%d/%m/%Y')
+        end_date_str      = build_end_date_text(is_lifetime, expires_at_val)
 
-            contract_record = Contract(
-                track_id=track_id,
-                composer_id=track.composer_id,
-                client_id=current_user.id,
-                purchase_id=purchase.id,
-                composer_address=getattr(track.composer_user, 'address', '') or '',
-                composer_email=track.composer_user.email,
-                composer_credit=f"Prod. par {track.composer_user.username}",
-                client_address=meta.get('buyer_address', ''),
-                client_email=meta.get('buyer_email', current_user.email),
-                is_exclusive=is_exclusive,
-                start_date=start_date_str,
-                end_date=end_date_str,
-                duration_text=duration_text_val,
-                territory=territory,
-                mechanical_reproduction=meta.get('mechanical_reproduction') == 'True',
-                public_show=meta.get('public_show') == 'True',
-                streaming=True,
-                arrangement=meta.get('arrangement') == 'True',
-                sacem_percentage_composer=getattr(track, 'sacem_percentage_composer', 50) or 50,
-                sacem_percentage_buyer=100 - (getattr(track, 'sacem_percentage_composer', 50) or 50),
-                price=int(total_price),
-                percentage=0,
-                signature_date=start_date_str,
-                status='active',
-            )
-            db.session.add(contract_record)
-        except Exception as contract_err:
-            current_app.logger.error(
-                f"Erreur création Contract record purchase #{purchase.id}: {contract_err}",
-                exc_info=True,
-            )
-            # Non bloquant
+        contract_data = build_contract_data(
+            track=track,
+            composer_user=track.composer_user,
+            client_user=current_user,
+            is_exclusive=is_exclusive,
+            start_date=start_date_str,
+            end_date=end_date_str,
+            duration_text=duration_text_val,
+            territory=territory,
+            mechanical_reproduction=meta.get('mechanical_reproduction') == 'True',
+            public_show=meta.get('public_show') == 'True',
+            arrangement=meta.get('arrangement') == 'True',
+            price=total_price,
+            client_address=meta.get('buyer_address', ''),
+            client_email=meta.get('buyer_email', current_user.email),
+            buyer_declares_original_lyrics=meta.get('buyer_declares_original_lyrics') == 'True',
+            legal_terms_accepted=meta.get('legal_terms_accepted') == 'True',
+            withdrawal_right_waived=meta.get('withdrawal_right_waived') == 'True',
+        )
+        contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
+        create_contract_and_pdf(
+            contract_data=contract_data,
+            contracts_dir=contracts_dir,
+            filename_prefix=f"contract_{purchase.id}_{track_id}",
+            purchase=purchase,
+        )
 
         # ── Marquer le track comme vendu en exclusivité ──────────────────────
         if is_exclusive:
@@ -336,57 +378,6 @@ def verify_payment(current_user):
 
         # ── Crédit wallet compositeur ────────────────────────────────────────
         credit_wallet_for_beat_sale(purchase)
-
-        # ── Génération du contrat PDF ────────────────────────────────────────
-        try:
-            from utils.contract_generator import generate_contract_pdf
-            from pathlib import Path
-
-            contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
-            contracts_dir.mkdir(parents=True, exist_ok=True)
-
-            start_date    = datetime.now().strftime('%d/%m/%Y')
-            end_date      = end_date_str
-            duration_text = duration_text_val
-
-            # Composant uuid non-devinable : empêche l'énumération des contrats
-            # (chaque PDF contient des données personnelles acheteur + compositeur).
-            import uuid as _uuid
-            contract_filename = f"contract_{purchase.id}_{track_id}_{_uuid.uuid4().hex[:8]}.pdf"
-            contract_path = contracts_dir / contract_filename
-
-            contract_data = {
-                'track_title':            track.title,
-                'composer_name':          track.composer_user.username,
-                'composer_address':       getattr(track.composer_user, 'address', ''),
-                'composer_email':         track.composer_user.email,
-                'composer_credit':        f"Prod. par {track.composer_user.username}",
-                'client_name':            current_user.username,
-                'client_address':         meta.get('buyer_address', ''),
-                'client_email':           meta.get('buyer_email', current_user.email),
-                'is_exclusive':           meta.get('is_exclusive') == 'True',
-                'start_date':             start_date,
-                'end_date':               end_date,
-                'duration_text':          duration_text,
-                'territory':              meta.get('territory', 'Monde entier'),
-                'mechanical_reproduction': meta.get('mechanical_reproduction') == 'True',
-                'public_show':            meta.get('public_show') == 'True',
-                'streaming':              True,
-                'arrangement':            meta.get('arrangement') == 'True',
-                'price':                  total_price,
-                'platform_commission':    10,
-                'signature_date':         start_date,
-            }
-
-            generate_contract_pdf(str(contract_path), contract_data)
-            purchase.contract_file = contract_filename
-
-        except Exception as pdf_err:
-            current_app.logger.error(
-                f"Erreur génération contrat PDF purchase #{purchase.id}: {pdf_err}",
-                exc_info=True,
-            )
-            # Non bloquant : on continue sans PDF
 
         # ── Notifications ────────────────────────────────────────────────────
         notify_purchase_confirmed(purchase)

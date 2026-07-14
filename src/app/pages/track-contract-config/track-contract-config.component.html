@@ -82,13 +82,13 @@
             <li class="qs-item qs-item--ok">
               <i class="bi bi-check-circle-fill"></i>
               <div class="qs-item__body">
-                <strong>Streaming perpétuel · inclus</strong>
+                <strong>Streaming durée légale · inclus</strong>
                 <span>Spotify, Deezer, Apple Music, YouTube, TikTok, réseaux sociaux…</span>
               </div>
               <span class="has-tip" tabindex="0">
                 <i class="bi bi-info-circle"></i>
                 <div class="tip tip--left">
-                  Le droit de <strong>streaming est inclus à vie</strong> dans toutes les formules sans exception. Il te permet de diffuser ton morceau sur toutes les plateformes musicales et réseaux sociaux, sans limite de durée. C'est le droit de base qui garantit l'existence de ton projet en ligne.
+                  Le droit de <strong>streaming est inclus pour la durée légale de protection</strong> (vie de l'auteur + 70 ans) dans toutes les formules sans exception. Il te permet de diffuser ton morceau sur toutes les plateformes musicales et réseaux sociaux, sans renouvellement requis pendant cette période. C'est le droit de base qui garantit l'existence de ton projet en ligne.
                 </div>
               </span>
             </li>
@@ -96,13 +96,13 @@
             <li class="qs-item qs-item--ok">
               <i class="bi bi-check-circle-fill"></i>
               <div class="qs-item__body">
-                <strong>Durée : streaming seul · à vie · +0€</strong>
+                <strong>Durée : streaming seul · durée légale · +0€</strong>
                 <span>Les autres droits (CD, concerts…) ne sont pas accordés — uniquement le streaming.</span>
               </div>
               <span class="has-tip" tabindex="0">
                 <i class="bi bi-info-circle"></i>
                 <div class="tip tip--left">
-                  La durée <strong>"Streaming seul"</strong> signifie que tu obtiens un droit de streaming perpétuel mais <em>aucun</em> autre droit temporel. Pour ajouter des droits sur une durée déterminée (3, 5, 10 ans) ou à vie pour les autres usages, passe en mode Avancé.
+                  La durée <strong>"Streaming seul"</strong> signifie que tu obtiens un droit de streaming pour la durée légale de protection du droit d'auteur mais <em>aucun</em> autre droit. Pour ajouter les autres usages (pressage CD/vinyle, vente en téléchargement, diffusion publique, arrangement) sur 10 ans ou sur toute la durée légale de protection, passe en mode Avancé.
                 </div>
               </span>
             </li>
@@ -303,14 +303,24 @@
 
         <!-- Durée -->
         <section class="form-section">
-          <h3>Durée de la licence</h3>
+          <h3>Jusqu'à quand tu peux exploiter le son</h3>
+          <div class="info-box info-success">
+            <i class="bi bi-shield-check"></i>
+            <span>
+              <strong>Ta sortie ne disparaît jamais.</strong> Le droit de streaming est accordé pour la
+              durée légale de protection du droit d'auteur (vie de l'auteur + 70 ans) dans
+              <strong>toutes</strong> les formules, sans exception et sans renouvellement.
+              Et tout ce que tu as publié pendant la licence reste exploitable
+              <strong>définitivement</strong>, même après son échéance.
+            </span>
+          </div>
           <div class="info-box info-info">
             <i class="bi bi-info-circle"></i>
             <span>
-              Le <strong>streaming est toujours inclus à vie</strong>, quelle que soit l'option choisie.
-              La durée indiquée ci-dessous s'applique uniquement aux <strong>autres droits</strong>
-              (reproduction mécanique, diffusion publique, arrangement…).<br>
-              <em>« Streaming seul »</em> = streaming perpétuel, aucun autre droit accordé.
+              L'échéance ci-dessous ne concerne donc que les <strong>nouvelles exploitations</strong> sous
+              les autres droits (pressage CD/vinyle, vente en téléchargement, diffusion publique,
+              arrangement…).<br>
+              <em>« Streaming seul »</em> = streaming sur la durée légale, aucun autre droit accordé.
             </span>
           </div>
           <div class="duration-group">
@@ -318,24 +328,22 @@
                     class="duration-btn stream-btn"
                     [class.selected]="!isLifetime() && duration() === 'stream'"
                     (click)="setDuration('stream')">
-              Streaming seul · à vie
+              Streaming seul · durée légale
               <span class="btn-fee">+0€</span>
             </button>
-            @for (opt of [['3','3 ans'],['5','5 ans'],['10','10 ans']]; track opt[0]) {
-              <button type="button"
-                      class="duration-btn"
-                      [class.selected]="!isLifetime() && duration() === opt[0]"
-                      (click)="setDuration($any(opt[0]))">
-                {{ opt[1] }}
-                <span class="btn-fee">+{{ $any(prices().duration)[opt[0]] }}€</span>
-              </button>
-            }
+            <button type="button"
+                    class="duration-btn"
+                    [class.selected]="!isLifetime() && duration() === '10'"
+                    (click)="setDuration('10')">
+              10 ans, renouvelable
+              <span class="btn-fee">+{{ prices().duration['10'] }}€</span>
+            </button>
             <button type="button"
                     class="duration-btn lifetime-btn"
                     [class.selected]="isLifetime()"
                     (click)="toggleLifetime()">
-              À vie + 70 ans
-              <span class="btn-fee">+{{ prices().duration.lifetime }}€</span>
+              Durée légale de protection
+              <span class="btn-fee">+{{ prices().lifetime }}€</span>
             </button>
           </div>
           <p class="duration-selected">
@@ -461,42 +469,134 @@
 
       <!-- ── Mentions légales (obligation d'information précontractuelle) ── -->
       <div class="legal-notice">
-        <h4 class="legal-notice__title">
-          <i class="bi bi-shield-check"></i> Conditions légales de la licence
-        </h4>
+        <div class="legal-notice__header">
+          <h4 class="legal-notice__title">
+            <i class="bi bi-shield-check"></i> Conditions légales de la licence
+          </h4>
+          <div class="lang-toggle" [class.lang-toggle--legal]="legalLanguageLevel() === 'legal'">
+            <div class="lang-toggle__indicator"></div>
+            <button type="button" class="lang-btn" [class.active]="legalLanguageLevel() === 'plain'"
+                    (click)="setLegalLanguage('plain')">
+              <i class="bi bi-lightbulb-fill"></i> En clair
+            </button>
+            <button type="button" class="lang-btn" [class.active]="legalLanguageLevel() === 'legal'"
+                    (click)="setLegalLanguage('legal')">
+              <i class="bi bi-book-half"></i> Juridique
+            </button>
+          </div>
+        </div>
+
         <ul class="legal-notice__list">
           <li>
-            <strong>Droits moraux permanents (art. L.121-1 CPI) :</strong>
-            Le compositeur conserve ses droits moraux en permanence. Ces droits sont inaliénables et imprescriptibles.
+            <strong>Droits moraux (art. L.121-1 CPI) :</strong>
+            @if (legalLanguageLevel() === 'plain') {
+              Le compositeur reste toujours reconnu comme le créateur du beat, même après ton achat —
+              impossible de l'effacer des crédits ou de prétendre l'avoir composé toi-même.
+            } @else {
+              Le compositeur conserve ses droits moraux en permanence. Ces droits sont inaliénables et imprescriptibles.
+            }
           </li>
           <li>
             <strong>Retour des droits à l'expiration :</strong>
-            À l'échéance de la durée choisie, les droits patrimoniaux concédés reviennent automatiquement au compositeur.
-            Aucun renouvellement tacite n'est prévu.
+            @if (legalLanguageLevel() === 'plain') {
+              Une fois ta durée de licence terminée, tu dois arrêter d'exploiter le beat sous cette forme
+              (le streaming déjà en ligne reste possible). Il n'y a pas de renouvellement automatique —
+              pense à racheter une licence si tu en as encore besoin.
+            } @else {
+              À l'échéance de la durée choisie, les droits patrimoniaux concédés reviennent automatiquement au compositeur.
+              Aucun renouvellement tacite n'est prévu.
+            }
           </li>
           <li>
             <strong>Liberté de re-licence du compositeur :</strong>
-            Le compositeur peut licencier de nouveau cette composition après expiration, sans délai, y compris exclusivement à un tiers.
+            @if (legalLanguageLevel() === 'plain') {
+              Dès que ta licence expire, le compositeur peut revendre ce même beat à un autre artiste,
+              sans avoir à t'en informer au préalable.
+            } @else {
+              Le compositeur peut licencier de nouveau cette composition après expiration, sans délai, y compris exclusivement à un tiers.
+            }
           </li>
           <li>
-            <strong>Vos enregistrements restent valides :</strong>
-            Les œuvres que vous réalisez pendant la période de licence restent valides après expiration.
-            Vous ne pourrez pas créer de nouvelles exploitations commerciales de cette composition au-delà de la date d'expiration.
+            <strong>Tes enregistrements restent valides :</strong>
+            @if (legalLanguageLevel() === 'plain') {
+              Tout ce que tu as déjà sorti pendant ta licence (clip, sortie sur les plateformes…) reste
+              valable même après son expiration — tu ne peux juste plus créer de nouvelles exploitations après.
+            } @else {
+              Les œuvres que vous réalisez pendant la période de licence restent valides après expiration.
+              Vous ne pourrez pas créer de nouvelles exploitations commerciales de cette composition au-delà de la date d'expiration.
+            }
           </li>
           @if (rightExclusive()) {
             <li class="legal-notice__exclusive">
               <i class="bi bi-star-fill"></i>
               <strong>Fin de l'exclusivité :</strong>
-              L'exclusivité prend fin à l'échéance indiquée. La composition redevient alors automatiquement disponible à la vente.
+              @if (legalLanguageLevel() === 'plain') {
+                Ton exclusivité a une date de fin : passé ce délai, le beat redevient disponible à l'achat pour d'autres artistes.
+              } @else {
+                L'exclusivité prend fin à l'échéance indiquée. La composition redevient alors automatiquement disponible à la vente.
+              }
             </li>
           }
+          <li>
+            <strong>Prix fixe, révisable en cas de gros succès (art. L.131-4 et L.131-5 CPI) :</strong>
+            @if (legalLanguageLevel() === 'plain') {
+              Tu payes un prix fixe, une seule fois. Mais si ton morceau devient un très gros succès, la loi
+              permet au compositeur de te demander, devant un tribunal, un complément si le prix payé s'avère
+              très disproportionné par rapport aux gains générés.
+            } @else {
+              Le prix ci-dessus est un forfait. En cas de succès commercial significatif et disproportionné
+              du morceau, le compositeur conserve un droit de révision judiciaire des conditions de prix.
+            }
+          </li>
         </ul>
+
         <label class="legal-notice__accept">
           <input type="checkbox"
                  [checked]="legalAccepted()"
                  (change)="legalAccepted.set($any($event.target).checked)">
           <span>J'ai lu et j'accepte les conditions légales de cette licence</span>
         </label>
+
+        @if (legalLanguageLevel() === 'plain') {
+          <p class="legal-notice__hint">
+            <i class="bi bi-lightbulb-fill"></i> En clair : le fichier est disponible en téléchargement
+            tout de suite après ton paiement — contrairement à un colis, la loi ne permet donc pas de
+            changer d'avis dans les 14 jours qui suivent. En cochant ci-dessous, tu confirmes avoir compris ça.
+          </p>
+        }
+        <label class="legal-notice__accept legal-notice__accept--withdrawal">
+          <input type="checkbox"
+                 [checked]="withdrawalWaived()"
+                 (change)="withdrawalWaived.set($any($event.target).checked)">
+          <span>
+            Je reconnais que ce contenu numérique est immédiatement mis à disposition après paiement
+            et je renonce expressément à mon droit de rétractation de 14 jours (art. L.221-28 13° du
+            Code de la consommation).
+          </span>
+        </label>
+      </div>
+
+      <!-- ── Déclaration d'auteur (optionnelle — influe sur la répartition SACEM) ── -->
+      <div class="legal-notice legal-notice--lyrics">
+        <h4 class="legal-notice__title">
+          <i class="bi bi-mic-fill"></i> Déclaration d'auteur
+        </h4>
+        <label class="legal-notice__accept">
+          <input type="checkbox"
+                 [checked]="buyerDeclaresOriginalLyrics()"
+                 (change)="buyerDeclaresOriginalLyrics.set($any($event.target).checked)">
+          <span>Je déclare avoir écrit des paroles originales sur ce titre</span>
+        </label>
+        <p class="legal-notice__hint">
+          @if (legalLanguageLevel() === 'plain') {
+            Si tu as juste posé ta voix sans écrire de texte original, ne coche pas cette case — tu restes
+            protégé en tant qu'interprète, simplement pas comme auteur pour la répartition SACEM.
+          } @else {
+            Si vous ne cochez pas cette case, vous êtes traité comme interprète — pas comme co-auteur —
+            pour la répartition des droits d'auteur SACEM. Vous pouvez, le cas échéant, être titulaire de
+            droits voisins d'artiste-interprète (ADAMI, SPEDIDAM), en dehors du champ de ce contrat.
+          }
+        </p>
       </div>
 
       @if (error()) {
@@ -512,7 +612,7 @@
                 [class.btn-confirm--quick]="mode() === 'quick'"
                 [class.btn-confirm--login]="!auth.isLoggedIn()"
                 (click)="onConfirm()"
-                [disabled]="paying() || (!auth.isLoggedIn() ? false : !legalAccepted())">
+                [disabled]="paying() || (!auth.isLoggedIn() ? false : (!legalAccepted() || !withdrawalWaived()))">
           @if (paying()) {
             <span class="spinner-border spinner-border-sm me-2"></span> Redirection…
           } @else if (!auth.isLoggedIn()) {

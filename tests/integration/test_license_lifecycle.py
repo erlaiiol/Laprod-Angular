@@ -64,14 +64,43 @@ class TestComputeExpiresAt:
             from utils.license_service import compute_expires_at
             assert compute_expires_at(is_lifetime=True, duration_years=None) is None
 
-    def test_3_years_returns_correct_date(self, app):
+    def test_10_years_tombe_sur_le_meme_jour_calendaire(self, app):
+        """
+        L'échéance est calculée en années civiles, pas en 365×N jours : c'est la
+        date imprimée sur le contrat signé, un décalage la ferait diverger du
+        document (les années bissextiles décalent de plusieurs jours sur 10 ans).
+        """
         with app.app_context():
             from utils.license_service import compute_expires_at
-            result = compute_expires_at(is_lifetime=False, duration_years=3)
+            now    = datetime.now()
+            result = compute_expires_at(is_lifetime=False, duration_years=10)
             assert result is not None
-            expected = datetime.now() + timedelta(days=3 * 365)
-            # tolérance ±5 secondes
-            assert abs((result - expected).total_seconds()) < 5
+            assert result.year  == now.year + 10
+            assert result.month == now.month
+            # 29/02 → 28/02 dans une année non bissextile
+            assert result.day in (now.day, 28)
+
+    def test_contrat_et_base_designent_la_meme_echeance(self, app):
+        """
+        La date de fin du PDF est dérivée de `expires_at` : le document signé et
+        le cycle de vie en base ne doivent jamais désigner deux jours différents.
+        """
+        with app.app_context():
+            from utils.license_service import compute_expires_at, build_end_date_text
+            expires_at = compute_expires_at(is_lifetime=False, duration_years=10)
+            assert build_end_date_text(False, expires_at) == expires_at.strftime('%d/%m/%Y')
+
+    def test_terme_legal_n_est_jamais_libelle_a_vie(self, app):
+        """
+        « À vie » exposerait le contrat à l'art. 1210 C. civ. (engagement perpétuel
+        prohibé) / 1211 (durée indéterminée résiliable unilatéralement). On énonce
+        un terme déterminé : la durée légale de protection.
+        """
+        with app.app_context():
+            from utils.license_service import build_duration_text, build_end_date_text
+            for text in (build_duration_text(True, None), build_end_date_text(True, None)):
+                assert 'vie de l\'auteur' in text
+                assert 'À vie' not in text
 
     def test_none_duration_returns_none(self, app):
         with app.app_context():
@@ -99,6 +128,18 @@ class TestBuildDurationText:
             from utils.license_service import build_duration_text
             text = build_duration_text(False, None)
             assert text  # doit retourner quelque chose (ex: "Streaming")
+
+    def test_streaming_text_uses_legal_duration_not_perpetuel(self, app):
+        """
+        Un droit patrimonial cédé sans durée déterminée est fragile au regard de
+        l'art. L.131-3 CPI — la durée doit être définie (vie de l'auteur + 70 ans),
+        pas "perpétuelle"/"à vie" (cf. audit légal, Phase 3 du plan de correction).
+        """
+        with app.app_context():
+            from utils.license_service import build_duration_text
+            text = build_duration_text(False, None)
+            assert 'perpétuel' not in text.lower()
+            assert '70 ans' in text
 
 
 # ── Purchase avec champs licence ─────────────────────────────────────────────
@@ -155,7 +196,7 @@ class TestVerifyPaymentStoreLicenseFields:
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \
              patch(f'{_route}.send_sale_notification_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),
@@ -194,7 +235,7 @@ class TestVerifyPaymentStoreLicenseFields:
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \
              patch(f'{_route}.send_sale_notification_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),
@@ -234,7 +275,7 @@ class TestVerifyPaymentStoreLicenseFields:
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \
              patch(f'{_route}.send_sale_notification_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),

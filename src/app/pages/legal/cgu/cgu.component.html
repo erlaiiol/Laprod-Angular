@@ -33,9 +33,9 @@
         <p>
           Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et
           l'utilisation de la plateforme LaProd+ (ci-après « la Plateforme »), éditée par
-          <strong>LaProd SAS</strong>, société par actions simplifiée au capital de [montant] euros,
-          immatriculée au Registre du Commerce et des Sociétés de [ville] sous le numéro [RCS],
-          dont le siège social est situé à [adresse complète] (ci-après « LaProd »).
+          <strong>{{ legal.operatorName }}</strong>, {{ legal.legalForm | lowercase }}
+          (SIREN {{ legal.siren }}), dont l'adresse est {{ legal.address }}
+          (ci-après « LaProd »).
         </p>
         <p>
           La Plateforme est accessible à l'adresse <strong>laprod.net</strong> et propose des services
@@ -250,9 +250,9 @@
         <h3>7.1 Droits de LaProd</h3>
         <p>
           La Plateforme, son interface graphique, ses fonctionnalités, sa charte graphique, ses logos
-          et marques sont la propriété exclusive de LaProd SAS et sont protégés par le droit de la
-          propriété intellectuelle. Toute reproduction, représentation ou utilisation non autorisée
-          est strictement interdite.
+          et marques sont la propriété exclusive de {{ legal.operatorName }} et sont protégés par le
+          droit de la propriété intellectuelle. Toute reproduction, représentation ou utilisation non
+          autorisée est strictement interdite.
         </p>
         <h3>7.2 Droits des Utilisateurs (beatmakers)</h3>
         <p>
@@ -373,7 +373,7 @@
         </p>
         <p>
           À défaut de règlement amiable, les litiges seront soumis à la compétence exclusive des
-          tribunaux compétents dans le ressort du siège social de LaProd SAS, sauf dispositions
+          tribunaux compétents du domicile de {{ legal.operatorName }}, sauf dispositions
           légales contraires applicables aux consommateurs.
         </p>
       </section>
@@ -409,9 +409,9 @@
         <p>
           Pour toute question relative aux présentes CGU, l'Utilisateur peut contacter LaProd à :
           <br>
-          <strong>LaProd SAS</strong><br>
-          [Adresse postale]<br>
-          E-mail : <a href="mailto:admin@laprod.net">admin@laprod.net</a>
+          <strong>{{ legal.operatorName }}</strong><br>
+          {{ legal.address }}<br>
+          E-mail : <a href="mailto:{{ legal.adminEmail }}">{{ legal.adminEmail }}</a>
         </p>
       </section>
 

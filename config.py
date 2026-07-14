@@ -45,9 +45,8 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # Configuration PostgreSQL
 # En production avec gunicorn --preload, les workers héritent du même Engine par fork.
-# NullPool évite tout partage de connexion entre workers : chaque requête crée et
-# ferme sa propre connexion PostgreSQL. Légèrement plus lent mais entièrement sûr.
-# En développement on garde le pool standard pour les performances.
+# La sécurité du fork est assurée par post_fork() (dispose du pool), pas par
+# l'absence de pool — voir le bloc production ci-dessous.
 import os as _os
 # X-Accel-Redirect : nginx sert les fichiers directement après auth Flask.
 # Activer en production (FLASK_ENV=production ou USE_X_ACCEL_REDIRECT=true).
@@ -57,10 +56,23 @@ USE_X_ACCEL_REDIRECT = (
 )
 
 if _os.environ.get('FLASK_ENV') == 'production':
-    from sqlalchemy.pool import NullPool
+    # Pool borné (ex-NullPool). NullPool ouvrait une connexion PostgreSQL par
+    # requête : or PostgreSQL fork un backend par connexion, ce qui faisait de
+    # n'importe quel flood HTTP un épuisement de max_connections + un pic CPU.
+    #
+    # Le pool est sûr malgré --preload parce que post_fork() (gunicorn.conf.py)
+    # appelle db.engine.dispose() : chaque worker repart sur ses propres
+    # connexions, jamais sur celles héritées du parent.
+    #
+    # Dimensionnement : 1 connexion par thread gthread (4) + 2 de marge.
+    # Plafond = workers × 6 → 30 connexions sur un 2 vCPU, sous les 100 par défaut.
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'poolclass': NullPool,
+        'pool_size': 4,
+        'max_overflow': 2,
+        'pool_recycle': 1800,
         'pool_pre_ping': True,
+        # Sous charge, on échoue vite plutôt que d'empiler les requêtes en attente.
+        'pool_timeout': 10,
         'echo': False,
     }
 else:

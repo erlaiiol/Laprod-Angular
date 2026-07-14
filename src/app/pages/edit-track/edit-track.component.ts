@@ -46,7 +46,7 @@ export class EditTrackComponent implements OnInit {
   private tagsService = inject(TagsService);
   
   readonly DEFAULT_CONTRACT_PRICES = {
-    exclusive: 150, duration3y: 5, duration5y: 10, duration10y: 15, lifetime: 50,
+    exclusive: 150, duration10y: 15, lifetime: 50,
     mechanical: 30, publicShow: 40, arrangement: 10, territoryEu: 5, territoryWorld: 10,
   };
 
@@ -67,8 +67,6 @@ export class EditTrackComponent implements OnInit {
 
   // Prix des droits de contrat
   cpExclusive    = signal(this.DEFAULT_CONTRACT_PRICES.exclusive);
-  cpDuration3y   = signal(this.DEFAULT_CONTRACT_PRICES.duration3y);
-  cpDuration5y   = signal(this.DEFAULT_CONTRACT_PRICES.duration5y);
   cpDuration10y  = signal(this.DEFAULT_CONTRACT_PRICES.duration10y);
   cpLifetime     = signal(this.DEFAULT_CONTRACT_PRICES.lifetime);
   cpMechanical   = signal(this.DEFAULT_CONTRACT_PRICES.mechanical);
@@ -85,8 +83,6 @@ export class EditTrackComponent implements OnInit {
   hasCustomPrices = computed(() => {
     const d = this.DEFAULT_CONTRACT_PRICES;
     return this.cpExclusive()    !== d.exclusive    ||
-           this.cpDuration3y()   !== d.duration3y   ||
-           this.cpDuration5y()   !== d.duration5y   ||
            this.cpDuration10y()  !== d.duration10y  ||
            this.cpLifetime()     !== d.lifetime      ||
            this.cpMechanical()   !== d.mechanical    ||
@@ -99,8 +95,6 @@ export class EditTrackComponent implements OnInit {
   applyStandardPrices(): void {
     const d = this.DEFAULT_CONTRACT_PRICES;
     this.cpExclusive.set(d.exclusive);
-    this.cpDuration3y.set(d.duration3y);
-    this.cpDuration5y.set(d.duration5y);
     this.cpDuration10y.set(d.duration10y);
     this.cpLifetime.set(d.lifetime);
     this.cpMechanical.set(d.mechanical);
@@ -178,8 +172,6 @@ export class EditTrackComponent implements OnInit {
         if (track.contract_prices) {
           const cp = track.contract_prices;
           this.cpExclusive.set(cp.exclusive);
-          this.cpDuration3y.set(cp.duration_3y);
-          this.cpDuration5y.set(cp.duration_5y);
           this.cpDuration10y.set(cp.duration_10y);
           this.cpLifetime.set(cp.lifetime);
           this.cpMechanical.set(cp.mechanical);
@@ -272,8 +264,6 @@ export class EditTrackComponent implements OnInit {
   private _doSubmit(regeneratePreview: boolean): void {
     const contractPrices = this.auth.isPremium() ? {
       contract_price_exclusive:       this.cpExclusive(),
-      contract_price_duration_3y:     this.cpDuration3y(),
-      contract_price_duration_5y:     this.cpDuration5y(),
       contract_price_duration_10y:    this.cpDuration10y(),
       contract_price_lifetime:        this.cpLifetime(),
       contract_price_mechanical:      this.cpMechanical(),

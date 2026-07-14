@@ -122,8 +122,11 @@ def upload_topline():
     else:
         # Vérification Redis double-filet (UUID + IP-hash)
         uuid_key = f"guest_topline:{guest_session_id}"
+        # request.remote_addr est corrigé par ProxyFix (vraie IP client, non
+        # forgeable). Lire X-Forwarded-For brut laissait un bot injecter une IP
+        # différente à chaque requête pour réinitialiser son quota guest.
         ip_hash  = hashlib.sha256(
-            (request.headers.get('X-Forwarded-For') or request.remote_addr or '').encode()
+            (request.remote_addr or '').encode()
         ).hexdigest()[:16]
         ip_key   = f"guest_topline_ip:{ip_hash}"
 

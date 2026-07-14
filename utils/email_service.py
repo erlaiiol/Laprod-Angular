@@ -1140,6 +1140,14 @@ L'équipe LaProd
 # EMAILS — RE-ENGAGEMENT HEBDOMADAIRE
 # ============================================
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SÉCURITÉ — Les tips ci-dessous sont rendus SANS échappement dans les templates
+# de relance (`{{ did_you_know | safe }}`), car ils contiennent du markup <strong>
+# volontaire. Ce `|safe` n'est SÛR que parce que ces chaînes sont des littéraux
+# écrits par un développeur. NE JAMAIS y injecter de donnée utilisateur/BDD
+# (username, bio, titre…) : ce serait un XSS stocké dans les emails. Toute donnée
+# dynamique doit passer par une variable de template distincte, échappée.
+# ─────────────────────────────────────────────────────────────────────────────
 _TIPS_BEATMAKER = [
     (
         "À la fin de chaque upload, un <strong>template de description YouTube</strong> est généré "

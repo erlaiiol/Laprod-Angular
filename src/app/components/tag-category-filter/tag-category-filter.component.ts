@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { TagsService } from '../../services/tags.service';
@@ -15,6 +15,12 @@ import { AuthService } from '../../services/auth.service';
 export class TagCategoryFilterComponent {
   private tagsService = inject(TagsService);
   private authService = inject(AuthService);
+
+  // La vue compacte masque tags et artistes similaires sur les track-cards
+  // (track-card.component.scss : .track-card--compact .track-info { display: none })
+  // → ce filtre n'a alors plus aucun effet visible, on l'indique au lieu de
+  // laisser des boutons cliquables qui ne font rien.
+  compact = input(false);
 
   constructor() {
     // Le composant est responsable de ses données : requête partagée/cachée,

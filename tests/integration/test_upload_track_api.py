@@ -38,6 +38,7 @@ def _post_track(client, auth_headers, extra=None):
         'style': 'Trap',
         'price_mp3': '9.99',
         'price_wav': '19.99',
+        'phonogram_producer_attested': '1',
         'file_mp3': _audio_file(),
         **(extra or {}),
     }

@@ -5,6 +5,19 @@ from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
 from datetime import datetime
+from xml.sax.saxutils import escape as _xml_escape
+
+
+def _esc(value) -> str:
+    """Échappe une donnée dynamique destinée au mini-markup XML de ReportLab.
+
+    composer_name, client_name, adresses, track_title, territoire et crédit
+    proviennent des utilisateurs. Sans échappement, un '<' ou '&' casse la
+    génération du contrat, et des balises injectées altèrent le document. Le
+    markup <b>/<br/> volontaire reste écrit en clair, hors de _esc().
+    """
+    return _xml_escape('' if value is None else str(value))
+
 
 def generate_contract_pdf(output_path, contract_data):
     """
@@ -33,7 +46,11 @@ def generate_contract_pdf(output_path, contract_data):
                 'price': int,
                 'percentage': int,
                 'signature_place': str,
-                'signature_date': str
+                'signature_date': str,
+                'phonogram_producer_attested': bool,   # cf. article 1-bis
+                'has_third_party_samples': bool,       # cf. article 9
+                'sample_clearance_details': str,       # cf. article 9
+                'buyer_declares_original_lyrics': bool, # cf. répartition SACEM (article 6)
             }
     """
     
@@ -104,9 +121,9 @@ def generate_contract_pdf(output_path, contract_data):
     
     # Compositeur
     composer_info = f"""
-    <b>Le Compositeur :</b> {contract_data['composer_name']}<br/>
-    <b>Adresse :</b> {contract_data.get('composer_address', '______________________________')}<br/>
-    <b>Email :</b> {contract_data.get('composer_email', '______________________________')}<br/>
+    <b>Le Compositeur :</b> {_esc(contract_data['composer_name'])}<br/>
+    <b>Adresse :</b> {_esc(contract_data.get('composer_address', '______________________________'))}<br/>
+    <b>Email :</b> {_esc(contract_data.get('composer_email', '______________________________'))}<br/>
     <br/>
     Ci-après désigné « le Compositeur »
     """
@@ -118,9 +135,9 @@ def generate_contract_pdf(output_path, contract_data):
     
     # Interprète
     client_info = f"""
-    <b>L'Interprète / Auteur :</b> {contract_data['client_name']}<br/>
-    <b>Adresse :</b> {contract_data.get('client_address', '______________________________')}<br/>
-    <b>Email :</b> {contract_data.get('client_email', '______________________________')}<br/>
+    <b>L'Interprète / Auteur :</b> {_esc(contract_data['client_name'])}<br/>
+    <b>Adresse :</b> {_esc(contract_data.get('client_address', '______________________________'))}<br/>
+    <b>Email :</b> {_esc(contract_data.get('client_email', '______________________________'))}<br/>
     <br/>
     Ci-après désigné « l'Interprète »
     """
@@ -137,7 +154,7 @@ def generate_contract_pdf(output_path, contract_data):
     ))
     story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph(
-        f"<b>Titre / Référence du beat :</b> {contract_data['track_title']}",
+        f"<b>Titre / Référence du beat :</b> {_esc(contract_data['track_title'])}",
         normal_style
     ))
     story.append(Spacer(1, 0.2*cm))
@@ -152,7 +169,27 @@ def generate_contract_pdf(output_path, contract_data):
         "<b>Le Compositeur reste seul titulaire des droits d'auteur sur la composition.</b>",
         normal_style
     ))
-    
+
+    # ============= 1-BIS. DROITS VOISINS (PRODUCTEUR DE PHONOGRAMME) =============
+    story.append(Paragraph("<b>1-bis. Cession des droits voisins (producteur de phonogramme)</b>", section_style))
+    story.append(Paragraph(
+        "Indépendamment du droit d'auteur sur la composition visé à l'article 1, le fichier audio fourni "
+        "(le « Phonogramme ») est susceptible de faire l'objet, au bénéfice du Compositeur, de droits "
+        "voisins de producteur de phonogramme au sens de l'article L.213-1 du Code de la propriété "
+        "intellectuelle. Le Compositeur cède à l'Interprète ces droits voisins dans la même mesure, pour "
+        "la même durée, le même territoire et selon la même exclusivité que les droits d'auteur définis "
+        "aux articles 2 à 4 ci-après.",
+        normal_style
+    ))
+    if not contract_data.get('phonogram_producer_attested', False):
+        story.append(Paragraph(
+            "<i>Le Compositeur n'a pas confirmé, au moment de la mise en ligne du Phonogramme, être seul "
+            "producteur de ce dernier. La présente cession des droits voisins est donc consentie dans la "
+            "limite des droits dont le Compositeur dispose effectivement — notamment en cas de "
+            "collaboration ou d'utilisation d'éléments sous licence de tiers.</i>",
+            normal_style
+        ))
+
     # ============= 2. NATURE DE LA LICENCE =============
     story.append(Paragraph("<b>2. Nature de la licence</b>", section_style))
     
@@ -182,38 +219,47 @@ def generate_contract_pdf(output_path, contract_data):
 
     if is_streaming_only:
         story.append(Paragraph(
-            "Ce contrat couvre exclusivement le <b>droit de streaming</b>, accordé de manière <b>perpétuelle</b>.",
+            "Ce contrat couvre exclusivement le <b>droit de streaming</b>, accordé pour la <b>durée légale "
+            "de protection du droit d'auteur</b> (vie de l'auteur augmentée de 70 ans).",
             streaming_note_style
         ))
         story.append(Paragraph(
             "Le beat <b>sous la voix de l'Interprète</b> peut rester disponible sur les plateformes de streaming "
-            "(Spotify, Apple Music, YouTube, etc.) sans limite de durée.<br/>"
+            "(Spotify, Apple Music, YouTube, etc.) pendant toute cette durée, sans renouvellement requis.<br/>"
             "<b>Aucun autre droit d'exploitation</b> (reproduction mécanique, diffusion publique, arrangement, etc.) "
             "n'est accordé par le présent contrat.",
             normal_style
         ))
     else:
+        # Cellules en Paragraph : une Table reportlab ne coupe pas une chaîne
+        # brute, et le libellé de terme légal dépasse la largeur de colonne.
+        cell_style = ParagraphStyle('DurationCell', parent=normal_style, fontSize=9, spaceAfter=0)
         duration_data = [
-            ['Début :', contract_data['start_date']],
-            ['Fin :', contract_data['end_date']],
-            ['Durée totale :', contract_data.get('duration_text', '______________________')]
+            ['Début :',       Paragraph(_esc(contract_data['start_date']), cell_style)],
+            ['Fin :',         Paragraph(_esc(contract_data['end_date']), cell_style)],
+            ['Durée totale :', Paragraph(
+                _esc(contract_data.get('duration_text') or '______________________'), cell_style)],
         ]
         duration_table = Table(duration_data, colWidths=[4*cm, 13*cm])
         duration_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN',   (0, 0), (-1, -1), 'TOP'),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ]))
         story.append(duration_table)
         story.append(Spacer(1, 0.2*cm))
         story.append(Paragraph(
-            "<b>Streaming inclus à vie :</b> quelle que soit la durée indiquée ci-dessus, "
-            "le droit de streaming est accordé <b>perpétuellement</b> sans renouvellement.",
+            "<b>Streaming inclus pour la durée légale de protection :</b> quelle que soit la durée indiquée "
+            "ci-dessus, le droit de streaming est accordé pour la durée légale de protection du droit "
+            "d'auteur (vie de l'auteur augmentée de 70 ans), sans renouvellement requis pendant cette période.",
             streaming_note_style
         ))
         story.append(Paragraph(
-            "À l'expiration, toute <b>autre forme d'exploitation</b> (reproduction mécanique, diffusion publique, etc.) "
-            "doit cesser sauf renouvellement écrit.",
+            "À l'expiration, l'Interprète conserve le droit de <b>continuer à exploiter les enregistrements "
+            "déjà publiés</b> pendant la durée de la licence (cf. article 3-bis). Seules les <b>nouvelles "
+            "exploitations</b> sous les autres formes concédées (reproduction mécanique, diffusion publique, etc.) "
+            "doivent cesser, sauf renouvellement écrit.",
             normal_style
         ))
     
@@ -275,7 +321,7 @@ def generate_contract_pdf(output_path, contract_data):
     # ============= 4. TERRITOIRE =============
     story.append(Paragraph("<b>4. Territoire</b>", section_style))
     story.append(Paragraph(
-        f"La licence est accordée pour le territoire suivant : <b>{contract_data['territory']}</b>",
+        f"La licence est accordée pour le territoire suivant : <b>{_esc(contract_data['territory'])}</b>",
         normal_style
     ))
     
@@ -306,7 +352,15 @@ def generate_contract_pdf(output_path, contract_data):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     story.append(autorisations_table)
-    
+
+    if contract_data.get('arrangement'):
+        story.append(Paragraph(
+            "<i>L'autorisation d'arrangement / adaptation s'exerce sans préjudice du droit moral "
+            "inaliénable du Compositeur (art. L.121-1 CPI), qui conserve la faculté de s'opposer à toute "
+            "dénaturation de l'œuvre.</i>",
+            normal_style
+        ))
+
     story.append(Paragraph(
         "<b>Toute autorisation non cochée est expressément refusée.</b>",
         normal_style
@@ -351,37 +405,54 @@ def generate_contract_pdf(output_path, contract_data):
     # Pourcentages SACEM pour la répartition des droits d'auteur
     sacem_composer = contract_data.get('sacem_percentage_composer', 50)
     sacem_buyer = contract_data.get('sacem_percentage_buyer', 50)
+    buyer_declares_original_lyrics = contract_data.get('buyer_declares_original_lyrics', False)
 
     story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph(
         "<b>Répartition des droits d'auteur SACEM :</b>",
         normal_style
     ))
-    story.append(Paragraph(
-        f"Les parties conviennent de la répartition suivante des droits d'auteur à déclarer à la SACEM :",
-        normal_style
-    ))
 
-    sacem_data = [
-        ['Part du Compositeur (musique) :', f"{sacem_composer} %"],
-        ['Part de l\'Interprète/Auteur (paroles/interprétation) :', f"{sacem_buyer} %"]
-    ]
+    if buyer_declares_original_lyrics:
+        story.append(Paragraph(
+            "L'Interprète a déclaré être l'auteur de paroles originales sur la composition. Les parties "
+            "documentent ci-dessous, à titre indicatif, la répartition envisagée des droits d'auteur en "
+            "vue de la déclaration du titre à la SACEM. <b>Le présent article ne constitue pas une "
+            "déclaration SACEM et ne lie pas la SACEM</b>, dont la répartition définitive résulte de ses "
+            "propres règles de répartition et de la déclaration effectivement déposée par les parties.",
+            normal_style
+        ))
 
-    sacem_table = Table(sacem_data, colWidths=[10*cm, 7*cm])
-    sacem_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#3498db')),
-    ]))
-    story.append(sacem_table)
+        sacem_data = [
+            ['Part du Compositeur (musique) :', f"{sacem_composer} %"],
+            ['Part de l\'Interprète/Auteur (paroles) :', f"{sacem_buyer} %"]
+        ]
 
-    story.append(Paragraph(
-        "<i>Cette répartition doit être déclarée lors de l'enregistrement du titre à la SACEM. "
-        "La déclaration à la SACEM est fortement recommandée pour protéger les droits des deux parties.</i>",
-        normal_style
-    ))
+        sacem_table = Table(sacem_data, colWidths=[10*cm, 7*cm])
+        sacem_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#3498db')),
+        ]))
+        story.append(sacem_table)
+
+        story.append(Paragraph(
+            "<i>Cette répartition doit être confirmée lors de l'enregistrement du titre à la SACEM. "
+            "La déclaration à la SACEM est fortement recommandée pour protéger les droits des deux parties.</i>",
+            normal_style
+        ))
+    else:
+        story.append(Paragraph(
+            "L'Interprète n'a pas déclaré être l'auteur de paroles originales sur la composition : il "
+            "n'est donc pas traité, dans le cadre du présent contrat, comme co-auteur au sens du droit "
+            "d'auteur et ne perçoit à ce titre aucune part de répartition SACEM. Si l'Interprète exécute "
+            "une prestation vocale ou instrumentale sur la composition, il peut, le cas échéant, être "
+            "titulaire de droits voisins d'artiste-interprète (art. L.212-1 et suivants CPI), collectés "
+            "séparément (ADAMI, SPEDIDAM) et hors du champ du présent contrat.",
+            normal_style
+        ))
 
     # Clause de renégociation / requalification
     renegotiation_style = ParagraphStyle(
@@ -394,36 +465,42 @@ def generate_contract_pdf(output_path, contract_data):
         spaceAfter=8
     )
     story.append(Spacer(1, 0.3*cm))
+
     story.append(Paragraph(
-        "<b>️ CLAUSE DE RENÉGOCIATION ET REQUALIFICATION CONTRACTUELLE</b>",
+        "<b>RÉMUNÉRATION FORFAITAIRE (art. L.131-4 CPI)</b>",
         renegotiation_style
     ))
     story.append(Paragraph(
-        "Le présent forfait constitue une rémunération initiale forfaitaire établie pour "
-        "favoriser un marché équitable pour les musiciens indépendants français.",
-        renegotiation_style
-    ))
-    story.append(Spacer(1, 0.1*cm))
-    story.append(Paragraph(
-        "<b>a) Droit à renégociation en cas d'exclusivité :</b> Si le beat est cédé sous licence exclusive, "
-        "le Compositeur conserve le droit de renégocier les conditions du présent contrat, y compris pour "
-        "l'exploitation en streaming, avec l'Interprète ou toute structure ayant acquis les droits d'exploitation.",
-        renegotiation_style
-    ))
-    story.append(Spacer(1, 0.1*cm))
-    story.append(Paragraph(
-        "<b>b) Requalification pour déséquilibre manifeste (Art. L131-4 et L131-5 CPI) :</b> "
-        "Conformément au Code de la Propriété Intellectuelle français, si le succès commercial du titre "
-        "(nombre de streams, revenus générés, notoriété acquise) révèle un déséquilibre manifeste entre "
-        "la rémunération forfaitaire initiale et les profits réalisés — même de manière différée ou inattendue — "
-        "le Compositeur pourra demander la requalification du contrat devant les tribunaux compétents "
-        "pour obtenir une rémunération proportionnelle aux recettes d'exploitation.",
+        "Le prix indiqué ci-dessus constitue une rémunération forfaitaire de la cession des droits "
+        "d'auteur objet du présent contrat. Les parties reconnaissent que la base de calcul d'une "
+        "rémunération proportionnelle aux recettes d'exploitation ne peut être pratiquement déterminée au "
+        "moment de la conclusion du présent contrat, compte tenu de la nature du marché des licences de "
+        "composition musicale en ligne. Si le beat est cédé sous licence exclusive, le Compositeur "
+        "conserve en outre le droit de renégocier les conditions du présent contrat, y compris pour "
+        "l'exploitation en streaming, avec l'Interprète ou toute structure ayant acquis les droits "
+        "d'exploitation.",
         renegotiation_style
     ))
     story.append(Spacer(1, 0.1*cm))
+
     story.append(Paragraph(
-        "<b>c) Protection mutuelle :</b> Cette clause vise à garantir un équilibre contractuel équitable "
-        "entre les deux parties. Elle n'affecte en rien les droits légitimes de l'Interprète tant que "
+        "<b>ACTION EN RÉVISION POUR LÉSION (art. L.131-5 CPI)</b>",
+        renegotiation_style
+    ))
+    story.append(Paragraph(
+        "Conformément à l'article L.131-5 du Code de la propriété intellectuelle, si le succès commercial "
+        "du titre (nombre de streams, revenus générés, notoriété acquise) révèle, même de manière différée "
+        "ou inattendue, une lésion de plus de sept douzièmes entre la rémunération forfaitaire perçue par "
+        "le Compositeur et la valeur réelle de l'exploitation, le Compositeur pourra demander devant les "
+        "tribunaux compétents la révision des conditions de prix du présent contrat, dans les délais "
+        "prévus par la loi.",
+        renegotiation_style
+    ))
+    story.append(Spacer(1, 0.1*cm))
+
+    story.append(Paragraph(
+        "<b>Protection mutuelle :</b> Ces clauses visent à garantir un équilibre contractuel équitable "
+        "entre les deux parties. Elles n'affectent en rien les droits légitimes de l'Interprète tant que "
         "l'exploitation reste dans des proportions commerciales raisonnables et que le crédit du Compositeur "
         "est respecté. La déclaration à la SACEM est fortement recommandée pour renforcer la protection des deux parties.",
         renegotiation_style
@@ -448,7 +525,7 @@ def generate_contract_pdf(output_path, contract_data):
     
     # ============= 8. MENTIONS OBLIGATOIRES =============
     story.append(Paragraph("<b>8. Mentions obligatoires</b>", section_style))
-    credit = contract_data.get('composer_credit', f"Prod. par {contract_data['composer_name']}")
+    credit = _esc(contract_data.get('composer_credit', f"Prod. par {contract_data['composer_name']}"))
     story.append(Paragraph(
         f"L'Interprète s'engage à créditer le Compositeur comme suit : "
         f"« <b>{credit}</b> » dans toutes les exploitations "
@@ -463,6 +540,30 @@ def generate_contract_pdf(output_path, contract_data):
         "capacité pour accorder cette licence.",
         normal_style
     ))
+
+    has_third_party_samples  = contract_data.get('has_third_party_samples', False)
+    sample_clearance_details = contract_data.get('sample_clearance_details', '')
+    if has_third_party_samples:
+        story.append(Paragraph(
+            f"Le Compositeur a déclaré, lors de la mise en ligne du beat, avoir utilisé un ou plusieurs "
+            f"samples ou interpolations tiers, avec le statut de clearance suivant : "
+            f"« {sample_clearance_details} ».",
+            normal_style
+        ))
+    else:
+        story.append(Paragraph(
+            "Le Compositeur garantit ne pas avoir utilisé, dans la composition, de sample ou "
+            "interpolation tiers non autorisé.",
+            normal_style
+        ))
+    story.append(Paragraph(
+        "Si cette déclaration s'avère inexacte, le Compositeur s'engage à indemniser l'Interprète des "
+        "conséquences directes d'une réclamation de tiers portant sur les droits non déclarés (frais de "
+        "défense raisonnables, dommages mis à la charge de l'Interprète), dans la limite du prix perçu "
+        "au titre du présent contrat.",
+        normal_style
+    ))
+
     story.append(Paragraph(
         "L'Interprète garantit utiliser la composition seulement dans le cadre du présent contrat.",
         normal_style

@@ -11,16 +11,14 @@
       <section>
         <h2>Éditeur du site</h2>
         <div class="info-block">
-          <strong>LaProd SAS</strong><br>
-          Société par actions simplifiée au capital de [montant] €<br>
-          Immatriculée au RCS de [Ville] sous le numéro [RCS XXXXX]<br>
-          SIRET : [numéro SIRET]<br>
-          Code APE : [code APE]<br>
-          Numéro de TVA intracommunautaire : FR[XX XXXXXXXXX]<br><br>
-          <strong>Siège social :</strong> [Adresse postale complète]<br>
-          <strong>Directeur de publication :</strong> [Nom du dirigeant]<br>
-          <strong>E-mail :</strong> <a href="mailto:admin@laprod.net">admin@laprod.net</a><br>
-          <strong>Contact :</strong> <a href="mailto:contact@laprod.net">contact@laprod.net</a>
+          <strong>{{ legal.operatorName }}</strong><br>
+          {{ legal.legalForm }}<br>
+          SIREN : {{ legal.siren }}<br>
+          Code APE : {{ legal.apeCode }}<br><br>
+          <strong>Adresse :</strong> {{ legal.address }}<br>
+          <strong>Directeur de publication :</strong> {{ legal.operatorName }}<br>
+          <strong>E-mail :</strong> <a href="mailto:{{ legal.adminEmail }}">{{ legal.adminEmail }}</a><br>
+          <strong>Contact :</strong> <a href="mailto:{{ legal.contactEmail }}">{{ legal.contactEmail }}</a>
         </div>
       </section>
 
@@ -41,14 +39,14 @@
       <section>
         <h2>Propriété intellectuelle</h2>
         <p>
-          L'ensemble des éléments constituant le site LaProd (structure, design, textes, logiciels,
-          logos, marques, base de données) est la propriété exclusive de LaProd SAS et est protégé
-          par les lois françaises et internationales relatives à la propriété intellectuelle.
+          L'ensemble des éléments constituant le site {{ legal.platformName }} (structure, design, textes,
+          logiciels, logos, marques, base de données) est la propriété exclusive de {{ legal.operatorName }}
+          et est protégé par les lois françaises et internationales relatives à la propriété intellectuelle.
         </p>
         <p>
           Toute reproduction, représentation, modification, publication, transmission ou dénaturation,
           totale ou partielle, du site ou de son contenu, par quelque procédé que ce soit et sur quelque
-          support que ce soit, est interdite sans l'autorisation écrite préalable de LaProd SAS.
+          support que ce soit, est interdite sans l'autorisation écrite préalable de {{ legal.operatorName }}.
         </p>
         <p>
           Les œuvres musicales (beats, samples) publiées par les utilisateurs de la Plateforme restent
@@ -90,8 +88,8 @@
           pratiques en matière de protection des données.
         </p>
         <p>
-          La création de liens hypertextes vers la Plateforme LaProd est soumise à autorisation
-          préalable écrite de LaProd SAS.
+          La création de liens hypertextes vers la Plateforme {{ legal.platformName }} est soumise à
+          autorisation préalable écrite de {{ legal.operatorName }}.
         </p>
       </section>
 
@@ -112,8 +110,8 @@
         <h2>Droit applicable et juridiction compétente</h2>
         <p>
           Les présentes mentions légales sont soumises au droit français. Tout litige relatif à leur
-          interprétation ou à leur exécution sera soumis aux tribunaux compétents dans le ressort du
-          siège social de LaProd SAS, sauf dispositions légales contraires applicables aux consommateurs.
+          interprétation ou à leur exécution sera soumis aux tribunaux compétents du domicile de
+          {{ legal.operatorName }}, sauf dispositions légales contraires applicables aux consommateurs.
         </p>
       </section>
 

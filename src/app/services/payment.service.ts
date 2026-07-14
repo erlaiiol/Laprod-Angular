@@ -17,6 +17,12 @@ export interface CheckoutOptions {
   total_price?:             number;
   buyer_address?:           string;
   buyer_email?:             string;
+  // Obligatoires côté backend (create_checkout renvoie 400 sinon) — non
+  // optionnels ici pour qu'un futur appelant de createCheckout() ne puisse
+  // pas compiler sans les fournir (même garde-fou que initiateRenewal()).
+  legal_terms_accepted:            boolean;
+  withdrawal_right_waived:         boolean;
+  buyer_declares_original_lyrics?: boolean;
 }
 
 export interface CheckoutData {

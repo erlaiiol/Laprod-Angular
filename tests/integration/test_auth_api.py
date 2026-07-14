@@ -60,6 +60,17 @@ class TestLogin:
         )
         assert resp.status_code == 401
 
+    def test_unknown_user_still_hashes_to_prevent_timing_oracle(self, client, mocker):
+        """Un identifiant inconnu doit tout de même déclencher un hash factice :
+        sans lui, la réponse plus rapide révèle par timing l'inexistence du compte."""
+        spy = mocker.patch('routes.auth_api.check_password_hash')
+        resp = client.post(
+            '/api/auth/login',
+            json={'identifier': 'ghost@nowhere.com', 'password': 'whatever'},
+        )
+        assert resp.status_code == 401
+        spy.assert_called_once()
+
     def test_missing_fields_returns_400(self, client):
         resp = client.post('/api/auth/login', json={})
         assert resp.status_code in (400, 422)
