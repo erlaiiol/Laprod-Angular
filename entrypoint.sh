@@ -35,6 +35,12 @@ echo ">>> Seed contract builder (no-op si déjà peuplé)..."
 gosu appuser uv run flask seed-contract-builder
 echo ">>> Seed OK"
 
+# Idempotent : crée les clauses manquantes et complète les textes pédagogiques vides
+# (« en clair », détail juridique, exemples) sans écraser les retouches faites en admin.
+echo ">>> Seed contrats de représentation (idempotent)..."
+gosu appuser uv run flask seed-performance-contracts
+echo ">>> Seed représentation OK"
+
 echo ">>> Création du compte admin..."
 gosu appuser uv run python -c "
 from app import app

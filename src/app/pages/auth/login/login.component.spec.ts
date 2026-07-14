@@ -101,9 +101,10 @@ describe('LoginComponent', () => {
       const req = httpMock.expectOne(`${AUTH_URL}/login`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({
-        identifier: 'test@laprod.fr',
-        password:   'TestPass123!',
-        remember:   true,
+        identifier:    'test@laprod.fr',
+        password:      'TestPass123!',
+        remember:      true,
+        captcha_token: null,
       });
 
       req.flush(loginSuccess());

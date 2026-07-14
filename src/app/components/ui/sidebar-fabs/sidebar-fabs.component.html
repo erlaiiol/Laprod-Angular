@@ -13,6 +13,7 @@
     }
 
     <button class="sfab-tab sfab-tab--guide"
+            lpTourAnchor="fab-guide"
             [class.sfab-tab--new]="!userflowSvc.hasEverOpened()"
             (click)="userflowSvc.open()"
             type="button"

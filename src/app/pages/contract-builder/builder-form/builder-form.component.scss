@@ -577,13 +577,8 @@
   width: 320px; flex-shrink: 0;
   border-left: 1px solid v.$bg-border; background: v.$bg-surface;
   display: flex; flex-direction: column; overflow: hidden;
-  @media (max-width: 1100px) {
-    display: none;
-    &.preview-active { display: flex; width: 300px; }
-  }
-  @media (max-width: 700px) {
-    &.preview-active { width: 100%; border-left: none; border-top: 1px solid v.$bg-border; }
-  }
+  // Sous 1100px, le guide bascule dans l'onglet Introduction (.bf-intro-guide).
+  @media (max-width: 1100px) { display: none; }
 }
 
 // Guide rapide
@@ -650,64 +645,107 @@
   i { flex-shrink: 0; margin-top: 0.15rem; }
 }
 
-// Prévisualisation
+// ── Prévisualisation — modale plein écran ─────────────────────────────────────
+
+.bf-preview-backdrop {
+  position: fixed; inset: 0; z-index: 1050;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 2.5rem 1.5rem;
+  animation: bf-fade-in 0.15s ease;
+  @media (max-width: 700px) { padding: 0; }
+}
+
+.bf-preview-modal {
+  display: flex; flex-direction: column;
+  width: 100%; max-width: 880px; max-height: 100%;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: bf-modal-in 0.18s ease;
+  @media (max-width: 700px) {
+    max-width: none; height: 100%; border-radius: 0; border: none;
+  }
+}
+
+@keyframes bf-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bf-modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
 .bf-preview-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.65rem 1rem; border-bottom: 1px solid v.$bg-border; flex-shrink: 0;
-  span { font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.05em; color: v.$text-secondary; }
+  padding: 0.9rem 1.25rem; border-bottom: 1px solid v.$bg-border; flex-shrink: 0;
+  background: v.$bg-elevated;
+  span {
+    display: flex; align-items: center; gap: 0.45rem;
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: v.$text-secondary;
+  }
 }
 
 .bf-preview-close {
-  background: none; border: none; cursor: pointer;
-  color: v.$text-secondary; font-size: 0.85rem; padding: 0.2rem;
-  border-radius: 4px;
-  &:hover { color: v.$text-primary; background: v.$bg-elevated; }
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  background: none; border: 1px solid transparent; cursor: pointer;
+  color: v.$text-secondary; font-size: 0.9rem;
+  border-radius: 7px;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  &:hover { color: v.$text-primary; background: v.$bg-surface; border-color: v.$bg-border; }
 }
 
 .bf-preview-body {
-  flex: 1; overflow-y: auto; padding: 1rem;
+  flex: 1; overflow-y: auto;
+  padding: 1.75rem 2rem 2.5rem;
+  @media (max-width: 700px) { padding: 1.25rem 1rem 2rem; }
 }
 
 .bf-prev-title {
-  font-size: 1rem; font-weight: 800; margin: 0 0 1rem;
+  font-size: 1.4rem; font-weight: 800; margin: 0 0 1.5rem;
   color: v.$text-primary; word-break: break-word;
 }
 
 .bf-prev-section {
-  padding-bottom: 0.85rem; margin-bottom: 0.85rem;
+  padding-bottom: 1.25rem; margin-bottom: 1.25rem;
   border-bottom: 1px solid v.$bg-border;
   &:last-child { border-bottom: none; margin-bottom: 0; }
 }
 
 .bf-prev-art {
-  font-size: 0.78rem; font-weight: 700; color: v.$tag-blue;
-  margin: 0 0 0.55rem; text-transform: uppercase; letter-spacing: 0.03em;
+  font-size: 0.88rem; font-weight: 700; color: v.$tag-blue;
+  margin: 0 0 0.85rem; text-transform: uppercase; letter-spacing: 0.03em;
 }
 
 .bf-prev-party {
-  font-size: 0.82rem; color: v.$text-primary;
-  margin-bottom: 0.4rem; line-height: 1.5;
+  font-size: 0.92rem; color: v.$text-primary;
+  margin-bottom: 0.6rem; line-height: 1.6;
   strong { font-weight: 700; }
 }
 
 .bf-prev-addr {
-  font-size: 0.78rem; color: v.$text-secondary; margin-top: 0.15rem;
+  font-size: 0.85rem; color: v.$text-secondary; margin-top: 0.2rem;
 }
 
 .bf-prev-clause {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
   &:last-child { margin-bottom: 0; }
 }
 
 .bf-prev-clause-name {
-  font-size: 0.75rem; font-weight: 600; color: v.$text-secondary;
-  display: block; margin-bottom: 0.1rem;
+  font-size: 0.82rem; font-weight: 700; color: v.$text-secondary;
+  display: block; margin-bottom: 0.3rem;
 }
 
 .bf-prev-clause-val {
-  font-size: 0.82rem; color: v.$text-primary; margin: 0;
-  white-space: pre-wrap; line-height: 1.5;
+  font-size: 0.92rem; color: v.$text-primary; margin: 0;
+  white-space: pre-wrap; line-height: 1.7;
+  max-width: 70ch;
 }
 
 // ── Intro tab ──────────────────────────────────────────────────────────────────
@@ -734,8 +772,10 @@
   color: v.$tag-blue;
 }
 
+// L'intro est en deux colonnes : elle occupe toute la zone de contenu, là où les
+// sections de clauses restent bridées à une largeur de lecture confortable.
 .bf-intro {
-  max-width: 680px;
+  max-width: 1100px;
 }
 
 .bf-intro-section {
@@ -958,54 +998,7 @@
   }
 }
 
-// ── Quick Start banner (intro tab) ─────────────────────────────────────────────
-
-.bf-qs-banner-section { padding-top: 0; }
-
-.bf-qs-banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  background: color-mix(in srgb, v.$tag-blue 8%, transparent);
-  border: 1px solid color-mix(in srgb, v.$tag-blue 30%, transparent);
-  border-radius: 10px; padding: 1rem 1.25rem;
-  transition: background 0.2s, border-color 0.2s;
-  @media (max-width: 560px) { flex-direction: column; align-items: flex-start; }
-
-  &--warn {
-    background: color-mix(in srgb, v.$tag-orange 8%, transparent);
-    border-color: color-mix(in srgb, v.$tag-orange 30%, transparent);
-  }
-}
-
-.bf-qs-banner-left { display: flex; flex-direction: column; gap: 0.2rem; }
-
-.bf-qs-banner-title {
-  font-size: 0.88rem; font-weight: 700; color: v.$tag-blue;
-  display: flex; align-items: center; gap: 0.35rem;
-  &--warn { color: v.$tag-orange; }
-}
-
-.bf-qs-banner-desc { font-size: 0.78rem; color: v.$text-secondary; }
-
-.bf-qs-banner-btn {
-  background: v.$tag-blue-dark; border: 1px solid v.$tag-blue; color: v.$tag-blue-light;
-  border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.82rem;
-  font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  transition: background 0.15s, color 0.15s;
-  &:hover:not(:disabled) { background: rgba(v.$tag-blue, 0.2); color: #fff; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
-  &--warn {
-    background: v.$tag-orange-dark; border-color: v.$tag-orange; color: #fff;
-    &:hover:not(:disabled) { background: v.$tag-orange; color: #000; }
-  }
-}
-
-.bf-qs-hint {
-  font-size: 0.78rem; color: v.$text-muted; margin: 0;
-  display: flex; align-items: center; gap: 0.35rem; font-style: italic;
-}
-
-// ── Quick Start card (right panel) ─────────────────────────────────────────────
+// ── Quick Start card (rail droit + repli mobile dans l'intro) ─────────────────
 
 .bf-qs-card {
   background: color-mix(in srgb, v.$tag-blue 6%, transparent);
@@ -1084,4 +1077,152 @@
   display: inline-flex; align-items: center; gap: 0.3rem;
   transition: background 0.15s, color 0.15s;
   &:hover { background: v.$tag-violet; color: #fff; }
+}
+
+// ── Anneau de progression (haut de la sidebar) ────────────────────────────────
+
+.bf-progress {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.35rem 1.1rem 0.85rem;
+  margin-bottom: 0.5rem; border-bottom: 1px solid v.$bg-border;
+}
+
+.bf-progress-ring {
+  width: 38px; height: 38px; flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+.bf-progress-ring-bg {
+  fill: none; stroke: v.$bg-border; stroke-width: 3;
+}
+
+.bf-progress-ring-fg {
+  fill: none; stroke: v.$tag-blue; stroke-width: 3; stroke-linecap: round;
+  transition: stroke-dashoffset 0.35s ease, stroke 0.2s ease;
+  &.is-done { stroke: v.$tag-green; }
+}
+
+.bf-progress-meta {
+  display: flex; flex-direction: column; gap: 0.05rem; min-width: 0;
+}
+
+.bf-progress-pct {
+  font-size: 0.9rem; font-weight: 800; color: v.$text-primary; line-height: 1.1;
+}
+
+.bf-progress-label {
+  font-size: 0.68rem; color: v.$text-muted;
+}
+
+// ── Introduction — mise en colonnes ───────────────────────────────────────────
+
+.bf-intro-cols {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem;
+  align-items: start;
+  @media (max-width: 900px) { grid-template-columns: 1fr; gap: 0; }
+}
+
+.bf-intro-col { min-width: 0; }
+
+// ── Récapitulatif des champs automatiques (repliable) ─────────────────────────
+
+.bf-autofields-head {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: v.$text-primary; text-align: left;
+  i:first-child { color: v.$tag-blue; }
+}
+
+.bf-autofields-title {
+  font-size: 0.92rem; font-weight: 700;
+}
+
+.bf-autofields-count {
+  font-size: 0.68rem; font-weight: 700; white-space: nowrap;
+  background: rgba(v.$tag-orange, 0.12); color: v.$tag-orange;
+  border: 1px solid rgba(v.$tag-orange, 0.35);
+  border-radius: 8px; padding: 0.1rem 0.45rem;
+  &.is-full {
+    background: rgba(v.$tag-green, 0.12); color: v.$tag-green;
+    border-color: rgba(v.$tag-green, 0.35);
+  }
+}
+
+.bf-autofields-chevron {
+  margin-left: auto; color: v.$text-muted; font-size: 0.8rem;
+  transition: transform 0.18s ease;
+  &.is-open { transform: rotate(180deg); }
+}
+
+.bf-autofields .bf-intro-hint { margin-top: 0.55rem; }
+
+.bf-autofields .bf-intro-vars {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem;
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+
+// ── Sommaire « ce que couvre ce contrat » — chips cliquables ──────────────────
+
+.bf-cover-chips {
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+
+.bf-cover-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 16px;
+  padding: 0.28rem 0.7rem 0.28rem 0.3rem;
+  font-size: 0.78rem; cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  &:hover { border-color: v.$tag-blue; color: v.$text-primary; background: rgba(v.$tag-blue, 0.06); }
+
+  &.is-complete {
+    border-color: rgba(v.$tag-green, 0.4); color: v.$text-primary;
+    .bf-cover-chip-num { background: rgba(v.$tag-green, 0.15); color: v.$tag-green; }
+  }
+}
+
+.bf-cover-chip-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(v.$tag-blue, 0.12); color: v.$tag-blue;
+  font-size: 0.68rem; font-weight: 700; flex-shrink: 0;
+}
+
+// ── Démarrage rapide rendu dans l'intro (mobile/tablette uniquement) ──────────
+// Au-delà de 1100px, le rail droit prend le relais : on masque ce doublon.
+
+.bf-intro-guide {
+  @media (min-width: 1101px) { display: none; }
+}
+
+.bf-guide-cards {
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+
+// ── Divers ────────────────────────────────────────────────────────────────────
+
+.bf-resolver-head {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.72rem; font-weight: 600; color: v.$tag-orange;
+}
+
+.bf-insert-chips-label {
+  font-size: 0.72rem; color: v.$text-muted; align-self: center;
+}
+
+.bf-footer-center {
+  display: flex; align-items: center; justify-content: center; flex: 1;
+  @media (max-width: 700px) { display: none; }
+}
+
+.btn-next {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: transparent; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 8px;
+  padding: 0.45rem 0.9rem; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  &:hover { border-color: v.$tag-blue; color: v.$text-primary; background: rgba(v.$tag-blue, 0.06); }
 }

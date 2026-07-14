@@ -13,6 +13,8 @@ import { YoutubeTemplateService } from '../../services/youtube-template.service'
 import { Playlist, PlaylistService } from '../../services/playlist.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { environment } from '../../../environments/environment';
+import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
+import { TourService } from '../../services/tour.service';
 
 
 
@@ -26,7 +28,7 @@ interface TagGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector:    'app-upload-track',
   standalone:  true,
-  imports:     [CommonModule, FormsModule, RouterLink],
+  imports:     [CommonModule, FormsModule, RouterLink, TourAnchorDirective],
   templateUrl: './upload-track.component.html',
   styleUrl:    './upload-track.component.scss',
 })
@@ -242,6 +244,7 @@ export class UploadTrackComponent implements OnInit {
     private ytTemplateSvc:         YoutubeTemplateService,
     private playlistService:       PlaylistService,
     private similarArtistsSvc:     SimilarArtistsService,
+    private tour:                  TourService,
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
@@ -251,6 +254,9 @@ export class UploadTrackComponent implements OnInit {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
     this.auth.me().subscribe();
+
+    // Délai : laisse le formulaire se peindre et les directives d'ancrage s'enregistrer.
+    setTimeout(() => this.tour.maybeAutoStart('upload-track'), 900);
 
     this.tagsService.getTags().subscribe({
       next: res => {

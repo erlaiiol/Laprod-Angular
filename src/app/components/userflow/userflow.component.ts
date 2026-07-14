@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { UserflowService } from '../../services/userflow.service';
+import { TourService } from '../../services/tour.service';
+import { TourId } from '../../tours/tour-definitions';
 
 interface FlowStep {
   text: string;
@@ -15,6 +17,8 @@ interface Flow {
   tagline: string;
   steps: FlowStep[];
   cta: { label: string; link: string };
+  /** Parcours qui dispose d'une visite guidée sur la page correspondante. */
+  tour?: { id: TourId; route: string };
 }
 
 @Component({
@@ -27,10 +31,28 @@ interface Flow {
 })
 export class UserflowComponent implements OnDestroy {
   readonly svc       = inject(UserflowService);
+  readonly tour      = inject(TourService);
+  private  router    = inject(Router);
   readonly openIndex = signal<number | null>(null);
 
   toggle(i: number): void {
     this.openIndex.update(cur => (cur === i ? null : i));
+  }
+
+  /**
+   * Lance la visite guidée d'un parcours : ferme le panneau, navigue vers la page
+   * concernée, puis démarre. Le délai laisse à la page le temps de monter ses ancres.
+   * `start()` ignore l'historique « déjà vue » : une relance manuelle rejoue toujours.
+   */
+  startTour(t: { id: TourId; route: string }): void {
+    this.svc.close();
+    this.router.navigateByUrl(t.route).then(() => {
+      setTimeout(() => this.tour.start(t.id), 900);
+    });
+  }
+
+  toggleTours(): void {
+    this.tour.setEnabled(!this.tour.enabled());
   }
 
   onBackdropClick(event: MouseEvent): void {
@@ -59,6 +81,7 @@ export class UserflowComponent implements OnDestroy {
         { text: 'Les ingénieurs peuvent évoluer : certifications Mix, Producteur/Arrangeur et Master Engineer.' },
       ],
       cta: { label: 'Configurer mon profil', link: '/edit-profile' },
+      tour: { id: 'home', route: '/' },
     },
     {
       icon: 'bi-cloud-arrow-up-fill',
@@ -72,6 +95,7 @@ export class UserflowComponent implements OnDestroy {
         { text: 'Modifier les informations ou les prix à tout moment depuis la gestion de vos tracks.' },
       ],
       cta: { label: 'Uploader une track', link: '/upload-track' },
+      tour: { id: 'upload-track', route: '/upload-track' },
     },
     {
       icon: 'bi-headphones',
@@ -111,6 +135,7 @@ export class UserflowComponent implements OnDestroy {
         { text: 'L\'IA identifie les clauses abusives, les droits cédés et vous explique chaque article — disponible en Amateur+.' },
       ],
       cta: { label: 'Contract Builder', link: '/contract-builder' },
+      tour: { id: 'contract-builder', route: '/contract-builder/demo' },
     },
     {
       icon: 'bi-mic-fill',

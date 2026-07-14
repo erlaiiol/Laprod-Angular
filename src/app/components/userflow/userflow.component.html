@@ -15,6 +15,19 @@
 
       <p class="uf-panel__intro">{{ flows.length }} parcours pour tout comprendre — cliquez pour dérouler.</p>
 
+      <!-- Interrupteur des bulles : l'état des visites vit en localStorage, donc par
+           appareil. C'est ici qu'on les coupe sur une nouvelle machine sans les subir. -->
+      <label class="uf-toggle">
+        <input type="checkbox" [checked]="tour.enabled()" (change)="toggleTours()" />
+        <span class="uf-toggle__track"><span class="uf-toggle__knob"></span></span>
+        <span class="uf-toggle__text">
+          <strong>Bulles d'aide</strong>
+          <span>{{ tour.enabled()
+            ? "Les visites guidées se lancent automatiquement sur les nouvelles pages."
+            : "Désactivées. Vous pouvez toujours lancer une visite manuellement ci-dessous." }}</span>
+        </span>
+      </label>
+
       <div class="uf-scroll">
         <div class="uf-list">
           @for (flow of flows; track $index) {
@@ -46,9 +59,16 @@
                       </li>
                     }
                   </ol>
-                  <a [routerLink]="flow.cta.link" class="uf-cta uf-cta--{{ flow.color }}" (click)="svc.close()">
-                    {{ flow.cta.label }}&nbsp;<i class="bi bi-arrow-right"></i>
-                  </a>
+                  <div class="uf-actions">
+                    <a [routerLink]="flow.cta.link" class="uf-cta uf-cta--{{ flow.color }}" (click)="svc.close()">
+                      {{ flow.cta.label }}&nbsp;<i class="bi bi-arrow-right"></i>
+                    </a>
+                    @if (flow.tour) {
+                      <button type="button" class="uf-tour-btn" (click)="startTour(flow.tour!)">
+                        <i class="bi bi-play-circle"></i> Visite guidée
+                      </button>
+                    }
+                  </div>
                 </div>
               }
 

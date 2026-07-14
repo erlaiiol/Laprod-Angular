@@ -209,6 +209,7 @@ def init_extensions(app):
                     "'self'",
                     'https://api.stripe.com',
                     'https://cdn.jsdelivr.net',
+                    'https://challenges.cloudflare.com',  # CAPTCHA Turnstile
                 ],
                 'frame-src': [
                     'https://js.stripe.com',

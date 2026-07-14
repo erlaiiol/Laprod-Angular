@@ -206,3 +206,104 @@ class TestLogout:
         assert resp.status_code == 200
         count_after = db.session.query(TokenBlocklist).count()
         assert count_after == count_before + 1
+
+
+# ── Anti-bot : CAPTCHA Turnstile + emails jetables + throttle login ───────────
+
+class TestAntiBot:
+
+    def _register_payload(self, **over):
+        base = {
+            'username': 'botuser',
+            'email': 'botuser@gmail.com',
+            'password': 'TestPass123!',
+            'password_confirm': 'TestPass123!',
+            'accept_terms': True,
+            'signature': 'Sig',
+        }
+        base.update(over)
+        return base
+
+    # ── Emails jetables ────────────────────────────────────────────────────────
+
+    def test_register_rejects_disposable_email(self, client):
+        """Une adresse jetable connue est refusée à l'inscription."""
+        resp = client.post(
+            '/api/auth/register',
+            json=self._register_payload(email='throwaway@mailinator.com'),
+        )
+        assert resp.status_code == 400
+        assert 'permanente' in json.loads(resp.data)['feedback']['message'].lower()
+
+    # ── CAPTCHA register (web) ───────────────────────────────────────────────────
+
+    def test_register_requires_captcha_when_enabled_web(self, client, mocker):
+        """Turnstile activé + web + token invalide → CAPTCHA_REQUIRED avant tout."""
+        mocker.patch('config.TURNSTILE_ENABLED', True)
+        mocker.patch('config.TURNSTILE_SECRET_KEY', 'secret')
+        mocker.patch('routes.auth_api.verify_turnstile_token', return_value=False)
+        resp = client.post('/api/auth/register', json=self._register_payload())
+        assert resp.status_code == 400
+        assert json.loads(resp.data)['code'] == 'CAPTCHA_REQUIRED'
+
+    def test_register_captcha_bypassed_for_native(self, client, mocker):
+        """Client natif (X-Client-Platform: native) → pas de CAPTCHA exigé."""
+        mocker.patch('config.TURNSTILE_ENABLED', True)
+        mocker.patch('config.TURNSTILE_SECRET_KEY', 'secret')
+        verify = mocker.patch('routes.auth_api.verify_turnstile_token', return_value=False)
+        # Payload volontairement incomplet : si le CAPTCHA était exigé on aurait
+        # CAPTCHA_REQUIRED ; ici on doit dépasser ce point et buter sur les champs.
+        resp = client.post(
+            '/api/auth/register',
+            json={'username': 'x'},
+            headers={'X-Client-Platform': 'native'},
+        )
+        assert json.loads(resp.data).get('code') != 'CAPTCHA_REQUIRED'
+        verify.assert_not_called()
+
+    def test_register_valid_captcha_token_passes(self, client, db, mocker):
+        """Token Turnstile valide → l'inscription se poursuit normalement."""
+        mocker.patch('config.TURNSTILE_ENABLED', True)
+        mocker.patch('config.TURNSTILE_SECRET_KEY', 'secret')
+        mocker.patch('routes.auth_api.verify_turnstile_token', return_value=True)
+        mocker.patch('routes.auth_api.email_service.send_verification_email', return_value=True)
+        payload = self._register_payload(
+            username='captchaok', email='captchaok@gmail.com', captcha_token='tok',
+        )
+        resp = client.post('/api/auth/register', json=payload)
+        assert resp.status_code == 200
+        from models import User
+        created = db.session.query(User).filter_by(email='captchaok@gmail.com').first()
+        assert created is not None
+        db.session.delete(created)
+        db.session.commit()
+
+    # ── CAPTCHA login progressif ─────────────────────────────────────────────────
+
+    def test_login_requires_captcha_after_threshold(self, client, mocker):
+        """Au-delà du seuil d'échecs, le login web exige un CAPTCHA valide."""
+        mocker.patch('config.TURNSTILE_ENABLED', True)
+        mocker.patch('config.TURNSTILE_SECRET_KEY', 'secret')
+        mocker.patch('routes.auth_api.get_login_failure_count', return_value=5)
+        mocker.patch('routes.auth_api.verify_turnstile_token', return_value=False)
+        resp = client.post(
+            '/api/auth/login',
+            json={'identifier': 'someone@laprod.fr', 'password': 'whatever'},
+        )
+        assert resp.status_code == 401
+        assert json.loads(resp.data)['code'] == 'CAPTCHA_REQUIRED'
+
+    def test_login_captcha_bypassed_for_native(self, client, mocker):
+        """Même au-delà du seuil, un client natif n'est pas soumis au CAPTCHA."""
+        mocker.patch('config.TURNSTILE_ENABLED', True)
+        mocker.patch('config.TURNSTILE_SECRET_KEY', 'secret')
+        mocker.patch('routes.auth_api.get_login_failure_count', return_value=5)
+        mocker.patch('routes.auth_api.record_login_failure', return_value=None)
+        resp = client.post(
+            '/api/auth/login',
+            json={'identifier': 'ghost@laprod.fr', 'password': 'whatever'},
+            headers={'X-Client-Platform': 'native'},
+        )
+        # Pas de CAPTCHA : on atteint la vérif d'identifiants → 401 générique.
+        assert resp.status_code == 401
+        assert json.loads(resp.data).get('code') != 'CAPTCHA_REQUIRED'

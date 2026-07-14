@@ -91,8 +91,8 @@ const EXPLOITATION_CONFIG: ContractTypeConfig = {
   firstPartyBadge: 'Contractant 1 — Artiste / Titulaire',
   rolePlaceholder: 'ex : Artiste, Éditeur, Distributeur…',
   keyBrackets: ["[l'Œuvre]"],
-  keyInfoHint: "Pour activer le Quick Start, renseignez le nom des deux parties et le titre de l'œuvre.",
-  quickStartDescription: "Pré-remplissez les clauses essentielles d'une licence numérique avec vos variables.",
+  keyInfoHint: "Pour activer le pré-remplissage, renseignez le nom des deux parties et le titre de l'œuvre.",
+  quickStartDescription: "Pré-remplissez les clauses essentielles d'une licence numérique à partir de vos champs automatiques.",
   guideNote: 'Ces modèles respectent le CPI (Code de la Propriété Intellectuelle). Consultez un avocat spécialisé pour toute clause sensible.',
 
   introSections: [
@@ -459,8 +459,8 @@ const PERFORMANCE_CONFIG: ContractTypeConfig = {
   firstPartyBadge: 'Contractant 1 — Artiste / Producteur du spectacle',
   rolePlaceholder: 'ex : Artiste, Producteur, Organisateur…',
   keyBrackets: ["[l'Évènement]"],
-  keyInfoHint: "Pour activer le Quick Start, renseignez le nom des deux parties et le nom de l'évènement.",
-  quickStartDescription: "Pré-remplissez les clauses essentielles d'un contrat de concert avec vos variables.",
+  keyInfoHint: "Pour activer le pré-remplissage, renseignez le nom des deux parties et le nom de l'évènement.",
+  quickStartDescription: "Pré-remplissez les clauses essentielles d'un contrat de concert à partir de vos champs automatiques.",
   guideNote: "Ces modèles suivent les usages du spectacle vivant (contrat de cession / prestation entre entrepreneurs indépendants). Ils ne remplacent pas un contrat d'engagement d'artiste salarié : en cas de doute, consultez un avocat ou le GUSO.",
 
   introSections: [

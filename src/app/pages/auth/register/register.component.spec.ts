@@ -73,6 +73,7 @@ describe('RegisterComponent', () => {
         email:            'new@laprod.fr',
         signature:        'Ma Signature',
         accept_terms:     true,
+        captcha_token:    null,
       });
 
       req.flush({ success: true, data: { user: { username: 'newuser', email: 'new@laprod.fr' } } });

@@ -277,3 +277,55 @@ $flow-colors: (
   }
 }
 
+
+// ── Interrupteur des bulles d'aide ────────────────────────────────────────────
+
+.uf-toggle {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  margin: 0 1.25rem 0.85rem;
+  padding: 0.7rem 0.85rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 10px; cursor: pointer;
+
+  input { position: absolute; opacity: 0; width: 0; height: 0; }
+}
+
+.uf-toggle__track {
+  position: relative; flex-shrink: 0; margin-top: 0.15rem;
+  width: 34px; height: 19px; border-radius: 10px;
+  background: v.$bg-border; transition: background 0.18s ease;
+}
+
+.uf-toggle__knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: v.$text-muted;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.uf-toggle input:checked + .uf-toggle__track {
+  background: color-mix(in srgb, v.$tag-green 45%, transparent);
+  .uf-toggle__knob { transform: translateX(15px); background: v.$tag-green; }
+}
+
+.uf-toggle__text {
+  display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+  strong { font-size: 0.82rem; font-weight: 700; color: v.$text-primary; }
+  span   { font-size: 0.72rem; color: v.$text-muted; line-height: 1.4; }
+}
+
+// ── Actions d'un parcours ─────────────────────────────────────────────────────
+
+.uf-actions {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.uf-tour-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: transparent; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 8px;
+  padding: 0.45rem 0.8rem; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  &:hover { border-color: v.$tag-blue; color: v.$text-primary; background: rgba(v.$tag-blue, 0.08); }
+}

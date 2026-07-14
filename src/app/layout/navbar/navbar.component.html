@@ -83,7 +83,7 @@
 
     <div class="collapse navbar-collapse order-lg-3" id="navbarNav"
          [class.show]="menuOpen()" (click)="onNavLinkClick($event)">
-      <ul class="navbar-nav ms-auto">
+      <ul class="navbar-nav ms-auto" lpTourAnchor="nav-menu">
 
         <li class="nav-item">
           <a class="nav-link" [routerLink]="['/']" (click)="resetFilters()"
@@ -149,7 +149,7 @@
           </li>
 
           <!-- Avatar dropdown — tout ce qui est "mon espace" -->
-          <li class="nav-item dropdown">
+          <li class="nav-item dropdown" lpTourAnchor="nav-profile">
             <a class="nav-link nav-user-toggle dropdown-toggle" href="#" role="button"
                (click)="toggleDropdown('user', $event)"
                [attr.aria-expanded]="openDropdown() === 'user'">

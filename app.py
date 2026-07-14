@@ -2,6 +2,7 @@
 LaProd - Application Factory (PostgreSQL + Flask-Migrate)
 """
 from flask import Flask, session, jsonify, send_from_directory
+import click
 import os
 from dotenv import load_dotenv
 from helpers import admin_required
@@ -229,13 +230,22 @@ def create_app(test_config=None):
             app.logger.info("Contract builder seedé avec succès.")
 
     @app.cli.command('seed-performance-contracts')
-    def seed_performance_contracts():
-        """Initialise les groupes et clauses du contrat de représentation musicale (live)."""
+    @click.option('--force', is_flag=True,
+                  help="Écrase les textes existants au lieu de ne compléter que les champs vides.")
+    def seed_performance_contracts(force):
+        """Initialise ou complète les groupes et clauses du contrat de représentation (live).
+
+        Idempotent : relançable sans risque. Sans --force, ne remplit que les champs
+        vides (tooltips « en clair », détail juridique, exemples), sans écraser les
+        retouches faites depuis l'admin.
+        """
         from utils.musical_performance_seed import run_seed
 
         with app.app_context():
-            run_seed()
-            app.logger.info("Contrat de représentation musicale seedé avec succès.")
+            n = run_seed(force=force)
+            app.logger.info(
+                f"Contrat de représentation musicale : {n} clause(s) créée(s) ou complétée(s)."
+            )
 
     @app.cli.command('seed-similar-artists')
     def seed_similar_artists():

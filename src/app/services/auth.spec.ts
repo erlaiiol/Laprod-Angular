@@ -103,6 +103,7 @@ describe('AuthService', () => {
       identifier: 'user@test.com',
       password: 'password123',
       remember: false,
+      captcha_token: null,
     });
 
     req.flush(mockLoginSuccess);
