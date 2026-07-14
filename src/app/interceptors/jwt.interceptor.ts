@@ -2,6 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../environments/environment';
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
@@ -9,9 +10,14 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const authUrl     = authService.getAuthUrl();
   const token       = authService.getToken();
 
+  // Le backend exempte les clients natifs du CAPTCHA (web only) via ce header.
+  const headers: Record<string, string> = {
+    'X-Client-Platform': environment.isNative ? 'native' : 'web',
+  };
   if (token) {
-    req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+    headers['Authorization'] = `Bearer ${token}`;
   }
+  req = req.clone({ setHeaders: headers });
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {

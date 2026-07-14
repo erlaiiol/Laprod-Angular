@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, viewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { GuestToplineService } from '../../../services/guest-topline.service';
 import { ToastService } from '../../../services/toast.service';
+import { TurnstileComponent } from '../../../components/turnstile/turnstile.component';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -12,7 +13,7 @@ import { environment } from '../../../../environments/environment';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-login',
   standalone : true,
-  imports: [ CommonModule, RouterModule, FormsModule ],
+  imports: [ CommonModule, RouterModule, FormsModule, TurnstileComponent ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -32,6 +33,13 @@ export class LoginComponent {
   showPasswordSetLink  = signal(false);                // compte OAuth sans mot de passe
   passwordEmail        = signal<string | null>(null);
 
+  // CAPTCHA : n'apparaît qu'après un refus CAPTCHA_REQUIRED (throttle progressif),
+  // et seulement sur le web avec une site key configurée.
+  readonly captchaEnabled = TurnstileComponent.isEnabled;
+  private readonly turnstile = viewChild(TurnstileComponent);
+  showCaptcha  = signal(false);
+  captchaToken = signal<string | null>(null);
+
   private hasCalled = false;
 
   constructor(
@@ -49,7 +57,7 @@ export class LoginComponent {
     this.showPasswordSetLink.set(false);
     this.passwordEmail.set(null);
 
-    this.authService.login(this.identifier, this.password, this.remember)
+    this.authService.login(this.identifier, this.password, this.remember, this.captchaToken())
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {
@@ -85,11 +93,18 @@ export class LoginComponent {
           } else if (code === 'SHOW_PASSWORD_SET_LINK') {
             this.showPasswordSetLink.set(true);
             this.passwordEmail.set(err.error.data?.password_email ?? null);
+          } else if (code === 'CAPTCHA_REQUIRED') {
+            // Trop d'échecs : on affiche le CAPTCHA et on demande de rejouer.
+            this.showCaptcha.set(true);
+            this.error.set(err?.error?.feedback?.message ?? 'Confirmez que vous n\'êtes pas un robot.');
           } else {
             this.error.set(
               err?.error?.feedback?.message ?? 'Une erreur est survenue. Réessayez.'
             );
           }
+          // Un token à usage unique ne se rejoue pas : on le réinitialise.
+          this.captchaToken.set(null);
+          this.turnstile()?.reset();
         },
       });
   }

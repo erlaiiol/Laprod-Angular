@@ -77,11 +77,15 @@
         <label for="remember">Se souvenir de moi</label>
       </div>
 
+      @if (captchaEnabled && showCaptcha()) {
+        <app-turnstile class="captcha" (token)="captchaToken.set($event)"></app-turnstile>
+      }
+
       <!-- Bouton submit -->
       <button
         type="submit"
         class="btn-primary"
-        [disabled]="loading()"
+        [disabled]="loading() || (captchaEnabled && showCaptcha() && !captchaToken())"
       >
         @if (loading()) {
           <span class="spinner"></span> Connexion…

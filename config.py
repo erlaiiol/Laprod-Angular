@@ -176,6 +176,16 @@ GROQ_MODEL           = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
 CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'groq')
 
 # ============================================
+# CLOUDFLARE TURNSTILE — CAPTCHA anti-bot (web uniquement)
+# ============================================
+# Désactivé par défaut : le gating CAPTCHA (register + login après échecs) ne
+# s'active QUE si TURNSTILE_ENABLED=true ET qu'une clé secrète est fournie. Le
+# front doit être activé en parallèle (environment.turnstileSiteKey). Les clients
+# natifs Capacitor (header X-Client-Platform: native) sont exemptés.
+TURNSTILE_ENABLED    = os.environ.get('TURNSTILE_ENABLED', 'false').lower() == 'true'
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY')
+
+# ============================================
 # SACEM CONFIGURATION
 # ============================================
 SACEM_URL = "https://www.sacem.fr"

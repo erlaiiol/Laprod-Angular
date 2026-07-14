@@ -208,11 +208,13 @@ export class AuthService {
 
   login(identifier : string,
     password : string,
-    remember : boolean ): Observable<LoginResponse>{
+    remember : boolean,
+    captchaToken : string | null = null ): Observable<LoginResponse>{
     return this.http.post<LoginResponse>(`${this.authUrl}/login`, {
       identifier,
       password,
-      remember
+      remember,
+      captcha_token: captchaToken,
     }).pipe(
       tap((res) => {
         if (res.success === true) {
@@ -474,6 +476,7 @@ export class AuthService {
     email: string,
     signature: string,
     accept_terms: boolean,
+    captchaToken: string | null = null,
   ): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.authUrl}/register`, {
       username,
@@ -482,6 +485,7 @@ export class AuthService {
       email,
       signature,
       accept_terms,
+      captcha_token: captchaToken,
     }).pipe(
       catchError((err) => throwError(() => err))
     );

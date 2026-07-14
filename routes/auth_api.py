@@ -18,7 +18,12 @@ from sqlalchemy import select, or_
 from extensions import db, limiter, oauth, csrf
 import extensions as _ext
 from models import User, PriceChangeRequest
-from helpers import sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens
+from helpers import (
+    sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens,
+    get_login_failure_count, record_login_failure, clear_login_failures, LOGIN_CAPTCHA_AFTER,
+)
+from utils.turnstile import verify_turnstile_token
+from utils.disposable_emails import is_disposable_email
 from utils import email_service, notification_service
 from serializers import ok, err, user_auth
 from utils.auth_helpers import require_user
@@ -101,6 +106,24 @@ auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/api/auth')
 _DUMMY_PW_HASH = generate_password_hash('anti-timing-oracle-dummy')
 
 
+# ── CAPTCHA Turnstile (web uniquement) ────────────────────────────────────────
+
+def _is_native_client() -> bool:
+    """L'app Capacitor s'annonce via X-Client-Platform: native → exemptée de CAPTCHA."""
+    return (request.headers.get('X-Client-Platform') or '').lower() == 'native'
+
+
+def _captcha_ok(data: dict | None) -> bool:
+    """
+    True si le CAPTCHA n'est pas requis (désactivé ou client natif) OU si le token
+    Turnstile fourni est valide. False si un token valide est requis mais manquant.
+    """
+    if not config.TURNSTILE_ENABLED or _is_native_client():
+        return True
+    token = (data or {}).get('captcha_token') or request.headers.get('CF-Turnstile-Response')
+    return verify_turnstile_token(token, config.TURNSTILE_SECRET_KEY, request.remote_addr)
+
+
 @auth_api_bp.route('/ping', methods=['GET'])
 @csrf.exempt
 @limiter.exempt
@@ -140,6 +163,15 @@ def login():
     if len(password) > 200:
         return err('Identifiants incorrects', level='warning', status=401)
 
+    # Anti-bruteforce progressif : après plusieurs échecs sur ce même identifiant,
+    # on exige un CAPTCHA (web). Inactif tant que Turnstile est désactivé, et sans
+    # effet pour les clients natifs. Le compteur est purgé à la première réussite.
+    captcha_gate = config.TURNSTILE_ENABLED and not _is_native_client()
+    if captcha_gate and get_login_failure_count(identifier) >= LOGIN_CAPTCHA_AFTER:
+        if not _captcha_ok(data):
+            return err('Trop de tentatives. Confirmez que vous n\'êtes pas un robot.',
+                       level='warning', code='CAPTCHA_REQUIRED', status=401)
+
     user = db.session.query(User).filter(
         or_(User.username == identifier, User.email == identifier)).first()
 
@@ -160,7 +192,10 @@ def login():
             return err('Cet email utilise Google. Ajouter un mot de passe ?', level='info',
                        code='SHOW_PASSWORD_SET_LINK', data={'password_email': user.email})
 
-        # Mauvais identifiants
+        # Mauvais identifiants → on incrémente le compteur d'échecs (déclenche le
+        # CAPTCHA au-delà du seuil). Sans effet si Turnstile est désactivé.
+        if config.TURNSTILE_ENABLED:
+            record_login_failure(identifier)
         return err('Identifiants incorrects.', level='warning', status=401)
 
 
@@ -179,7 +214,10 @@ def login():
         current_app.logger.debug('utilisateur supprimé ou désactivé')
         return err('Compte désactivé ou suspendu.', status=403)
 
-        
+    # Login réussi → on efface le compteur d'échecs (plus de CAPTCHA exigé).
+    if config.TURNSTILE_ENABLED:
+        clear_login_failures(identifier)
+
     access_token  = create_access_token(identity=str(user.id))
     # remember=True → 30 jours ; remember=False → 1 jour (session courte)
     refresh_delta = timedelta(days=30) if remember else timedelta(days=1)
@@ -254,6 +292,11 @@ def register_user():
         current_app.logger.debug("Pas d'information dans le json register_user()")
         return err("les champs n'ont pas été correctement remplis.", level='warning')
 
+    # CAPTCHA anti-bot (web uniquement ; inactif si Turnstile désactivé / natif).
+    if not _captcha_ok(data):
+        return err('Vérification anti-robot requise.', level='warning',
+                   code='CAPTCHA_REQUIRED', status=400)
+
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
@@ -276,6 +319,10 @@ def register_user():
         email = validate_email(email).email
     except EmailNotValidError as e:
         return err('email invalide.', level='warning')
+
+    # Anti-spam de comptes : refus des adresses jetables connues.
+    if is_disposable_email(email):
+        return err('Merci d\'utiliser une adresse email permanente.', level='warning')
 
     # Validations
     if len(username) < 3 or len(username) > 20:

@@ -6,4 +6,5 @@ export const environment = {
   appTitle: '(dev) LaProd',
   testimonialsEnabled: true,
   isNative: true,
+  turnstileSiteKey: '',
 };

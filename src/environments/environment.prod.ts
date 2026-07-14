@@ -6,4 +6,7 @@ export const environment = {
   appTitle: 'LaProd',
   testimonialsEnabled: false,
   isNative: false,
+  // Clé publique (site key) Cloudflare Turnstile. Vide = CAPTCHA désactivé côté
+  // front. À renseigner + TURNSTILE_ENABLED=true côté backend pour activer.
+  turnstileSiteKey: '',
 };
