@@ -259,6 +259,22 @@
 .refund-value { font-size: 1.1rem; font-weight: 800; color: v.$tag-green-light; }
 .refund-sub { font-size: 0.78rem; color: v.$text-muted; margin: 0; }
 .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+.legal-notice__accept {
+  display: flex; align-items: center; gap: 0.6rem; cursor: pointer;
+  font-size: 0.85rem; color: v.$text-primary; font-weight: 600;
+
+  input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer;
+    accent-color: v.$primary; flex-shrink: 0;
+  }
+}
+.legal-notice__accept--withdrawal {
+  align-items: flex-start; padding: 0.6rem 0.75rem;
+  background: rgba(197, 48, 48, 0.06); border: 1px solid rgba(197, 48, 48, 0.25);
+  border-radius: 8px;
+  span { font-weight: 400; line-height: 1.4; }
+}
 .btn-cancel {
   background: v.$bg-elevated; color: v.$text-secondary; border: 1px solid v.$bg-border;
   padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.83rem; font-weight: 700; cursor: pointer;

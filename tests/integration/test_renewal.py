@@ -109,7 +109,7 @@ class TestInitiateRenewal:
         with patch('stripe.checkout.Session.create', return_value=fake_session):
             resp = client.post(
                 f'/api/track-payment/track/{track_default_prices.id}/renew/{purchase.id}',
-                data=json.dumps({}),
+                data=json.dumps({'legal_terms_accepted': True, 'withdrawal_right_waived': True}),
                 headers=headers,
             )
 
@@ -174,6 +174,9 @@ class TestVerifyRenewal:
             'buyer_address':           '',
             'buyer_email':             buyer.email,
             'track_price':             '9.99',
+            'legal_terms_accepted':           'True',
+            'withdrawal_right_waived':        'True',
+            'buyer_declares_original_lyrics': 'False',
         }
         session = MagicMock()
         session.payment_intent = pi_id
@@ -198,7 +201,7 @@ class TestVerifyRenewal:
              patch('utils.notification_service.notify_renewal_confirmed'), \
              patch('utils.email_service.send_renewal_confirmation_email'), \
              patch('utils.wallet_service.credit_wallet_for_beat_sale'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify-renewal',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),
@@ -215,6 +218,13 @@ class TestVerifyRenewal:
         new_p = db.session.get(Purchase, new_pid)
         assert new_p is not None
         assert new_p.renewed_from_id == old_purchase.id
+
+        # Le consentement du renouvellement est bien capturé sur le nouveau Contract
+        # (pas hérité silencieusement de l'ancien) — cf. contract_data_builder.build_contract_data.
+        assert new_p.contract is not None
+        assert new_p.contract.legal_terms_accepted is True
+        assert new_p.contract.withdrawal_right_waived is True
+        assert new_p.contract.consent_recorded_at is not None
 
         db.session.refresh(old_purchase)
         assert old_purchase.license_status == 'renewed'
@@ -241,7 +251,7 @@ class TestVerifyRenewal:
             s3=patch('utils.notification_service.notify_renewal_confirmed'),
             s4=patch('utils.email_service.send_renewal_confirmation_email'),
             s5=patch('utils.wallet_service.credit_wallet_for_beat_sale'),
-            s6=patch('utils.contract_generator.generate_contract_pdf'),
+            s6=patch('utils.contract_data_builder.generate_contract_pdf'),
         )
 
         with _patches['s1'], _patches['s2'], _patches['s3'], \

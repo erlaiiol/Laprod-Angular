@@ -38,7 +38,7 @@ export class LicenseBadgeComponent {
 
   get label(): string {
     switch (this.urgency) {
-      case 'lifetime':   return 'Droits à vie';
+      case 'lifetime':   return 'Droits sans échéance';
       case 'streaming':  return 'Streaming illimité';
       case 'renewed':    return 'Renouvelée';
       case 'cancelled':  return 'Annulée';

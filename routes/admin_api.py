@@ -42,6 +42,7 @@ DELETE /api/admin/tags/<id>                     → supprimer tag
 from flask import Blueprint, request, current_app, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import html as html_lib
@@ -51,10 +52,12 @@ import uuid
 import config
 
 from extensions import db, csrf
+from utils.search import LIKE_ESCAPE, escape_like
 from serializers import ok, err as ser_err, track_admin, user_admin, user_ref
 from helpers import generate_track_image
 from utils import email_service, notification_service
 from utils.auth_helpers import require_admin
+from utils.contract_data_builder import build_contract_data, create_contract_and_pdf
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
@@ -441,9 +444,10 @@ def search_users(current_user):
     if len(q) < 2:
         return ok({'users': []})
 
+    esc = escape_like(q)
     users = db.session.scalars(
         select(User)
-        .where(User.username.ilike(f'%{q}%'))
+        .where(User.username.ilike(f'%{esc}%', escape=LIKE_ESCAPE))
         .limit(10)
     ).all()
 
@@ -462,9 +466,10 @@ def search_tracks(current_user):
     if len(q) < 2:
         return ok({'tracks': []})
 
+    esc = escape_like(q)
     tracks = db.session.scalars(
         select(Track)
-        .where(Track.title.ilike(f'%{q}%'), Track.is_approved == True)
+        .where(Track.title.ilike(f'%{esc}%', escape=LIKE_ESCAPE), Track.is_approved == True)
         .limit(10)
     ).all()
 
@@ -1280,18 +1285,35 @@ def admin_create_contract(current_user):
     track  = db.get_or_404(Track, track_id)
     client = db.get_or_404(User, client_id)
 
-    if not track.composer_id:
+    if not track.composer_id or not track.composer_user:
         return ser_err("Ce track n'a pas de compositeur.")
 
     from datetime import date
     today = date.today().strftime('%d/%m/%Y')
 
-    contract = Contract(
-        track_id=track_id,
-        composer_id=track.composer_id,
-        client_id=client_id,
-        composer_email=track.composer_user.email if track.composer_user else '',
-        client_email=client.email,
+    # Champs de consentement : optionnels ici, jamais auto-vrais. Un contrat
+    # admin représente typiquement un accord conclu hors plateforme — on ne
+    # doit pas fabriquer une preuve de consentement qui n'existe pas. Seul un
+    # admin transcrivant un consentement réellement obtenu doit les passer
+    # explicitement à True.
+    buyer_declares_original_lyrics = bool(data.get('buyer_declares_original_lyrics', False))
+    legal_terms_accepted           = bool(data.get('legal_terms_accepted', False))
+    withdrawal_right_waived        = bool(data.get('withdrawal_right_waived', False))
+    if not (legal_terms_accepted and withdrawal_right_waived):
+        current_app.logger.warning(
+            f"[LEGAL] admin_create_contract : contrat créé sans consentement complet "
+            f"(track #{track_id}, client #{client_id}) — piste d'audit sans preuve de "
+            f"consentement acheteur, à documenter hors plateforme si applicable."
+        )
+
+    # Builder partagé (utils/contract_data_builder.py) : mêmes champs légaux et
+    # même génération PDF que les contrats issus d'un achat/renouvellement en
+    # self-service — un contrat créé manuellement par un admin ne doit pas être
+    # juridiquement plus faible qu'un contrat auto-généré.
+    contract_data = build_contract_data(
+        track=track,
+        composer_user=track.composer_user,
+        client_user=client,
         is_exclusive=is_exclusive,
         start_date=today,
         end_date=duration,
@@ -1299,15 +1321,23 @@ def admin_create_contract(current_user):
         territory=territory,
         mechanical_reproduction=True,
         public_show=False,
-        streaming=True,
         arrangement=False,
+        price=Decimal(str(price)),
         sacem_percentage_composer=70,
         sacem_percentage_buyer=30,
-        price=int(float(price)),
         percentage=30,
-        signature_date=today,
+        buyer_declares_original_lyrics=buyer_declares_original_lyrics,
+        legal_terms_accepted=legal_terms_accepted,
+        withdrawal_right_waived=withdrawal_right_waived,
     )
-    db.session.add(contract)
+    contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
+    contract = create_contract_and_pdf(
+        contract_data=contract_data,
+        contracts_dir=contracts_dir,
+        filename_prefix=f"contract_{track_id}_{client_id}_admin",
+    )
+    if contract is None:
+        return ser_err("Erreur lors de la création du contrat.")
     db.session.commit()
 
     composer_name = track.composer_user.username if track.composer_user else '?'

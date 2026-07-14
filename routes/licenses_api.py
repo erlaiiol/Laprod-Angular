@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from extensions import db, csrf
-from models import Track, Purchase, Contract
+from models import Track, Purchase
 from serializers import ok, err
 from utils.auth_helpers import require_user
 from utils.license_service import (
@@ -29,10 +29,12 @@ from utils.license_service import (
     compute_expires_at,
     compute_days_remaining,
     build_duration_text,
+    build_end_date_text,
     is_sole_licensee,
     get_renewal_price,
 )
 from utils.contract_service import mark_contract_renewed
+from utils.contract_data_builder import build_contract_data, create_contract_and_pdf
 
 _TWO_PLACES = Decimal('0.01')
 
@@ -141,8 +143,11 @@ def create_renewal_checkout(track_id, purchase_id, current_user):
     """
     Crée une session Stripe Checkout pour le renouvellement d'une licence.
 
-    Corps JSON optionnel : { is_lifetime, duration_years, territory }
-    Si absent : reprend les mêmes termes que la licence originale.
+    Corps JSON : { is_lifetime, duration_years, territory } optionnels (reprend
+    les termes de la licence originale si absents), plus deux champs de
+    consentement obligatoires — legal_terms_accepted, withdrawal_right_waived —
+    au même titre qu'un achat initial : un renouvellement est un nouveau
+    paiement et doit donc être couvert par un nouvel acte de consentement.
     """
     purchase = db.session.get(Purchase, purchase_id)
     if not purchase:
@@ -165,7 +170,33 @@ def create_renewal_checkout(track_id, purchase_id, current_user):
     duration_years = int(data.get('duration_years', purchase.duration_years or 0))
     territory     = data.get('territory', purchase.territory or 'Monde entier')
 
+    # ── Consentement (même exigence qu'un achat initial — cf. create_checkout) ──
+    legal_terms_accepted    = bool(data.get('legal_terms_accepted', False))
+    withdrawal_right_waived = bool(data.get('withdrawal_right_waived', False))
+    # L'auteur des paroles ne change pas d'un renouvellement à l'autre — on
+    # reprend la déclaration d'origine sauf surcharge explicite du client.
+    original_lyrics_declared = bool(purchase.contract and purchase.contract.buyer_declares_original_lyrics)
+    buyer_declares_original_lyrics = bool(data.get('buyer_declares_original_lyrics', original_lyrics_declared))
+
+    if not legal_terms_accepted:
+        return err(
+            'Vous devez accepter les conditions légales de la licence.',
+            code='LEGAL_TERMS_REQUIRED', status=400,
+        )
+    if not withdrawal_right_waived:
+        return err(
+            'Vous devez renoncer expressément à votre droit de rétractation pour ce '
+            'contenu numérique immédiatement disponible.',
+            code='WITHDRAWAL_WAIVER_REQUIRED', status=400,
+        )
+
     renewal_price = get_renewal_price(purchase)
+    if renewal_price <= 0:
+        return err(
+            "Cette licence n'a pas de terme : elle court pour la durée légale de "
+            "protection et n'a donc pas besoin d'être renouvelée.",
+            code='NOTHING_TO_RENEW', status=400,
+        )
 
     try:
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
@@ -185,6 +216,9 @@ def create_renewal_checkout(track_id, purchase_id, current_user):
             'public_show':            str(bool(purchase.contract and purchase.contract.public_show)),
             'arrangement':            str(bool(purchase.contract and purchase.contract.arrangement)),
             'track_price':            str(renewal_price),
+            'legal_terms_accepted':           str(legal_terms_accepted),
+            'withdrawal_right_waived':        str(withdrawal_right_waived),
+            'buyer_declares_original_lyrics': str(buyer_declares_original_lyrics),
         }
 
         checkout_session = stripe.checkout.Session.create(
@@ -302,20 +336,15 @@ def verify_renewal_payment(current_user):
         # Lier les licences
         mark_contract_renewed(old_purchase, new_purchase)
 
-        # Créer Contract record
+        # Créer Contract record + PDF (builder partagé)
         duration_text_val = build_duration_text(is_lifetime, duration_years)
         start_str         = datetime.now().strftime('%d/%m/%Y')
-        end_str           = ('À vie' if is_lifetime or not duration_years
-                             else f"31/12/{datetime.now().year + (duration_years or 0)}")
+        end_str           = build_end_date_text(is_lifetime, expires_at_val)
 
-        contract_record = Contract(
-            track_id=track_id,
-            composer_id=track.composer_id,
-            client_id=current_user.id,
-            purchase_id=new_purchase.id,
-            composer_email=track.composer_user.email,
-            composer_credit=f"Prod. par {track.composer_user.username}",
-            client_email=current_user.email,
+        contract_data = build_contract_data(
+            track=track,
+            composer_user=track.composer_user,
+            client_user=current_user,
             is_exclusive=old_purchase.is_exclusive,
             start_date=start_str,
             end_date=end_str,
@@ -323,56 +352,23 @@ def verify_renewal_payment(current_user):
             territory=territory,
             mechanical_reproduction=bool(old_purchase.contract and old_purchase.contract.mechanical_reproduction),
             public_show=bool(old_purchase.contract and old_purchase.contract.public_show),
-            streaming=True,
             arrangement=bool(old_purchase.contract and old_purchase.contract.arrangement),
-            sacem_percentage_composer=getattr(track, 'sacem_percentage_composer', 50) or 50,
-            sacem_percentage_buyer=100 - (getattr(track, 'sacem_percentage_composer', 50) or 50),
-            price=int(total_price),
-            percentage=0,
-            signature_date=start_str,
-            status='active',
+            price=total_price,
+            buyer_declares_original_lyrics=meta.get('buyer_declares_original_lyrics') == 'True',
+            legal_terms_accepted=meta.get('legal_terms_accepted') == 'True',
+            withdrawal_right_waived=meta.get('withdrawal_right_waived') == 'True',
         )
-        db.session.add(contract_record)
+        contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
+        create_contract_and_pdf(
+            contract_data=contract_data,
+            contracts_dir=contracts_dir,
+            filename_prefix=f"contract_{new_purchase.id}_{track_id}_renewal",
+            purchase=new_purchase,
+        )
 
         # Créditer wallet compositeur
         from utils.wallet_service import credit_wallet_for_beat_sale
         credit_wallet_for_beat_sale(new_purchase)
-
-        # Générer PDF renouvellement
-        try:
-            from utils.contract_generator import generate_contract_pdf
-            contracts_dir = Path(current_app.root_path) / 'db_assets' / 'contracts'
-            contracts_dir.mkdir(parents=True, exist_ok=True)
-            # uuid non-devinable : empêche l'énumération des contrats (PII).
-            import uuid as _uuid
-            contract_filename = f"contract_{new_purchase.id}_{track_id}_renewal_{_uuid.uuid4().hex[:8]}.pdf"
-            contract_path     = contracts_dir / contract_filename
-            generate_contract_pdf(str(contract_path), {
-                'track_title':            track.title,
-                'composer_name':          track.composer_user.username,
-                'composer_address':       '',
-                'composer_email':         track.composer_user.email,
-                'composer_credit':        f"Prod. par {track.composer_user.username}",
-                'client_name':            current_user.username,
-                'client_address':         '',
-                'client_email':           current_user.email,
-                'is_exclusive':           old_purchase.is_exclusive,
-                'start_date':             start_str,
-                'end_date':               end_str,
-                'duration_text':          duration_text_val,
-                'territory':              territory,
-                'mechanical_reproduction': bool(old_purchase.contract and old_purchase.contract.mechanical_reproduction),
-                'public_show':            bool(old_purchase.contract and old_purchase.contract.public_show),
-                'streaming':              True,
-                'arrangement':            bool(old_purchase.contract and old_purchase.contract.arrangement),
-                'price':                  total_price,
-                'platform_commission':    10,
-                'signature_date':         start_str,
-            })
-            new_purchase.contract_file = contract_filename
-            contract_record.contract_file = contract_filename
-        except Exception as pdf_err:
-            current_app.logger.error(f"Erreur PDF renouvellement #{new_purchase.id}: {pdf_err}", exc_info=True)
 
         # Notifications
         try:

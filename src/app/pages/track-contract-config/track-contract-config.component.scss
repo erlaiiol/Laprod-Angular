@@ -186,6 +186,64 @@
   font-style: italic;
 }
 
+// ── Lang Toggle (En clair / Juridique) ──────────────────────────────────────────
+// Même mécanisme que .mode-toggle (pastille glissante) — gabarit plus compact
+// car utilisé comme sous-contrôle à l'intérieur d'une section, pas en en-tête
+// de page. Couleurs alignées sur le Contract Builder (orange = "En clair",
+// bleu = "Détail juridique") pour rester cohérent avec le reste de l'app.
+
+.lang-toggle {
+  position: relative;
+  display:  inline-flex;
+  background: v.$bg-elevated;
+  border:     1px solid v.$bg-border;
+  border-radius: 8px;
+  padding: 3px;
+  gap:     3px;
+  flex-shrink: 0;
+
+  .lang-toggle__indicator {
+    position: absolute;
+    left: 3px; top: 3px;
+    width:  calc(50% - 4.5px);
+    height: calc(100% - 6px);
+    background:    rgba(v.$tag-orange, 0.16);
+    border-radius: 6px;
+    transition: left 0.22s cubic-bezier(0.4, 0, 0.2, 1), background 0.22s;
+    pointer-events: none;
+  }
+
+  &.lang-toggle--legal .lang-toggle__indicator {
+    left: calc(50% + 1.5px);
+    background: rgba(v.$tag-blue, 0.16);
+  }
+}
+
+.lang-btn {
+  position: relative;
+  z-index:  1;
+  display:        flex;
+  align-items:    center;
+  justify-content: center;
+  gap:     0.3rem;
+  padding: 0.32rem 0.65rem;
+  background: transparent;
+  border:     none;
+  border-radius: 6px;
+  font-size:  0.74rem;
+  font-weight: 600;
+  color:  v.$text-muted;
+  cursor: pointer;
+  transition: color 0.22s;
+  white-space: nowrap;
+
+  i { font-size: 0.72rem; }
+
+  &.active { color: v.$text-primary; }
+  &:first-child.active { color: v.$tag-orange; }
+  &:last-child.active  { color: v.$tag-blue; }
+}
+
 // ── Quick Summary card ────────────────────────────────────────────────────────
 
 .quick-summary {
@@ -379,6 +437,12 @@
   background: rgba(v.$tag-blue, 0.08); border-color: rgba(v.$tag-blue, 0.25);
   display: flex; align-items: flex-start; gap: 0.5rem;
   i { color: v.$tag-blue; margin: 0; flex-shrink: 0; margin-top: 0.1rem; }
+  span { line-height: 1.5; }
+}
+.info-success {
+  background: rgba(v.$success, 0.08); border-color: rgba(v.$success, 0.25);
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  i { color: v.$success; margin: 0; flex-shrink: 0; margin-top: 0.1rem; }
   span { line-height: 1.5; }
 }
 
@@ -580,6 +644,15 @@
   padding:       1.25rem 1.5rem;
   margin-top:    1.5rem;
 
+  &__header {
+    display:        flex;
+    align-items:    center;
+    justify-content: space-between;
+    flex-wrap:      wrap;
+    gap:            0.75rem;
+    margin-bottom:  0.85rem;
+  }
+
   &__title {
     font-size:     0.9rem;
     font-weight:   700;
@@ -592,6 +665,11 @@
     gap:           0.5rem;
 
     i { color: v.$primary; }
+  }
+
+  // Dans __header (avec le slider de langage), le header porte déjà la marge.
+  &__header &__title {
+    margin-bottom: 0;
   }
 
   &__list {
@@ -640,4 +718,31 @@
       flex-shrink: 0;
     }
   }
+
+  &__accept--withdrawal {
+    align-items: flex-start;
+    padding:     0.6rem 0.75rem;
+    margin-top:  0.75rem;
+    background:  rgba(197, 48, 48, 0.06);
+    border:      1px solid rgba(197, 48, 48, 0.25);
+    border-radius: 8px;
+
+    span { font-weight: 400; line-height: 1.4; }
+  }
+
+  &__hint {
+    display:      flex;
+    align-items:  flex-start;
+    gap:          0.4rem;
+    font-size:    0.8rem;
+    color:        v.$text-muted;
+    line-height:  1.5;
+    margin:       0.6rem 0 0;
+
+    i { color: v.$tag-orange; flex-shrink: 0; margin-top: 0.15rem; font-size: 0.78rem; }
+  }
+}
+
+.legal-notice--lyrics {
+  margin-top: 1rem;
 }

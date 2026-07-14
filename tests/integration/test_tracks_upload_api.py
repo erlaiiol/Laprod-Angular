@@ -54,7 +54,7 @@ def _stems_zip(files=None):
 
 def _valid_form(*, title='My Beat', bpm='120', key='C major', style='Trap',
                 price_mp3='9.99', price_wav='19.99', price_stems='49.99',
-                sacem='50', **extra):
+                sacem='50', phonogram_producer_attested='1', **extra):
     """FormData valide de base (sans fichiers)."""
     return {
         'title':                    title,
@@ -65,6 +65,7 @@ def _valid_form(*, title='My Beat', bpm='120', key='C major', style='Trap',
         'price_wav':                price_wav,
         'price_stems':              price_stems,
         'sacem_percentage_composer': sacem,
+        'phonogram_producer_attested': phonogram_producer_attested,
         **extra,
     }
 
@@ -209,6 +210,36 @@ class TestUploadFieldValidation:
         data = _valid_form()
         resp, _, _ = _upload(client, beatmaker_headers, tmp_path, data)
         assert resp.status_code == 400
+
+    def test_missing_phonogram_attestation_returns_400(self, client, tmp_path, beatmaker_headers):
+        """Sans attestation producteur du phonogramme → 400 (droits voisins, cf. audit légal)."""
+        data = {**_valid_form(phonogram_producer_attested='0'), 'file_mp3': _mp3()}
+        resp, _, _ = _upload(client, beatmaker_headers, tmp_path, data)
+        assert resp.status_code == 400
+
+    def test_samples_declared_without_details_returns_400(self, client, tmp_path, beatmaker_headers):
+        """has_third_party_samples=1 sans description de clearance → 400."""
+        data = {
+            **_valid_form(has_third_party_samples='1', sample_clearance_details=''),
+            'file_mp3': _mp3(),
+        }
+        resp, _, _ = _upload(client, beatmaker_headers, tmp_path, data)
+        assert resp.status_code == 400
+
+    def test_samples_declared_with_details_accepted(self, client, tmp_path, beatmaker_headers):
+        """has_third_party_samples=1 avec description → accepté, transmis au job RQ."""
+        data = {
+            **_valid_form(
+                has_third_party_samples='1',
+                sample_clearance_details='Sample vocal cleared via Tracklib, licence #1234.',
+            ),
+            'file_mp3': _mp3(),
+        }
+        resp, _, mock_queue = _upload(client, beatmaker_headers, tmp_path, data)
+        assert resp.status_code == 202
+        payload = mock_queue.enqueue.call_args.args[1]
+        assert payload['has_third_party_samples'] is True
+        assert payload['sample_clearance_details'] == 'Sample vocal cleared via Tracklib, licence #1234.'
 
     def test_error_message_in_response(self, client, tmp_path, beatmaker_headers):
         """La réponse d'erreur contient un message lisible."""
@@ -385,6 +416,8 @@ class TestUploadRedisBehavior:
         for field in ('job_id', 'safe_title', 'unique_id', 'file_hash',
                       'preview_disk_path', 'preview_filename', 'tag_ids'):
             assert field in payload, f"Champ manquant dans job_payload: {field}"
+        assert payload['phonogram_producer_attested'] is True
+        assert payload['has_third_party_samples'] is False
 
     def test_rq_payload_mp3_path_set(self, client, tmp_path, beatmaker_headers):
         """mp3_disk_path est défini dans le payload quand un MP3 est uploadé."""

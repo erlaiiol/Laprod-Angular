@@ -36,6 +36,12 @@ import { environment } from '../../environments/environment';
 
 const BASE_URL = `${environment.apiUrl}/api/track-payment`;
 
+// Consentement minimal requis par le backend (create_checkout renvoie 400 sinon)
+const REQUIRED_CONSENT = {
+  legal_terms_accepted:    true,
+  withdrawal_right_waived: true,
+};
+
 // Options du preset Starter (mode Rapide — les moins chères)
 const QUICK_MODE_OPTIONS: CheckoutOptions = {
   is_exclusive:            false,
@@ -46,6 +52,7 @@ const QUICK_MODE_OPTIONS: CheckoutOptions = {
   public_show:             false,
   arrangement:             false,
   total_price:             14.99,
+  ...REQUIRED_CONSENT,
 };
 
 // Options mode Avancé avec droits supplémentaires
@@ -58,6 +65,7 @@ const ADVANCED_MODE_OPTIONS: CheckoutOptions = {
   public_show:             true,
   arrangement:             false,
   total_price:             74.99,
+  ...REQUIRED_CONSENT,
 };
 
 // ── Setup ──────────────────────────────────────────────────────────────────────
@@ -89,7 +97,7 @@ describe('PaymentService', () => {
   describe('createCheckout() — URL et méthode', () => {
 
     it('POSTs vers /api/track-payment/track/:id/:format/checkout', () => {
-      service.createCheckout(10, 'mp3', {}).subscribe();
+      service.createCheckout(10, 'mp3', REQUIRED_CONSENT).subscribe();
 
       const req = httpMock.expectOne(`${BASE_URL}/track/10/mp3/checkout`);
       expect(req.request.method).toBe('POST');
@@ -106,7 +114,7 @@ describe('PaymentService', () => {
 
     it('accepte mp3, wav et stems comme format', () => {
       for (const format of ['mp3', 'wav', 'stems']) {
-        service.createCheckout(1, format, {}).subscribe();
+        service.createCheckout(1, format, REQUIRED_CONSENT).subscribe();
         const req = httpMock.expectOne(`${BASE_URL}/track/1/${format}/checkout`);
         req.flush({ success: true, data: { checkout_url: 'https://stripe.test', total: 9.99 } });
       }
@@ -186,11 +194,11 @@ describe('PaymentService', () => {
       req.flush({ success: true, data: { checkout_url: 'https://stripe.test', total: 74.99 } });
     });
 
-    it('corps vide {} envoie un objet JSON vide (pas null)', () => {
-      service.createCheckout(1, 'mp3', {}).subscribe();
+    it('options minimales (consentement seul) envoie un objet JSON, pas null', () => {
+      service.createCheckout(1, 'mp3', REQUIRED_CONSENT).subscribe();
 
       const req = httpMock.expectOne(`${BASE_URL}/track/1/mp3/checkout`);
-      expect(req.request.body).toEqual({});
+      expect(req.request.body).toEqual(REQUIRED_CONSENT);
       expect(req.request.body).not.toBeNull();
       req.flush({ success: true, data: { checkout_url: 'https://stripe.test', total: 9.99 } });
     });

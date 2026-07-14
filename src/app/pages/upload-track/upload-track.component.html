@@ -204,22 +204,12 @@
                        [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
               </div>
               <div class="field">
-                <label>Durée 3 ans (€)</label>
-                <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
-                       [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
-              </div>
-              <div class="field">
-                <label>Durée 5 ans (€)</label>
-                <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
-                       [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
-              </div>
-              <div class="field">
                 <label>Durée 10 ans (€)</label>
                 <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
                        [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
               </div>
               <div class="field">
-                <label>À vie (€)</label>
+                <label>Durée légale de protection (€)</label>
                 <input type="number" name="cpLifetime" min="0" max="9999" step="1"
                        [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
               </div>
@@ -260,7 +250,7 @@
             <span class="locked-badge"><i class="bi bi-lock-fill"></i> Premium uniquement</span>
           </div>
           <div class="locked-grid">
-            @for (label of ['Exclusivité', 'Durée 3 ans', 'Durée 5 ans', 'Durée 10 ans', 'À vie',
+            @for (label of ['Exclusivité', 'Durée 10 ans', 'Durée légale de protection',
                             'Reproduction mécanique', 'Représentation publique', "Droit d'arrangement",
                             'Territoire Europe', 'Territoire monde entier']; track label) {
               <div class="field field--locked">
@@ -317,21 +307,13 @@
                         (click)="previewDuration.set('stream')">
                   Streaming seul <span>0€</span>
                 </button>
-                <button type="button" class="preview-btn" [class.active]="previewDuration() === '3'"
-                        (click)="previewDuration.set('3')">
-                  3 ans <span>+{{ cpDuration3y() }}€</span>
-                </button>
-                <button type="button" class="preview-btn" [class.active]="previewDuration() === '5'"
-                        (click)="previewDuration.set('5')">
-                  5 ans <span>+{{ cpDuration5y() }}€</span>
-                </button>
                 <button type="button" class="preview-btn" [class.active]="previewDuration() === '10'"
                         (click)="previewDuration.set('10')">
                   10 ans <span>+{{ cpDuration10y() }}€</span>
                 </button>
                 <button type="button" class="preview-btn" [class.active]="previewDuration() === 'lifetime'"
                         (click)="previewDuration.set('lifetime')">
-                  À vie <span>+{{ cpLifetime() }}€</span>
+                  Durée légale <span>+{{ cpLifetime() }}€</span>
                 </button>
               </div>
               <p class="duration-info">Le streaming est toujours inclus à vie. La durée indiquée s'applique aux autres droits (reproduction, diffusion publique…). « Streaming seul » = aucun autre droit.</p>
@@ -603,6 +585,43 @@
             Sans cover, une image sera générée automatiquement : couleur de fond selon la gamme, titre centré et logo du site en filigrane.
           </p>
         </div>
+      </div>
+
+      <!-- ── Attestations légales (droits voisins / samples) ──────────────────── -->
+      <div class="section-card">
+        <h3 class="section-title"><i class="bi bi-shield-check"></i> Attestations légales</h3>
+
+        <label class="file-label" style="cursor: pointer;">
+          <input type="checkbox"
+                 [checked]="phonogramProducerAttested()"
+                 (change)="phonogramProducerAttested.set(!phonogramProducerAttested())" />
+          <span>
+            <strong>J'atteste être le producteur du phonogramme de ce fichier</strong>
+            <em>ou détenir les droits nécessaires pour le publier — obligatoire pour pouvoir céder les droits voisins (art. L.213-1 CPI) dans le contrat de licence. En cas de collaboration ou d'utilisation d'un instrumental sous licence de tiers, assurez-vous d'avoir les droits nécessaires avant de cocher.</em>
+          </span>
+        </label>
+
+        <label class="file-label" style="cursor: pointer; margin-top: 0.75rem;">
+          <input type="checkbox"
+                 [checked]="hasThirdPartySamples()"
+                 (change)="hasThirdPartySamples.set(!hasThirdPartySamples())" />
+          <span>
+            <strong>Ce beat contient des samples ou interpolations de tiers</strong>
+            <em>cochez si applicable — une description du statut de clearance sera demandée</em>
+          </span>
+        </label>
+
+        @if (hasThirdPartySamples()) {
+          <div class="file-field">
+            <textarea
+              class="form-control"
+              rows="3"
+              placeholder="Décrivez le(s) sample(s)/interpolation(s) utilisés et leur statut de clearance (ex : « voix cleared via Tracklib, licence #1234 »)"
+              [value]="sampleClearanceDetails()"
+              (input)="sampleClearanceDetails.set($any($event.target).value)"
+            ></textarea>
+          </div>
+        }
       </div>
 
       <!-- ── Soumettre ─────────────────────────────────────────────────────── -->

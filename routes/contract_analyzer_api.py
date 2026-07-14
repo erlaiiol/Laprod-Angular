@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import csrf, db
+from extensions import csrf, db, limiter
 from models import User
 from utils.contract_analyzer import analyze_contract
 
@@ -17,6 +17,7 @@ def _get_user():
 
 
 @contract_analyzer_api_bp.route('/analyze', methods=['POST'])
+@limiter.limit('20 per hour')
 @jwt_required()
 @csrf.exempt
 def analyze():

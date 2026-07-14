@@ -258,6 +258,36 @@ class TestUploadTopline:
         resp = client.post('/api/toplines/upload', data={})
         assert resp.status_code == 401
 
+    def test_guest_ip_quota_ignores_spoofed_forwarded_for(
+        self, client, tmp_path, track_default_prices
+    ):
+        """Le filet anti-abus guest par IP se base sur l'IP réelle
+        (request.remote_addr, corrigée par ProxyFix) et non sur l'en-tête
+        X-Forwarded-For, qu'un bot pourrait forger pour repartir de zéro."""
+        import config
+
+        def _guest_upload(xff):
+            mock_redis = MagicMock()
+            mock_redis.get.return_value = 0  # quotas sous la limite
+            with patch.object(config, 'UPLOAD_FOLDER', tmp_path), \
+                 patch('routes.toplines_api.redis_client', mock_redis), \
+                 patch('routes.toplines_api.Queue', MagicMock()):
+                client.post(
+                    '/api/toplines/upload',
+                    data=_upload_payload(track_default_prices.id),
+                    content_type='multipart/form-data',
+                    headers={'X-Guest-Session': 'guest-uuid-1234', 'X-Forwarded-For': xff},
+                )
+            ip_keys = [
+                c.args[0] for c in mock_redis.get.call_args_list
+                if c.args and str(c.args[0]).startswith('guest_topline_ip:')
+            ]
+            assert ip_keys, "la clé de quota IP guest doit être consultée"
+            return ip_keys[0]
+
+        # Deux IP forgées différentes → même clé de quota (car remote_addr identique).
+        assert _guest_upload('1.2.3.4') == _guest_upload('9.9.9.9')
+
     def test_happy_path_returns_job_id(self, client, tmp_path, artist_headers, track_default_prices):
         """Upload valide → 200 avec un job_id UUID."""
         resp, _, _ = _upload(client, track_default_prices.id, artist_headers, tmp_path)

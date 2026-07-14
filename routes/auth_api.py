@@ -6,6 +6,7 @@ import time
 from flask import Blueprint, request, redirect, url_for, current_app, jsonify
 # NOTE: jsonify kept for /ping healthcheck (non-standard shape)
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from email_validator import validate_email, EmailNotValidError
 import os
 from datetime import datetime, timedelta
@@ -93,6 +94,12 @@ def _pop_oauth_code(code: str) -> dict | None:
 
 auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/api/auth')
 
+# Hash factice calculé une seule fois au chargement. Sert à égaliser le temps de
+# réponse du login quand l'identifiant n'existe pas : on hashe quand même un mot
+# de passe, sinon l'absence de calcul rend la réponse plus rapide et révèle par
+# simple mesure de latence qu'aucun compte ne porte cet identifiant.
+_DUMMY_PW_HASH = generate_password_hash('anti-timing-oracle-dummy')
+
 
 @auth_api_bp.route('/ping', methods=['GET'])
 @csrf.exempt
@@ -138,7 +145,11 @@ def login():
 
     if user:
         valid = user.check_password(password)
-    else :
+    else:
+        # Anti-énumération temporelle : on hashe un mot de passe factice même
+        # sans compte correspondant, pour que la latence reste identique à celle
+        # d'un identifiant existant.
+        check_password_hash(_DUMMY_PW_HASH, password)
         valid = False
 
     if not valid:
@@ -341,6 +352,7 @@ def register_user():
 
 @auth_api_bp.route('/verify-email', methods=['POST'])
 @csrf.exempt
+@limiter.limit('30 per hour')
 def verify_email():
     """Vérifie le token d'email et active le compte."""
     data = request.get_json()
@@ -795,6 +807,7 @@ def google_callback():
 
 @auth_api_bp.route('/token-exchange', methods=['GET'])
 @csrf.exempt
+@limiter.limit('30 per hour')
 def token_exchange():
     """
     Échange un code OAuth court-durée contre les tokens JWT.

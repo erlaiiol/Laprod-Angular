@@ -2,7 +2,7 @@
   <div class="legal-container">
 
     <header class="legal-header">
-      <h1>Droits d'auteur &amp; DMCA</h1>
+      <h1>Signalement de contenu protégé (LCEN &amp; DMCA)</h1>
       <p class="last-updated">Dernière mise à jour : {{ lastUpdated }}</p>
     </header>
 
@@ -10,11 +10,12 @@
       <p class="toc-title">Sommaire</p>
       <ol>
         <li><a href="#engagement">Notre engagement envers les droits d'auteur</a></li>
+        <li><a href="#lcen">Fondement légal — LCEN (droit français)</a></li>
         <li><a href="#signalement">Signaler une violation</a></li>
         <li><a href="#procedure">Procédure de traitement</a></li>
         <li><a href="#contre-notification">Contre-notification</a></li>
         <li><a href="#recidivistes">Politique de résiliation (récidivistes)</a></li>
-        <li><a href="#contact">Contact DMCA</a></li>
+        <li><a href="#contact">Contact</a></li>
       </ol>
     </nav>
 
@@ -23,22 +24,38 @@
       <section id="engagement">
         <h2>1. Notre engagement envers les droits d'auteur</h2>
         <p>
-          LaProd (exploité par <strong>Eliott Raillère</strong>, contact@laprod.net) respecte scrupuleusement
-          les droits de propriété intellectuelle et attend de tous ses utilisateurs qu'ils fassent de même.
-          Notre plateforme est dédiée à la création musicale originale : les beatmakers et ingénieurs du son
-          qui publient leur travail sur LaProd certifient en être les auteurs ou détenir les droits nécessaires.
+          LaProd (exploité par <strong>{{ legal.operatorName }}</strong>, {{ legal.contactEmail }})
+          respecte scrupuleusement les droits de propriété intellectuelle et attend de tous ses
+          utilisateurs qu'ils fassent de même. Notre plateforme est dédiée à la création musicale
+          originale : les beatmakers et ingénieurs du son qui publient leur travail sur LaProd
+          certifient en être les auteurs ou détenir les droits nécessaires.
+        </p>
+      </section>
+
+      <section id="lcen">
+        <h2>2. Fondement légal — LCEN (droit français)</h2>
+        <p>
+          {{ legal.platformName }} héberge du contenu déposé par ses utilisateurs et bénéficie, à ce
+          titre, du régime de responsabilité limitée des hébergeurs prévu par
+          <strong>l'article 6-I-2 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans
+          l'économie numérique (LCEN)</strong> : {{ legal.platformName }} n'est pas tenu de surveiller
+          activement les contenus qu'il stocke, mais s'engage à retirer promptement tout contenu
+          manifestement illicite dès qu'il en a une connaissance effective, selon la procédure de
+          notification décrite ci-dessous.
         </p>
         <p>
-          Conformément à la <strong>Directive européenne 2001/29/CE sur la société de l'information</strong>
-          (transposée en droit français par la loi DADVSI), au <strong>Digital Millennium Copyright Act
-          (DMCA, 17 U.S.C. § 512)</strong> et à la <strong>Directive (UE) 2019/790 sur le droit d'auteur
-          dans le marché unique numérique</strong>, LaProd met en place une procédure de signalement des
-          contenus portant atteinte aux droits d'auteur.
+          Pour les ayants droit ou utilisateurs situés hors de France, {{ legal.platformName }} applique
+          en complément, à titre volontaire, les procédures reconnues à l'international : la
+          <strong>Directive européenne 2001/29/CE sur la société de l'information</strong> (transposée en
+          droit français par la loi DADVSI), le <strong>Digital Millennium Copyright Act
+          (DMCA, 17 U.S.C. § 512)</strong> et la <strong>Directive (UE) 2019/790 sur le droit d'auteur
+          dans le marché unique numérique</strong>. En cas de contradiction entre ces régimes pour un
+          contenu hébergé en France, la LCEN prévaut en tant que fondement légal opérant.
         </p>
       </section>
 
       <section id="signalement">
-        <h2>2. Signaler une violation</h2>
+        <h2>3. Signaler une violation</h2>
         <p>
           Si vous êtes titulaire d'un droit d'auteur ou son mandataire autorisé et que vous constatez
           qu'un contenu publié sur LaProd porte atteinte à vos droits, vous pouvez nous adresser
@@ -80,7 +97,7 @@
       </section>
 
       <section id="procedure">
-        <h2>3. Procédure de traitement</h2>
+        <h2>4. Procédure de traitement</h2>
         <p>Dès réception d'une notification valide et complète, LaProd s'engage à :</p>
         <ul>
           <li>Accuser réception de votre notification dans un délai de <strong>48 heures ouvrées</strong>.</li>
@@ -93,12 +110,12 @@
         </ul>
         <p>
           LaProd se réserve le droit de restaurer le contenu si une contre-notification valide
-          est reçue (voir section 4) ou si la demande initiale s'avère infondée.
+          est reçue (voir section 5) ou si la demande initiale s'avère infondée.
         </p>
       </section>
 
       <section id="contre-notification">
-        <h2>4. Contre-notification</h2>
+        <h2>5. Contre-notification</h2>
         <p>
           Si vous êtes l'utilisateur dont le contenu a été retiré et que vous estimez cette suppression
           erronée ou abusive, vous pouvez soumettre une contre-notification contenant :
@@ -126,7 +143,7 @@
       </section>
 
       <section id="recidivistes">
-        <h2>5. Politique de résiliation (récidivistes)</h2>
+        <h2>6. Politique de résiliation (récidivistes)</h2>
         <p>
           Conformément à la législation applicable, LaProd applique une politique de résiliation de compte
           pour les utilisateurs récidivistes. Un utilisateur dont le compte fait l'objet de
@@ -140,16 +157,16 @@
       </section>
 
       <section id="contact">
-        <h2>6. Contact DMCA</h2>
+        <h2>7. Contact</h2>
         <p>
           Toutes les notifications et contre-notifications doivent être adressées à notre agent désigné
           aux droits d'auteur :
         </p>
         <div class="info-block">
-          <strong>LaProd — Agent DMCA</strong><br>
-          Responsable : Eliott Raillère<br>
-          E-mail : <a href="mailto:dmca@laprod.net">dmca@laprod.net</a><br>
-          Contact général : <a href="mailto:contact@laprod.net">contact@laprod.net</a>
+          <strong>{{ legal.platformName }} — Signalement de contenu protégé</strong><br>
+          Responsable : {{ legal.operatorName }}<br>
+          E-mail : <a href="mailto:{{ legal.dmcaEmail }}">{{ legal.dmcaEmail }}</a><br>
+          Contact général : <a href="mailto:{{ legal.contactEmail }}">{{ legal.contactEmail }}</a>
         </div>
         <p>
           Pour toute question concernant la propriété intellectuelle sur LaProd,

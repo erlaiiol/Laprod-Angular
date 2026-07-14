@@ -8,6 +8,7 @@ car les champs SQLAlchemy Numeric(10,2) retournent des Decimal nativement.
 import io
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
@@ -49,6 +50,18 @@ def _fmt(amount: Decimal) -> str:
     # Séparateur milliers français (espace fine insécable → espace simple pour PDF)
     formatted = f"{amount:,.2f}".replace(',', ' ').replace('.', ',')
     return f"{formatted} €"
+
+
+def _esc(value) -> str:
+    """Échappe une donnée dynamique destinée au mini-markup XML de ReportLab.
+
+    Paragraph interprète un sous-ensemble de XML (<b>, <font>…) : un username ou
+    un titre de track saisi par l'utilisateur et contenant '<', '>' ou '&' casse
+    la génération du PDF, voire injecte du markup dans le document. Toute donnée
+    utilisateur DOIT passer par ce helper ; le markup <b>/<font> volontaire reste
+    écrit en clair dans les f-strings, hors de _esc().
+    """
+    return _xml_escape('' if value is None else str(value))
 
 
 def _styles():
@@ -151,7 +164,9 @@ def _parties_block(story, st, emitter_lines: list[str], recipient_lines: list[st
     def _col(label, lines):
         items = [Paragraph(label, st['label'])]
         for line in lines:
-            items.append(Paragraph(line, st['normal']))
+            # Point de passage unique : ces lignes contiennent des données user
+            # (username, email) sans markup volontaire → on échappe tout.
+            items.append(Paragraph(_esc(line), st['normal']))
         return items
 
     emitter_col  = _col('ÉMETTEUR', emitter_lines)
@@ -193,6 +208,9 @@ def _items_table(story, st, rows: list[tuple[str, Decimal | None, str | None]],
     ]
 
     for desc, amount, note in rows:
+        # desc/note portent des données user (titre de track, username) sans
+        # markup volontaire → on échappe avant tout habillage <b>.
+        desc = _esc(desc)
         if amount is None:
             # Ligne séparateur / titre de section
             table_data.append([
@@ -208,7 +226,7 @@ def _items_table(story, st, rows: list[tuple[str, Decimal | None, str | None]],
         if note:
             desc_cell = [
                 Paragraph(desc, st['normal']),
-                Paragraph(note, st['small']),
+                Paragraph(_esc(note), st['small']),
             ]
         amt_style = ParagraphStyle('Amt', parent=st['normal'],
                                    alignment=TA_RIGHT, textColor=color)
@@ -249,7 +267,7 @@ def _stripe_ref(story, st, stripe_id: str | None):
     if stripe_id:
         story.append(Spacer(1, 0.3 * cm))
         story.append(Paragraph(
-            f"Référence de paiement : {stripe_id}",
+            f"Référence de paiement : {_esc(stripe_id)}",
             st['small'],
         ))
 
@@ -526,7 +544,7 @@ def generate_mixmaster_earnings_statement(mm, stage: str) -> bytes:
         )
 
         story.append(Paragraph(
-            f"Mission : Mix & Master pour <b>{artist.username}</b>  —  Étape : <b>{stage_label}</b>",
+            f"Mission : Mix & Master pour <b>{_esc(artist.username)}</b>  —  Étape : <b>{stage_label}</b>",
             st['normal'],
         ))
         story.append(Spacer(1, 0.35 * cm))

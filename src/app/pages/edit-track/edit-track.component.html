@@ -155,22 +155,12 @@
                      [ngModel]="cpExclusive()" (ngModelChange)="cpExclusive.set(+$event)" />
             </div>
             <div class="field">
-              <label>Durée 3 ans (€)</label>
-              <input type="number" name="cpDuration3y" min="0" max="9999" step="1"
-                     [ngModel]="cpDuration3y()" (ngModelChange)="cpDuration3y.set(+$event)" />
-            </div>
-            <div class="field">
-              <label>Durée 5 ans (€)</label>
-              <input type="number" name="cpDuration5y" min="0" max="9999" step="1"
-                     [ngModel]="cpDuration5y()" (ngModelChange)="cpDuration5y.set(+$event)" />
-            </div>
-            <div class="field">
               <label>Durée 10 ans (€)</label>
               <input type="number" name="cpDuration10y" min="0" max="9999" step="1"
                      [ngModel]="cpDuration10y()" (ngModelChange)="cpDuration10y.set(+$event)" />
             </div>
             <div class="field">
-              <label>À vie (€)</label>
+              <label>Durée légale de protection (€)</label>
               <input type="number" name="cpLifetime" min="0" max="9999" step="1"
                      [ngModel]="cpLifetime()" (ngModelChange)="cpLifetime.set(+$event)" />
             </div>

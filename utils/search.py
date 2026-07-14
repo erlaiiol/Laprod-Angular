@@ -11,6 +11,30 @@ import re
 import unicodedata
 from difflib import SequenceMatcher
 
+#: Caractère d'échappement à passer à `ilike(..., escape=LIKE_ESCAPE)`.
+#: À utiliser conjointement avec `escape_like()` — l'un sans l'autre ne protège rien.
+LIKE_ESCAPE = '\\'
+
+
+def escape_like(term: str) -> str:
+    """
+    Neutralise les wildcards LIKE/ILIKE d'une saisie utilisateur.
+
+    Sans ça, une recherche '%' ou '_' est interprétée comme un joker et matche
+    tout le catalogue (scan complet inutile), au lieu de chercher le caractère
+    littéral que l'utilisateur a tapé.
+
+    Le backslash lui-même est échappé en premier, sinon une saisie contenant
+    '\\' neutraliserait l'échappement des wildcards qui la suivent.
+
+    Exemple : '100%' → '100\\%'  (matche le libellé '100%', pas tout)
+    """
+    return (
+        term.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
+            .replace('%', f'{LIKE_ESCAPE}%')
+            .replace('_', f'{LIKE_ESCAPE}_')
+    )
+
 
 def normalize_search_term(text: str) -> str:
     """

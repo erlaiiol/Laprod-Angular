@@ -18,6 +18,7 @@ from sqlalchemy.orm import selectinload
 import hashlib
 import shutil
 import config
+import random
 import uuid as _uuid
 import json
 
@@ -27,7 +28,14 @@ from helpers import generate_track_image
 from utils.image_variants import generate_variants, delete_variants
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
 from utils.auth_helpers import require_user
-from utils.search import normalize_search_term, extract_bpm, fuzzy_name_matches, split_search_words
+from utils.search import (
+    LIKE_ESCAPE,
+    escape_like,
+    normalize_search_term,
+    extract_bpm,
+    fuzzy_name_matches,
+    split_search_words,
+)
 from utils.crud_helpers import (
     get_or_404, require_ownership,
     handle_route_exceptions, commit_or_rollback,
@@ -271,7 +279,7 @@ def get_tracks():
 
         # Conserver la version brute pour les helpers avant l'escape SQL LIKE
         search_raw = search
-        search = search.replace('%', '\\%').replace('_', '\\_')
+        search = escape_like(search)
 
         if search:
             # ── Recherche BPM pure : '140', '140bpm', '140 bpm' ─────────────
@@ -285,21 +293,30 @@ def get_tracks():
             else:
                 # ── Recherche textuelle générale ──────────────────────────────
                 search_conditions = [
-                    Track.title.ilike(f'%{search}%'),
-                    Track.composer_user.has(User.username.ilike(f'%{search}%')),
-                    Track.style.ilike(f'%{search}%'),
-                    Track.key.ilike(f'%{search}%'),
-                    Track.tags.any(Tag.name.ilike(f'%{search}%')),
-                    Track.similar_artists.any(SimilarArtist.name.ilike(f'%{search}%')),
+                    Track.title.ilike(f'%{search}%', escape=LIKE_ESCAPE),
+                    Track.composer_user.has(User.username.ilike(f'%{search}%', escape=LIKE_ESCAPE)),
+                    Track.style.ilike(f'%{search}%', escape=LIKE_ESCAPE),
+                    Track.key.ilike(f'%{search}%', escape=LIKE_ESCAPE),
+                    Track.tags.any(Tag.name.ilike(f'%{search}%', escape=LIKE_ESCAPE)),
+                    Track.similar_artists.any(
+                        SimilarArtist.name.ilike(f'%{search}%', escape=LIKE_ESCAPE)
+                    ),
                 ]
 
                 # Mot-par-mot + fuzzy — délégués à utils.search
+                # normalize_search_term() ne retire pas les '_' (caractère \w),
+                # les mots doivent donc être échappés eux aussi.
                 words = split_search_words(search_raw)
                 if words:
                     for word in words:
-                        search_conditions.append(Track.tags.any(Tag.name.ilike(f'%{word}%')))
+                        esc_word = escape_like(word)
                         search_conditions.append(
-                            Track.similar_artists.any(SimilarArtist.name.ilike(f'%{word}%'))
+                            Track.tags.any(Tag.name.ilike(f'%{esc_word}%', escape=LIKE_ESCAPE))
+                        )
+                        search_conditions.append(
+                            Track.similar_artists.any(
+                                SimilarArtist.name.ilike(f'%{esc_word}%', escape=LIKE_ESCAPE)
+                            )
                         )
 
                     all_tag_names    = db.session.execute(select(Tag.name)).scalars().all()
@@ -488,8 +505,30 @@ def get_tracks():
 
 # ── GET /tracks/random ────────────────────────────────────────────────────────
 
+def _approved_track_count():
+    """Nombre de tracks approuvés, caché 60 s (voir get_random_track)."""
+    cache_key = 'tracks:approved_count'
+    try:
+        cached = redis_client.get(cache_key)
+        if cached is not None:
+            return int(cached)
+    except Exception:
+        pass
+
+    total = db.session.query(func.count(Track.id)).filter(
+        Track.is_approved.is_(True)
+    ).scalar() or 0
+
+    try:
+        redis_client.setex(cache_key, 60, total)
+    except Exception:
+        pass
+
+    return total
+
+
 @tracks_api_bp.route('/random', methods=['GET'])
-@limiter.exempt
+@limiter.limit('60 per minute')
 def get_random_track():
     """
     Récupérer un track approuvé aléatoire (pour l'autoplay du player).
@@ -499,6 +538,10 @@ def get_random_track():
     exclude_id = request.args.get('exclude_id', type=int)
 
     try:
+        total = _approved_track_count()
+        if not total:
+            return err('Aucun track disponible', level='info', status=404)
+
         query = select(Track).options(
             selectinload(Track.tags), selectinload(Track.composer_user)
         ).where(Track.is_approved.is_(True))
@@ -506,9 +549,17 @@ def get_random_track():
         if exclude_id:
             query = query.where(Track.id != exclude_id)
 
-        track = db.session.execute(
-            query.order_by(func.random()).limit(1)
-        ).scalar_one_or_none()
+        # OFFSET aléatoire plutôt qu'ORDER BY random() : ce dernier triait la table
+        # entière à CHAQUE appel. Sur un endpoint public, une requête HTTP triviale
+        # coûtait donc un scan complet — l'amplification rêvée pour saturer la DB.
+        query = query.order_by(Track.id).offset(random.randrange(total)).limit(1)
+
+        track = db.session.execute(query).scalar_one_or_none()
+
+        # exclude_id retire une ligne du jeu filtré : l'offset tiré sur le total
+        # peut alors dépasser d'un cran. On retombe sur la première ligne.
+        if not track:
+            track = db.session.execute(query.offset(0)).scalar_one_or_none()
 
         if not track:
             return err('Aucun track disponible', level='info', status=404)
@@ -585,6 +636,25 @@ def post_track(current_user):
                 return err('Le pourcentage SACEM doit être entre 0 et 85%', level='warning')
         except ValueError:
             return err('Pourcentage SACEM invalide', level='warning')
+
+        # ── Attestations légales (droits voisins / samples) ────────────────────
+        # Condition à la cession des droits voisins de producteur de phonogramme
+        # dans le contrat de licence généré à la vente (cf. utils/contract_generator.py).
+        phonogram_producer_attested = request.form.get('phonogram_producer_attested') == '1'
+        if not phonogram_producer_attested:
+            return err(
+                "Vous devez attester être le producteur du phonogramme de ce fichier "
+                "(ou détenir les droits nécessaires) pour pouvoir le publier.",
+                level='warning',
+            )
+
+        has_third_party_samples  = request.form.get('has_third_party_samples') == '1'
+        sample_clearance_details = request.form.get('sample_clearance_details', '').strip()
+        if has_third_party_samples and not sample_clearance_details:
+            return err(
+                'Merci de décrire le statut de clearance des samples/interpolations utilisés.',
+                level='warning',
+            )
 
         file_mp3   = request.files.get('file_mp3')
         file_wav   = request.files.get('file_wav')
@@ -740,6 +810,9 @@ def post_track(current_user):
             'price_wav':                 price_wav,
             'price_stems':               price_stems,
             'sacem_percentage_composer': sacem_percentage_composer,
+            'phonogram_producer_attested': phonogram_producer_attested,
+            'has_third_party_samples':     has_third_party_samples,
+            'sample_clearance_details':    sample_clearance_details,
             'file_hash':                 file_hash,
             # Chemins des fichiers uploadés (None si non fourni)
             'mp3_disk_path':    str(mp3_disk_path)    if mp3_disk_path    else None,
@@ -850,6 +923,26 @@ def put_track(track_id, current_user):
     for _label, _val in (('MP3', price_mp3), ('WAV', price_wav), ('Stems', price_stems)):
         if not (0.50 <= _val <= 999.99):
             return err(f'Le prix {_label} doit être entre 0.50€ et 999.99€', level='warning')
+
+    # ── Attestations légales (droits voisins / samples) ────────────────────────
+    # Champs optionnels ici : une édition de métadonnées ne doit pas forcer une
+    # re-déclaration. phonogram_producer_attested est write-once : on ignore
+    # toute tentative de le repasser à False une fois attesté.
+    phonogram_raw = request.form.get('phonogram_producer_attested')
+    if phonogram_raw is not None and phonogram_raw == '1' and not track.phonogram_producer_attested:
+        track.phonogram_producer_attested = True
+
+    has_samples_raw = request.form.get('has_third_party_samples')
+    if has_samples_raw is not None:
+        has_samples = has_samples_raw == '1'
+        details = request.form.get('sample_clearance_details', '').strip()
+        if has_samples and not details:
+            return err(
+                'Merci de décrire le statut de clearance des samples/interpolations utilisés.',
+                level='warning',
+            )
+        track.has_third_party_samples  = has_samples
+        track.sample_clearance_details = details or None
 
     safe_title = secure_filename(title)[:30]
     uid        = str(_uuid.uuid4())[:8]
@@ -1073,7 +1166,7 @@ def validate_ai_suggestion(track_id, current_user):
 
 @tracks_api_bp.route('/track/<int:track_id>/view', methods=['POST'])
 @csrf.exempt
-@limiter.exempt
+@limiter.limit('60 per minute')
 def record_track_view(track_id):
     track = db.session.get(Track, track_id)
     if not track:
@@ -1083,8 +1176,13 @@ def record_track_view(track_id):
     if source not in ('player', 'detail'):
         source = 'player'
 
-    # IP hash — on ne stocke jamais l'IP brute
-    raw_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    # IP hash — on ne stocke jamais l'IP brute.
+    # request.remote_addr et NON X-Forwarded-For : ce header est fourni par le
+    # client, et on en lisait la valeur la plus à gauche — donc celle qu'il
+    # choisit. Le faire tourner suffisait à contourner la dédup 24 h ci-dessous :
+    # INSERT illimités dans TrackView (disque) et compteurs de vues gonflables.
+    # ProxyFix (app.py) renseigne déjà remote_addr avec l'IP réelle derrière nginx.
+    raw_ip = request.remote_addr or ''
     ip_hash = hashlib.sha256(raw_ip.encode()).hexdigest()[:32]
 
     # Récupération optionnelle du user connecté (JWT non obligatoire)

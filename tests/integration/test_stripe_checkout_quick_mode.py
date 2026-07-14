@@ -5,7 +5,7 @@ Vérifie que les paramètres transmis à stripe.checkout.Session.create() sont
 corrects en termes de types, de structure et de valeurs pour les deux modes :
 
   • Mode Rapide (preset Starter) :
-      is_exclusive=False, is_lifetime=False, duration_years=3,
+      is_exclusive=False, is_lifetime=False, duration_years=0 (streaming seul),
       territory='France', mechanical_reproduction=False,
       public_show=False, arrangement=False
   • Mode Avancé : options complètes, y compris is_exclusive=True
@@ -16,7 +16,7 @@ Invariants testés indépendamment du mode :
   • mode == 'payment'
   • quantity == 1
   • Toutes les valeurs de metadata sont des chaînes Python
-  • Les 19 clés de metadata obligatoires sont présentes
+  • Les 21 clés de metadata obligatoires sont présentes (dont le consentement)
   • success_url contient le placeholder {CHECKOUT_SESSION_ID}
   • cancel_url pointe vers /contract/{track_id}/{format}
   • La réponse JSON contient data.checkout_url (str) et data.total (nombre)
@@ -31,7 +31,7 @@ from unittest.mock import MagicMock, patch
 # ── Constantes de test ──────────────────────────────────────────────────────────
 
 # Prix configurés dans conftest.py
-_DURATION_3Y  = 5    # CONTRACT_DURATIONS['3']
+_DURATION_10Y = 15   # CONTRACT_DURATIONS['10'] — seul terme vendable avec 0 (streaming seul)
 _TERRITORY_EU = 5    # CONTRACT_TERRITORY_EUROPE
 _MECHANICAL   = 30   # CONTRACT_MECHANICAL_REPRODUCTION_PRICE
 _PUBLIC_SHOW  = 40   # CONTRACT_PUBLIC_SHOW_PRICE
@@ -41,16 +41,27 @@ _PRICE_MP3    = Decimal('9.99')
 _PRICE_WAV    = Decimal('14.99')
 _PRICE_STEMS  = Decimal('24.99')
 
-# Preset "Starter" = mode Rapide : streaming seul, France, 3 ans, sans options
+# Preset "Starter" = mode Rapide : streaming seul (duration_years=0), France, sans options
 _QUICK_MODE_BODY = {
     'is_exclusive':            False,
     'is_lifetime':             False,
-    'duration_years':          3,
+    'duration_years':          0,
     'territory':               'France',
     'mechanical_reproduction': False,
     'public_show':             False,
     'arrangement':             False,
-    'total_price':             float(_PRICE_MP3 + _DURATION_3Y),  # 14.99
+    'total_price':             float(_PRICE_MP3),  # streaming seul : aucun fee de durée
+    'legal_terms_accepted':    True,
+    'withdrawal_right_waived': True,
+}
+
+# Mode Avancé : terme de 10 ans. Les droits additionnels (mécanique, diffusion
+# publique, arrangement) ne sont concédés que hors « streaming seul » — les
+# tester exige donc une durée réelle.
+_ADVANCED_MODE_BODY = {
+    **_QUICK_MODE_BODY,
+    'duration_years': 10,
+    'total_price':    float(_PRICE_MP3 + _DURATION_10Y),
 }
 
 # Toutes les clés attendues dans metadata
@@ -60,6 +71,7 @@ _REQUIRED_METADATA_KEYS = {
     'duration_years', 'is_lifetime', 'territory', 'streaming',
     'mechanical_reproduction', 'public_show', 'arrangement',
     'buyer_address', 'buyer_email', 'track_price',
+    'legal_terms_accepted', 'withdrawal_right_waived', 'buyer_declares_original_lyrics',
 }
 
 
@@ -325,9 +337,38 @@ class TestStripeCheckoutQuickMode:
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, _QUICK_MODE_BODY)
         assert _metadata(kw)['territory'] == 'France'
 
-    def test_duration_years_3_in_metadata(self, client, approved_track, buyer, buyer_headers):
+    def test_duration_years_0_in_metadata(self, client, approved_track, buyer, buyer_headers):
+        """Preset Starter = streaming seul : duration_years vaut 0, pas de terme."""
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, _QUICK_MODE_BODY)
-        assert _metadata(kw)['duration_years'] == '3'
+        assert _metadata(kw)['duration_years'] == '0'
+
+    def test_duration_hors_bareme_rejetee(self, client, approved_track, buyer, buyer_headers):
+        """Seuls 0 (streaming seul) et 10 ans sont vendables : 7 ans doit être rejeté."""
+        body = {**_QUICK_MODE_BODY, 'duration_years': 7}
+        resp, _ = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
+        assert resp.status_code == 400
+        assert resp.get_json()['code'] == 'INVALID_DURATION'
+
+    def test_streaming_seul_neutralise_les_droits_additionnels(
+        self, client, approved_track, buyer, buyer_headers
+    ):
+        """
+        Sur une licence « streaming seul », le PDF affirme qu'aucun autre droit
+        n'est accordé : le serveur doit donc neutraliser mécanique / diffusion
+        publique / arrangement même si le client les demande, sinon le contrat
+        se contredit (art. 3 vs art. 5) et l'acheteur paie des droits fantômes.
+        """
+        body = {
+            **_QUICK_MODE_BODY,
+            'mechanical_reproduction': True,
+            'public_show':             True,
+            'arrangement':             True,
+            'total_price':             float(_PRICE_MP3),  # aucun fee ajouté
+        }
+        _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
+        assert _metadata(kw)['mechanical_reproduction'] == 'False'
+        assert _metadata(kw)['public_show']             == 'False'
+        assert _metadata(kw)['arrangement']             == 'False'
 
     def test_mechanical_reproduction_false_in_metadata(self, client, approved_track, buyer, buyer_headers):
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, _QUICK_MODE_BODY)
@@ -371,26 +412,27 @@ class TestStripeCheckoutAdvancedMode:
     """
 
     def test_is_exclusive_true_string_in_metadata(self, client, approved_track, buyer, buyer_headers):
-        body = {**_QUICK_MODE_BODY, 'is_exclusive': True, 'total_price': 164.99}
+        price = float(_PRICE_MP3 + _DURATION_10Y + 150)  # CONTRACT_EXCLUSIVE_PRICE
+        body = {**_ADVANCED_MODE_BODY, 'is_exclusive': True, 'total_price': price}
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
         assert _metadata(kw)['is_exclusive'] == 'True'
 
     def test_territory_world_in_metadata(self, client, approved_track, buyer, buyer_headers):
-        price = float(_PRICE_MP3 + _DURATION_3Y + _TERRITORY_EU + _TERRITORY_EU)  # territoire monde = eu+monde
-        body = {**_QUICK_MODE_BODY, 'territory': 'Monde entier', 'total_price': price}
+        price = float(_PRICE_MP3 + _DURATION_10Y + _TERRITORY_EU + _TERRITORY_EU)  # territoire monde = eu+monde
+        body = {**_ADVANCED_MODE_BODY, 'territory': 'Monde entier', 'total_price': price}
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
         assert _metadata(kw)['territory'] == 'Monde entier'
 
     def test_mechanical_true_string_in_metadata(self, client, approved_track, buyer, buyer_headers):
-        price = float(_PRICE_MP3 + _DURATION_3Y + _MECHANICAL)
-        body = {**_QUICK_MODE_BODY, 'mechanical_reproduction': True, 'total_price': price}
+        price = float(_PRICE_MP3 + _DURATION_10Y + _MECHANICAL)
+        body = {**_ADVANCED_MODE_BODY, 'mechanical_reproduction': True, 'total_price': price}
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
         assert _metadata(kw)['mechanical_reproduction'] == 'True'
 
     def test_is_lifetime_true_string_in_metadata(self, client, approved_track, buyer, buyer_headers):
         lifetime_price = 50  # CONTRACT_DURATIONS['lifetime']
         price = float(_PRICE_MP3 + lifetime_price)
-        body = {**_QUICK_MODE_BODY, 'is_lifetime': True, 'duration_years': 3, 'total_price': price}
+        body = {**_QUICK_MODE_BODY, 'is_lifetime': True, 'total_price': price}
         _, kw = _post_checkout(client, approved_track.id, 'mp3', buyer_headers, body)
         assert _metadata(kw)['is_lifetime'] == 'True'
 
@@ -406,6 +448,6 @@ class TestStripeCheckoutAdvancedMode:
 
     def test_wav_format_in_metadata(self, client, approved_track, buyer, buyer_headers):
         """Le format de la track achetée (mp3/wav/stems) est stocké dans metadata."""
-        wav_body = {**_QUICK_MODE_BODY, 'total_price': float(_PRICE_WAV + _DURATION_3Y)}
+        wav_body = {**_ADVANCED_MODE_BODY, 'total_price': float(_PRICE_WAV + _DURATION_10Y)}
         _, kw = _post_checkout(client, approved_track.id, 'wav', buyer_headers, wav_body)
         assert _metadata(kw)['format_type'] == 'wav'

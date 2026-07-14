@@ -132,7 +132,7 @@ class TestExclusivePurchaseMarksTrack:
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \
              patch(f'{_route}.send_sale_notification_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),
@@ -165,7 +165,7 @@ class TestExclusivePurchaseMarksTrack:
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \
              patch(f'{_route}.send_sale_notification_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'):
+             patch('utils.contract_data_builder.generate_contract_pdf'):
             resp = client.post(
                 '/api/track-payment/verify',
                 data=json.dumps({'session_id': 'cs_test_dummy'}),
@@ -263,7 +263,7 @@ class TestExclusiveRaceCondition:
              patch('stripe.PaymentIntent.retrieve',    return_value=intent_a), \
              patch('utils.notification_service.notify_exclusive_sold'), \
              patch('utils.email_service.send_exclusive_sold_email'), \
-             patch('utils.contract_generator.generate_contract_pdf'), \
+             patch('utils.contract_data_builder.generate_contract_pdf'), \
              patch(f'{_route}.credit_wallet_for_beat_sale'), \
              patch(f'{_route}.notify_purchase_confirmed'), \
              patch(f'{_route}.notify_sale_completed'), \
@@ -280,7 +280,7 @@ class TestExclusiveRaceCondition:
         # Buyer B vérifie ensuite — le track est déjà marqué comme vendu
         with patch('stripe.checkout.Session.retrieve', return_value=session_b), \
              patch('stripe.PaymentIntent.retrieve',    return_value=intent_b), \
-             patch('utils.contract_generator.generate_contract_pdf'), \
+             patch('utils.contract_data_builder.generate_contract_pdf'), \
              patch(f'{_route}.notify_purchase_confirmed'), \
              patch(f'{_route}.notify_sale_completed'), \
              patch(f'{_route}.send_purchase_confirmation_email'), \

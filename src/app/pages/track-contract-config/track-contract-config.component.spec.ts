@@ -132,7 +132,7 @@ describe('TrackContractConfigComponent — logique de prix', () => {
 
     it('est false quand une durée réelle est choisie', () => {
       component.isLifetime.set(false);
-      component.duration.set('5');
+      component.duration.set('10');
       expect(component.streamOnly()).toBe(false);
     });
 
@@ -176,21 +176,21 @@ describe('TrackContractConfigComponent — logique de prix', () => {
     it('est false quand subtotal seul < 74.99 sans mécanique', () => {
       component.track.set(makeTrack(50));
       component.isLifetime.set(false);
-      component.duration.set('3');  // +5, total=55 sans mécanique
+      component.duration.set('10');  // +15, total=65 sans mécanique
       component.territory.set('France');
       component.rightArrangement.set(false);
       component.rightMechanical.set(false);
-      // subtotalWithMechanical = 55, < 74.99
+      // subtotalWithMechanical = 65, < 74.99
       expect(component.subtotalWithMechanical()).toBeLessThan(74.99);
       expect(component.publicShowAutoIncluded()).toBe(false);
     });
 
-    it('SCÉNARIO BUG : base=50, durée=3ans, mécanique=30 → total=85 → publicShow auto-inclus', () => {
-      // Scenario : base 50€ + 5€ (3ans) + 30€ (mécanique) = 85€ >= 74.99€
+    it('SCÉNARIO BUG : base=50, durée=10ans, mécanique=30 → total=95 → publicShow auto-inclus', () => {
+      // Scenario : base 50€ + 15€ (10 ans) + 30€ (mécanique) = 95€ >= 74.99€
       // → diffusion publique doit être offerte gratuitement
       component.track.set(makeTrack(50));
       component.isLifetime.set(false);
-      component.duration.set('3');
+      component.duration.set('10');
       component.territory.set('France');
       component.rightArrangement.set(false);
       component.rightMechanical.set(true);
@@ -200,21 +200,19 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       expect(component.publicShowFee()).toBe(0);
     });
 
-    it('SCÉNARIO BUG ORIGINAL : base=50, mécanique=30, totalWithMechanical=80 → publicShow offert', () => {
-      // base=50, stream-only est bloqué donc on teste avec durée réelle
-      // Avec durée=stream, mécanique est bloquée; avec durée=3ans: 50+5+30=85
-      // Test équivalent sans durée fee : utiliser track à 44.99 + 30 = 74.99 (exactement au seuil)
+    it('SCÉNARIO BUG ORIGINAL : mécanique pousse le sous-total au-dessus du seuil → publicShow offert', () => {
+      // Avec durée=stream la mécanique est bloquée : on teste donc sur une durée réelle.
       component.track.set(makeTrack(50));
       component.isLifetime.set(false);
-      component.duration.set('3'); // +5 → subtotal=55, +mechanical=30 → subtotalWithMechanical=85
+      component.duration.set('10'); // +15 → subtotal=65, +mechanical=30 → subtotalWithMechanical=95
       component.territory.set('France');
       component.rightMechanical.set(true);
       component.rightPublicShow.set(false); // non coché manuellement
 
       // publicShow auto-inclus même sans le cocher explicitement
       expect(component.publicShowAutoIncluded()).toBe(true);
-      // totalPrice = 85 (pas 85 + 40 = 125)
-      expect(component.totalPrice()).toBeCloseTo(85, 2);
+      // totalPrice = 95 (pas 95 + 40 = 135)
+      expect(component.totalPrice()).toBeCloseTo(95, 2);
     });
 
   });
@@ -241,9 +239,9 @@ describe('TrackContractConfigComponent — logique de prix', () => {
   // ── Preset Standard ────────────────────────────────────────────────────────
 
   describe('preset Standard (9.99€)', () => {
-    // 5 ans (+10), Europe (+5), mécanique (+30), diffusion publique (+40)
-    // intermediate = 9.99+15=24.99 → mécanique +30 → 54.99 < 74.99 → publicShow +40
-    // total = 9.99 + 85 = 94.99
+    // 10 ans (+15), Europe (+5), mécanique (+30), diffusion publique (+40)
+    // subtotal = 9.99+20 = 29.99 → mécanique +30 → 59.99 < 74.99 → publicShow +40
+    // total = 9.99 + 90 = 99.99
 
     beforeEach(() => { component.applyPreset(component.presets[1]); });
 
@@ -255,13 +253,13 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       expect(component.mechanicalFee()).toBe(30);
     });
 
-    it('subtotalWithMechanical = 54.99 < 74.99 → publicShowFee = 40', () => {
+    it('subtotalWithMechanical = 59.99 < 74.99 → publicShowFee = 40', () => {
       expect(component.subtotalWithMechanical()).toBeLessThan(74.99);
       expect(component.publicShowFee()).toBe(40);
     });
 
-    it('totalPrice = 94.99', () => {
-      expect(component.totalPrice()).toBeCloseTo(94.99, 2);
+    it('totalPrice = 99.99', () => {
+      expect(component.totalPrice()).toBeCloseTo(99.99, 2);
     });
 
   });
@@ -306,6 +304,7 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       component.rightPublicShow.set(true);
       component.rightArrangement.set(true);
       component.legalAccepted.set(true);
+      component.withdrawalWaived.set(true);
 
       paymentSvc.createCheckout.mockClear();
       component.onConfirm();
@@ -314,6 +313,62 @@ describe('TrackContractConfigComponent — logique de prix', () => {
       expect(body.mechanical_reproduction).toBe(false);
       expect(body.public_show).toBe(false);
       expect(body.arrangement).toBe(false);
+    });
+
+  });
+
+  // ── onConfirm() — consentement obligatoire ──────────────────────────────────
+
+  describe('onConfirm() — consentement obligatoire', () => {
+
+    beforeEach(() => {
+      component.track.set(makeTrack(9.99));
+      paymentSvc.createCheckout.mockClear();
+    });
+
+    it('ne fait rien si legalAccepted=false, même si withdrawalWaived=true', () => {
+      component.legalAccepted.set(false);
+      component.withdrawalWaived.set(true);
+      component.onConfirm();
+      expect(paymentSvc.createCheckout).not.toHaveBeenCalled();
+    });
+
+    it('ne fait rien si withdrawalWaived=false, même si legalAccepted=true', () => {
+      component.legalAccepted.set(true);
+      component.withdrawalWaived.set(false);
+      component.onConfirm();
+      expect(paymentSvc.createCheckout).not.toHaveBeenCalled();
+    });
+
+    it('appelle createCheckout quand les deux cases sont cochées, avec les 3 flags de consentement', () => {
+      component.legalAccepted.set(true);
+      component.withdrawalWaived.set(true);
+      component.buyerDeclaresOriginalLyrics.set(true);
+      component.onConfirm();
+
+      expect(paymentSvc.createCheckout).toHaveBeenCalled();
+      const [, , body] = paymentSvc.createCheckout.mock.calls[0] as any[];
+      expect(body.legal_terms_accepted).toBe(true);
+      expect(body.withdrawal_right_waived).toBe(true);
+      expect(body.buyer_declares_original_lyrics).toBe(true);
+    });
+
+  });
+
+  // ── Niveau de langage des mentions légales (slider "En clair" / "Juridique") ──
+
+  describe('setLegalLanguage()', () => {
+
+    it('démarre en "plain" par défaut (accessible aux non-juristes)', () => {
+      expect(component.legalLanguageLevel()).toBe('plain');
+    });
+
+    it('bascule vers "legal" puis revient à "plain"', () => {
+      component.setLegalLanguage('legal');
+      expect(component.legalLanguageLevel()).toBe('legal');
+
+      component.setLegalLanguage('plain');
+      expect(component.legalLanguageLevel()).toBe('plain');
     });
 
   });

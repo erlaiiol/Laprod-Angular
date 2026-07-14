@@ -237,6 +237,10 @@ export class DashboardBeatmakerComponent implements OnInit {
       error: () => this.viewStatsLoading.set(false),
     });
 
+    // Chargé dès l'entrée sur le dashboard (pas au clic sur l'onglet "Licences") :
+    // le badge de licences vendues doit être à jour immédiatement.
+    this.loadSoldLicenses();
+
     // Rafraîchissement silencieux tant que le dashboard est ouvert.
     // Ne touche pas aux indicateurs de chargement — l'UI ne clignote pas.
     // Si la requête échoue, on conserve les données existantes.

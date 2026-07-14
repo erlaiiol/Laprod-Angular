@@ -45,10 +45,16 @@ describe('LicenseService', () => {
   });
 
   it('initiateRenewal() POSTs à /api/track-payment/track/:trackId/renew/:purchaseId', () => {
-    service.initiateRenewal(1, 2, { is_lifetime: true }).subscribe();
+    service.initiateRenewal(1, 2, {
+      is_lifetime: true,
+      legal_terms_accepted: true,
+      withdrawal_right_waived: true,
+    }).subscribe();
     const req = httpMock.expectOne(`${API}/api/track-payment/track/1/renew/2`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body.is_lifetime).toBe(true);
+    expect(req.request.body.legal_terms_accepted).toBe(true);
+    expect(req.request.body.withdrawal_right_waived).toBe(true);
     req.flush({ success: true, data: { checkout_url: 'https://stripe.com', total: 99 } });
   });
 

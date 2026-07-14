@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { LEGAL_ENTITY } from '../../../config/legal.config';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -12,4 +13,5 @@ import { RouterModule } from '@angular/router';
 })
 export class MentionsLegalesComponent {
   lastUpdated = '21 mai 2026';
+  readonly legal = LEGAL_ENTITY;
 }

@@ -15,27 +15,65 @@ from models import Purchase, LicenseNotificationLog
 
 # ── Helpers de durée ──────────────────────────────────────────────────────────
 
+#: Durées proposées à l'achat. 0 = streaming seul (le streaming est de toute
+#: façon concédé pour la durée légale) ; 10 = terme de 10 ans sur les droits
+#: additionnels. Les paliers 3 et 5 ans ont été retirés : trop courts pour une
+#: sortie qui reste en ligne à vie, ils mettaient l'acheteur hors licence sans
+#: qu'il s'en aperçoive. Les licences déjà vendues en 3/5 ans restent honorées.
+ALLOWED_DURATION_YEARS = frozenset({0, 10})
+
+LEGAL_TERM_TEXT = (
+    "Durée légale de protection du droit d'auteur "
+    "(vie de l'auteur + 70 ans, art. L.123-1 CPI)"
+)
+
+
 def compute_expires_at(is_lifetime: bool, duration_years: int | None) -> datetime | None:
     """
     Calcule la date d'expiration d'une licence.
 
-    - Lifetime (à vie) → None (pas d'expiration)
+    - Durée légale (is_lifetime) → None (pas d'expiration)
     - Streaming seul (duration_years == 0 ou None) → None
-    - Durée en années → datetime dans N ans
+    - Durée en années → même jour calendaire dans N ans
+
+    L'ajout se fait sur l'année civile et non en `365 * N` jours : la date
+    calculée ici est celle qui est imprimée sur le PDF signé, un décalage de
+    quelques jours ferait diverger le contrat et la base.
     """
     if is_lifetime:
         return None
     if not duration_years:
         return None
-    return datetime.now() + timedelta(days=365 * duration_years)
+
+    start = datetime.now()
+    try:
+        return start.replace(year=start.year + duration_years)
+    except ValueError:
+        # 29 février → 28 février de l'année d'arrivée (non bissextile)
+        return start.replace(year=start.year + duration_years, day=28)
 
 
 def build_duration_text(is_lifetime: bool, duration_years: int | None) -> str:
     if is_lifetime:
-        return 'À vie + 70 ans'
+        return LEGAL_TERM_TEXT
     if not duration_years:
-        return 'Streaming seul — perpétuel'
+        return "Streaming seul — durée légale de protection (vie de l'auteur + 70 ans)"
     return f"{duration_years} an{'s' if duration_years > 1 else ''}"
+
+
+def build_end_date_text(is_lifetime: bool, expires_at: datetime | None) -> str:
+    """
+    Libellé de la date de fin imprimé sur le contrat.
+
+    Dérivé de `expires_at` pour que le document signé et le cycle de vie en
+    base désignent le même jour. On évite « À vie » : un engagement perpétuel
+    est prohibé (art. 1210 C. civ.) et un contrat à durée indéterminée est
+    résiliable unilatéralement (art. 1211) — ce qui retournerait la licence
+    contre son acheteur. Le terme légal de protection est, lui, déterminé.
+    """
+    if is_lifetime or not expires_at:
+        return LEGAL_TERM_TEXT
+    return expires_at.strftime('%d/%m/%Y')
 
 
 def compute_days_remaining(purchase: Purchase) -> int | None:
@@ -152,13 +190,32 @@ def get_expiring_licenses(days_ahead: int) -> list[Purchase]:
 
 # ── Prix de renouvellement ────────────────────────────────────────────────────
 
+#: Fee de durée par défaut, aligné sur les valeurs du configurateur front.
+_DEFAULT_DURATION_FEES = {3: 5, 5: 10, 10: 15}
+
+
 def get_renewal_price(purchase: Purchase) -> Decimal:
     """
-    Calcule le prix de renouvellement d'une licence.
-    Actuellement : même prix que le contrat original (contract_price + track_price).
-    Peut être adapté pour offrir une réduction aux licenciés fidèles.
+    Prix de reconduction d'une licence à durée déterminée.
+
+    Seul le *fee de durée* est refacturé : l'acheteur a déjà payé le fichier et
+    son droit de streaming, qui lui sont acquis pour la durée légale. Refacturer
+    le prix complet reviendrait à lui revendre ce qu'il possède déjà — et
+    garantirait qu'il ne renouvelle jamais (donc qu'il exploite hors licence).
     """
-    return purchase.price_paid
+    years = purchase.duration_years
+    if not years:
+        return Decimal('0')
+
+    track = purchase.track
+    fee = getattr(track, f'contract_price_duration_{years}y', None) if track else None
+    if fee is None:
+        fee = _DEFAULT_DURATION_FEES.get(years)
+    if fee is None:
+        # Durée hors barème (licence historique) : on retombe sur le prix payé.
+        return purchase.price_paid
+
+    return Decimal(str(fee))
 
 
 # ── Déduplication des notifications ──────────────────────────────────────────
