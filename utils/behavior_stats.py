@@ -14,10 +14,10 @@ de la donnée — pas pour la variété :
   · une part d'un tout          → anneau        (provenance des écoutes)
 """
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 from extensions import db
-from models import Track, ListenEvent, Topline
+from models import Track, ListenEvent, Topline, LoginEvent
 
 # Jours de la semaine en français, index 0 = lundi (comme datetime.weekday()).
 WEEKDAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
@@ -134,6 +134,46 @@ def beats_before_topline() -> dict:
     }
 
 
+def login_regularity(weeks: int = 12) -> list:
+    """Nombre de connexions (dédupliquées par utilisateur et par jour), par
+    semaine, sur les N dernières semaines.
+
+    Série temporelle → graphe en aire, exactement comme upload_regularity : même
+    lecture (élan / essoufflement), appliquée à l'activité de connexion plutôt
+    qu'à la production. C'est le meilleur indicateur de rétention dont on dispose.
+    """
+    start = date.today() - timedelta(weeks=weeks - 1)
+    start -= timedelta(days=start.weekday())   # lundi de la semaine de départ
+
+    buckets = defaultdict(int)
+    rows = db.session.query(LoginEvent.login_date).filter(
+        LoginEvent.login_date >= start,
+    ).all()
+    for (login_date,) in rows:
+        week_index = (login_date - start).days // 7
+        if 0 <= week_index < weeks:
+            buckets[week_index] += 1
+
+    series = []
+    for i in range(weeks):
+        label_date = start + timedelta(weeks=i)
+        series.append({'label': label_date.strftime('%d/%m'), 'value': buckets.get(i, 0)})
+    return series
+
+
+def logins_by_weekday() -> list:
+    """Répartition des connexions par jour de la semaine.
+
+    Donnée CYCLIQUE → polaire, même choix que uploads_by_weekday. Révèle si la
+    plateforme se visite plutôt en semaine ou le week-end.
+    """
+    counts = [0] * 7
+    rows = db.session.query(LoginEvent.login_date).all()
+    for (login_date,) in rows:
+        counts[login_date.weekday()] += 1
+    return [{'label': WEEKDAYS_FR[i], 'value': counts[i]} for i in range(7)]
+
+
 def behavior_stats() -> dict:
     """Toutes les statistiques comportementales, pour l'endpoint admin."""
     return {
@@ -141,4 +181,6 @@ def behavior_stats() -> dict:
         'uploads_by_weekday':  uploads_by_weekday(),
         'listen_sources':      listen_sources(),
         'beats_before_topline': beats_before_topline(),
+        'login_regularity':    login_regularity(),
+        'logins_by_weekday':   logins_by_weekday(),
     }

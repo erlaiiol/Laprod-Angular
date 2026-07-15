@@ -263,11 +263,42 @@ export class AdminRecommendationsComponent implements OnInit {
     };
   });
 
+  // Régularité des connexions — même paire de graphes que la régularité d'upload
+  // (aire pour la tendance, polaire pour le cycle hebdomadaire), sur une couleur
+  // distincte pour ne pas confondre les deux séries au premier coup d'œil.
+  loginRegularityData = computed<ChartConfiguration<'line'>['data']>(() => {
+    const s = this.behavior()?.login_regularity ?? [];
+    return {
+      labels: s.map(x => x.label),
+      datasets: [{
+        data: s.map(x => x.value),
+        borderColor: '#4caf50',
+        backgroundColor: 'rgba(76,175,80,.18)',
+        fill: true, tension: 0.35, pointRadius: 2, borderWidth: 2,
+      }],
+    };
+  });
+
+  loginsByWeekdayData = computed<ChartConfiguration<'polarArea'>['data']>(() => {
+    const s = this.behavior()?.logins_by_weekday ?? [];
+    return {
+      labels: s.map(x => x.label),
+      datasets: [{
+        data: s.map(x => x.value),
+        backgroundColor: s.map((_, i) => PALETTE[(i + 3) % PALETTE.length] + 'cc'),
+        borderWidth: 0,
+      }],
+    };
+  });
+
   hasBehavior = computed(() => {
     const b = this.behavior();
     if (!b) return false;
     return b.upload_regularity.some(x => x.value > 0)
         || b.listen_sources.length > 0
-        || b.beats_before_topline.sample > 0;
+        || b.beats_before_topline.sample > 0
+        || b.login_regularity.some(x => x.value > 0);
   });
+
+  hasLogins = computed(() => (this.behavior()?.login_regularity ?? []).some(x => x.value > 0));
 }

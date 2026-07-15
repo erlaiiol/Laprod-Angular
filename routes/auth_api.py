@@ -17,7 +17,7 @@ from sqlalchemy import select, or_
 
 from extensions import db, limiter, oauth, csrf
 import extensions as _ext
-from models import User, PriceChangeRequest
+from models import User, PriceChangeRequest, LoginEvent
 from helpers import (
     sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens,
     get_login_failure_count, record_login_failure, clear_login_failures, LOGIN_CAPTCHA_AFTER,
@@ -217,6 +217,9 @@ def login():
     # Login réussi → on efface le compteur d'échecs (plus de CAPTCHA exigé).
     if config.TURNSTILE_ENABLED:
         clear_login_failures(identifier)
+
+    # Stat admin (régularité des connexions) — dédupliquée au jour, jamais bloquante.
+    LoginEvent.record(user.id, 'password')
 
     access_token  = create_access_token(identity=str(user.id))
     # remember=True → 30 jours ; remember=False → 1 jour (session courte)
@@ -752,6 +755,10 @@ def google_callback():
             if user.account_status == 'deleted':
                 return redirect(f'{angular_base}/login?error=account_deleted')
 
+            # Stat admin (régularité des connexions) — utilisateur GOOGLE_ID connu,
+            # donc un retour, pas une inscription.
+            LoginEvent.record(user.id, 'oauth')
+
             access_token  = create_access_token(identity=str(user.id))
             refresh_token = create_refresh_token(identity=str(user.id))
             decoded = decode_token(refresh_token)
@@ -799,6 +806,10 @@ def google_callback():
                 if user_by_email.email_verified:
                     user_by_email.account_status = 'active'
                 db.session.commit()
+
+                # Compte existant (par email) qui se lie à Google : un retour,
+                # pas une inscription — même stat que le cas google_id connu.
+                LoginEvent.record(user_by_email.id, 'oauth')
 
                 access_token  = create_access_token(identity=str(user_by_email.id))
                 refresh_token = create_refresh_token(identity=str(user_by_email.id))
@@ -907,6 +918,12 @@ def jwt_token_refresh():
 
     user = db.get_or_404(User, user_id)
     current_app.logger.debug(f'refreshing via jwt_token_refresh() for {user}')
+
+    # Stat admin (régularité des connexions). /refresh est le principal canal de
+    # RETOUR d'un utilisateur « se souvenir de moi » (jusqu'à 30 j sans repasser
+    # par /login) — la dédup au jour absorbe aussi bien ce cas que les
+    # rafraîchissements proactifs répétés d'un onglet resté ouvert.
+    LoginEvent.record(user.id, 'refresh')
 
     access_token = create_access_token(identity=str(user.id))
 

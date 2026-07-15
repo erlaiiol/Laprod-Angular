@@ -200,6 +200,8 @@ export interface BehaviorStats {
     median: number | null;
     sample: number;
   };
+  login_regularity:  LabelValue[];
+  logins_by_weekday: LabelValue[];
 }
 
 export interface RecommendationStats {

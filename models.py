@@ -1307,6 +1307,77 @@ class EngineerView(db.Model):
         return f"<EngineerView Engineer#{self.engineer_id}>"
 
 
+class LoginEvent(db.Model):
+    """Une connexion authentifiée par utilisateur et par JOUR calendaire.
+
+    Sert uniquement à mesurer la régularité de connexion (admin) — ni IP, ni
+    device : le strict minimum pour la stat demandée.
+
+    Pourquoi dédupliquer par jour plutôt que d'enregistrer chaque événement brut :
+    /refresh est appelé à la fois PROACTIVEMENT (timer JS toutes les ~55 min tant
+    qu'un onglet reste ouvert) et RÉACTIVEMENT (intercepteur 401 quand l'utilisateur
+    revient après une absence, avec un access token expiré mais un refresh token
+    encore valide jusqu'à 30 jours en mode « se souvenir de moi »). Cette seconde
+    voie est en pratique le principal canal de retour d'un utilisateur — un compte
+    « remember me » peut ne plus jamais retoucher /login pendant des semaines. Sans
+    dédup, un onglet resté ouvert toute une journée gonflerait indéfiniment le
+    compteur ; avec dédup au jour, on obtient exactement ce qu'on veut mesurer :
+    « sur combien de jours distincts cet utilisateur s'est-il présenté ? ».
+    """
+    __tablename__ = 'login_event'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    login_date = db.Column(db.Date, nullable=False)   # jour calendaire (clé de dédup)
+    source     = db.Column(db.String(20), nullable=False)  # 'password' | 'oauth' | 'refresh'
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # cascade='all, delete-orphan' (côté COLLECTION User.login_events, via
+    # db.backref) : SQLAlchemy supprime lui-même les login_event d'un user AVANT
+    # de le supprimer, au lieu de tenter par défaut un UPDATE ... SET user_id=NULL
+    # qui échouerait (colonne NOT NULL). Géré au niveau ORM plutôt que délégué au
+    # ON DELETE CASCADE de la base : ça marche identiquement quel que soit le
+    # moteur (le test suite tourne sur SQLite, qui n'applique ses contraintes FK
+    # que si PRAGMA foreign_keys=ON — jamais activé ici — donc s'appuyer sur le
+    # seul niveau DB laisserait des lignes orphelines derrière chaque suppression
+    # de test). Sans incidence en prod : le RGPD anonymise les User en place et
+    # ne les DELETE jamais réellement.
+    user = db.relationship('User', backref=db.backref('login_events', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'login_date', name='uq_login_event_user_day'),
+        db.Index('ix_login_event_date', 'login_date'),
+    )
+
+    @classmethod
+    def record(cls, user_id, source):
+        """Enregistre une connexion pour aujourd'hui, si pas déjà fait.
+
+        Ne DOIT jamais faire échouer le flux d'authentification appelant : toute
+        erreur est avalée après rollback. Un stat manquée n'est jamais aussi grave
+        qu'un login cassé par une table d'analytics.
+        """
+        try:
+            today = date.today()
+            exists = db.session.query(cls.id).filter_by(
+                user_id=user_id, login_date=today,
+            ).first()
+            if exists:
+                return False
+            db.session.add(cls(user_id=user_id, login_date=today, source=source))
+            db.session.commit()
+            return True
+        except Exception:
+            # Course entre deux requêtes concurrentes sur la même contrainte
+            # unique (double onglet, double clic) — ou tout autre souci : on
+            # annule proprement et on continue, l'auth ne doit rien en savoir.
+            db.session.rollback()
+            return False
+
+    def __repr__(self):
+        return f"<LoginEvent user={self.user_id} date={self.login_date} source={self.source}>"
+
+
 class Notification(db.Model):
     """Rappel des 'nouvelles entrées' pour l'utilisateur
     en particulier pour ce qui concerne les ventes & achats"""

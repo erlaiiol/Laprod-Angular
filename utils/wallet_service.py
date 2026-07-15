@@ -11,6 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
 import stripe._error as stripe_error
+from flask import current_app
 from extensions import db
 
 
@@ -229,6 +230,10 @@ def perform_withdrawal(user, amount_requested):
     amount = Decimal(str(amount_requested))
 
     if amount < MIN_WITHDRAWAL:
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=montant_min | demandé=%s€ | min=%s€",
+            user.id, amount, MIN_WITHDRAWAL,
+        )
         return {'success': False, 'error': f'Montant minimum de retrait : {MIN_WITHDRAWAL}€'}
 
     # Verrou de ligne (SELECT … FOR UPDATE) — garantit l'exclusivité mutuelle
@@ -237,12 +242,25 @@ def perform_withdrawal(user, amount_requested):
         select(Wallet).where(Wallet.user_id == user.id).with_for_update()
     ).scalar_one_or_none()
     if not wallet or wallet.balance_available < amount:
+        # On loggue demandé vs disponible réel : permet de trancher entre un vrai
+        # bug de solde et un utilisateur qui surestime ses gains au moment T.
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=solde_insuffisant | demandé=%s€ | disponible=%s",
+            user.id, amount, (f'{wallet.balance_available}€' if wallet else 'wallet_absent'),
+        )
         return {'success': False, 'error': 'Solde disponible insuffisant'}
 
     if not user.stripe_account_id:
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=connect_absent", user.id,
+        )
         return {'success': False, 'error': 'connect_required'}
 
     if not user.stripe_onboarding_complete or user.stripe_account_status != 'active':
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=connect_incomplet | onboarding=%s | status=%s",
+            user.id, user.stripe_onboarding_complete, user.stripe_account_status,
+        )
         return {'success': False, 'error': 'connect_incomplete'}
 
     try:
@@ -286,7 +304,21 @@ def perform_withdrawal(user, amount_requested):
         wallet.balance_available -= amount
         wallet.updated_at = datetime.now()
 
+        current_app.logger.info(
+            "[wallet] Retrait effectué | user=%s | montant=%s€ | transfer_id=%s | solde_restant=%s€",
+            user.id, amount, transfer.id, wallet.balance_available,
+        )
         return {'success': True, 'transfer_id': transfer.id, 'amount': float(amount)}
 
     except stripe_error.StripeError as e:
-        return {'success': False, 'error': str(e)}
+        # Trace serveur détaillée (jamais exposée au client) : type d'erreur,
+        # code Stripe et request_id permettent de retrouver l'événement exact
+        # dans le dashboard Stripe. Le message brut anglais reste dans les logs,
+        # pas dans le toast utilisateur.
+        current_app.logger.error(
+            "[wallet] Échec Transfer Stripe | user=%s | montant=%s€ | "
+            "type=%s | code=%s | request_id=%s | msg=%s",
+            user.id, amount, type(e).__name__,
+            getattr(e, 'code', None), getattr(e, 'request_id', None), str(e),
+        )
+        return {'success': False, 'error': 'Retrait momentanément indisponible, réessayez plus tard.'}

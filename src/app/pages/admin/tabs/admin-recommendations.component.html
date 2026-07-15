@@ -148,6 +148,28 @@
           }
         </p>
       </div>
+
+      <!-- Régularité des CONNEXIONS (distinct de la régularité de PUBLICATION
+           ci-dessus) : même paire de graphes, sur l'activité de retour des
+           utilisateurs — le meilleur indicateur de rétention dont on dispose. -->
+      @if (hasLogins()) {
+        <div class="panel chart-panel chart-panel--wide">
+          <h3>Régularité des connexions (12 semaines)</h3>
+          <div class="chart-box">
+            <canvas baseChart type="line" [data]="loginRegularityData()" [options]="areaOptions"></canvas>
+          </div>
+          <p class="chart-note">
+            Connexions dédupliquées par utilisateur et par jour — indicateur de rétention.
+          </p>
+        </div>
+
+        <div class="panel chart-panel">
+          <h3>Connexions par jour de la semaine</h3>
+          <div class="chart-box chart-box--doughnut">
+            <canvas baseChart type="polarArea" [data]="loginsByWeekdayData()" [options]="polarOptions"></canvas>
+          </div>
+        </div>
+      }
     </div>
   }
 

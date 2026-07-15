@@ -16,14 +16,14 @@ export const LEGAL_ENTITY = {
   legalForm:    'Entreprise individuelle (auto-entrepreneur)',
   operatorName: 'Eliott Raillère',
   // TODO(legal): compléter après vérification — ne pas inventer de valeurs.
-  siren:        '[SIREN — à compléter]',
-  apeCode:      '[code APE — à compléter]',
-  address:      '[adresse à compléter]',
+  siren:        '',
+  apeCode:      '5020Z',
+  address:      '8 Rue Georges Martin WItkowski, 69005 LYON',
 
   platformName: 'LaProd',
   platformUrl:  'laprod.net',
 
   contactEmail: 'contact@laprod.net',
   adminEmail:   'admin@laprod.net',
-  dmcaEmail:    'dmca@laprod.net',
+  dmcaEmail:    'contact@laprod.net',
 } as const;
