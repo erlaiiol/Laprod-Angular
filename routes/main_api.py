@@ -63,7 +63,18 @@ def _profile_payload(user, tracks, is_own=False):
         data['producer_arranger_request_submitted'] = getattr(user, 'producer_arranger_request_submitted', False)
         data['is_certified_master_engineer']        = getattr(user, 'is_certified_master_engineer', False)
         data['master_sample_submitted']             = getattr(user, 'master_sample_submitted', False)
-        data['subscription_plan']                   = getattr(user, 'subscription_plan', 'free')
+        data['subscription_plan']                   = user.plan
+        # Capacités calculées côté serveur : le front les lit, il ne les redérive
+        # pas. Une règle d'autorisation dupliquée dans Angular finit toujours par
+        # se désynchroniser de celle qui protège réellement l'API.
+        data['capabilities'] = {
+            'can_set_custom_prices':    user.can_set_custom_prices,
+            'can_offer_exclusive':      user.can_offer_exclusive,
+            'can_use_contract_builder': user.can_use_contract_builder,
+            'can_do_mastering':         user.can_do_mastering,
+            'contract_quota':           user.contract_quota,
+            'uploads_per_day':          user.uploads_per_day,
+        }
     return data
 
 

@@ -62,10 +62,18 @@
           <span class="tab-count">{{ soldLicenses()!.licenses.length }}</span>
         }
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'marketing'" (click)="setTab('marketing')">
+        <i class="bi bi-megaphone"></i> Marketing
+      </button>
       <button class="tab-btn" [class.active]="activeTab() === 'analytics'" (click)="setTab('analytics'); onAnalyticsTabActivated()">
         <i class="bi bi-bar-chart-line"></i> Analytics
       </button>
     </div>
+
+    <!-- ── Tab : Marketing (codes promo + campagnes) ──────────────────────── -->
+    @if (activeTab() === 'marketing') {
+      <app-marketing-panel></app-marketing-panel>
+    }
 
     <!-- ── Tab : Mes Beats ────────────────────────────────────────────────── -->
     @if (activeTab() === 'tracks') {
@@ -121,10 +129,17 @@
                   />
                 </a>
                 @if (!viewStatsLoading()) {
-                  <span class="view-count" title="Vues totales / uniques">
+                  <span class="view-count" title="Vues totales">
                     <i class="bi bi-eye"></i>
                     {{ viewStatFor(track.id).total_views }}
-                    <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
+                    @if (uniqueLocked()) {
+                      <a class="view-unique view-unique--locked" routerLink="/premium"
+                         title="Les visiteurs uniques sont réservés aux membres Premium">
+                        <i class="bi bi-lock-fill"></i> uniques
+                      </a>
+                    } @else {
+                      <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
+                    }
                   </span>
                 }
                 @if (track.is_ai_suggested) {

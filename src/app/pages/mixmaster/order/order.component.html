@@ -28,9 +28,49 @@
               <span>+{{ priceMinSupplement().toFixed(2) }}€</span>
             </div>
           }
+          <!-- ── Code promo ──────────────────────────────────────────────── -->
+          <div class="promo-block">
+            @if (!promoApplied()) {
+              <div class="promo-row">
+                <input type="text" maxlength="15" placeholder="Code promo"
+                       aria-label="Code promo"
+                       [ngModel]="promoInput()" [ngModelOptions]="{ standalone: true }"
+                       (ngModelChange)="promoInput.set($event.toUpperCase())"
+                       (keyup.enter)="applyPromo()">
+                <button type="button" class="promo-apply"
+                        [disabled]="!promoInput().trim() || promoChecking()"
+                        (click)="applyPromo()">
+                  {{ promoChecking() ? '…' : 'Appliquer' }}
+                </button>
+              </div>
+            } @else {
+              <div class="promo-applied">
+                <span class="promo-tag">
+                  <i class="bi bi-tag-fill"></i>
+                  {{ promoApplied()!.code }} · −{{ promoApplied()!.percent }} %
+                </span>
+                <button type="button" class="promo-remove" (click)="clearPromo()">Retirer</button>
+              </div>
+            }
+            @if (promoError()) {
+              <p class="promo-error">{{ promoError() }}</p>
+            }
+          </div>
+
+          @if (discount() > 0) {
+            <div class="price-row small">
+              <span>Sous-total:</span>
+              <span>{{ estimatedPrice().toFixed(2) }}€</span>
+            </div>
+            <div class="price-row small price-row--discount">
+              <span>Remise {{ promoApplied()!.code }}:</span>
+              <span>−{{ discount().toFixed(2) }}€</span>
+            </div>
+          }
+
           <div class="price-row price-row--total">
             <span>Total:</span>
-            <strong class="price-value">{{ estimatedPrice().toFixed(2) }}€</strong>
+            <strong class="price-value">{{ finalPrice().toFixed(2) }}€</strong>
           </div>
           <div class="price-row small">
             <span>Acompte (30%):</span>
@@ -38,7 +78,7 @@
           </div>
           <div class="price-row small">
             <span>Solde à la validation du mix:</span>
-            <span>{{ (estimatedPrice() - depositAmount()).toFixed(2) }}€</span>
+            <span>{{ (finalPrice() - depositAmount()).toFixed(2) }}€</span>
           </div>
           <p class="price-note">
             Le montant total est <strong>débité immédiatement</strong> et conservé sur la plateforme.
@@ -407,7 +447,7 @@
             <i class="bi bi-person-fill"></i> Se connecter pour commander
           } @else {
             <i class="bi bi-credit-card"></i>
-            Payer {{ estimatedPrice().toFixed(2) }}€ maintenant via Stripe
+            Payer {{ finalPrice().toFixed(2) }}€ maintenant via Stripe
           }
         </button>
 

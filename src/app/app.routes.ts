@@ -93,6 +93,24 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/purchases/purchases.component').then(m => m.PurchasesComponent),
     canActivate: [authGuard] },
 
+  // authGuard et non premiumGuard : la création est réservée au Premium (contrôlée
+  // côté serveur), mais un Premium expiré doit pouvoir accéder à la page pour
+  // désactiver des codes encore actifs sur son catalogue.
+  { path: 'promo-codes',
+    loadComponent: () => import('./pages/promo-codes/promo-codes.component').then(m => m.PromoCodesComponent),
+    canActivate: [authGuard] },
+
+  // Idem : la création est Premium (contrôlée serveur), mais un Premium expiré
+  // doit pouvoir consulter ses résultats passés et annuler une campagne planifiée.
+  { path: 'campagnes',
+    loadComponent: () => import('./pages/campaigns/campaigns.component').then(m => m.CampaignsComponent),
+    canActivate: [authGuard] },
+
+  // Publique et sans guard : se désinscrire doit être au moins aussi simple que
+  // de s'inscrire (art. L.34-5 CPCE). Exiger un login serait une friction illégale.
+  { path: 'desinscription',
+    loadComponent: () => import('./pages/unsubscribe/unsubscribe.component').then(m => m.UnsubscribeComponent) },
+
   { path: 'mix/engineers',
     loadComponent: () => import('./pages/mixmaster/engineers/engineers.component').then(m => m.MixmasterEngineersComponent) },
 

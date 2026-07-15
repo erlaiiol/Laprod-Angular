@@ -12,6 +12,8 @@ import stripe
 import stripe._error as stripe_error
 
 from extensions import db, csrf
+from utils.money import to_money, to_cents
+from utils import plans
 from models import User
 from serializers import ok, err
 from utils.auth_helpers import require_user
@@ -26,26 +28,41 @@ import config
 
 premium_api_bp = Blueprint('premium_api', __name__, url_prefix='/api/premium')
 
-_VALID_PLANS = ('amateur', 'pro')
+# Les paliers, leurs prix et leurs libellés viennent tous de utils/plans.py :
+# une grille tarifaire recopiée ici finirait par diverger de celle affichée au
+# client, et on encaisserait un montant différent de celui annoncé.
+_VALID_PLANS = plans.PAID_PLANS
 
 
-def _plan_price(plan: str) -> float:
-    return config.PREMIUM_PRO_PRICE if plan == 'pro' else config.PREMIUM_AMATEUR_PRICE
+def _plan_price(plan: str):
+    return plans.price_of(plan)
 
 
 def _plan_label(plan: str) -> str:
-    return 'Pro' if plan == 'pro' else 'Amateur'
+    return plans.label_of(plan)
 
 
 def _premium_status(user: User) -> dict:
+    # On expose les CAPACITÉS, pas seulement le nom du palier : le front ne doit
+    # jamais réimplémenter « semi_pro ou plus » de son côté — cette règle vit au
+    # même endroit pour les deux, sinon l'UI et l'API finissent par diverger.
     return {
-        'subscription_plan':  user.subscription_plan,
+        'subscription_plan':  user.plan,
+        'plan_label':         plans.label_of(user.plan),
         'is_premium_active':  user.is_premium_active,
         'is_pro':             user.is_pro,
         'premium_since':      user.premium_since.isoformat() if user.premium_since else None,
         'premium_expires_at': user.premium_expires_at.isoformat() if user.premium_expires_at else None,
         'upload_track_tokens': user.upload_track_tokens,
         'topline_tokens':      user.topline_tokens,
+        'capabilities': {
+            'can_set_custom_prices':    user.can_set_custom_prices,
+            'can_offer_exclusive':      user.can_offer_exclusive,
+            'can_use_contract_builder': user.can_use_contract_builder,
+            'can_do_mastering':         user.can_do_mastering,
+            'contract_quota':           user.contract_quota,
+            'uploads_per_day':          user.uploads_per_day,
+        },
     }
 
 
@@ -63,7 +80,22 @@ def status(current_user):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# POST /api/premium/subscribe  {plan: 'amateur'|'pro'}
+# GET /api/premium/plans — grille tarifaire publique
+# ─────────────────────────────────────────────────────────────────────────────
+
+@premium_api_bp.route('/plans', methods=['GET'])
+def plan_catalog():
+    """Grille des paliers. PUBLIQUE : un visiteur non connecté doit pouvoir voir
+    ce que coûte l'abonnement avant de créer un compte — cacher ses prix derrière
+    un mur d'inscription est le contraire d'une relation de confiance."""
+    return ok({
+        'plans':      plans.public_catalog(),
+        'comparison': plans.comparison_matrix(),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /api/premium/subscribe  {plan: 'premium'|'semi_pro'|'pro_structure'}
 # ─────────────────────────────────────────────────────────────────────────────
 
 @premium_api_bp.route('/subscribe', methods=['POST'])
@@ -73,9 +105,17 @@ def status(current_user):
 @require_user
 def subscribe(current_user):
     data = request.get_json(silent=True) or {}
-    plan = data.get('plan', '').lower()
+    raw  = (data.get('plan') or '').strip().lower()
+
+    # Les anciens identifiants ('amateur', 'pro') sont acceptés et normalisés :
+    # l'app mobile Capacitor déjà installée chez les utilisateurs les envoie encore,
+    # et une version publiée ne se met pas à jour d'un claquement de doigts. Refuser
+    # ces valeurs casserait l'abonnement pour tout le parc mobile existant.
+    plan = plans.normalize(raw) if raw in set(plans.PLAN_ORDER) | set(plans.LEGACY_ALIASES) else None
     if plan not in _VALID_PLANS:
-        raise EntityForbidden(f"Plan invalide. Valeurs acceptées : {', '.join(_VALID_PLANS)}.")
+        raise EntityForbidden(
+            f"Plan invalide. Valeurs acceptées : {', '.join(_VALID_PLANS)}."
+        )
 
     price        = _plan_price(plan)
     label        = _plan_label(plan)
@@ -88,7 +128,7 @@ def subscribe(current_user):
             line_items=[{
                 'price_data': {
                     'currency': 'eur',
-                    'unit_amount': round(price * 100),
+                    'unit_amount': to_cents(price),
                     'product_data': {
                         'name': f"LaProd+ {label}" + (' — Renouvellement' if is_renewal else ''),
                         'description': f"{config.PREMIUM_DURATION_DAYS} jours d'accès LaProd+ {label}",
@@ -114,7 +154,7 @@ def subscribe(current_user):
 
         log_stripe_checkout_session_created(
             session_id=checkout_session.id,
-            amount=round(price * 100),
+            amount=to_cents(price),
             resource_type='premium',
             resource_id=current_user.id,
             buyer_id=current_user.id,
@@ -178,9 +218,21 @@ def activate(current_user):
             and (datetime.now() - current_user.premium_since).total_seconds() < 60):
         return ok(_premium_status(current_user), message='Abonnement déjà actif.')
 
-    plan          = meta.get('plan', 'amateur')
+    # Le palier vient des métadonnées de la session Stripe, écrites au moment du
+    # checkout — donc potentiellement AVANT le renommage des paliers. On normalise
+    # ('pro' → pro_structure) au lieu de retomber sur le palier d'entrée : sans ça,
+    # un utilisateur ayant payé 49,99 € via une session ouverte avant le déploiement
+    # se verrait accorder le palier le moins cher. On n'accorde jamais moins que ce
+    # qui a été payé.
+    plan = plans.normalize(meta.get('plan', ''))
     if plan not in _VALID_PLANS:
-        plan = 'amateur'
+        current_app.logger.error(
+            f"Palier illisible dans la session Stripe {session_id} "
+            f"(meta.plan={meta.get('plan')!r}) — activation refusée."
+        )
+        raise EntityForbidden(
+            "Impossible de déterminer l'abonnement payé. Contactez le support."
+        )
     duration_days = int(meta.get('premium_duration_days', config.PREMIUM_DURATION_DAYS))
     is_renewal    = meta.get('is_renewal') == 'True'
     now           = datetime.now()
@@ -204,7 +256,7 @@ def activate(current_user):
         operation='premium_activated',
         resource_type='premium',
         resource_id=current_user.id,
-        amount=round(_plan_price(plan) * 100),
+        amount=to_cents(_plan_price(plan)),
         stripe_payment_intent_id=payment_intent_id,
     )
 

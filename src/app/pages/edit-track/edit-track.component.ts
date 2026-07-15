@@ -104,6 +104,74 @@ export class EditTrackComponent implements OnInit {
     this.cpTerritoryWorld.set(d.territoryWorld);
   }
 
+  /* ── Aperçu acheteur ───────────────────────────────────────────────────── */
+  showPreview         = signal(false);
+  previewFormat        = signal<'mp3' | 'wav' | 'stems'>('mp3');
+  previewDuration      = signal<'stream' | '10' | 'lifetime'>('stream');
+  previewTerritory     = signal<'France' | 'Europe' | 'Monde entier'>('France');
+  previewExclusive     = signal(false);
+  previewMechanical    = signal(false);
+  previewPublicShow    = signal(false);
+  previewArrangement   = signal(false);
+
+  previewBasePrice = computed(() => {
+    const f = this.previewFormat();
+    if (f === 'wav')   return this.priceWav();
+    if (f === 'stems') return this.priceStems();
+    return this.priceMp3();
+  });
+
+  previewExclusiveFee = computed(() =>
+    this.previewExclusive() ? this.cpExclusive() : 0
+  );
+
+  previewDurationFee = computed(() => {
+    const d = this.previewDuration();
+    if (d === '10')       return this.cpDuration10y();
+    if (d === 'lifetime') return this.cpLifetime();
+    return 0;
+  });
+
+  previewTerritoryFee = computed(() => {
+    const t = this.previewTerritory();
+    if (t === 'Europe')       return this.cpTerritoryEu();
+    if (t === 'Monde entier') return this.cpTerritoryWorld();
+    return 0;
+  });
+
+  previewSubtotal = computed(() =>
+    this.previewBasePrice() + this.previewExclusiveFee() +
+    this.previewDurationFee() + this.previewTerritoryFee()
+  );
+
+  // « Streaming seul » : aucun droit additionnel n'est concédé (même règle que
+  // sur la page d'achat réelle, cf. streamOnly dans track-contract-config).
+  previewStreamOnly = computed(() => this.previewDuration() === 'stream');
+
+  previewMechanicalAutoIncluded = computed(() => this.previewSubtotal() >= 199.99);
+  previewPublicShowAutoIncluded  = computed(() => this.previewSubtotal() >= 74.99);
+
+  previewMechanicalFee = computed(() =>
+    !this.previewStreamOnly() && this.previewMechanical() && !this.previewMechanicalAutoIncluded()
+      ? this.cpMechanical() : 0
+  );
+
+  previewPublicShowFee = computed(() =>
+    !this.previewStreamOnly() && this.previewPublicShow() && !this.previewPublicShowAutoIncluded()
+      ? this.cpPublicShow() : 0
+  );
+
+  previewArrangementFee = computed(() =>
+    !this.previewStreamOnly() && this.previewArrangement() ? this.cpArrangement() : 0
+  );
+
+  previewTotal = computed(() =>
+    this.previewSubtotal() +
+    this.previewMechanicalFee() +
+    this.previewPublicShowFee() +
+    this.previewArrangementFee()
+  );
+
   readonly availableKeys = MUSICAL_KEYS;
 
   availableTags = this.tagsService.tags;

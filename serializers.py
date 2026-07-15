@@ -509,3 +509,47 @@ def notification(n) -> dict:
         'created_at': n.created_at.isoformat() if n.created_at else None,
         'read_at':    n.read_at.isoformat()    if n.read_at    else None,
     }
+
+
+def promo_code(p) -> dict:
+    """Code promo — vue vendeur (gestion) et profil."""
+    return {
+        'id':             p.id,
+        'code':           p.code,
+        'percent':        p.percent,
+        'scope':          p.scope,
+        'applies_to_all': p.applies_to_all,
+        'once_per_user':  p.once_per_user,
+        'is_active':      p.is_active,
+        'is_expired':     p.is_expired,
+        'is_exhausted':   p.is_exhausted,
+        'expires_at':       p.expires_at.isoformat() if p.expires_at else None,
+        'max_redemptions':  p.max_redemptions,
+        'redemption_count': p.redemption_count or 0,
+        'remaining_redemptions': p.remaining_redemptions,
+        'track_ids':    [] if p.applies_to_all else [t.id for t in p.tracks],
+        'service_keys': [] if p.applies_to_all else p.service_keys,
+        'created_at':   p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+def campaign(c, stats: dict | None = None) -> dict:
+    """Campagne de mailing — vue vendeur."""
+    return {
+        'id':               c.id,
+        'subject':          c.subject,
+        'body':             c.body,
+        'segment':          c.segment,
+        'status':           c.status,
+        'promo_code_id':    c.promo_code_id,
+        'promo_code':       c.promo_code.code    if c.promo_code else None,
+        'promo_percent':    c.promo_code.percent if c.promo_code else None,
+        'requires_payment': c.requires_payment,
+        'is_paid':          c.is_paid,
+        'is_editable':      c.is_editable,
+        'amount_paid':      float(c.amount_paid) if c.amount_paid is not None else None,
+        'scheduled_for':    c.scheduled_for.isoformat() if c.scheduled_for else None,
+        'sent_at':          c.sent_at.isoformat()       if c.sent_at       else None,
+        'created_at':       c.created_at.isoformat()    if c.created_at    else None,
+        'stats':            stats or {},
+    }

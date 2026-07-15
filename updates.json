@@ -2,6 +2,66 @@
   "_doc": "Mises à jour LaProd destinées aux emails utilisateurs. Ce fichier est la source de vérité du module Support dans l'admin. Mettre à jour à chaque déploiement affectant l'expérience utilisateur. Chaque entrée doit être compréhensible par un utilisateur non technique. `sent_at` est null tant que la communication n'a pas été envoyée.",
   "updates": [
     {
+      "id": "2026-07-15-stats-vues",
+      "date": "2026-07-15",
+      "category": "feature",
+      "title": "Statistiques de vues de tes pages",
+      "short": "Vois combien de personnes consultent tes beats et ta page d'ingénieur.",
+      "detail": "Les beatmakers voyaient déjà le nombre de vues de leurs beats ; les ingénieurs mix/master disposent maintenant du même suivi pour leur page de commande. Depuis ton espace, tu vois désormais le nombre total de vues de tes pages (gratuit pour tout le monde). Le détail des « visiteurs uniques » — combien de personnes DIFFÉRENTES t'ont consulté, sans compter les allers-retours — est réservé aux membres Premium. Les vues sont dédupliquées sur 24 h et ta propre consultation n'est jamais comptée.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-15-reco-et-mails-types",
+      "date": "2026-07-15",
+      "category": "improvement",
+      "title": "Recommandations plus fines + mails-types pour tes campagnes",
+      "short": "L'algo tient compte de tes achats et de la fraîcheur de tes goûts, et tes campagnes te proposent des modèles prêts à l'emploi.",
+      "detail": "Trois améliorations. D'abord, les recommandations : l'algorithme prend désormais en compte tes ACHATS (le signal le plus fort — on n'achète pas un style qu'on n'aime pas) et fait doucement décroître le poids de tes vieilles écoutes, pour rester collé à ce que tu aimes en ce moment. Ensuite, pour les campagnes de mailing : au lieu d'une page blanche, on te propose des mails-types en un clic, tirés de ton activité récente — tu viens de publier un beat ou de créer un code promo ? Un brouillon pré-rempli t'attend, tu n'as plus qu'à l'ajuster. Enfin, côté administration, un « portrait musical du catalogue » apparaît : répartition des tonalités et des tempos, majeur/mineur, corrélations entre style et tempo — le tout en camemberts et graphiques.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-15-cadence-et-ciblage",
+      "date": "2026-07-15",
+      "category": "improvement",
+      "title": "Catalogue en ligne illimité + ciblage des campagnes par affinité musicale",
+      "short": "Ton catalogue n'est jamais plafonné, et tes campagnes peuvent viser les auditeurs qui aiment ton style.",
+      "detail": "Deux clarifications importantes. D'abord les uploads : le nombre de beats que tu gardes en ligne n'a JAMAIS été limité, et ne le sera jamais, à aucun palier. Ce que ton abonnement module, c'est le nombre de NOUVEAUX beats que tu peux publier par jour (1 en Découverte, 2 en Premium, jusqu'à 15 en Semi-Pro). L'idée : t'encourager doucement à ne mettre en ligne que tes meilleures productions, sans jamais t'obliger à en retirer. La page d'abonnement passe aussi à un vrai tableau comparatif, plus lisible. Ensuite, les campagnes de mailing gagnent un nouveau ciblage : « profils au goût proche du mien ». Il s'appuie sur ce que la plateforme sait des goûts de chacun (les styles écoutés et mis en favori) pour t'aider à toucher des auditeurs qui aiment ton style mais ne te connaissent pas encore — des prospects qu'aucun autre ciblage n'atteint. Comme toujours, seuls les membres ayant accepté de recevoir des offres sont concernés.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-14-nouveaux-paliers",
+      "date": "2026-07-14",
+      "category": "feature",
+      "title": "Nouveaux paliers d'abonnement : un palier par moment de votre parcours",
+      "short": "Découverte (gratuit), Premium, Semi-Pro et Pro Structuré.",
+      "detail": "LaProd+ passe de deux à quatre paliers, pour que chacun paie ce dont il a réellement besoin — et rien de plus. Découverte (gratuit, sans limite de durée) : testez les toplines, uploadez quelques beats, achetez et téléchargez vos licences. Premium (4,99 €/mois) : pour l'indépendant qui commence à vendre — plus de toplines, plus d'uploads, et surtout les outils de vendeur (fixez le prix de chacun de vos droits, proposez vos beats en exclusivité, créez vos codes promo et vos campagnes). Semi-Pro (12,99 €/mois) : pour celui qui produit tous les jours — 30 beats en ligne, toplines quasi illimitées, badge Mastering Pro, et un contrat par mois dans le Contract Builder. Pro Structuré (49,99 €/mois) : pensé pour les structures (SMAC, festivals, clubs, labels) qui doivent sécuriser juridiquement des dizaines d'intervenants — Contract Builder illimité. Vos contrats vous appartiennent : si vous arrêtez votre abonnement, vous gardez l'accès à tous ceux que vous avez déjà générés.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-14-campagnes-mailing",
+      "date": "2026-07-14",
+      "category": "feature",
+      "title": "Campagnes de mailing pour les beatmakers et ingénieurs (Premium)",
+      "short": "Prévenez ceux qui vous suivent déjà — avec un code promo, et mesurez ce que ça rapporte.",
+      "detail": "Vendeurs Premium : vous pouvez désormais envoyer des campagnes email à ceux qui vous suivent déjà. Choisissez votre audience — vos acheteurs, ceux qui ont mis vos beats en favori, ou vos auditeurs récents — ajoutez un code promo, et planifiez l'envoi. Vous voyez ensuite exactement combien de personnes ont été touchées, combien ont utilisé le code, et quel chiffre d'affaires la campagne a généré. Une option payante (19,99 €) permet de diffuser à toute la plateforme. Deux campagnes par mois maximum, avec un délai entre chaque : cette limite protège vos abonnés, et donc votre taux de lecture. Côté destinataires : vous ne recevez ces offres QUE si vous les avez explicitement acceptées, depuis votre profil. Rien n'est activé par défaut, et un lien de désinscription en un clic figure dans chaque email.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-07-14-promo-codes",
+      "date": "2026-07-14",
+      "category": "feature",
+      "title": "Créez vos propres codes promo (Premium)",
+      "short": "Fixez vos remises, choisissez les beats concernés, animez votre catalogue.",
+      "detail": "Vous êtes Premium ? Vous pouvez maintenant créer vos propres codes promo depuis votre profil. Choisissez une remise (-10 %, -20 %, -30 %, -50 % ou -70 %), le nom du code (entre 4 et 15 caractères), et les beats sur lesquels il s'applique — un par un, ou tout votre catalogue d'un coup. Les ingénieurs certifiés peuvent faire de même sur leurs prestations de mix/master. Vous pouvez aussi limiter un code dans le temps (date d'expiration), en nombre total d'utilisations, ou le restreindre à une seule utilisation par acheteur — de quoi créer l'urgence qui pousse à commander. Vos acheteurs saisissent le code au moment du paiement. Bon à savoir : la commission de 10 % de LaProd est calculée sur le montant réellement payé après remise, jamais sur le prix affiché — votre remise n'est donc pas taxée.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
       "id": "2026-07-01-media-session",
       "date": "2026-07-01",
       "category": "feature",

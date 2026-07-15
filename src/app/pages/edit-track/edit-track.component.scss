@@ -462,6 +462,148 @@
   @media (max-width: 480px) { grid-template-columns: 1fr; }
 }
 
+/* ── Aperçu acheteur ─────────────────────────────────────────────────────────── */
+
+.preview-body {
+  display:        flex;
+  flex-direction: column;
+  gap:            1rem;
+}
+
+.preview-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.45rem;
+}
+
+.preview-group-label {
+  font-size:      0.75rem;
+  font-weight:    600;
+  color:          v.$tag-neutral;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.preview-btns {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       0.4rem;
+}
+
+.preview-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.35rem 0.75rem;
+  background:    transparent;
+  border:        1px solid v.$bg-border;
+  border-radius: 6px;
+  color:         v.$text-secondary;
+  font-size:     0.8rem;
+  cursor:        pointer;
+  transition:    border-color 0.15s, color 0.15s, background 0.15s;
+
+  span {
+    font-size: 0.7rem;
+    color:     v.$tag-neutral;
+  }
+
+  &:hover {
+    border-color: v.$primary-dark;
+    color:        v.$off-white;
+    span { color: v.$text-secondary; }
+  }
+
+  &.active {
+    border-color: v.$primary-dark;
+    background:   rgba(v.$tag-blue, 0.1);
+    color:        v.$primary-dark;
+    span { color: v.$text-secondary; }
+  }
+}
+
+.duration-info {
+  font-size:   0.72rem;
+  color:       v.$tag-neutral;
+  margin:      0.25rem 0 0;
+  line-height: 1.4;
+}
+
+.preview-rights {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.5rem;
+}
+
+.preview-right {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  cursor:      pointer;
+  font-size:   0.83rem;
+  color:       v.$text-secondary;
+
+  input[type="checkbox"] {
+    width:  15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: v.$primary-dark;
+    flex-shrink: 0;
+
+    &:disabled { cursor: default; opacity: 0.5; }
+  }
+
+  span { flex: 1; }
+
+  &.auto-included {
+    color: v.$tag-neutral;
+  }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor:  default;
+  }
+}
+
+.preview-right-price {
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       v.$primary-dark;
+  white-space: nowrap;
+}
+
+.preview-auto-tag {
+  font-size:     0.7rem;
+  font-style:    normal;
+  font-weight:   600;
+  color:         v.$tag-green;
+  background:    rgba(25, 135, 84, 0.12);
+  border:        1px solid rgba(25, 135, 84, 0.3);
+  border-radius: 20px;
+  padding:       0.1rem 0.5rem;
+  white-space:   nowrap;
+
+  &--off {
+    color:      v.$tag-neutral;
+    background: rgba(120, 120, 120, 0.12);
+    border-color: rgba(120, 120, 120, 0.3);
+  }
+}
+
+.preview-total-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  background:      rgba(v.$tag-blue, 0.06);
+  border:          1px solid rgba(v.$tag-blue, 0.2);
+  border-radius:   8px;
+  padding:         0.65rem 1rem;
+  margin-top:      0.25rem;
+
+  span   { font-size: 0.85rem; color: v.$text-secondary; }
+  strong { font-size: 1.1rem;  color: v.$primary-dark; font-weight: 700; }
+}
+
 /* ── Tags ────────────────────────────────────────────────────────────────────── */
 
 .tag-group {

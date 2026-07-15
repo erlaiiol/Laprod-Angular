@@ -267,10 +267,14 @@ export class TrackService {
 
   // ── Stats de vues pour le beatmaker connecté ────────────────────────────
 
-  getViewStats(): Observable<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>> {
-    return this.http.get<ApiResponse<{ stats: { track_id: number; total_views: number; unique_views: number }[] }>>(
-      `${this.tracksApiUrl}/my/view-stats`
-    );
+  getViewStats(): Observable<ApiResponse<{
+    stats: { track_id: number; total_views: number; unique_views: number | null }[];
+    unique_locked: boolean;
+  }>> {
+    return this.http.get<ApiResponse<{
+      stats: { track_id: number; total_views: number; unique_views: number | null }[];
+      unique_locked: boolean;
+    }>>(`${this.tracksApiUrl}/my/view-stats`);
   }
 
   getPlatformStats(): Observable<ApiResponse<{ beats_count: number; artists_count: number; licenses_sold: number; toplines_count: number }>> {

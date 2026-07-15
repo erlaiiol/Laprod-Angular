@@ -7,11 +7,13 @@
           <div class="token-info">
             <i class="bi bi-coin"></i>
             <span>
-              <strong>{{ u.upload_track_tokens }}</strong> token{{ u.upload_track_tokens !== 1 ? 's' : '' }} restant{{ u.upload_track_tokens !== 1 ? 's' : '' }}
+              <strong>{{ u.upload_track_tokens }}</strong> beat{{ u.upload_track_tokens !== 1 ? 's' : '' }} publiable{{ u.upload_track_tokens !== 1 ? 's' : '' }} aujourd'hui
             </span>
-            <span class="token-refill">
-              @if (u.is_premium) { +5/jour · max 15 } @else { +1/jour · max 2 }
-            </span>
+            @if (u.capabilities?.uploads_per_day; as perDay) {
+              <span class="token-refill">
+                +{{ perDay }}/jour · ton catalogue en ligne reste illimité
+              </span>
+            }
           </div>
         }
       </div>
@@ -316,7 +318,7 @@
                   Durée légale <span>+{{ cpLifetime() }}€</span>
                 </button>
               </div>
-              <p class="duration-info">Le streaming est toujours inclus à vie. La durée indiquée s'applique aux autres droits (reproduction, diffusion publique…). « Streaming seul » = aucun autre droit.</p>
+              <p class="duration-info">Le streaming est toujours inclus pour la durée légale de protection (vie de l'auteur + 70 ans). La durée indiquée s'applique aux autres droits (reproduction, diffusion publique…). « Streaming seul » = aucun autre droit.</p>
             </div>
 
             <!-- Territoire -->
@@ -341,6 +343,12 @@
             <!-- Droits -->
             <div class="preview-group">
               <span class="preview-group-label">Droits supplémentaires</span>
+              @if (previewStreamOnly()) {
+                <p class="duration-info">
+                  Streaming seul : aucun autre droit n'est accordé. Choisis « 10 ans » ou
+                  « Durée légale » ci-dessus pour proposer ces droits.
+                </p>
+              }
               <div class="preview-rights">
                 <label class="preview-right">
                   <input type="checkbox"
@@ -350,38 +358,51 @@
                   <strong class="preview-right-price">+{{ cpExclusive() }}€</strong>
                 </label>
 
-                <label class="preview-right" [class.auto-included]="previewMechanicalAutoIncluded()">
+                <label class="preview-right"
+                       [class.auto-included]="!previewStreamOnly() && previewMechanicalAutoIncluded()"
+                       [class.disabled]="previewStreamOnly()">
                   <input type="checkbox"
-                         [disabled]="previewMechanicalAutoIncluded()"
-                         [ngModel]="previewMechanical() || previewMechanicalAutoIncluded()"
+                         [disabled]="previewStreamOnly() || previewMechanicalAutoIncluded()"
+                         [ngModel]="!previewStreamOnly() && (previewMechanical() || previewMechanicalAutoIncluded())"
                          (ngModelChange)="!previewMechanicalAutoIncluded() && previewMechanical.set($event)" />
                   <span>Reproduction mécanique</span>
-                  @if (previewMechanicalAutoIncluded()) {
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else if (previewMechanicalAutoIncluded()) {
                     <em class="preview-auto-tag">inclus</em>
                   } @else {
                     <strong class="preview-right-price">+{{ cpMechanical() }}€</strong>
                   }
                 </label>
 
-                <label class="preview-right" [class.auto-included]="previewPublicShowAutoIncluded()">
+                <label class="preview-right"
+                       [class.auto-included]="!previewStreamOnly() && previewPublicShowAutoIncluded()"
+                       [class.disabled]="previewStreamOnly()">
                   <input type="checkbox"
-                         [disabled]="previewPublicShowAutoIncluded()"
-                         [ngModel]="previewPublicShow() || previewPublicShowAutoIncluded()"
+                         [disabled]="previewStreamOnly() || previewPublicShowAutoIncluded()"
+                         [ngModel]="!previewStreamOnly() && (previewPublicShow() || previewPublicShowAutoIncluded())"
                          (ngModelChange)="!previewPublicShowAutoIncluded() && previewPublicShow.set($event)" />
                   <span>Représentation publique</span>
-                  @if (previewPublicShowAutoIncluded()) {
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else if (previewPublicShowAutoIncluded()) {
                     <em class="preview-auto-tag">inclus</em>
                   } @else {
                     <strong class="preview-right-price">+{{ cpPublicShow() }}€</strong>
                   }
                 </label>
 
-                <label class="preview-right">
+                <label class="preview-right" [class.disabled]="previewStreamOnly()">
                   <input type="checkbox"
-                         [ngModel]="previewArrangement()"
+                         [disabled]="previewStreamOnly()"
+                         [ngModel]="!previewStreamOnly() && previewArrangement()"
                          (ngModelChange)="previewArrangement.set($event)" />
                   <span>Droit d'arrangement</span>
-                  <strong class="preview-right-price">+{{ cpArrangement() }}€</strong>
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpArrangement() }}€</strong>
+                  }
                 </label>
               </div>
             </div>
@@ -505,6 +526,54 @@
                          (change)="togglePlaylist(pl.id)" />
                   <span class="playlist-item-name">{{ pl.title }}</span>
                   <span class="playlist-item-count">{{ pl.track_count }} track{{ pl.track_count !== 1 ? 's' : '' }}</span>
+                </label>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Codes promo ───────────────────────────────────────────────────── -->
+      @if (auth.isBeatmaker() && (selectablePromoCodes().length > 0 || globalPromoCodes().length > 0)) {
+        <div class="section-card">
+          <div class="license-price-header">
+            <div class="license-price-left">
+              <h3 class="section-title"><i class="bi bi-tag-fill"></i> Codes promo</h3>
+              @if (selectedPromoCodeIds().length > 0) {
+                <span class="price-badge price-badge--custom">
+                  {{ selectedPromoCodeIds().length }} code{{ selectedPromoCodeIds().length > 1 ? 's' : '' }}
+                </span>
+              } @else {
+                <span class="price-badge price-badge--standard">Aucun</span>
+              }
+            </div>
+            @if (selectablePromoCodes().length > 0) {
+              <button type="button" class="btn-toggle-prices" (click)="showPromoCodes.set(!showPromoCodes())">
+                Appliquer
+                <i class="bi" [class.bi-chevron-up]="showPromoCodes()" [class.bi-chevron-down]="!showPromoCodes()"></i>
+              </button>
+            }
+          </div>
+
+          @if (globalPromoCodes().length > 0) {
+            <p class="promo-global-note">
+              @for (c of globalPromoCodes(); track c.id) {
+                <span class="promo-global-tag">{{ c.code }} · −{{ c.percent }} %</span>
+              }
+              s'applique{{ globalPromoCodes().length > 1 ? 'nt' : '' }} automatiquement à tous vos beats,
+              y compris celui-ci.
+            </p>
+          }
+
+          @if (showPromoCodes() && selectablePromoCodes().length > 0) {
+            <div class="playlist-list">
+              @for (c of selectablePromoCodes(); track c.id) {
+                <label class="playlist-item">
+                  <input type="checkbox"
+                         [checked]="isPromoCodeSelected(c.id)"
+                         (change)="togglePromoCode(c.id)" />
+                  <span class="playlist-item-name">{{ c.code }}</span>
+                  <span class="playlist-item-count">−{{ c.percent }} %</span>
                 </label>
               }
             </div>

@@ -33,6 +33,8 @@ from .playlist_api import playlist_bp
 from .invoice_api import invoice_api_bp
 from .licenses_api import licenses_api_bp
 from .testimonials_api import testimonials_api_bp
+from .promo_api import promo_api_bp
+from .campaign_api import campaign_api_bp
 
 __all__ = [
     'premium_api_bp',
@@ -62,4 +64,6 @@ __all__ = [
     'invoice_api_bp',
     'licenses_api_bp',
     'testimonials_api_bp',
+    'promo_api_bp',
+    'campaign_api_bp',
 ]

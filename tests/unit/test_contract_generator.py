@@ -145,6 +145,63 @@ class TestStreamingWording:
         assert '70 ans' in text
 
 
+class TestArticle3BisEcheanceLegale:
+    """
+    Une échéance à durée légale (vie de l'auteur + 70 ans) n'est, dans les
+    faits, jamais atteinte pendant l'exploitation commerciale de l'œuvre : elle
+    correspond à l'entrée dans le domaine public, bien après le décès du
+    Compositeur. Rédiger cette échéance comme un terme déterminé (« à
+    l'expiration », « sans délai de carence ») laisserait croire au
+    Compositeur qu'il retrouve la main sur son œuvre à un horizon commercial
+    raisonnable — trompeur, en particulier combiné à l'exclusivité.
+    """
+
+    def test_terme_fini_garde_le_vocabulaire_expiration_proche(self, tmp_path):
+        out = tmp_path / 'contract.pdf'
+        generate_contract_pdf(str(out), _base_contract_data(duration_text='10 ans'))
+        text = _extract_text(out)
+        assert 'Retour automatique des droits patrimoniaux' in text
+        assert 'Liberté de re-licence' in text
+        assert "à l'expiration du présent contrat, le Compositeur est libre" in text.lower() \
+            or 'Liberté de re-licence' in text
+
+    def test_duree_legale_ne_promet_pas_de_retour_proche(self, tmp_path):
+        out = tmp_path / 'contract.pdf'
+        generate_contract_pdf(str(out), _base_contract_data(
+            duration_text="Durée légale de protection du droit d'auteur (vie de l'auteur + 70 ans, art. L.123-1 CPI)",
+        ))
+        text = _extract_text(out)
+        assert 'Portée pratique de l’échéance légale' in text or 'Portée pratique de' in text
+        assert 'Retour automatique des droits patrimoniaux' not in text
+        assert "n'interviendra donc, dans les faits, jamais" in text
+
+    def test_streaming_seul_ne_promet_pas_de_retour_proche(self, tmp_path):
+        out = tmp_path / 'contract.pdf'
+        generate_contract_pdf(str(out), _base_contract_data(
+            duration_text="Streaming seul — durée légale de protection (vie de l'auteur + 70 ans)",
+        ))
+        text = _extract_text(out)
+        assert 'Retour automatique des droits patrimoniaux' not in text
+        assert 'Liberté de re-licence' not in text
+
+    def test_exclusivite_a_duree_legale_n_annonce_pas_de_fin_proche(self, tmp_path):
+        out = tmp_path / 'contract.pdf'
+        generate_contract_pdf(str(out), _base_contract_data(
+            is_exclusive=True,
+            duration_text="Durée légale de protection du droit d'auteur (vie de l'auteur + 70 ans, art. L.123-1 CPI)",
+        ))
+        text = _extract_text(out)
+        assert "Fin de l'exclusivité" not in text
+        assert 'Portée de l’exclusivité' in text or 'Portée de l' in text
+        assert "n'a pas vocation à prendre fin avant l'entrée de l'œuvre dans le domaine public" in text
+
+    def test_exclusivite_a_duree_finie_garde_la_clause_de_fin(self, tmp_path):
+        out = tmp_path / 'contract.pdf'
+        generate_contract_pdf(str(out), _base_contract_data(is_exclusive=True, duration_text='10 ans'))
+        text = _extract_text(out)
+        assert "Fin de l'exclusivité" in text
+
+
 class TestGarantiesRenforcees:
 
     def test_no_undisclosed_samples_warranty_by_default(self, tmp_path):

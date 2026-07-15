@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { PlanKey } from './auth.service';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
@@ -70,7 +71,7 @@ export interface AdminUser {
   is_certified_producer_arranger: boolean;
   producer_arranger_request_submitted: boolean;
   is_premium:          boolean;
-  subscription_plan:   'free' | 'amateur' | 'pro';
+  subscription_plan:   PlanKey;
   premium_since:       string | null;
   premium_expires_at:  string | null;
   premium_source:      'stripe' | 'admin' | null;
@@ -176,6 +177,31 @@ export interface TrackSearchResult {
   price_stems:        number | null;
 }
 
+export interface LabelValue { label: string; value: number; }
+
+export interface MusicStats {
+  total_tracks: number;
+  keys:            LabelValue[];
+  modes:           LabelValue[];
+  tempo_families:  { label: string; range: string; value: number }[];
+  styles:          LabelValue[];
+  mode_by_style:   { style: string; minor: number; major: number }[];
+  avg_tempo_by_style: { style: string; avg_bpm: number; count: number }[];
+  minor_ratio:     { minor: number; major: number; pct_minor: number };
+  topline_by_tempo: LabelValue[];
+}
+
+export interface BehaviorStats {
+  upload_regularity:  LabelValue[];
+  uploads_by_weekday: LabelValue[];
+  listen_sources:     LabelValue[];
+  beats_before_topline: {
+    histogram: LabelValue[];
+    median: number | null;
+    sample: number;
+  };
+}
+
 export interface RecommendationStats {
   total_listen_events: number;
   active_users_last_7d: number;
@@ -184,6 +210,8 @@ export interface RecommendationStats {
   top_correlations: { from: string; to: string; probability: number }[];
   top_artists?: [string, number][];
   artist_correlations?: { from: string; to: string; probability: number }[];
+  music_stats?: MusicStats;
+  behavior_stats?: BehaviorStats;
 }
 
 export interface AdminPurchaseInvoice {
@@ -311,7 +339,7 @@ export class AdminService {
     return this.http.post<any>(`${this.base}/users/${userId}/toggle-premium`, {}, { headers: this.headers });
   }
 
-  setPlan(userId: number, plan: 'free' | 'amateur' | 'pro'): Observable<ApiResponse<{ is_premium: boolean; subscription_plan: string; premium_expires_at: string | null }>> {
+  setPlan(userId: number, plan: PlanKey): Observable<ApiResponse<{ is_premium: boolean; subscription_plan: string; premium_expires_at: string | null }>> {
     return this.http.post<any>(`${this.base}/users/${userId}/set-plan`, { plan }, { headers: this.headers });
   }
 

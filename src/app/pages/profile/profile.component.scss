@@ -360,3 +360,70 @@
   font-size: 11px;
   color: v.$text-secondary;
 }
+
+// ── Codes promo ──────────────────────────────────────────────────────────────
+
+.promo-section {
+  margin: 2rem 0;
+}
+
+.promo-heading {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 .9rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: v.$text-primary;
+}
+
+.promo-manage {
+  margin-left: auto;
+  font-size: .8rem;
+  font-weight: 500;
+  color: v.$primary;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.promo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+}
+
+.promo-chip {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .75rem;
+  border: 1px dashed v.$bg-border;
+  border-radius: 10px;
+  background: v.$bg-surface;
+}
+
+.promo-chip-code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: v.$text-primary;
+}
+
+.promo-chip-percent {
+  padding: .1rem .4rem;
+  border-radius: 5px;
+  background: v.$primary;
+  color: #fff;
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.promo-chip-meta {
+  font-size: .76rem;
+  color: v.$text-muted;
+}
+
+.btn-action--promo {
+  i { color: v.$primary; }
+}

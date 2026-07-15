@@ -74,6 +74,29 @@ _CONTRACT_PRICE_FIELDS = [
 ]
 
 
+def _check_pricing_permissions(form, user):
+    """Autorise (ou non) la tarification personnalisée d'un beat. Renvoie un
+    message d'erreur, ou None.
+
+    Deux capacités distinctes, contrôlées ENSEMBLE ici :
+      - fixer le prix de chaque droit           → can_set_custom_prices (Premium+)
+      - proposer le beat en exclusivité         → can_offer_exclusive   (Premium+)
+
+    Un seul garde, appelé par l'upload ET l'édition : avant, seul le prix exclusif
+    était vérifié — les neuf autres champs de prix passaient sans aucun contrôle,
+    donc un compte gratuit pouvait déjà tarifer ses droits à la carte.
+    """
+    if any(form.get(f) is not None for f in _CONTRACT_PRICE_FIELDS):
+        if not user.can_set_custom_prices:
+            return ("Fixer le prix des droits de vos beats est réservé aux abonnés "
+                    "LaProd+.")
+
+    if form.get('contract_price_exclusive') is not None and not user.can_offer_exclusive:
+        return "Proposer un beat en licence exclusive est réservé aux abonnés LaProd+."
+
+    return None
+
+
 def _resolve_contract_prices(track) -> dict:
     """Résout les prix de contrat : valeur track si définie, sinon défaut config."""
     cfg = current_app.config
@@ -596,10 +619,9 @@ def post_track(current_user):
         current_app.logger.debug('post_track() l`utilisateur ne peut pas upload (manque de token ?)')
         return err('erreur : upload impossible(manque de token ?)', status=403)
 
-    # Beats exclusifs réservés aux abonnés LaProd+ (amateur ou pro)
-    exclusive_price_raw = request.form.get('contract_price_exclusive')
-    if exclusive_price_raw is not None and not current_user.is_premium_active:
-        return err("L'option de licence exclusive est réservée aux abonnés LaProd+.", status=403)
+    pricing_error = _check_pricing_permissions(request.form, current_user)
+    if pricing_error:
+        return err(pricing_error, code='PREMIUM_REQUIRED', status=403)
 
     try:
         title   = request.form.get('title', '').strip()
@@ -795,6 +817,15 @@ def post_track(current_user):
             except Exception as e:
                 current_app.logger.warning(f'Erreur parsing playlist_ids: {e}')
 
+        # Codes promo à rattacher au beat. Le Track n'existe pas encore (il est créé
+        # par le job RQ), donc les ids transitent par le payload et sont rattachés
+        # à la création. La propriété des codes est revérifiée côté job : un id
+        # forgé ici ne peut pas rattacher le beat au code d'un autre vendeur.
+        promo_code_ids_str = request.form.get('promo_code_ids', '')
+        promo_code_ids = [
+            int(pid) for pid in promo_code_ids_str.split(',') if pid.strip().isdigit()
+        ] if promo_code_ids_str else []
+
         job_id = str(_uuid.uuid4())
 
         job_payload = {
@@ -828,6 +859,7 @@ def post_track(current_user):
             'tag_ids':          tag_ids,
             'artist_ids':       artist_ids,
             'playlist_ids':     playlist_ids,
+            'promo_code_ids':   promo_code_ids,
             **{field: request.form.get(field, type=int) for field in _CONTRACT_PRICE_FIELDS},
         }
 
@@ -890,11 +922,10 @@ def put_track(track_id, current_user):
     track = get_or_404(Track, track_id, 'Track introuvable.')
     require_ownership(track, 'composer_id', current_user)
 
-    # Beats exclusifs réservés aux abonnés LaProd+
-    exclusive_price_raw = request.form.get('contract_price_exclusive')
-    if exclusive_price_raw is not None and not current_user.is_premium_active:
+    pricing_error = _check_pricing_permissions(request.form, current_user)
+    if pricing_error:
         from utils.crud_helpers import EntityForbidden
-        raise EntityForbidden("L'option de licence exclusive est réservée aux abonnés LaProd+.")
+        raise EntityForbidden(pricing_error)
 
     title   = request.form.get('title', '').strip()
     bpm_str = request.form.get('bpm', '').strip()
@@ -1237,20 +1268,26 @@ def my_view_stats(current_user):
         .group_by(TrackView.track_id)
         .all()
     )
-    # Vue unique = ip_hash distinct par track
-    uniques = dict(
-        db.session.query(TrackView.track_id, func.count(TrackView.ip_hash.distinct()))
-        .filter(TrackView.track_id.in_(track_ids))
-        .group_by(TrackView.track_id)
-        .all()
-    )
+
+    # « Visiteurs uniques » = métrique fine, réservée au Premium (total gratuit
+    # pour tous). Gating côté SERVEUR : on ne calcule ni ne renvoie l'unique aux
+    # comptes gratuits — le front ne peut pas la déduire du total.
+    unique_locked = not current_user.is_premium_active
+    uniques = {}
+    if not unique_locked:
+        uniques = dict(
+            db.session.query(TrackView.track_id, func.count(TrackView.ip_hash.distinct()))
+            .filter(TrackView.track_id.in_(track_ids))
+            .group_by(TrackView.track_id)
+            .all()
+        )
 
     stats = [
         {
             'track_id':    tid,
             'total_views':  totals.get(tid, 0),
-            'unique_views': uniques.get(tid, 0),
+            'unique_views': None if unique_locked else uniques.get(tid, 0),
         }
         for tid in track_ids
     ]
-    return ok({'stats': stats})
+    return ok({'stats': stats, 'unique_locked': unique_locked})

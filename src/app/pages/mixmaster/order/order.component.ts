@@ -1,8 +1,9 @@
-import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, untracked, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster.service';
+import { PromoService, PromoPreview } from '../../../services/promo.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
@@ -102,17 +103,94 @@ export class MixmasterOrderComponent implements OnInit {
     return this.rawServicesPrice() + this.priceMinSupplement();
   });
 
-  depositAmount = computed(() => Math.round(this.estimatedPrice() * 0.30 * 100) / 100);
+  // ── Code promo ────────────────────────────────────────────────────────────
+
+  promoInput    = signal('');
+  promoApplied  = signal<PromoPreview | null>(null);
+  promoError    = signal<string | null>(null);
+  promoChecking = signal(false);
+
+  /** Ce que l'artiste paie réellement. Sans code validé par le serveur, c'est le
+   *  prix catalogue : aucune remise n'est jamais inventée côté client. */
+  finalPrice = computed(() => this.promoApplied()?.net ?? this.estimatedPrice());
+  discount   = computed(() => this.promoApplied()?.discount ?? 0);
+
+  // L'acompte suit le montant réellement encaissé, comme le backend
+  // (calculate_payments part de total_price, net de remise).
+  depositAmount = computed(() => Math.round(this.finalPrice() * 0.30 * 100) / 100);
 
   readonly auth   = inject(AuthService);
   private route   = inject(ActivatedRoute);
   private router  = inject(Router);
   private mixSvc  = inject(MixmasterService);
+  private promoSvc = inject(PromoService);
   private toast   = inject(ToastService);
   private cdr     = inject(ChangeDetectorRef);
 
+  constructor() {
+    // Les prestations cochées déterminent le prix brut ET le périmètre remisable.
+    // Si l'artiste change sa sélection après avoir appliqué son code, la remise
+    // validée ne correspond plus : on la retire plutôt que d'afficher un total
+    // que le serveur refuserait.
+    effect(() => {
+      const gross   = this.estimatedPrice();
+      const applied = untracked(() => this.promoApplied());
+      if (applied && Math.abs(applied.gross - gross) > 0.001) {
+        this.promoApplied.set(null);
+        this.promoError.set('Vos prestations ont changé : réappliquez votre code promo.');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  applyPromo(): void {
+    const code = this.promoInput().trim();
+    const eng  = this.engineer();
+    if (!code || !eng || this.promoChecking()) return;
+
+    this.promoChecking.set(true);
+    this.promoError.set(null);
+    this.cdr.markForCheck();
+
+    this.promoSvc.previewMixmaster({
+      code,
+      engineer_id:         eng.id,
+      service_cleaning:    this.serviceCleaning(),
+      service_effects:     this.serviceEffects(),
+      service_artistic:    this.serviceArtistic(),
+      service_mastering:   this.serviceMastering(),
+      has_separated_stems: this.hasSeparatedStems(),
+    }).subscribe({
+      next: res => {
+        if (res.success && res.data) {
+          this.promoApplied.set(res.data);
+          this.promoError.set(null);
+        } else {
+          this.promoError.set(res.feedback?.message ?? 'Code promo invalide.');
+        }
+        this.promoChecking.set(false);
+        this.cdr.markForCheck();
+      },
+      error: err => {
+        this.promoApplied.set(null);
+        this.promoError.set(err?.error?.feedback?.message ?? 'Code promo invalide.');
+        this.promoChecking.set(false);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  clearPromo(): void {
+    this.promoApplied.set(null);
+    this.promoInput.set('');
+    this.promoError.set(null);
+    this.cdr.markForCheck();
+  }
+
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('engineerId'));
+    // Compter la vue de cette page (dédup 24h côté serveur, fire-and-forget).
+    this.mixSvc.recordEngineerView(id);
     this.mixSvc.getEngineer(id).subscribe({
       next: (res) => {
         if (res.success) {
@@ -182,6 +260,8 @@ export class MixmasterOrderComponent implements OnInit {
     fd.append('service_artistic',    this.serviceArtistic()   ? '1' : '0');
     fd.append('service_mastering',   this.serviceMastering()  ? '1' : '0');
     fd.append('has_separated_stems', this.hasSeparatedStems() ? '1' : '0');
+    // Seule la chaîne du code circule : le serveur revalide et recalcule la remise.
+    if (this.promoApplied()) fd.append('promo_code', this.promoApplied()!.code);
     fd.append('artist_message',      this.artistMessage());
     fd.append('brief_vocals',        this.briefVocals());
     fd.append('brief_backing_vocals', this.briefBackingVocals());

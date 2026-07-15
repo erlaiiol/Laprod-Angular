@@ -43,8 +43,14 @@ def _ok(data=None, message='', status=200):
     return jsonify(body), status
 
 
-def _err(message, status=400):
-    return jsonify({'success': False, 'feedback': {'level': 'error', 'message': message}}), status
+def _err(message, status=400, code=None):
+    # `code` permet au front de distinguer « quota mensuel atteint » (on propose
+    # de reprendre un contrat existant) de « palier insuffisant » (on propose
+    # l'upgrade) — deux messages très différents pour l'utilisateur.
+    body = {'success': False, 'feedback': {'level': 'error', 'message': message}}
+    if code:
+        body['code'] = code
+    return jsonify(body), status
 
 
 def _get_user():
@@ -163,13 +169,56 @@ def get_template():
 
 # ── POST /api/contract-builder/contracts ───────────────────────────────────────
 
+def _check_builder_access(user):
+    """Accès au contract builder. Renvoie une réponse d'erreur, ou None."""
+    if not user.can_use_contract_builder:
+        return _err(
+            'Le Contract Builder est accessible à partir du plan Semi-Pro LaProd+.',
+            status=403,
+        )
+    return None
+
+
+def _check_contract_quota(user):
+    """Quota mensuel de contrats. Renvoie une réponse d'erreur, ou None.
+
+    Le quota compte les contrats CRÉÉS ce mois-ci, pas les générations de PDF :
+    un Semi-Pro (1 contrat/mois) qui corrige une faute et régénère son unique
+    contrat ne doit pas se retrouver bloqué jusqu'au mois suivant. On facture
+    l'acte de rédiger un nouveau contrat, pas le droit de le relire.
+    """
+    quota = user.contract_quota
+    if quota is None:      # Pro Structuré : illimité
+        return None
+
+    start_of_month = datetime.now().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0,
+    )
+    used = db.session.query(UserContract).filter(
+        UserContract.user_id == user.id,
+        UserContract.created_at >= start_of_month,
+    ).count()
+
+    if used >= quota:
+        return _err(
+            f'Votre plan vous permet de créer {quota} contrat par mois '
+            f'(vous en avez créé {used}). Passez au plan Pro Structuré pour un '
+            f'accès illimité — ou reprenez un contrat existant, le modifier et le '
+            f'régénérer est toujours gratuit.',
+            code='CONTRACT_QUOTA_REACHED', status=403,
+        )
+    return None
+
+
 @contract_builder_api_bp.route('/contracts', methods=['POST'])
 @jwt_required()
 @csrf.exempt
 def create_contract():
     user = _get_user()
-    if not user.is_pro:
-        return _err('Le Contract Builder est réservé au plan Pro LaProd+.', status=403)
+    if err := _check_builder_access(user):
+        return err
+    if err := _check_contract_quota(user):
+        return err
 
     data  = request.get_json(silent=True) or {}
     title = (data.get('title') or '').strip()
@@ -210,7 +259,7 @@ def get_contract(contract_id):
     if err := _check_ownership(contract, user.id):
         return err
     dto = _contract_detail_dto(contract)
-    dto['can_edit'] = user.is_pro
+    dto['can_edit'] = user.can_use_contract_builder
     return _ok(data={'contract': dto})
 
 
@@ -224,8 +273,10 @@ def update_contract(contract_id):
     contract = db.get_or_404(UserContract, contract_id)
     if err := _check_ownership(contract, user.id):
         return err
-    if not user.is_pro:
-        return _err('Cette action est réservée aux abonnés Pro LaProd+.', status=403)
+    # Pas de contrôle de quota ici : modifier un contrat déjà créé ne consomme
+    # rien. Le quota porte sur la création, pas sur le droit de se corriger.
+    if err := _check_builder_access(user):
+        return err
     if contract.status == UserContractStatus.final:
         return _err('Ce contrat est finalisé et ne peut plus être modifié.', status=409)
 
@@ -304,8 +355,10 @@ def generate_contract(contract_id):
     contract = db.get_or_404(UserContract, contract_id)
     if err := _check_ownership(contract, user.id):
         return err
-    if not user.is_pro:
-        return _err('Cette action est réservée aux abonnés Pro LaProd+.', status=403)
+    # Régénérer le PDF d'un contrat existant ne consomme pas de quota (cf.
+    # _check_contract_quota) : on facture l'acte de rédiger, pas celui de relire.
+    if err := _check_builder_access(user):
+        return err
     if len(contract.parties) < 2:
         return _err('Le contrat doit comporter au moins deux parties.')
 

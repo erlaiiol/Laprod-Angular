@@ -461,3 +461,31 @@
     &:hover { text-decoration: underline; }
   }
 }
+
+// ── Consentement marketing ───────────────────────────────────────────────────
+
+.marketing-optin {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  cursor: pointer;
+  font-size: .9rem;
+  color: v.$text-primary;
+
+  input { margin-top: .25rem; flex-shrink: 0; }
+
+  em {
+    display: block;
+    margin-top: .3rem;
+    font-style: normal;
+    font-size: .78rem;
+    line-height: 1.5;
+    color: v.$text-muted;
+  }
+}
+
+.marketing-hint {
+  margin: .6rem 0 0;
+  font-size: .78rem;
+  color: v.$warning-dark;
+}

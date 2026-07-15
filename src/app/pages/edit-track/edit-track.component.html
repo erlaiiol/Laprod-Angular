@@ -196,6 +196,163 @@
 
       <div class="card-divider"></div>
 
+      <!-- ═══ APERÇU ACHETEUR ═══════════════════════════════════════════════ -->
+      @if (auth.isPremium()) {
+      <div class="card-section">
+        <div class="license-price-header">
+          <div class="license-price-left">
+            <h3 class="section-title"><i class="bi bi-eye"></i> Aperçu acheteur</h3>
+            <span class="price-badge price-badge--standard">Ce que verra l'acheteur</span>
+          </div>
+          <button type="button" class="btn-toggle-prices"
+                  (click)="showPreview.set(!showPreview())">
+            {{ showPreview() ? 'Réduire' : 'Voir la simulation' }}
+            <i class="bi" [class.bi-chevron-up]="showPreview()"
+                          [class.bi-chevron-down]="!showPreview()"></i>
+          </button>
+        </div>
+
+        @if (showPreview()) {
+          <div class="preview-body">
+
+            <!-- Format -->
+            <div class="preview-group">
+              <span class="preview-group-label">Format</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'mp3'"
+                        (click)="previewFormat.set('mp3')">
+                  MP3 <span>{{ priceMp3().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'wav'"
+                        (click)="previewFormat.set('wav')">
+                  WAV <span>{{ priceWav().toFixed(2) }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewFormat() === 'stems'"
+                        (click)="previewFormat.set('stems')">
+                  Stems <span>{{ priceStems().toFixed(2) }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Durée -->
+            <div class="preview-group">
+              <span class="preview-group-label">Durée du contrat</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'stream'"
+                        (click)="previewDuration.set('stream')">
+                  Streaming seul <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === '10'"
+                        (click)="previewDuration.set('10')">
+                  10 ans <span>+{{ cpDuration10y() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewDuration() === 'lifetime'"
+                        (click)="previewDuration.set('lifetime')">
+                  Durée légale <span>+{{ cpLifetime() }}€</span>
+                </button>
+              </div>
+              <p class="duration-info">Le streaming est toujours inclus pour la durée légale de protection (vie de l'auteur + 70 ans). La durée indiquée s'applique aux autres droits (reproduction, diffusion publique…). « Streaming seul » = aucun autre droit.</p>
+            </div>
+
+            <!-- Territoire -->
+            <div class="preview-group">
+              <span class="preview-group-label">Territoire</span>
+              <div class="preview-btns">
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'France'"
+                        (click)="previewTerritory.set('France')">
+                  France <span>0€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Europe'"
+                        (click)="previewTerritory.set('Europe')">
+                  Europe <span>+{{ cpTerritoryEu() }}€</span>
+                </button>
+                <button type="button" class="preview-btn" [class.active]="previewTerritory() === 'Monde entier'"
+                        (click)="previewTerritory.set('Monde entier')">
+                  Monde entier <span>+{{ cpTerritoryWorld() }}€</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Droits -->
+            <div class="preview-group">
+              <span class="preview-group-label">Droits supplémentaires</span>
+              @if (previewStreamOnly()) {
+                <p class="duration-info">
+                  Streaming seul : aucun autre droit n'est accordé. Choisis « 10 ans » ou
+                  « Durée légale » ci-dessus pour proposer ces droits.
+                </p>
+              }
+              <div class="preview-rights">
+                <label class="preview-right">
+                  <input type="checkbox"
+                         [ngModel]="previewExclusive()"
+                         (ngModelChange)="previewExclusive.set($event)" />
+                  <span>Exclusivité</span>
+                  <strong class="preview-right-price">+{{ cpExclusive() }}€</strong>
+                </label>
+
+                <label class="preview-right"
+                       [class.auto-included]="!previewStreamOnly() && previewMechanicalAutoIncluded()"
+                       [class.disabled]="previewStreamOnly()">
+                  <input type="checkbox"
+                         [disabled]="previewStreamOnly() || previewMechanicalAutoIncluded()"
+                         [ngModel]="!previewStreamOnly() && (previewMechanical() || previewMechanicalAutoIncluded())"
+                         (ngModelChange)="!previewMechanicalAutoIncluded() && previewMechanical.set($event)" />
+                  <span>Reproduction mécanique</span>
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else if (previewMechanicalAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpMechanical() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right"
+                       [class.auto-included]="!previewStreamOnly() && previewPublicShowAutoIncluded()"
+                       [class.disabled]="previewStreamOnly()">
+                  <input type="checkbox"
+                         [disabled]="previewStreamOnly() || previewPublicShowAutoIncluded()"
+                         [ngModel]="!previewStreamOnly() && (previewPublicShow() || previewPublicShowAutoIncluded())"
+                         (ngModelChange)="!previewPublicShowAutoIncluded() && previewPublicShow.set($event)" />
+                  <span>Représentation publique</span>
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else if (previewPublicShowAutoIncluded()) {
+                    <em class="preview-auto-tag">inclus</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpPublicShow() }}€</strong>
+                  }
+                </label>
+
+                <label class="preview-right" [class.disabled]="previewStreamOnly()">
+                  <input type="checkbox"
+                         [disabled]="previewStreamOnly()"
+                         [ngModel]="!previewStreamOnly() && previewArrangement()"
+                         (ngModelChange)="previewArrangement.set($event)" />
+                  <span>Droit d'arrangement</span>
+                  @if (previewStreamOnly()) {
+                    <em class="preview-auto-tag preview-auto-tag--off">non accordé</em>
+                  } @else {
+                    <strong class="preview-right-price">+{{ cpArrangement() }}€</strong>
+                  }
+                </label>
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div class="preview-total-row">
+              <span>Total estimé</span>
+              <strong>{{ previewTotal().toFixed(2) }}€</strong>
+            </div>
+
+          </div>
+        }
+      </div>
+      }
+
+      <div class="card-divider"></div>
+
       <!-- ═══ TAGS ════════════════════════════════════════════════════════════ -->
       @if (tagGroups().length > 0) {
         <div class="card-section">

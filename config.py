@@ -248,10 +248,12 @@ MIXMASTER_ALLOWED_EXTENSIONS = {'wav', 'zip', 'rar', 'mp3'}
 # ============================================
 # PREMIUM — deux plans LaProd+
 # ============================================
-PREMIUM_AMATEUR_PRICE = 1.99   # Plan Amateur — 30 jours
-PREMIUM_PRO_PRICE     = 19.99  # Plan Pro/Label — 30 jours
+# ⚠️ La grille tarifaire vit désormais dans utils/plans.py (en Decimal), PAS ici.
+# Ces constantes sont conservées uniquement pour ne pas casser un import résiduel :
+# elles ne pilotent plus aucun montant facturé. Ne les utilisez pas — un prix en
+# float ici et un prix en Decimal là-bas finiraient par diverger, et on facturerait
+# un montant différent de celui affiché.
 PREMIUM_DURATION_DAYS = 30
-PREMIUM_PRICE = PREMIUM_AMATEUR_PRICE  # alias rétrocompat (ancienne valeur)
 
 # ============================================
 # ENVIRONNEMENT

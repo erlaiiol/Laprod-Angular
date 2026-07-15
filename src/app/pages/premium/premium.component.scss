@@ -117,241 +117,153 @@
   }
 }
 
-// ── Section douleur ────────────────────────────────────────────────────────────
-.pain-section {
-  padding: 3rem 0 2.5rem;
+// ── Section d'introduction ────────────────────────────────────────────────────
+// Remplace l'ancienne « section douleur » (« Sans Premium, tu perds ça chaque
+// semaine »). On n'installe pas la peur de rater quelque chose pour vendre : on
+// explique à qui sert chaque palier et on laisse décider. La fidélité se
+// construit sur la clarté.
+.intro-section {
+  padding: 3rem 0 2rem;
   text-align: center;
 
   &__title {
-    font-size: 1.6rem;
+    font-size: clamp(1.5rem, 3vw, 2rem);
     font-weight: 800;
-    margin-bottom: 2rem;
-  }
-}
-
-.pain-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  text-align: left;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.pain-card {
-  background: v.$black;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: v.$radius-lg;
-  padding: 1.5rem;
-  box-shadow: v.$shadow-sm, v.$edge-highlight;
-
-  &__icon {
-    font-size: 1.75rem;
-    display: block;
-    margin-bottom: 0.75rem;
-
-    &--orange { color: #f97316; }
-    &--red    { color: v.$primary; }
-    &--purple { color: #a78bfa; }
+    line-height: 1.25;
+    margin-bottom: 1rem;
+    color: v.$text-primary;
   }
 
-  h3 { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; }
-  p  { margin: 0; font-size: 0.85rem; color: v.$text-secondary; line-height: 1.6; }
-}
-
-// ── Section bénéfices ──────────────────────────────────────────────────────────
-.benefits-section {
-  padding: 2.5rem 0;
-  text-align: center;
-
-  &__title {
-    font-size: 1.4rem;
-    font-weight: 800;
-    margin-bottom: 1.75rem;
-  }
-}
-
-.benefits-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.benefit-item {
-  background: v.$black;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: v.$radius-lg;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  box-shadow: v.$shadow-sm, v.$edge-highlight;
-
-  &__num {
-    font-size: 2rem;
-    font-weight: 900;
-    color: v.$primary;
-    line-height: 1;
-
-    &--gold { color: v.$gold; }
-  }
-
-  &__label {
-    font-size: 0.78rem;
+  &__lead {
+    max-width: 62ch;
+    margin: 0 auto;
+    font-size: 1rem;
+    line-height: 1.7;
     color: v.$text-secondary;
-    text-align: center;
-    line-height: 1.3;
   }
 }
 
-// ── Plans grid ─────────────────────────────────────────────────────────────────
-.plans-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+
+// ── Tableau comparatif ─────────────────────────────────────────────────────────
+.plans-table-wrap {
   margin: 1rem 0 3rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
 }
 
-.plan-card {
-  position: relative;
-  border: 1px solid rgba(255,255,255,0.08);
+// Défilement horizontal sous les petits écrans : un tableau à 4 colonnes + libellés
+// ne rétrécit pas indéfiniment sans devenir illisible. La 1re colonne reste collée.
+.plans-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: v.$radius-lg;
-  padding: 1.75rem 1.5rem;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.plans-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
   background: v.$black;
-  display: flex;
-  flex-direction: column;
-  box-shadow: v.$shadow-sm, v.$edge-highlight;
-  transition: border-color v.$dur-slow v.$ease-out,
-              transform    v.$dur-slow v.$ease-out,
-              box-shadow   v.$dur-slow v.$ease-out;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: v.$shadow-md, v.$edge-highlight;
-  }
-
-  &.plan-current {
-    border-color: rgba(v.$tag-blue, 0.4);
-  }
-
-  &.plan-pro {
-    border-color: rgba(v.$gold, 0.3);
-    background: rgba(v.$gold, 0.03);
-    transform: scale(1.04);
-    box-shadow: 0 0 40px rgba(v.$gold, 0.15), v.$shadow-md, v.$edge-highlight;
-    animation: gold-pulse 4s ease-in-out infinite;
-
-    &:hover {
-      transform: scale(1.04) translateY(-2px);
-      box-shadow: 0 0 50px rgba(v.$gold, 0.25), v.$shadow-md;
-    }
+  th, td {
+    padding: 0.85rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
   }
 }
 
-@keyframes gold-pulse {
-  0%, 100% { box-shadow: 0 0 30px rgba(v.$gold, 0.1), v.$shadow-md, v.$edge-highlight; }
-  50%       { box-shadow: 0 0 50px rgba(v.$gold, 0.25), v.$shadow-md, v.$edge-highlight; }
+// En-tête de colonne : nom du palier, prix, bouton.
+.ptable-col {
+  vertical-align: top;
+  min-width: 140px;
+
+  &--reco {
+    background: rgba(v.$primary, 0.06);
+    border-bottom: 1px solid rgba(v.$primary, 0.3);
+  }
+  &--current {
+    background: rgba(v.$tag-blue, 0.06);
+  }
 }
 
-.plan-badge-popular {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: v.$gold;
-  color: #1a1200;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 0.25rem 0.9rem;
+.ptable-badge {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  padding: 0.15rem 0.6rem;
   border-radius: 20px;
-  white-space: nowrap;
-  animation: badge-float 3s ease-in-out infinite;
-
-  i { margin-right: 0.2rem; font-size: 0.65rem; }
-}
-
-@keyframes badge-float {
-  0%, 100% { transform: translateX(-50%) translateY(0);    }
-  50%       { transform: translateX(-50%) translateY(-3px); }
-}
-
-.plan-badge-current {
-  position: absolute;
-  top: -12px;
-  right: 1rem;
-  background: v.$tag-blue;
+  background: v.$primary;
   color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+
+  i { font-size: 0.6rem; margin-right: 0.15rem; }
+
+  &--current { background: v.$tag-blue; }
+}
+
+.ptable-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.ptable-price {
+  font-family: v.$font-display;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+
+  span {
+    font-family: v.$font-body;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: v.$text-secondary;
+  }
+}
+
+// 1re colonne (libellés de lignes) : collée au défilement horizontal.
+.ptable-corner,
+.ptable-rowlabel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: v.$black;
+  font-weight: 500;
+  font-size: 0.88rem;
+  color: v.$text-primary;
+}
+
+.ptable-rowlabel { min-width: 220px; }
+
+.ptable-help {
+  margin-left: 0.35rem;
+  color: v.$text-muted;
+  cursor: help;
+  i { font-size: 0.8rem; }
+}
+
+// Ligne titre de groupe.
+.ptable-grouprow th {
+  text-align: left;
+  background: rgba(255,255,255,0.03);
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 0.2rem 0.75rem;
-  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: v.$text-muted;
+  position: sticky;
+  left: 0;
 }
 
-.plan-header {
-  margin-bottom: 1.5rem;
+.ptable-cell--reco { background: rgba(v.$primary, 0.04); }
 
-  h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin: 0 0 0.4rem;
-  }
+.ptable-yes { color: v.$tag-green; font-size: 1.2rem; }
+.ptable-no  { color: v.$bg-elevated; font-size: 1.1rem; }
+.ptable-text { font-weight: 600; font-size: 0.9rem; }
 
-  .plan-price {
-    font-family: v.$font-display;
-    letter-spacing: v.$tracking-tight;
-    font-size: 1.8rem;
-    font-weight: 700;
-
-    span {
-      font-family: v.$font-body;
-      font-size: 0.9rem;
-      font-weight: 400;
-      letter-spacing: normal;
-      color: v.$text-secondary;
-    }
-  }
-}
-
-.plan-features {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1.75rem;
-  flex: 1;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0;
-    font-size: 0.88rem;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: color v.$dur-fast v.$ease-out;
-
-    &:last-child { border-bottom: none; }
-    &:hover { color: v.$text-primary; }
-
-    i.bi-check-circle-fill { color: v.$tag-green; flex-shrink: 0; }
-    i.bi-check             { color: v.$tag-neutral; flex-shrink: 0; }
-    i.bi-x                 { color: v.$bg-elevated; flex-shrink: 0; }
-    .muted                 { color: v.$bg-elevated; }
-  }
-}
-
-.plan-cta { margin-top: auto; }
-
+// ── Boutons de palier (réutilisés dans l'en-tête du tableau) ────────────────────
 .btn-plan {
   display: block;
   width: 100%;
@@ -371,7 +283,7 @@
   color: v.$tag-neutral;
 }
 
-.btn-plan-amateur {
+.btn-plan-premium {
   background: rgba(v.$tag-blue, 0.15);
   color: v.$tag-blue;
   border: 1px solid rgba(v.$tag-blue, 0.4);
@@ -379,12 +291,60 @@
   &:hover:not(:disabled) { background: rgba(v.$tag-blue, 0.25); }
 }
 
-.btn-plan-pro {
+.btn-plan-semi_pro {
+  background: v.$primary;
+  color: #fff;
+  font-weight: 700;
+
+  &:hover:not(:disabled) { background: v.$primary-dark; }
+}
+
+.btn-plan-pro_structure {
   background: v.$gold;
   color: #1a1200;
   font-weight: 700;
 
   &:hover:not(:disabled) { opacity: 0.88; }
+}
+
+// ── Bandeau des arguments massue (sous le tableau) ──────────────────────────────
+.highlights-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2.5rem;
+
+  @media (max-width: 860px) { grid-template-columns: 1fr; }
+}
+
+.highlight-card {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: v.$radius-lg;
+  border-left: 3px solid v.$primary;
+  background: v.$black;
+
+  &--org { border-left-color: v.$gold; }
+
+  &__name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+  }
+
+  &__aud {
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: v.$text-muted;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: v.$text-secondary;
+  }
 }
 
 // ── FAQ ────────────────────────────────────────────────────────────────────────
@@ -405,4 +365,18 @@
   strong { display: block; margin-bottom: 0.35rem; }
   p { margin: 0; font-size: 0.88rem; color: v.$text-secondary; line-height: 1.6; }
   a { color: v.$tag-blue; }
+}
+
+// ── Registre « structure » (vouvoiement) ──────────────────────────────────────
+// La question de la FAQ adressée aux structures est détachée visuellement (accent
+// doré) : le changement de ton se lit comme un choix, pas comme une faute.
+
+.faq-item--org {
+  border-left: 3px solid rgba(v.$gold, 0.5);
+  padding-left: 1rem;
+
+  strong i {
+    margin-right: .35rem;
+    color: v.$gold;
+  }
 }

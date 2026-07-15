@@ -3,11 +3,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, PlanKey, PLAN_ORDER } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
 import { TrackService, Track } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
 import { PlaylistService, Playlist } from '../../services/playlist.service';
+import { PromoService, PromoCode } from '../../services/promo.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
@@ -37,6 +38,13 @@ export class ProfileComponent implements OnInit {
   containingIds    = signal(new Set<number>());
   highlightTrackId = signal<number | null>(null);
 
+  // Codes promo — chargés uniquement pour son propre profil (l'API ne renvoie
+  // de toute façon que les codes du porteur du JWT).
+  promoCodes = signal<PromoCode[]>([]);
+  activePromoCodes = computed(() =>
+    this.promoCodes().filter(c => c.is_active && !c.is_expired && !c.is_exhausted),
+  );
+
   displayMode = signal<'list' | 'gallery' | 'compact'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'
   );
@@ -64,6 +72,7 @@ export class ProfileComponent implements OnInit {
   });
 
   private playlistSvc = inject(PlaylistService);
+  private promoSvc    = inject(PromoService);
   private destroyRef  = inject(DestroyRef);
 
   constructor(
@@ -106,6 +115,13 @@ export class ProfileComponent implements OnInit {
           if (res.data.user.roles.is_beatmaker) {
             this.loadPlaylists(username, highlightTrack);
           }
+          // Seulement sur son propre profil : inutile d'appeler l'API en visite.
+          if (this.isOwnProfile()) {
+            this.promoSvc.list().subscribe({
+              next: r => this.promoCodes.set(r.data?.promo_codes ?? []),
+              error: () => {},
+            });
+          }
         } else {
           this.error.set(res.feedback?.message ?? 'Profil introuvable.');
         }
@@ -147,6 +163,13 @@ export class ProfileComponent implements OnInit {
     if (!path) return '/assets/placeholders/placeholder-track.png';
     if (path.startsWith('http')) return path;
     return `${environment.apiUrl}/db_assets/${path}`;
+  }
+
+  /** Le badge « Master Pro » est acquis par l'abonnement, à partir du Semi-Pro
+   *  (l'autre voie étant la certification par un admin, testée séparément). */
+  hasMasterProBadge(p: UserProfile): boolean {
+    const plan = (p.subscription_plan ?? 'free') as PlanKey;
+    return PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf('semi_pro');
   }
 
   isOwnProfile(): boolean {

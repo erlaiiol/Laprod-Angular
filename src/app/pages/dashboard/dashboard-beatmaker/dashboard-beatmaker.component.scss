@@ -140,6 +140,13 @@
   font-size: 0.75rem; color: v.$text-muted; display: flex; align-items: center; gap: 0.2rem;
 
   .view-unique { font-size: 0.7rem; opacity: 0.7; }
+
+  // « uniques » verrouillé : petit CTA Premium plutôt qu'un chiffre.
+  .view-unique--locked {
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    color: v.$primary; text-decoration: none; opacity: 1;
+    &:hover { text-decoration: underline; }
+  }
 }
 
 .quality-badge-link {

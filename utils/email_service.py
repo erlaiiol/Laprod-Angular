@@ -1448,3 +1448,150 @@ L'équipe LaProd
         text_body=text_body,
         attachments=attachments,
     )
+
+
+# ============================================
+# CAMPAGNES DE MAILING (prospection vendeurs)
+# ============================================
+
+def generate_unsubscribe_token(user_id):
+    """Token de désinscription — signé, sans expiration.
+
+    Sans expiration volontairement : un lien de désinscription doit fonctionner
+    même dans un mail retrouvé six mois plus tard. Un lien mort équivaut à une
+    absence de lien, ce qui est précisément l'infraction (art. L.34-5 CPCE).
+    """
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return serializer.dumps({'user_id': user_id}, salt='marketing-unsubscribe-salt')
+
+
+def verify_unsubscribe_token(token):
+    """Renvoie user_id, ou None si le token est invalide."""
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        data = serializer.loads(token, salt='marketing-unsubscribe-salt')
+        return data.get('user_id')
+    except (SignatureExpired, BadSignature):
+        return None
+
+
+def send_campaign_email(campaign, user):
+    """Envoie un email de campagne à UN destinataire.
+
+    Lève une exception en cas d'échec : l'appelant (campaign_service.dispatch)
+    trace l'échec destinataire par destinataire sans interrompre la campagne.
+
+    Le corps est saisi par le vendeur : il est échappé (html_module.escape) avant
+    injection. Sans ça, un vendeur pourrait placer du HTML — au mieux casser le
+    template, au pire poser un lien de phishing dans un mail portant notre marque.
+    """
+    promo = campaign.promo_code
+    unsubscribe_url = _fe(f'/desinscription?token={generate_unsubscribe_token(user.id)}')
+    seller = campaign.owner
+
+    safe_body    = html_module.escape(campaign.body or '').replace('\n', '<br>')
+    safe_subject = html_module.escape(campaign.subject or '')
+    seller_name  = html_module.escape(seller.username or '')
+
+    promo_html = ''
+    promo_text = ''
+    if promo:
+        expires = promo.expires_at.strftime('%d/%m/%Y') if promo.expires_at else ''
+        promo_html = f"""
+        <div style="margin:24px 0;padding:20px;border:2px dashed #e5323c;border-radius:12px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:14px;color:#666;">Votre code promo</p>
+          <p style="margin:0;font-size:28px;font-weight:700;letter-spacing:2px;color:#111;">{html_module.escape(promo.code)}</p>
+          <p style="margin:8px 0 0;font-size:18px;font-weight:700;color:#e5323c;">−{promo.percent} %</p>
+          {f'<p style="margin:8px 0 0;font-size:13px;color:#666;">Valable jusqu\'au {expires}</p>' if expires else ''}
+        </div>
+        """
+        promo_text = f"\n\nVotre code promo : {promo.code} (-{promo.percent} %)"
+        if expires:
+            promo_text += f"\nValable jusqu'au {expires}"
+
+    html_body = f"""
+    <div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;color:#111;">
+      <p style="font-size:13px;color:#888;margin:0 0 16px;">
+        {seller_name} sur LaProd
+      </p>
+      <h1 style="font-size:22px;margin:0 0 16px;">{safe_subject}</h1>
+      <div style="font-size:15px;line-height:1.6;color:#333;">{safe_body}</div>
+      {promo_html}
+      <p style="margin:24px 0;">
+        <a href="{_fe(f'/profile/{seller.username}')}"
+           style="display:inline-block;padding:12px 24px;background:#e5323c;color:#fff;
+                  text-decoration:none;border-radius:8px;font-weight:600;">
+          Découvrir ses créations
+        </a>
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:32px 0 16px;">
+      <p style="font-size:12px;color:#999;line-height:1.5;">
+        Vous recevez cet email parce que vous avez accepté de recevoir les offres des
+        artistes que vous suivez sur LaProd.<br>
+        <a href="{unsubscribe_url}" style="color:#999;">Se désinscrire en un clic</a>
+      </p>
+    </div>
+    """
+
+    text_body = (
+        f"{seller.username} sur LaProd\n\n"
+        f"{campaign.subject}\n\n"
+        f"{campaign.body}"
+        f"{promo_text}\n\n"
+        f"Découvrir ses créations : {_fe(f'/profile/{seller.username}')}\n\n"
+        f"---\n"
+        f"Vous recevez cet email parce que vous avez accepté de recevoir les offres des "
+        f"artistes que vous suivez sur LaProd.\n"
+        f"Se désinscrire : {unsubscribe_url}"
+    )
+
+    sent = send_email(
+        subject=f'{seller.username} — {campaign.subject}',
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+    if not sent:
+        raise RuntimeError('Envoi email échoué')
+    return True
+
+
+def send_campaign_opportunity_email(user, signal):
+    """Prévient un vendeur qu'il traverse un pic d'intérêt — le bon moment pour
+    lancer une campagne. On ne l'envoie que quand le signal est réel, sinon ce
+    mail devient lui-même du bruit."""
+    html_body = f"""
+    <div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;color:#111;">
+      <h1 style="font-size:22px;">C'est le bon moment pour une campagne</h1>
+      <p style="font-size:15px;line-height:1.6;color:#333;">
+        Bonjour {html_module.escape(user.username)},<br><br>
+        {html_module.escape(signal)}
+      </p>
+      <p style="font-size:15px;line-height:1.6;color:#333;">
+        Vos auditeurs sont attentifs en ce moment : c'est la fenêtre idéale pour leur
+        envoyer une offre, avec un code promo à la clé.
+      </p>
+      <p style="margin:24px 0;">
+        <a href="{_fe('/campagnes')}"
+           style="display:inline-block;padding:12px 24px;background:#e5323c;color:#fff;
+                  text-decoration:none;border-radius:8px;font-weight:600;">
+          Créer ma campagne
+        </a>
+      </p>
+      <p style="font-size:12px;color:#999;">
+        Vous recevez ce message en tant que vendeur sur LaProd.
+      </p>
+    </div>
+    """
+    text_body = (
+        f"Bonjour {user.username},\n\n{signal}\n\n"
+        f"Vos auditeurs sont attentifs en ce moment : c'est la fenêtre idéale pour "
+        f"leur envoyer une offre, avec un code promo à la clé.\n\n"
+        f"Créer ma campagne : {_fe('/campagnes')}"
+    )
+    return send_email(
+        subject="C'est le bon moment pour lancer une campagne",
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+    )

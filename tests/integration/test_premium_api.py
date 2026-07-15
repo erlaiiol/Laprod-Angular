@@ -14,6 +14,9 @@ stripe.checkout.Session.retrieve sont mockés dans chaque test qui en a besoin.
 import json
 import uuid
 import pytest
+
+from utils import plans
+from utils.money import to_cents
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -130,7 +133,9 @@ class TestPremiumStatus:
         resp = client.get('/api/premium/status', headers=amateur_headers)
         assert resp.status_code == 200
         data = resp.json['data']
-        assert data['subscription_plan'] == 'amateur'
+        # Le palier stocké/renvoyé est canonique : 'amateur' est un alias hérité,
+        # normalisé en 'premium' (cf. utils/plans.LEGACY_ALIASES).
+        assert data['subscription_plan'] == plans.PREMIUM
         assert data['is_premium_active'] is True
         assert data['is_pro'] is False
 
@@ -151,42 +156,40 @@ class TestPremiumSubscribe:
             headers=headers,
         )
 
-    def test_amateur_unit_amount_is_199_centimes(self, client, free_headers):
-        """Amateur = 1,99€ → unit_amount=199 centimes."""
-        with patch('stripe.checkout.Session.create') as mock_create:
-            mock_create.return_value = MagicMock(url='https://stripe.test/amateur', id='cs_test')
-            resp = self._post(client, free_headers, 'amateur')
+    @pytest.mark.parametrize('plan_key', plans.PAID_PLANS)
+    def test_unit_amount_correspond_au_prix_du_palier(self, client, free_headers, plan_key):
+        """Le montant envoyé à Stripe est EXACTEMENT le prix du palier.
 
-        assert resp.status_code == 200
-        assert _unit_amount_from_create(mock_create) == 199
-
-    def test_pro_unit_amount_is_1999_centimes(self, client, free_headers):
-        """Pro = 19,99€ → unit_amount=1999 centimes."""
-        with patch('stripe.checkout.Session.create') as mock_create:
-            mock_create.return_value = MagicMock(url='https://stripe.test/pro', id='cs_test')
-            resp = self._post(client, free_headers, 'pro')
-
-        assert resp.status_code == 200
-        assert _unit_amount_from_create(mock_create) == 1999
-
-    def test_metadata_contains_plan_amateur(self, client, free_headers):
-        """La metadata Stripe doit contenir plan='amateur' et type='premium_subscription'."""
+        Les montants attendus sont dérivés de utils/plans.py, jamais recopiés :
+        un prix codé en dur ici finirait par diverger de celui réellement facturé,
+        et le test cesserait de protéger quoi que ce soit.
+        """
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test', id='cs_test')
-            self._post(client, free_headers, 'amateur')
+            resp = self._post(client, free_headers, plan_key)
+
+        assert resp.status_code == 200
+        assert _unit_amount_from_create(mock_create) == to_cents(plans.price_of(plan_key))
+
+    def test_metadata_porte_le_palier_canonique(self, client, free_headers):
+        """L'ancien identifiant est accepté en entrée (app mobile déjà déployée)
+        mais la metadata Stripe porte le palier CANONIQUE : c'est elle qui sera
+        relue à l'activation."""
+        with patch('stripe.checkout.Session.create') as mock_create:
+            mock_create.return_value = MagicMock(url='https://stripe.test', id='cs_test')
+            self._post(client, free_headers, 'amateur')   # ancien identifiant
 
         meta = _metadata_from_create(mock_create)
-        assert meta['plan'] == 'amateur'
+        assert meta['plan'] == plans.PREMIUM
         assert meta['type'] == 'premium_subscription'
 
-    def test_metadata_contains_plan_pro(self, client, free_headers):
-        """La metadata Stripe doit contenir plan='pro'."""
+    def test_metadata_ancien_pro_devient_pro_structure(self, client, free_headers):
         with patch('stripe.checkout.Session.create') as mock_create:
             mock_create.return_value = MagicMock(url='https://stripe.test', id='cs_test')
             self._post(client, free_headers, 'pro')
 
         meta = _metadata_from_create(mock_create)
-        assert meta['plan'] == 'pro'
+        assert meta['plan'] == plans.PRO_STRUCTURE
 
     def test_metadata_user_id_matches_current_user(self, client, free_headers, free_user):
         """La metadata user_id doit correspondre à l'utilisateur connecté."""
@@ -263,24 +266,31 @@ class TestPremiumActivate:
         )
 
     def test_amateur_plan_set_in_db(self, client, db, free_headers, free_user):
-        """Activation Amateur → subscription_plan='amateur' en DB."""
+        """RÉTROCOMPAT — une session Stripe portant l'ancien 'amateur' (ouverte
+        avant le renommage, ou envoyée par une app mobile pas encore mise à jour)
+        doit activer le palier Premium, pas échouer."""
         session = _make_stripe_session(free_user.id, 'amateur')
         with patch('stripe.checkout.Session.retrieve', return_value=session):
             resp = self._post(client, free_headers, 'cs_test_amateur')
 
         assert resp.status_code == 200
         db.session.refresh(free_user)
-        assert free_user.subscription_plan == 'amateur'
+        assert free_user.subscription_plan == plans.PREMIUM
 
     def test_pro_plan_set_in_db(self, client, db, free_headers, free_user):
-        """Activation Pro → subscription_plan='pro' en DB."""
+        """RÉTROCOMPAT CRITIQUE — l'ancien 'pro' doit donner PRO_STRUCTURE.
+
+        Retomber sur le palier d'entrée accorderait le moins cher à quelqu'un qui
+        a payé le plus cher : on n'accorde jamais moins que ce qui a été payé.
+        """
         session = _make_stripe_session(free_user.id, 'pro')
         with patch('stripe.checkout.Session.retrieve', return_value=session):
             resp = self._post(client, free_headers, 'cs_test_pro')
 
         assert resp.status_code == 200
         db.session.refresh(free_user)
-        assert free_user.subscription_plan == 'pro'
+        assert free_user.subscription_plan == plans.PRO_STRUCTURE
+        assert free_user.is_pro is True
 
     def test_premium_expires_at_set_to_30_days(self, client, db, free_headers, free_user):
         """premium_expires_at doit être ≈ maintenant + 30 jours."""
@@ -294,7 +304,8 @@ class TestPremiumActivate:
         assert config.PREMIUM_DURATION_DAYS - 1 <= diff.days <= config.PREMIUM_DURATION_DAYS
 
     def test_tokens_applied_amateur(self, client, db, free_headers, free_user):
-        """Activation Amateur → upload_track_tokens ≥ 15 (cap Amateur)."""
+        """Activation via l'ancien 'amateur' → tokens montés au cap du palier
+        Premium (attendu dérivé de plans.py, jamais figé en dur)."""
         free_user.upload_track_tokens = 0
         db.session.commit()
         session = _make_stripe_session(free_user.id, 'amateur')
@@ -302,10 +313,10 @@ class TestPremiumActivate:
             self._post(client, free_headers, 'cs_test_tokens')
 
         db.session.refresh(free_user)
-        assert free_user.upload_track_tokens >= 15
+        assert free_user.upload_track_tokens >= plans.get(plans.PREMIUM).upload_cap
 
     def test_tokens_applied_pro(self, client, db, free_headers, free_user):
-        """Activation Pro → upload_track_tokens ≥ 30 (cap Pro)."""
+        """Activation via l'ancien 'pro' → tokens montés au cap Pro Structuré."""
         free_user.upload_track_tokens = 0
         db.session.commit()
         session = _make_stripe_session(free_user.id, 'pro')
@@ -313,7 +324,7 @@ class TestPremiumActivate:
             self._post(client, free_headers, 'cs_test_tokens_pro')
 
         db.session.refresh(free_user)
-        assert free_user.upload_track_tokens >= 30
+        assert free_user.upload_track_tokens >= plans.get(plans.PRO_STRUCTURE).upload_cap
 
     def test_unpaid_session_returns_403(self, client, free_headers, free_user):
         """Session Stripe non payée (payment_status='unpaid') → 403."""
@@ -394,7 +405,7 @@ class TestPremiumActivate:
             resp = self._post(client, free_headers, 'cs_pro_data')
 
         assert resp.status_code == 200
-        assert resp.json['data']['subscription_plan'] == 'pro'
+        assert resp.json['data']['subscription_plan'] == plans.PRO_STRUCTURE
 
     def test_requires_auth(self, client):
         resp = client.post('/api/premium/activate',
