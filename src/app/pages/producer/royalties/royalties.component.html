@@ -9,6 +9,8 @@
     </p>
   </header>
 
+  <app-producer-tabs />
+
   @if (loadingArtists()) {
     <p class="royalties__loading">Chargement…</p>
   } @else if (artistOptions().length === 0) {

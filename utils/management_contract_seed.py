@@ -143,7 +143,14 @@ def run_seed(force: bool = False) -> int:
        tooltip_short="Précisez le statut juridique de chaque partie (micro-entreprise, société, association).",
        tooltip_long="Utile pour la facturation de la commission (le Manager doit pouvoir émettre une facture) "
                     "et pour écarter tout risque de requalification en lien de subordination.",
-       plain="Le statut sous lequel chacun facture : micro-entreprise, société, association loi 1901...")
+       plain="Le statut sous lequel chacun facture : micro-entreprise, société, association loi 1901...",
+       example=(
+           "[Contractant 1] déclare exercer son activité de management sous le statut de [statut juridique — "
+           "micro-entreprise, société, association], immatriculé sous le numéro [SIREN/SIRET]. [Contractant 2] "
+           "déclare exercer son activité artistique sous le statut de [statut juridique], lui permettant de "
+           "percevoir directement ses revenus et, le cas échéant, de reverser la commission prévue au présent "
+           "mandat sans risque de requalification en salaire occulte."
+       ))
 
     # ── 1 — Objet du mandat ───────────────────────────────────────────────────
     g = _g("Objet du mandat", tooltip="Nature, périmètre et limites du mandat de management confié.", sort_order=1)
@@ -214,7 +221,14 @@ def run_seed(force: bool = False) -> int:
                     "reconduction. Un renouvellement tacite sans préavis clair est une source fréquente de "
                     "litige en fin de mandat.",
        plain="Si vous ne dites rien à l'échéance, le contrat repart-il automatiquement pour la même durée ? "
-             "Précisez le délai pour s'y opposer.")
+             "Précisez le délai pour s'y opposer.",
+       example=(
+           "À l'issue de la durée initiale prévue au présent mandat, celui-ci se renouvellera tacitement par "
+           "périodes successives de [durée du mandat] aux mêmes conditions, sauf dénonciation expresse de l'une "
+           "ou l'autre des parties notifiée par lettre recommandée avec accusé de réception au moins [nombre] "
+           "jours avant l'échéance de la période en cours. À défaut de dénonciation dans ce délai, les parties "
+           "seront réputées avoir consenti au renouvellement pour une période supplémentaire."
+       ))
     _c(g, "Préavis de non-reconduction", "textarea", sort_order=3, enabled_by_default=False,
        tooltip_short="Délai dans lequel une partie doit notifier son intention de ne pas reconduire le mandat.",
        example=(
@@ -308,7 +322,15 @@ def run_seed(force: bool = False) -> int:
        tooltip_short="Décrivez les moyens concrets que le Manager s'engage à mobiliser (réseau, budget, temps).",
        tooltip_long="Un mandat de management est une obligation de moyens, pas de résultat : le Manager ne "
                     "garantit pas le succès de l'Artiste, mais peut s'engager sur des moyens vérifiables "
-                    "(nombre de contacts pris, participation à des évènements professionnels, budget promo).")
+                    "(nombre de contacts pris, participation à des évènements professionnels, budget promo).",
+       example=(
+           "Le Manager s'engage à mobiliser, dans le cadre de son mandat, les moyens suivants : mise en relation "
+           "avec au moins [nombre] contacts professionnels pertinents (labels, médias, partenaires) par [durée], "
+           "participation aux principaux évènements professionnels du secteur (Midem, Primavera Pro ou "
+           "équivalents), et disponibilité pour un point d'échange régulier avec l'Artiste selon la fréquence "
+           "fixée à l'article Compte-rendu périodique. Ces engagements constituent une obligation de moyens et "
+           "non de résultat : le Manager ne garantit pas le succès commercial ou artistique de l'Artiste."
+       ))
 
     # ── 6 — Obligations de l'Artiste ──────────────────────────────────────────
     g = _g("Obligations de l'Artiste", sort_order=6)
@@ -372,7 +394,15 @@ def run_seed(force: bool = False) -> int:
                     "elle doit rester limitée dans le temps et proportionnée pour ne pas s'apparenter à une "
                     "clause de non-concurrence déguisée et disproportionnée.",
        plain="Après la fin du contrat, le manager ne peut pas activement démarcher les contacts qu'il a "
-             "connus grâce à vous, pendant une durée limitée.")
+             "connus grâce à vous, pendant une durée limitée.",
+       example=(
+           "Pendant une durée de [durée] à compter de la fin du présent mandat, quelle qu'en soit la cause, "
+           "[Contractant 1] s'interdit de démarcher activement, pour son propre compte ou celui d'un tiers, les "
+           "contacts professionnels (labels, partenaires, diffuseurs) dont il/elle a eu connaissance dans le "
+           "cadre de l'exécution du présent mandat. Cette interdiction ne fait pas obstacle à la poursuite de "
+           "relations professionnelles préexistantes au mandat ni à une sollicitation initiée spontanément par le "
+           "contact concerné."
+       ))
 
     # ── 8 — Confidentialité ───────────────────────────────────────────────────
     g = _g("Confidentialité", sort_order=8)
@@ -395,16 +425,19 @@ def run_seed(force: bool = False) -> int:
        tooltip_long="La clause attributive de compétence territoriale n'est valable qu'entre commerçants "
                     "(art. 48 CPC) : si l'une des parties est un particulier, les règles légales de compétence "
                     "s'appliquent malgré la clause.",
-       default_value={"text": "Tribunaux de Paris"})
+       default_value={"text": "Tribunaux de Paris"},
+       example="ex : Tribunal judiciaire de Paris — clause inopposable si l'une des parties est un particulier non commerçant (art. 48 CPC)")
     _c(g, "Médiation préalable obligatoire", "toggle", sort_order=2, enabled_by_default=False,
        tooltip_short="Les parties s'engagent à tenter une médiation avant toute action judiciaire.")
 
     # ── 10 — Notifications ────────────────────────────────────────────────────
     g = _g("Notifications", sort_order=10)
     _c(g, "Email de contact du Manager", "text", sort_order=0,
-       tooltip_short="Adresse email officielle du Manager pour les notifications contractuelles.")
+       tooltip_short="Adresse email officielle du Manager pour les notifications contractuelles.",
+       example="ex : contact@nomdumanager.example — adresse effectivement surveillée, utilisée pour le calcul des délais de préavis et de notification")
     _c(g, "Email de contact de l'Artiste", "text", sort_order=1,
-       tooltip_short="Adresse email officielle de l'Artiste pour les notifications contractuelles.")
+       tooltip_short="Adresse email officielle de l'Artiste pour les notifications contractuelles.",
+       example="ex : contact@nomartiste.example")
     _c(g, "Modalités de notification", "textarea", sort_order=2, enabled_by_default=False,
        tooltip_short="Email pour le quotidien, lettre recommandée pour les notifications graves.",
        example=(
@@ -437,7 +470,13 @@ def run_seed(force: bool = False) -> int:
     _c(g, "Liste des annexes", "textarea", sort_order=0, enabled_by_default=False,
        tooltip_short="Feuille de route, budget prévisionnel, calendrier de développement, mandats de représentation ponctuels...",
        plain="La liste des documents joints au contrat (feuille de route, budget...) qui comptent autant que le "
-             "contrat principal.")
+             "contrat principal.",
+       example=(
+           "Font partie intégrante du présent mandat les annexes suivantes, datées et paraphées par les parties : "
+           "Annexe 1 — Feuille de route et objectifs de développement artistique ; Annexe 2 — Budget prévisionnel "
+           "des actions de management ; Annexe 3 — Calendrier prévisionnel de développement ; Annexe 4 — Liste des "
+           "contacts professionnels préexistants exclus de la commission, le cas échéant."
+       ))
 
     db.session.commit()
     return touched

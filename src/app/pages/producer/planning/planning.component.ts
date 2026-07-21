@@ -8,6 +8,7 @@ import {
 } from '../../../services/planning.service';
 import { RosterService, RosterLinkDTO } from '../../../services/roster.service';
 import { AuthService } from '../../../services/auth.service';
+import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
 
 interface DayGroup {
   dateKey: string;
@@ -18,7 +19,7 @@ interface DayGroup {
 @Component({
   selector: 'app-planning',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent],
   templateUrl: './planning.component.html',
   styleUrl: './planning.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

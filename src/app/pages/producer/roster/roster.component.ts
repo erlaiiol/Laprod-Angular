@@ -5,12 +5,13 @@ import { Router, RouterModule } from '@angular/router';
 import { RosterService, RosterLinkDTO, RosterSearchResult } from '../../../services/roster.service';
 import { AuthService } from '../../../services/auth.service';
 import { ImgFallbackDirective } from '../../../directives/img-fallback.directive';
+import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-roster',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ImgFallbackDirective],
+  imports: [CommonModule, FormsModule, RouterModule, ImgFallbackDirective, ProducerTabsComponent],
   templateUrl: './roster.component.html',
   styleUrl: './roster.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

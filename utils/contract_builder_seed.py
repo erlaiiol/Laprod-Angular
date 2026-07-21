@@ -134,12 +134,22 @@ def run_seed() -> None:
        legal_ref="ISO 3901",
        example="ex : FRZ012345678 (code à 12 caractères attribué par le producteur phonographique)")
     _c(g, "Code UPC/EAN", "text", sort_order=4, enabled_by_default=False,
-       tooltip_short="Code barre produit pour la distribution physique et numérique.")
+       tooltip_short="Code barre produit pour la distribution physique et numérique.",
+       example="ex : 3 610155 234727 (attribué par le distributeur à chaque référence commerciale — un par format de sortie)")
     _c(g, "Versions concernées", "multi_toggle", sort_order=5,
        options=["Version originale", "Remix", "Version instrumentale", "Version acoustique", "Stems / pistes séparées", "Autres versions"],
        tooltip_short="Quelles versions de l'œuvre sont incluses dans ce contrat ?")
     _c(g, "Fichiers et éléments livrés", "textarea", sort_order=6, enabled_by_default=False,
-       tooltip_short="Listez les fichiers audio, partitions, stems concernés par le contrat.")
+       tooltip_short="Listez les fichiers audio, partitions, stems concernés par le contrat.",
+       example=(
+           "Les fichiers et éléments ci-après sont livrés par [Contractant 1] à [Contractant 2] au titre du présent "
+           "contrat et constituent l'ensemble contractuel de [l'Œuvre] : le fichier audio maître au format WAV non "
+           "compressé, les stems ou pistes séparées le cas échéant, le visuel de pochette en haute résolution, les "
+           "paroles complètes le cas échéant, ainsi que l'ensemble des métadonnées nécessaires à l'exploitation "
+           "(titre, auteurs, compositeurs, interprètes, codes ISRC et ISWC lorsqu'ils sont disponibles). Toute "
+           "modification ultérieure de ces éléments par [Contractant 1] devra faire l'objet d'une nouvelle "
+           "livraison, dans les mêmes conditions de forme et de délai que la livraison initiale."
+       ))
 
     # ── 4 — Nature des droits ─────────────────────────────────────────────────
     g = _g("Nature des droits concédés", tooltip="Droits d'exploitation accordés ou cédés par le présent contrat.", sort_order=4)
@@ -160,7 +170,16 @@ def run_seed() -> None:
        legal_ref="Art. L122-4 CPI")
     _c(g, "Exploitation dérivée — NFT, IA, Métavers", "toggle_with_details", sort_order=5, enabled_by_default=False,
        tooltip_short="Droit d'exploiter l'œuvre dans les nouveaux environnements numériques (NFT, IA, Métavers).",
-       tooltip_long="Ces droits émergents doivent être explicitement mentionnés car non couverts par les droits classiques. Précisez les conditions d'exploitation et les modalités de rémunération.")
+       tooltip_long="Ces droits émergents doivent être explicitement mentionnés car non couverts par les droits classiques. Précisez les conditions d'exploitation et les modalités de rémunération.",
+       example=(
+           "L'exploitation de [l'Œuvre] dans les environnements numériques émergents — jetons non fongibles (NFT), "
+           "entraînement ou génération par intelligence artificielle, environnements de métavers ou de réalité "
+           "virtuelle — est [autorisée / expressément exclue] du périmètre du présent contrat. Ces droits, non "
+           "couverts par les droits d'exploitation classiques définis aux articles précédents, ne peuvent être "
+           "présumés cédés : toute autorisation doit être expresse, limitée dans son objet et sa durée, et donner "
+           "lieu à une rémunération distincte négociée entre les parties, précisée le cas échéant à l'article "
+           "Intelligence artificielle — clauses spécifiques du présent contrat."
+       ))
 
     # ── 5 — Modalités d'exploitation ─────────────────────────────────────────
     g = _g("Modalités d'exploitation", tooltip="Supports et canaux d'exploitation autorisés.", sort_order=5)
@@ -234,10 +253,10 @@ def run_seed() -> None:
        tooltip_short="Budget ou actions marketing minimal à fournir par l'exploitant.",
        legal_ref="Art. L132-12 CPI",
        example=(
-           "L'Éditeur s'engage à consacrer à la promotion de l'Œuvre un budget minimum de [montant] euros sur la période "
-           "de [durée] suivant la date de sortie commerciale, incluant notamment les actions suivantes : campagnes de "
-           "promotion sur les plateformes de streaming, relations presse et médias, présence en événements professionnels "
-           "(Midem, Primavera Pro, etc.), et développement d'une stratégie éditoriale numérique cohérente."
+           "L'Éditeur s'engage à consacrer à la promotion de l'Œuvre un budget minimum de [budget marketing minimum] "
+           "sur la période de [durée] suivant la date de sortie commerciale, incluant notamment les actions suivantes : "
+           "campagnes de promotion sur les plateformes de streaming, relations presse et médias, présence en événements "
+           "professionnels (Midem, Primavera Pro, etc.), et développement d'une stratégie éditoriale numérique cohérente."
        ))
     _c(g, "Calendrier de sortie", "date", sort_order=2, enabled_by_default=False,
        tooltip_short="Date prévue de sortie commerciale de l'œuvre.")
@@ -281,11 +300,11 @@ def run_seed() -> None:
     _c(g, "Conditions de versement", "textarea", sort_order=2, enabled_by_default=False,
        tooltip_short="Calendrier et conditions de versement de l'avance.",
        example=(
-           "L'avance prévue au présent article est consentie à titre de minimum garanti et sera recoupée sur les royalties "
-           "dues à l'Auteur au titre de l'exploitation de l'Œuvre. Le recoupement s'effectuera uniquement sur les revenus "
-           "générés par l'Œuvre faisant l'objet du présent contrat, à l'exclusion de tout autre titre du catalogue de "
-           "l'Auteur. L'avance sera versée en deux tranches : 50 % à la signature du présent contrat, 50 % à la livraison "
-           "des masters validés."
+           "L'avance prévue au présent article, d'un montant de [montant de l'avance], est consentie à titre de "
+           "minimum garanti et sera recoupée sur les royalties dues à l'Auteur au titre de l'exploitation de l'Œuvre. "
+           "Le recoupement s'effectuera uniquement sur les revenus générés par l'Œuvre faisant l'objet du présent "
+           "contrat, à l'exclusion de tout autre titre du catalogue de l'Auteur. L'avance sera versée en deux "
+           "tranches : 50 % à la signature du présent contrat, 50 % à la livraison des masters validés."
        ))
 
     # ── 13 — Royalties ────────────────────────────────────────────────────────
@@ -582,7 +601,8 @@ def run_seed() -> None:
     # ── 30 — Notifications ────────────────────────────────────────────────────
     g = _g("Notifications", sort_order=30)
     _c(g, "Email contractuel du cessionnaire", "text", sort_order=0,
-       tooltip_short="Adresse email officielle pour toutes les notifications contractuelles.")
+       tooltip_short="Adresse email officielle pour toutes les notifications contractuelles.",
+       example="ex : contrats@labelmusic.example — adresse dédiée aux notifications contractuelles, distincte de l'email de contact commercial")
     _c(g, "Modalités de notification", "textarea", sort_order=1, enabled_by_default=False,
        tooltip_short="Précisez les modalités : email recommandé, lettre recommandée AR, délai de prise en compte.")
 
@@ -677,6 +697,26 @@ _EXAMPLES: dict[str, str] = {
     ),
     "Code ISWC": "ex : T-123.456.789-0 (à obtenir auprès de la SACEM après dépôt)",
     "Code ISRC": "ex : FRZ012345678 (code à 12 caractères attribué par le producteur phonographique)",
+    "Code UPC/EAN": "ex : 3 610155 234727 (attribué par le distributeur à chaque référence commerciale — un par format de sortie)",
+    "Fichiers et éléments livrés": (
+        "Les fichiers et éléments ci-après sont livrés par [Contractant 1] à [Contractant 2] au titre du présent "
+        "contrat et constituent l'ensemble contractuel de [l'Œuvre] : le fichier audio maître au format WAV non "
+        "compressé, les stems ou pistes séparées le cas échéant, le visuel de pochette en haute résolution, les "
+        "paroles complètes le cas échéant, ainsi que l'ensemble des métadonnées nécessaires à l'exploitation "
+        "(titre, auteurs, compositeurs, interprètes, codes ISRC et ISWC lorsqu'ils sont disponibles). Toute "
+        "modification ultérieure de ces éléments par [Contractant 1] devra faire l'objet d'une nouvelle "
+        "livraison, dans les mêmes conditions de forme et de délai que la livraison initiale."
+    ),
+    "Exploitation dérivée — NFT, IA, Métavers": (
+        "L'exploitation de [l'Œuvre] dans les environnements numériques émergents — jetons non fongibles (NFT), "
+        "entraînement ou génération par intelligence artificielle, environnements de métavers ou de réalité "
+        "virtuelle — est [autorisée / expressément exclue] du périmètre du présent contrat. Ces droits, non "
+        "couverts par les droits d'exploitation classiques définis aux articles précédents, ne peuvent être "
+        "présumés cédés : toute autorisation doit être expresse, limitée dans son objet et sa durée, et donner "
+        "lieu à une rémunération distincte négociée entre les parties, précisée le cas échéant à l'article "
+        "Intelligence artificielle — clauses spécifiques du présent contrat."
+    ),
+    "Email contractuel du cessionnaire": "ex : contrats@labelmusic.example — adresse dédiée aux notifications contractuelles, distincte de l'email de contact commercial",
     "Exclusivité totale": (
         "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble "
         "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les "
@@ -691,17 +731,17 @@ _EXAMPLES: dict[str, str] = {
         "constituent pas une concurrence directe avec les projets développés par l'Éditeur dans le cadre du présent accord."
     ),
     "Minimum marketing": (
-        "L'Éditeur s'engage à consacrer à la promotion de l'Œuvre un budget minimum de [montant] euros sur la période "
-        "de [durée] suivant la date de sortie commerciale, incluant notamment les actions suivantes : campagnes de "
-        "promotion sur les plateformes de streaming, relations presse et médias, présence en événements professionnels "
-        "(Midem, Primavera Pro, etc.), et développement d'une stratégie éditoriale numérique cohérente."
+        "L'Éditeur s'engage à consacrer à la promotion de l'Œuvre un budget minimum de [budget marketing minimum] "
+        "sur la période de [durée] suivant la date de sortie commerciale, incluant notamment les actions suivantes : "
+        "campagnes de promotion sur les plateformes de streaming, relations presse et médias, présence en événements "
+        "professionnels (Midem, Primavera Pro, etc.), et développement d'une stratégie éditoriale numérique cohérente."
     ),
     "Conditions de versement": (
-        "L'avance prévue au présent article est consentie à titre de minimum garanti et sera recoupée sur les royalties "
-        "dues à l'Auteur au titre de l'exploitation de l'Œuvre. Le recoupement s'effectuera uniquement sur les revenus "
-        "générés par l'Œuvre faisant l'objet du présent contrat, à l'exclusion de tout autre titre du catalogue de "
-        "l'Auteur. L'avance sera versée en deux tranches : 50 % à la signature du présent contrat, 50 % à la livraison "
-        "des masters validés."
+        "L'avance prévue au présent article, d'un montant de [montant de l'avance], est consentie à titre de "
+        "minimum garanti et sera recoupée sur les royalties dues à l'Auteur au titre de l'exploitation de l'Œuvre. "
+        "Le recoupement s'effectuera uniquement sur les revenus générés par l'Œuvre faisant l'objet du présent "
+        "contrat, à l'exclusion de tout autre titre du catalogue de l'Auteur. L'avance sera versée en deux "
+        "tranches : 50 % à la signature du présent contrat, 50 % à la livraison des masters validés."
     ),
     "Clause de sunset (non-exploitation)": (
         "Si, à l'issue de la durée initiale du présent contrat, l'Éditeur n'a pas atteint un seuil cumulé de [X] streams "

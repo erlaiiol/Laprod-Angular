@@ -8,6 +8,7 @@ import {
 import { RosterService } from '../../../services/roster.service';
 import { UserService, UserTrack } from '../../../services/user.service';
 import { AuthService } from '../../../services/auth.service';
+import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
 
 interface ArtistOption {
   username: string;
@@ -17,7 +18,7 @@ interface ArtistOption {
 @Component({
   selector: 'app-royalties',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent],
   templateUrl: './royalties.component.html',
   styleUrl: './royalties.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

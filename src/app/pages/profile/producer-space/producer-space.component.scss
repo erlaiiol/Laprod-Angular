@@ -13,8 +13,8 @@ $accent: v.$tag-violet;
 }
 
 // ── Header — même gabarit que les autres espaces (dashboard-beatmaker etc.) ──
-.ph__header {
-  margin-bottom: 1.5rem;
+.dash-header {
+  margin-bottom: 1.25rem;
 
   h1 {
     font-size: 1.5rem;
@@ -25,12 +25,66 @@ $accent: v.$tag-violet;
   }
 }
 
+// ── États loading / erreur — même pattern que les 3 autres dashboards ────────
+.state-loading { display: flex; justify-content: center; padding: 4rem 0; }
+.state-error   { text-align: center; padding: 2rem; color: v.$tag-red-light; }
+
+.spinner {
+  width: 36px; height: 36px; border: 3px solid v.$bg-border;
+  border-top-color: #{$accent}; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Stats — même pattern que dashboard-beatmaker/artist/mix-engineer ────────
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+
+  @media (max-width: 700px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 400px) { grid-template-columns: 1fr; }
+}
+
+.stat-card {
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  border-radius: v.$radius-md;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: v.$shadow-sm, v.$edge-highlight;
+}
+
+.stat-value {
+  font-family: v.$font-display;
+  letter-spacing: v.$tracking-tight;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: v.$text-primary;
+  margin-bottom: 0.25rem;
+
+  &.text-orange { color: v.$tag-orange; }
+  &.text-blue   { color: v.$tag-blue; }
+  &.text-violet { color: #{$accent}; }
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: v.$text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 // ── Actions rapides ──────────────────────────────────────────────────────────
 .ph__actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .ph__card {
@@ -92,54 +146,92 @@ $accent: v.$tag-violet;
 }
 .ph__card:hover .ph__card-cta i { transform: translateX(3px); }
 
-// ── Roster / planning / royalties ────────────────────────────────────────────
-.ph__soon-grid {
+// ── Suivi — roster & prochains événements ────────────────────────────────────
+.ph__tracking {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.1rem;
 }
 
-.ph__soon-card {
-  position: relative;
-  display: block;
-  padding: 1.4rem;
+.tracking-card {
+  padding: 1.25rem 1.4rem;
   border-radius: v.$radius-lg;
   background: v.$bg-surface;
-  border: 1px dashed v.$bg-border-subtle;
-  opacity: 0.85;
-  text-decoration: none;
-  transition: border-color 0.15s, opacity 0.15s;
+  border: 1px solid v.$bg-border;
+}
 
-  &:hover { opacity: 1; border-color: #{$accent}; }
+.tracking-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
 
-  i { font-size: 1.5rem; color: #{$accent}; }
-
-  h4 {
-    margin: 0.6rem 0 0.35rem;
-    font-size: 1.05rem;
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-size: 0.98rem;
     font-weight: v.$weight-bold;
     color: v.$text-primary;
-  }
 
-  p {
-    margin: 0;
-    font-size: 0.88rem;
-    color: v.$text-secondary;
-    line-height: 1.4;
+    i { color: #{$accent}; }
   }
 }
 
-.ph__badge-soon {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: v.$radius-pill;
-  font-size: 0.7rem;
-  font-weight: v.$weight-bold;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: v.$gold;
-  background: rgba(v.$gold, 0.14);
-  border: 1px solid rgba(v.$gold, 0.38);
+.tracking-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: v.$text-secondary;
+  text-decoration: none;
+
+  &:hover { color: #{$accent}; }
+}
+
+.tracking-card__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: v.$text-muted;
+}
+
+.tracking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tracking-list__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid v.$bg-border;
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+}
+
+.tracking-list__icon {
+  color: #{$accent};
+  font-size: 0.85rem;
+}
+
+.tracking-list__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: v.$text-primary;
+}
+
+.tracking-list__meta {
+  font-size: 0.78rem;
+  color: v.$text-muted;
+
+  i { color: v.$tag-green; }
 }

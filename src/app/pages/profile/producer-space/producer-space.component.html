@@ -1,56 +1,104 @@
-<section class="ph">
+<div class="ph">
 
-  <!-- ── Header ────────────────────────────────────────────────────────────── -->
-  <div class="ph__header">
+  <!-- ── Header — même gabarit que les autres espaces ─────────────────────── -->
+  <div class="dash-header">
     <h1><i class="bi bi-file-earmark-text"></i> Espace Producteur</h1>
   </div>
 
-  <!-- Actions rapides -->
-  <div class="ph__actions">
-    @for (a of actions; track a.title) {
-      <a class="ph__card" [routerLink]="a.link">
-        <span class="ph__card-icon"><i class="bi {{ a.icon }}"></i></span>
-        <h3>{{ a.title }}</h3>
-        <p>{{ a.desc }}</p>
-        <span class="ph__card-cta">{{ a.cta }} <i class="bi bi-arrow-right"></i></span>
-      </a>
-    }
-  </div>
+  <app-producer-tabs />
 
-  <!-- Roster : vrai résumé, accessible sans condition de palier -->
-  <div class="ph__soon">
-    <div class="ph__soon-grid">
-      <a class="ph__card" routerLink="/producer/roster">
-        <span class="ph__card-icon"><i class="bi bi-people"></i></span>
-        <h3>Roster</h3>
-        <p>
-          {{ activeCount() }} artiste{{ activeCount() === 1 ? '' : 's' }} lié{{ activeCount() === 1 ? '' : 's' }}
-          @if (pendingCount() > 0) {, {{ pendingCount() }} invitation{{ pendingCount() === 1 ? '' : 's' }} en attente}.
-        </p>
-        <span class="ph__card-cta">Gérer mon roster <i class="bi bi-arrow-right"></i></span>
-      </a>
-      <a class="ph__card" routerLink="/producer/planning">
-        <span class="ph__card-icon"><i class="bi bi-calendar3"></i></span>
-        <h3>Rétroplanning</h3>
-        <p>Sessions, concerts, résidences, rendez-vous — un planning partagé avec chaque artiste de ton roster.</p>
-        <span class="ph__card-cta">Ouvrir le planning <i class="bi bi-arrow-right"></i></span>
-      </a>
-      @if (auth.canViewRoyalties()) {
-        <a class="ph__card" routerLink="/producer/royalties">
-          <span class="ph__card-icon"><i class="bi bi-pie-chart"></i></span>
-          <h3>Splits &amp; royalties</h3>
-          <p>La cap-table de chaque titre : qui possède quel pourcentage, topliner, beatmaker, ingé, label.</p>
-          <span class="ph__card-cta">Voir la cap-table <i class="bi bi-arrow-right"></i></span>
-        </a>
-      } @else {
-        <a class="ph__soon-card" routerLink="/premium">
-          <i class="bi bi-pie-chart"></i>
-          <h4>Splits &amp; royalties</h4>
-          <p>La cap-table de chaque titre : qui possède quel pourcentage, topliner, beatmaker, ingé, label.</p>
-          <span class="ph__badge-soon">Premium</span>
+  @if (loading()) {
+    <div class="state-loading"><div class="spinner"></div></div>
+  }
+
+  @if (error() && !loading()) {
+    <div class="state-error"><i class="bi bi-exclamation-circle"></i> {{ error() }}</div>
+  }
+
+  @if (!loading() && !error() && data(); as d) {
+
+    <!-- ── Stats ─────────────────────────────────────────────────────────── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ d.stats.active_artists_count }}</div>
+        <div class="stat-label">Artistes actifs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-orange">{{ d.stats.pending_invites_count }}</div>
+        <div class="stat-label">Invitations en attente</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-blue">{{ d.stats.upcoming_events_count }}</div>
+        <div class="stat-label">Événements à venir</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value text-violet">{{ d.stats.pending_splits_count }}</div>
+        <div class="stat-label">Splits à confirmer</div>
+      </div>
+    </div>
+
+    <!-- ── Actions rapides ───────────────────────────────────────────────── -->
+    <div class="ph__actions">
+      @for (a of actions; track a.title) {
+        <a class="ph__card" [routerLink]="a.link">
+          <span class="ph__card-icon"><i class="bi {{ a.icon }}"></i></span>
+          <h3>{{ a.title }}</h3>
+          <p>{{ a.desc }}</p>
+          <span class="ph__card-cta">{{ a.cta }} <i class="bi bi-arrow-right"></i></span>
         </a>
       }
     </div>
-  </div>
 
-</section>
+    <!-- ── Suivi — roster & planning ─────────────────────────────────────── -->
+    <div class="ph__tracking">
+
+      <div class="tracking-card">
+        <div class="tracking-card__header">
+          <h3><i class="bi bi-people"></i> Ton roster</h3>
+          <a routerLink="/producer/roster" class="tracking-card__link">Gérer <i class="bi bi-arrow-right"></i></a>
+        </div>
+        @if (d.roster_preview.length === 0) {
+          <p class="tracking-card__empty">Aucun artiste actif pour l'instant.</p>
+        } @else {
+          <ul class="tracking-list">
+            @for (r of d.roster_preview; track r.link_id) {
+              <li class="tracking-list__item">
+                <span class="tracking-list__title">{{ r.artist.username }}</span>
+                <span class="tracking-list__meta">
+                  @if (r.has_contract) {
+                    <i class="bi bi-file-earmark-check-fill" title="Contrat de management formalisé"></i> Contrat formalisé
+                  } @else {
+                    Sans contrat formalisé
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="tracking-card">
+        <div class="tracking-card__header">
+          <h3><i class="bi bi-calendar3"></i> Prochains événements</h3>
+          <a routerLink="/producer/planning" class="tracking-card__link">Planning <i class="bi bi-arrow-right"></i></a>
+        </div>
+        @if (d.upcoming_events.length === 0) {
+          <p class="tracking-card__empty">Aucun événement à venir.</p>
+        } @else {
+          <ul class="tracking-list">
+            @for (e of d.upcoming_events; track e.id) {
+              <li class="tracking-list__item">
+                <span class="tracking-list__icon"><i class="bi {{ eventIcon(e.event_type) }}"></i></span>
+                <span class="tracking-list__title">{{ e.title }}</span>
+                <span class="tracking-list__meta">{{ formatEventDate(e.start_at) }} · {{ e.artist.username }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+    </div>
+
+  }
+
+</div>

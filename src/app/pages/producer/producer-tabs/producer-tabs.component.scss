@@ -1,0 +1,45 @@
+@use 'variables' as v;
+
+// Même pattern exact que .tabs/.tab-btn dans dashboard-beatmaker/dashboard-artist/
+// dashboard-mix-engineer.component.scss — dupliqué ici (encapsulation par
+// composant Angular) plutôt qu'extrait en global, pour rester cohérent avec la
+// convention déjà en place dans ce codebase (chaque dashboard porte sa propre
+// copie de ce pattern).
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid v.$bg-border;
+  padding-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: v.$text-secondary;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  margin-bottom: -1px;
+
+  &:not(.active):hover { color: v.$text-primary; }
+}
+
+.tab-btn--link {
+  text-decoration: none;
+
+  &.active {
+    background: v.$off-white;
+    color: v.$bg-base;
+    border-bottom-color: transparent;
+  }
+}
