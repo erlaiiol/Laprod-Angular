@@ -103,6 +103,8 @@ const EXPLOITATION_CONFIG: ContractTypeConfig = {
         { id: 'oeuvreTitle', label: "Titre de l'œuvre", placeholder: 'ex : Midnight Drive', inputType: 'text', bracket: "[l'Œuvre]", wide: true },
         { id: 'oeuvreType', label: 'Type', inputType: 'select', options: ['Chanson', 'Album', 'Instrumental', 'Autre'] },
         { id: 'oeuvreIsrc', label: 'Code ISRC', placeholder: 'ex : FR-ABC-23-01234', inputType: 'text', bracket: '[ISRC]' },
+        { id: 'oeuvreIswc', label: 'Code ISWC', placeholder: 'ex : T-123.456.789-0', inputType: 'text', bracket: '[ISWC]' },
+        { id: 'oeuvreUpcEan', label: 'Code UPC/EAN', placeholder: 'ex : 3 610155 234727', inputType: 'text', bracket: '[UPC/EAN]' },
         { id: 'anneeCreation', label: 'Année de création', placeholder: 'ex : 2024', inputType: 'number', bracket: '[année de création]', min: 1900, max: 2099 },
         { id: 'dureeOeuvre', label: "Durée de l'œuvre", placeholder: 'ex : 3 min 42 s', inputType: 'text', bracket: "[durée de l'œuvre]" },
         { id: 'debutExploitation', label: "Début d'exploitation", placeholder: 'ex : 01/01/2025', inputType: 'text', bracket: "[début d'exploitation]" },
@@ -118,6 +120,13 @@ const EXPLOITATION_CONFIG: ContractTypeConfig = {
         { id: 'pctProducteur', label: '% Producteur', placeholder: 'ex : 10', inputType: 'number', bracket: '[% Producteur]', suffix: '%', min: 0, max: 100 },
         { id: 'montantAvance', label: "Montant de l'avance (€)", placeholder: 'ex : 2000', inputType: 'number', bracket: "[montant de l'avance]", suffix: ' €', min: 0 },
         { id: 'budgetMarketing', label: 'Budget marketing minimum (€)', placeholder: 'ex : 1500', inputType: 'number', bracket: '[budget marketing minimum]', suffix: ' €', min: 0 },
+      ],
+    },
+    {
+      title: 'Juridiction',
+      icon: 'bi-bank',
+      fields: [
+        { id: 'tribunalCompetent', label: 'Tribunal compétent', placeholder: 'ex : Tribunal judiciaire de Paris', inputType: 'text', bracket: '[Tribunal compétent]', wide: true },
       ],
     },
   ],
@@ -494,6 +503,14 @@ const PERFORMANCE_CONFIG: ContractTypeConfig = {
         { id: 'acompte', label: 'Acompte (€)', placeholder: 'ex : 500', inputType: 'number', bracket: '[acompte]', suffix: ' €', min: 0 },
         { id: 'pctRecettes', label: '% partage billetterie', placeholder: 'ex : 65', inputType: 'number', bracket: '[% de partage]', suffix: '%', min: 0, max: 100 },
         { id: 'perDiem', label: 'Per diem (€/jour/personne)', placeholder: 'ex : 25', inputType: 'number', bracket: '[per diem]', suffix: ' €', min: 0 },
+        { id: 'prixPlaces', label: 'Prix des places plein tarif (€)', placeholder: 'ex : 25', inputType: 'number', bracket: '[prix des places]', suffix: ' €', min: 0 },
+      ],
+    },
+    {
+      title: 'Juridiction',
+      icon: 'bi-bank',
+      fields: [
+        { id: 'tribunalCompetent', label: 'Tribunal compétent', placeholder: 'ex : Tribunal judiciaire de Paris', inputType: 'text', bracket: '[Tribunal compétent]', wide: true },
       ],
     },
   ],
@@ -876,6 +893,13 @@ const MANAGEMENT_CONFIG: ContractTypeConfig = {
       icon: 'bi-percent',
       fields: [
         { id: 'commissionRate', label: 'Taux de commission (%)', placeholder: 'ex : 15', inputType: 'number', bracket: '[taux de commission]', suffix: '%', min: 0, max: 50 },
+      ],
+    },
+    {
+      title: 'Juridiction',
+      icon: 'bi-bank',
+      fields: [
+        { id: 'tribunalCompetent', label: 'Tribunal compétent', placeholder: 'ex : Tribunal judiciaire de Paris', inputType: 'text', bracket: '[Tribunal compétent]', wide: true },
       ],
     },
   ],

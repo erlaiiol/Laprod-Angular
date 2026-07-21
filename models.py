@@ -1639,14 +1639,15 @@ class PlanningEventStatus(enum.Enum):
 
 
 class PlanningEvent(db.Model):
-    """Événement du rétroplanning partagé entre un producteur et un artiste.
-    Rattaché à un RosterLink (implicitement le couple des deux users) plutôt
-    qu'à deux user_id directs, pour garantir qu'un événement ne peut exister
-    que dans le cadre d'un lien roster déjà noué."""
+    """Événement du rétroplanning — partagé sur un RosterLink actif, OU
+    personnel (roster_link_id NULL) si l'utilisateur n'a besoin de personne
+    d'autre pour se construire un calendrier. Un événement personnel est
+    confirmé dès sa création (aucune autre partie à convaincre) et n'est
+    visible que par son créateur — cf. _can_act_on_event dans planning_api.py."""
     __tablename__ = 'planning_event'
 
     id             = db.Column(db.Integer, primary_key=True)
-    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=False)
+    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=True)
     created_by_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     title       = db.Column(db.String(200), nullable=False)

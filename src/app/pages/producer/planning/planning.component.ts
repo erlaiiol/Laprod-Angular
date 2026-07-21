@@ -80,18 +80,25 @@ export class PlanningComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    // Uniquement pour peupler le sélecteur "Roster" (optionnel) du formulaire —
+    // l'absence de lien actif ne bloque plus rien : le défaut est un événement
+    // personnel (selectedLinkId reste null tant que l'utilisateur ne choisit
+    // pas explicitement un lien).
     this.roster.mine().subscribe({
       next: res => {
         const all = [...(res.data?.as_producer ?? []), ...(res.data?.as_artist ?? [])];
-        const active = all.filter(l => l.status === 'active');
-        this.activeLinks.set(active);
-        if (active.length > 0) this.selectedLinkId.set(active[0].id);
+        this.activeLinks.set(all.filter(l => l.status === 'active'));
       },
       error: () => {},
     });
     // Délai : laisse le contenu (toolbar/agenda) se peindre et les ancres
     // s'enregistrer avant de tenter de démarrer la visite guidée.
     setTimeout(() => this.tour.maybeAutoStart('planning'), 900);
+  }
+
+  /** Lie le <select> du roster (valeur '' = aucun lien = événement personnel). */
+  onLinkSelect(value: string): void {
+    this.selectedLinkId.set(value ? Number(value) : null);
   }
 
   private reload(): void {
@@ -111,8 +118,8 @@ export class PlanningComponent implements OnInit {
     const linkId = this.selectedLinkId();
     const title = this.formTitle().trim();
     const start = this.formStart();
-    if (!linkId || !title || !start) {
-      this.formError.set('Titre, roster et date de début sont obligatoires.');
+    if (!title || !start) {
+      this.formError.set('Titre et date de début sont obligatoires.');
       return;
     }
 

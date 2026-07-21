@@ -101,6 +101,8 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
       '[Rôle 1]':         p1?.role ?? '',
       '[Contractant 2]':  nom(p2),
       '[Rôle 2]':         p2?.role ?? '',
+      '[Email Contractant 1]': p1?.email ?? '',
+      '[Email Contractant 2]': p2?.email ?? '',
     };
     const values = this.introValues();
     for (const section of this.config().introSections) {

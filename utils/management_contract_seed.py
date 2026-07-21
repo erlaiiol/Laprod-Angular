@@ -426,7 +426,7 @@ def run_seed(force: bool = False) -> int:
                     "(art. 48 CPC) : si l'une des parties est un particulier, les règles légales de compétence "
                     "s'appliquent malgré la clause.",
        default_value={"text": "Tribunaux de Paris"},
-       example="ex : Tribunal judiciaire de Paris — clause inopposable si l'une des parties est un particulier non commerçant (art. 48 CPC)")
+       example="[Tribunal compétent]")
     _c(g, "Médiation préalable obligatoire", "toggle", sort_order=2, enabled_by_default=False,
        tooltip_short="Les parties s'engagent à tenter une médiation avant toute action judiciaire.")
 
@@ -434,10 +434,10 @@ def run_seed(force: bool = False) -> int:
     g = _g("Notifications", sort_order=10)
     _c(g, "Email de contact du Manager", "text", sort_order=0,
        tooltip_short="Adresse email officielle du Manager pour les notifications contractuelles.",
-       example="ex : contact@nomdumanager.example — adresse effectivement surveillée, utilisée pour le calcul des délais de préavis et de notification")
+       example="[Email Contractant 1]")
     _c(g, "Email de contact de l'Artiste", "text", sort_order=1,
        tooltip_short="Adresse email officielle de l'Artiste pour les notifications contractuelles.",
-       example="ex : contact@nomartiste.example")
+       example="[Email Contractant 2]")
     _c(g, "Modalités de notification", "textarea", sort_order=2, enabled_by_default=False,
        tooltip_short="Email pour le quotidien, lettre recommandée pour les notifications graves.",
        example=(

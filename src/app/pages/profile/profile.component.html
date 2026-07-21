@@ -136,12 +136,11 @@
               <span class="role-card__label">Espace Producteur <app-beta-badge /></span>
             </a>
           }
-          @if (isArtist()) {
-            <a class="role-card role-card--producer" [routerLink]="['/producer/planning']">
-              <span class="role-card__icon"><i class="bi bi-calendar3"></i></span>
-              <span class="role-card__label">Mon planning <app-beta-badge /></span>
-            </a>
-          }
+          <!-- Universel : un calendrier perso ne requiert ni rôle ni lien roster. -->
+          <a class="role-card role-card--producer" [routerLink]="['/producer/planning']">
+            <span class="role-card__icon"><i class="bi bi-calendar3"></i></span>
+            <span class="role-card__label">Mon planning <app-beta-badge /></span>
+          </a>
           @if (showWallet()) {
             <a class="role-card role-card--wallet" [routerLink]="['/wallet']">
               <span class="role-card__icon"><i class="bi bi-wallet2"></i></span>
