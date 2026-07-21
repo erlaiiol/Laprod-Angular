@@ -135,7 +135,15 @@
           </label>
         </div>
 
-        <button type="submit" class="btn-primary" [disabled]="loading()">
+        @if (captchaEnabled) {
+          <app-turnstile class="captcha" (token)="captchaToken.set($event)"></app-turnstile>
+        }
+
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="loading() || (captchaEnabled && !captchaToken())"
+        >
           @if (loading()) {
             <span class="spinner"></span> Création du compte…
           } @else {

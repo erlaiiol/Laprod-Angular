@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { AuthService } from '../../../services/auth.service';
 import { UserflowService } from '../../../services/userflow.service';
+import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
 
 @Component({
   selector: 'app-sidebar-fabs',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, TourAnchorDirective],
   templateUrl: './sidebar-fabs.component.html',
   styleUrl: './sidebar-fabs.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -106,34 +106,58 @@
           <i class="bi bi-sliders"></i>
           <span>Mix / Master Engineer</span>
         </label>
+        <label class="role-toggle" [class.active]="isProducer()">
+          <input type="checkbox" [checked]="isProducer()" (change)="isProducer.set(!isProducer())" hidden />
+          <i class="bi bi-file-earmark-text"></i>
+          <span>Producteur</span>
+        </label>
       </div>
+    </div>
+
+    <!-- ── Communications ───────────────────────────────────────────────────── -->
+    <!-- Opt-in explicite : décoché par défaut, jamais pré-coché. C'est ce
+         consentement qui rend légales les campagnes des vendeurs. -->
+    <div class="form-section">
+      <h3 class="section-title"><i class="bi bi-envelope-heart"></i> Communications</h3>
+
+      <label class="marketing-optin">
+        <input type="checkbox"
+               [ngModel]="marketingOptIn()" [ngModelOptions]="{ standalone: true }"
+               (ngModelChange)="setMarketingOptIn($event)">
+        <span>
+          Je souhaite recevoir les offres des beatmakers et ingénieurs de LaProd
+          <em>
+            Nouveaux beats, codes promo, réductions sur les mixs. Deux emails par mois
+            maximum et par artiste. Vous pouvez vous désinscrire en un clic depuis
+            n'importe lequel de ces emails.
+          </em>
+        </span>
+      </label>
+
+      @if (!emailVerified()) {
+        <p class="marketing-hint">
+          Vérifiez d'abord votre adresse email pour pouvoir recevoir ces offres.
+        </p>
+      }
     </div>
 
     <!-- ── Abonnement LaProd+ ────────────────────────────────────────────────── -->
     <div class="form-section">
       <h3 class="section-title"><i class="bi bi-stars"></i> Abonnement LaProd+</h3>
-      @if (subscriptionPlan() === 'free') {
+      @if (!auth.isPremium()) {
         <div class="plan-badge plan-badge--free">
-          <i class="bi bi-circle"></i> Plan gratuit
+          <i class="bi bi-circle"></i> Découverte
         </div>
         <p class="field-hint">
-          Passez à <strong>LaProd+ Amateur</strong> ou <strong>Pro</strong> pour débloquer plus de tokens,
-          les contrats, les beats exclusifs et plus encore.
+          Vous pouvez rester ici aussi longtemps que vous voulez. Les paliers payants
+          débloquent plus de toplines, plus d'uploads, et les outils de vente.
         </p>
         <a routerLink="/premium" class="btn-upgrade-inline">
-          <i class="bi bi-stars"></i> Découvrir LaProd+
-        </a>
-      } @else if (subscriptionPlan() === 'amateur') {
-        <div class="plan-badge plan-badge--amateur">
-          <i class="bi bi-check-circle-fill"></i> LaProd+ Amateur
-        </div>
-        <p class="field-hint">Passez au plan Pro pour accéder au Contract Builder et au badge Master Pro.</p>
-        <a routerLink="/premium" class="btn-upgrade-inline btn-upgrade-inline--manage">
-          <i class="bi bi-arrow-up-circle"></i> Gérer / Passer au Pro
+          <i class="bi bi-stars"></i> Voir les paliers
         </a>
       } @else {
-        <div class="plan-badge plan-badge--pro">
-          <i class="bi bi-star-fill"></i> LaProd+ Pro
+        <div class="plan-badge" [class]="'plan-badge--' + auth.plan()">
+          <i class="bi bi-check-circle-fill"></i> LaProd+ {{ auth.planLabel() }}
         </div>
         <a routerLink="/premium" class="btn-upgrade-inline btn-upgrade-inline--manage">
           <i class="bi bi-arrow-clockwise"></i> Gérer mon abonnement

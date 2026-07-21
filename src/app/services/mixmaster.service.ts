@@ -108,6 +108,24 @@ export class MixmasterService {
     );
   }
 
+  // ── Vues de page (équivalent TrackView côté prestation) ─────────────────────
+
+  /** Enregistre une vue de la page de commande d'un ingénieur. Fire-and-forget :
+   *  une vue non comptée ne doit jamais gêner l'affichage de la page. */
+  recordEngineerView(engineerId: number): void {
+    this.http.post(`${this.apiUrl}/api/mixmaster/engineers/${engineerId}/view`, {})
+      .subscribe({ next: () => {}, error: () => {} });
+  }
+
+  /** Stats de vues de MA page d'ingénieur. unique_views = null si non-Premium. */
+  getMyEngineerViewStats(): Observable<ApiResponse<{
+    total_views: number; unique_views: number | null; unique_locked: boolean;
+  }>> {
+    return this.http.get<ApiResponse<{
+      total_views: number; unique_views: number | null; unique_locked: boolean;
+    }>>(`${this.apiUrl}/api/mixmaster/my/view-stats`);
+  }
+
   // ── Artist actions ─────────────────────────────────────────────────────────
 
   /**

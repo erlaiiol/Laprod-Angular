@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, signal, computed, effect,
+  Component, OnInit, signal, computed, effect, untracked,
   inject, ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -7,6 +7,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TrackService, TrackDetail } from '../../services/track.service';
 import { PaymentService } from '../../services/payment.service';
+import { PromoService, PromoPreview } from '../../services/promo.service';
 import { AuthService } from '../../services/auth.service';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
@@ -78,6 +79,7 @@ export class TrackContractConfigComponent implements OnInit {
   private router     = inject(Router);
   private trackSvc   = inject(TrackService);
   private paymentSvc = inject(PaymentService);
+  private promoSvc   = inject(PromoService);
   readonly auth      = inject(AuthService);
   private cdr        = inject(ChangeDetectorRef);
 
@@ -139,6 +141,67 @@ export class TrackContractConfigComponent implements OnInit {
     this.subtotalWithMechanical() + this.publicShowFee()
   );
 
+  // ── Code promo ─────────────────────────────────────────────────────────────
+
+  promoInput    = signal('');
+  promoApplied  = signal<PromoPreview | null>(null);
+  promoError    = signal<string | null>(null);
+  promoChecking = signal(false);
+
+  /** Ce que l'acheteur paie réellement. Tant qu'aucun code n'est validé par le
+   *  serveur, c'est le prix catalogue — on n'invente jamais de remise côté client. */
+  finalPrice = computed(() => this.promoApplied()?.net ?? this.totalPrice());
+  discount   = computed(() => this.promoApplied()?.discount ?? 0);
+
+  applyPromo(): void {
+    const code  = this.promoInput().trim();
+    const track = this.track();
+    if (!code || !track || this.promoChecking()) return;
+
+    this.promoChecking.set(true);
+    this.promoError.set(null);
+    this.cdr.markForCheck();
+
+    // Le serveur revalide le code ET recalcule la remise à partir des mêmes
+    // options : ce qui s'affiche ici est exactement ce qui sera encaissé.
+    this.promoSvc.previewTrack({
+      code,
+      track_id:                track.id,
+      format_type:             this.format(),
+      is_exclusive:            this.rightExclusive(),
+      is_lifetime:             this.isLifetime(),
+      duration_years:          this.isLifetime() ? 999 : this.duration() === 'stream' ? 0 : Number(this.duration()),
+      territory:               this.territory(),
+      mechanical_reproduction: !this.streamOnly() && (this.mechanicalAutoIncluded() || this.rightMechanical()),
+      public_show:             !this.streamOnly() && (this.publicShowAutoIncluded() || this.rightPublicShow()),
+      arrangement:             !this.streamOnly() && this.rightArrangement(),
+    }).subscribe({
+      next: res => {
+        if (res.success && res.data) {
+          this.promoApplied.set(res.data);
+          this.promoError.set(null);
+        } else {
+          this.promoError.set(res.feedback?.message ?? 'Code promo invalide.');
+        }
+        this.promoChecking.set(false);
+        this.cdr.markForCheck();
+      },
+      error: err => {
+        this.promoApplied.set(null);
+        this.promoError.set(err?.error?.feedback?.message ?? 'Code promo invalide.');
+        this.promoChecking.set(false);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  clearPromo(): void {
+    this.promoApplied.set(null);
+    this.promoInput.set('');
+    this.promoError.set(null);
+    this.cdr.markForCheck();
+  }
+
   sacemComposer = computed(() => (this.track() as any)?.sacem_percentage_composer ?? 50);
   sacemBuyer    = computed(() => 100 - this.sacemComposer());
 
@@ -199,6 +262,22 @@ export class TrackContractConfigComponent implements OnInit {
         this.rightMechanical.set(false);
         this.rightPublicShow.set(false);
         this.rightArrangement.set(false);
+      }
+    });
+
+    // Le montant de la remise dépend du prix brut : si l'acheteur change ses
+    // options de licence après avoir appliqué son code, la remise validée ne
+    // correspond plus à rien. On la retire et on le lui dit, plutôt que d'afficher
+    // un total que le serveur refuserait au checkout (PRICE_TAMPERED).
+    // untracked() sur promoApplied : sans lui, le .set(null) relancerait l'effet
+    // et la dépendance apparaîtrait/disparaîtrait selon la branche prise.
+    effect(() => {
+      const gross   = this.totalPrice();
+      const applied = untracked(() => this.promoApplied());
+      if (applied && Math.abs(applied.gross - gross) > 0.001) {
+        this.promoApplied.set(null);
+        this.promoError.set('Vos options ont changé : réappliquez votre code promo.');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -296,7 +375,10 @@ export class TrackContractConfigComponent implements OnInit {
       mechanical_reproduction: !this.streamOnly() && (this.mechanicalAutoIncluded() || this.rightMechanical()),
       public_show:             !this.streamOnly() && (this.publicShowAutoIncluded() || this.rightPublicShow()),
       arrangement:             !this.streamOnly() && this.rightArrangement(),
-      total_price:             Math.round(this.totalPrice() * 100) / 100,
+      // Le total envoyé est le NET (remise déduite) : le serveur réapplique le
+      // code de son côté et compare. Un écart => PRICE_TAMPERED.
+      total_price:             Math.round(this.finalPrice() * 100) / 100,
+      promo_code:              this.promoApplied()?.code,
       buyer_address:           this.buyerAddress(),
       buyer_email:             this.auth.currentUser()?.email,
       legal_terms_accepted:            this.legalAccepted(),

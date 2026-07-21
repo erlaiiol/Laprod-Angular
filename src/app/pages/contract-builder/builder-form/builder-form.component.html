@@ -41,7 +41,7 @@
       </span>
     </div>
     <div class="bf-header-actions">
-      <button class="btn-preview" (click)="togglePreview()"
+      <button class="btn-preview" lpTourAnchor="cb-preview" (click)="togglePreview()"
         [class.active]="showPreview()" [class.has-content]="hasAnyClauseText()">
         <i class="bi bi-eye"></i> {{ isFinal() ? 'Aperçu' : 'Prévisualiser' }}
       </button>
@@ -58,6 +58,28 @@
 
     <!-- Sidebar navigation -->
     <nav class="bf-sidebar">
+
+      <!-- Anneau de progression — clauses retenues effectivement complétées -->
+      <div class="bf-progress" lpTourAnchor="cb-progress">
+        <svg class="bf-progress-ring" viewBox="0 0 32 32" aria-hidden="true">
+          <circle class="bf-progress-ring-bg" cx="16" cy="16" r="14" />
+          <circle class="bf-progress-ring-fg" cx="16" cy="16" r="14"
+            [class.is-done]="progress().pct === 100"
+            [style.stroke-dasharray]="ringCircumference"
+            [style.stroke-dashoffset]="ringOffset()" />
+        </svg>
+        <div class="bf-progress-meta">
+          <span class="bf-progress-pct">{{ progress().pct }} %</span>
+          <span class="bf-progress-label">
+            @if (progress().total === 0) {
+              Aucune clause active
+            } @else {
+              {{ progress().done }} / {{ progress().total }} clauses
+            }
+          </span>
+        </div>
+      </div>
+
       <button class="bf-nav-item bf-nav-item--intro" [class.active]="showIntroTab()" (click)="goToIntro()">
         <span class="bf-art-num bf-art-intro">✦</span>
         Introduction
@@ -99,7 +121,7 @@
 
           <div class="bf-section-header">
             <h2><span class="bf-art-badge bf-art-badge--intro">✦</span> Introduction</h2>
-            <p class="bf-section-desc">Renseignez une fois les informations clés qui seront réutilisables dans vos clauses.</p>
+            <p class="bf-section-desc">Renseignez vos informations une seule fois ici : elles se recopient automatiquement dans les clauses du contrat.</p>
           </div>
 
           @if (config().legalWarning; as warning) {
@@ -112,10 +134,13 @@
             </div>
           }
 
+          <div class="bf-intro-cols" lpTourAnchor="cb-intro">
+          <div class="bf-intro-col">
+
           <!-- Section 1 : Parties (éditeur compact inline) -->
           <div class="bf-intro-section">
             <h3 class="bf-intro-title"><i class="bi bi-people-fill"></i> Les parties au contrat</h3>
-            <p class="bf-intro-hint">Renseignez l'identité et le rôle de chaque partie. Ces informations alimentent les variables <code>[Contractant 1]</code>, <code>[Rôle 1]</code>, etc.</p>
+            <p class="bf-intro-hint">Renseignez l'identité et le rôle de chaque partie. Ces informations alimentent les champs automatiques <code>[Contractant 1]</code>, <code>[Rôle 1]</code>, etc.</p>
 
             @for (p of parties(); track $index) {
               <div class="bf-intro-party-editor">
@@ -185,6 +210,9 @@
             }
           </div>
 
+          </div><!-- /bf-intro-col -->
+          <div class="bf-intro-col">
+
           <!-- Sections 2+ : champs d'introduction (pilotés par la config du type de contrat) -->
           @for (section of config().introSections; track section.title) {
             <div class="bf-intro-section">
@@ -230,79 +258,64 @@
             </div>
           }
 
-          <!-- Section 4 : Résumé du contrat -->
+          </div><!-- /bf-intro-col -->
+          </div><!-- /bf-intro-cols -->
+
+          <!-- Récapitulatif des champs automatiques — replié par défaut -->
+          <div class="bf-intro-section bf-autofields" lpTourAnchor="cb-autofields">
+            <button type="button" class="bf-autofields-head" (click)="toggleAutoFields()"
+              [attr.aria-expanded]="autoFieldsOpen()">
+              <i class="bi bi-magic"></i>
+              <span class="bf-autofields-title">Champs automatiques</span>
+              <span class="bf-autofields-count" [class.is-full]="autoFieldsDone() === autoFieldsTotal()">
+                {{ autoFieldsDone() }} / {{ autoFieldsTotal() }} renseignés
+              </span>
+              <i class="bi bi-chevron-down bf-autofields-chevron" [class.is-open]="autoFieldsOpen()"></i>
+            </button>
+            @if (autoFieldsOpen()) {
+              <p class="bf-intro-hint">
+                Renseignés ci-dessus, ils se recopient automatiquement dans vos clauses.
+                Un champ non renseigné reste visible entre crochets dans le texte du contrat.
+              </p>
+              <div class="bf-intro-vars">
+                @for (entry of introVarEntries(); track entry.key) {
+                  <div class="bf-intro-var-row" [class.defined]="!!entry.value">
+                    <code class="bf-var-key">{{ entry.key }}</code>
+                    <span class="bf-var-sep">→</span>
+                    @if (entry.value) {
+                      <span class="bf-var-val">{{ entry.value }}</span>
+                    } @else {
+                      <span class="bf-var-empty">à renseigner</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Ce que couvre ce contrat — sommaire compact, cliquable -->
           @if (activeGroupSummaries().length > 0) {
             <div class="bf-intro-section">
               <h3 class="bf-intro-title"><i class="bi bi-list-ul"></i> Ce que couvre ce contrat</h3>
-              <div class="bf-intro-summary">
+              <div class="bf-cover-chips">
                 @for (item of activeGroupSummaries(); track item.group.id) {
-                  <div class="bf-intro-summary-item">
-                    <span class="bf-intro-summary-num">Art. {{ item.artNum }}</span>
-                    <div class="bf-intro-summary-info">
-                      <span class="bf-intro-summary-name">{{ item.group.name }}</span>
-                      @if (item.group.description) {
-                        <span class="bf-intro-summary-desc">{{ item.group.description }}</span>
-                      }
-                    </div>
-                  </div>
+                  <button type="button" class="bf-cover-chip"
+                    [class.is-complete]="groupCompletionMap()[item.group.id] === 'complete'"
+                    [title]="item.group.description || item.group.name"
+                    (click)="setGroup(item.group.id)">
+                    <span class="bf-cover-chip-num">{{ item.artNum }}</span>
+                    {{ item.group.name }}
+                  </button>
                 }
               </div>
             </div>
           }
 
-          <!-- Section 5 : Variables disponibles -->
-          <div class="bf-intro-section">
-            <h3 class="bf-intro-title"><i class="bi bi-braces"></i> Variables disponibles</h3>
-            <p class="bf-intro-hint">Utilisez ces raccourcis dans vos clauses. Ils seront remplacés automatiquement.</p>
-            <div class="bf-intro-vars">
-              @for (entry of introVarEntries(); track entry.key) {
-                <div class="bf-intro-var-row" [class.defined]="!!entry.value">
-                  <code class="bf-var-key">{{ entry.key }}</code>
-                  <span class="bf-var-sep">→</span>
-                  @if (entry.value) {
-                    <span class="bf-var-val">{{ entry.value }}</span>
-                  } @else {
-                    <span class="bf-var-empty">non défini</span>
-                  }
-                </div>
-              }
-            </div>
-          </div>
-
-          <!-- Section Quick Start banner -->
+          <!-- Démarrage rapide — le rail droit étant masqué sous 1100px, on le rend ici -->
           @if (!isFinal()) {
-            <div class="bf-intro-section bf-qs-banner-section">
-              <div class="bf-qs-banner" [class.bf-qs-banner--warn]="!hasKeyInfo()">
-                <div class="bf-qs-banner-left">
-                  @if (hasKeyInfo()) {
-                    <span class="bf-qs-banner-title">
-                      <i class="bi bi-lightning-charge-fill"></i> Prêt à démarrer
-                    </span>
-                    <span class="bf-qs-banner-desc">
-                      {{ config().quickStartDescription }}
-                    </span>
-                  } @else {
-                    <span class="bf-qs-banner-title bf-qs-banner-title--warn">
-                      <i class="bi bi-exclamation-triangle-fill"></i> Informations clés manquantes
-                    </span>
-                    <span class="bf-qs-banner-desc">
-                      {{ config().keyInfoHint }}
-                    </span>
-                  }
-                </div>
-                <button type="button" class="bf-qs-banner-btn"
-                  [class.bf-qs-banner-btn--warn]="!hasKeyInfo()"
-                  [class.bf-qs-banner-btn--locked]="locked()"
-                  (click)="locked() ? goToPremium() : applyQuickStart()">
-                  @if (locked()) {
-                    <i class="bi bi-lock-fill"></i> Premium uniquement
-                  } @else if (hasKeyInfo()) {
-                    Pré-remplir les clauses <i class="bi bi-arrow-right"></i>
-                  } @else {
-                    Compléter les infos clés
-                  }
-                </button>
-              </div>
+            <div class="bf-intro-section bf-intro-guide">
+              <h3 class="bf-intro-title"><i class="bi bi-lightning-charge-fill"></i> Démarrage rapide</h3>
+              <ng-container *ngTemplateOutlet="quickStartPanel"></ng-container>
             </div>
           }
 
@@ -519,8 +532,8 @@
                         (click)="toggleTooltip(clause.id)">?</span>
                 }
                 @if (clause.example_text && !isFinal()) {
-                  <span class="bf-example-icon" title="Voir un exemple de rédaction" (click)="toggleExample(clause.id)">
-                    <i class="bi bi-pencil-square"></i>
+                  <span class="bf-example-icon" title="Voir la rédaction type de cette clause" (click)="toggleExample(clause.id)">
+                    <i class="bi bi-patch-check"></i>
                   </span>
                 }
                 @if (clause.legal_reference) {
@@ -553,10 +566,10 @@
               @if (expandedExample() === clause.id && clause.example_text) {
                 <div class="bf-example-panel">
                   <div class="bf-example-header">
-                    <span>Exemple de rédaction</span>
+                    <span><i class="bi bi-patch-check-fill"></i> Rédaction type</span>
                     @if (['text','textarea','toggle_with_details'].includes(clause.clause_type)) {
                       <button class="bf-use-example" (click)="useExample(clause.id, clause)" [disabled]="readOnly()">
-                        <i class="bi bi-clipboard-check"></i> Utiliser cet exemple
+                        <i class="bi bi-check2"></i> Utiliser ce texte
                       </button>
                     }
                   </div>
@@ -590,28 +603,32 @@
                       [disabled]="readOnly()" />
                     @if (!readOnly() && hasBrackets(clause.id, clause)) {
                       <div class="bf-resolver">
+                        <span class="bf-resolver-head">
+                          <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
+                        </span>
                         @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
                           <div class="bf-resolver-row">
                             <code class="bf-resolver-bracket">{{ bracket }}</code>
                             <span class="bf-resolver-arrow">→</span>
                             @if (resolveVariable(bracket)) {
                               <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
-                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Remplir</button>
                             } @else {
-                              <span class="bf-resolver-empty">non défini</span>
+                              <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
                             }
                           </div>
                         }
                         <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
-                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                          <i class="bi bi-lightning-charge-fill"></i> Tout remplir
                         </button>
                       </div>
                     }
                     @if (!readOnly() && hasAnyIntroVar()) {
                       <div class="bf-insert-chips">
+                        <span class="bf-insert-chips-label">Insérer :</span>
                         @for (entry of definedIntroVars(); track entry.key) {
                           <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
-                                  [title]="entry.key">{{ entry.value }}</button>
+                                  [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
                         }
                       </div>
                     }
@@ -627,28 +644,32 @@
                       rows="5"></textarea>
                     @if (!readOnly() && hasBrackets(clause.id, clause)) {
                       <div class="bf-resolver">
+                        <span class="bf-resolver-head">
+                          <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
+                        </span>
                         @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
                           <div class="bf-resolver-row">
                             <code class="bf-resolver-bracket">{{ bracket }}</code>
                             <span class="bf-resolver-arrow">→</span>
                             @if (resolveVariable(bracket)) {
                               <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
-                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Résoudre</button>
+                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Remplir</button>
                             } @else {
-                              <span class="bf-resolver-empty">non défini</span>
+                              <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
                             }
                           </div>
                         }
                         <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
-                          <i class="bi bi-lightning-charge-fill"></i> Tout résoudre
+                          <i class="bi bi-lightning-charge-fill"></i> Tout remplir
                         </button>
                       </div>
                     }
                     @if (!readOnly() && hasAnyIntroVar()) {
                       <div class="bf-insert-chips">
+                        <span class="bf-insert-chips-label">Insérer :</span>
                         @for (entry of definedIntroVars(); track entry.key) {
                           <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
-                                  [title]="entry.key">{{ entry.value }}</button>
+                                  [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
                         }
                       </div>
                     }
@@ -764,101 +785,40 @@
 
     </div>
 
-    <!-- ── Panneau droit — guide rapide ou prévisualisation ─────────────────── -->
-    <div class="bf-right-panel" [class.preview-active]="showPreview()">
+    <!-- ── Panneau droit — guide rapide ───────────────────────────────────────
+         La prévisualisation n'y vit plus : elle s'ouvre en modale plein écran,
+         un rail de 320px étant illisible pour du texte contractuel. -->
+    <div class="bf-right-panel" lpTourAnchor="cb-quickstart">
+      <div class="bf-guide-header">
+        <i class="bi bi-lightning-charge-fill"></i> Démarrage rapide
+      </div>
+      <div class="bf-guide-body">
+        <p class="bf-guide-intro">
+          Pré-remplissez les clauses essentielles en un clic, puis affinez manuellement.
+        </p>
+        <ng-container *ngTemplateOutlet="quickStartPanel"></ng-container>
+        <p class="bf-guide-note">
+          <i class="bi bi-info-circle"></i>
+          {{ config().guideNote }}
+        </p>
+      </div>
+    </div>
 
-      @if (!showPreview()) {
-        <!-- Mode guide rapide (toujours visible sur desktop) -->
-        <div class="bf-guide-header">
-          <i class="bi bi-lightning-charge-fill"></i> Démarrage rapide
-        </div>
-        <div class="bf-guide-body">
-          <p class="bf-guide-intro">
-            Pré-remplissez les clauses essentielles en un clic, puis affinez manuellement.
-          </p>
-          @if (!isFinal()) {
-            <div class="bf-qs-card" [class.bf-qs-card--warn]="!hasKeyInfo()">
-              <div class="bf-qs-card-head">
-                @if (hasKeyInfo()) {
-                  <i class="bi bi-lightning-charge-fill"></i>
-                  Quick Start
-                  <span class="bf-qs-var-badge">{{ definedIntroVars().length }} var.</span>
-                } @else {
-                  <i class="bi bi-exclamation-triangle-fill"></i>
-                  Quick Start
-                }
-              </div>
-              @if (hasKeyInfo()) {
-                <p class="bf-qs-card-desc">Remplissage automatique depuis vos variables d'introduction.</p>
-                <button type="button" class="bf-qs-card-btn" [class.bf-qs-card-btn--locked]="locked()"
-                  (click)="locked() ? goToPremium() : applyQuickStart()">
-                  @if (locked()) {
-                    <i class="bi bi-lock-fill"></i> Premium uniquement
-                  } @else {
-                    <i class="bi bi-lightning-charge-fill"></i> Lancer le Quick Start
-                  }
-                </button>
-              } @else {
-                <p class="bf-qs-card-desc bf-qs-card-desc--warn">
-                  {{ config().keyInfoHint }}
-                </p>
-                <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro()">
-                  <i class="bi bi-pencil"></i> Compléter l'introduction
-                </button>
-              }
-            </div>
-            <div class="bf-guide-sep"></div>
+  </div>
 
-            @if (fillableCount() > 0) {
-              <div class="bf-fill-card">
-                <div class="bf-fill-card-head">
-                  <i class="bi bi-pencil-fill"></i>
-                  Remplir les exemples
-                  <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
-                </div>
-                <p class="bf-fill-card-desc">Applique les textes d'exemple sur toutes les clauses actives. Personnalisez ensuite.</p>
-                <button type="button" class="bf-fill-card-btn" [class.bf-fill-card-btn--locked]="locked()"
-                  (click)="locked() ? goToPremium() : fillAllExamples()">
-                  @if (locked()) {
-                    <i class="bi bi-lock-fill"></i> Premium uniquement
-                  } @else {
-                    <i class="bi bi-pen-fill"></i> Tout remplir avec les exemples
-                  }
-                </button>
-              </div>
-              <div class="bf-guide-sep"></div>
-            }
-          }
-          @for (preset of presets; track preset.id) {
-            <button class="bf-preset-card" [class.locked]="locked()" [disabled]="isFinal()"
-              (click)="locked() ? goToPremium() : applyPreset(preset.id)">
-              <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
-              <div class="bf-preset-info">
-                <span class="bf-preset-label">{{ preset.label }}</span>
-                <span class="bf-preset-desc">{{ preset.description }}</span>
-                <span class="bf-preset-meta">{{ preset.meta }}</span>
-              </div>
-              @if (locked()) {
-                <span class="bf-preset-badge badge-locked"><i class="bi bi-lock-fill"></i> Premium</span>
-              } @else {
-                <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
-              }
-            </button>
-          }
-          <p class="bf-guide-note">
-            <i class="bi bi-info-circle"></i>
-            {{ config().guideNote }}
-          </p>
-        </div>
+  <!-- ── Prévisualisation — modale plein écran, scrollable ───────────────────── -->
+  @if (showPreview()) {
+    <div class="bf-preview-backdrop" (click)="closePreview()"
+         role="dialog" aria-modal="true" aria-label="Prévisualisation du contrat">
+      <div class="bf-preview-modal" (click)="$event.stopPropagation()">
 
-      } @else {
-        <!-- Mode prévisualisation -->
         <div class="bf-preview-header">
-          <span>Prévisualisation</span>
-          <button class="bf-preview-close" (click)="togglePreview()">
+          <span><i class="bi bi-eye"></i> Prévisualisation</span>
+          <button class="bf-preview-close" (click)="closePreview()" aria-label="Fermer la prévisualisation">
             <i class="bi bi-x-lg"></i>
           </button>
         </div>
+
         <div class="bf-preview-body">
           <h1 class="bf-prev-title">{{ title() || '(Sans titre)' }}</h1>
 
@@ -907,11 +867,10 @@
             }
           }
         </div>
-      }
 
+      </div>
     </div>
-
-  </div>
+  }
 
   <!-- Bottom actions -->
   @if (!isFinal()) {
@@ -927,6 +886,13 @@
         } @else {
           <button class="btn-reset" (click)="resetContract()" [disabled]="saving() || generating() || readOnly()" title="Réinitialiser toutes les clauses">
             <i class="bi bi-trash"></i>
+          </button>
+        }
+      </div>
+      <div class="bf-footer-center">
+        @if (nextStep(); as step) {
+          <button class="btn-next" (click)="goToNextStep()">
+            Continuer — {{ step.label }} <i class="bi bi-arrow-right"></i>
           </button>
         }
       </div>
@@ -951,5 +917,88 @@
   }
 
 </div>
+
+<!-- ── Démarrage rapide — source unique ────────────────────────────────────────
+     Rendu à deux endroits : dans le rail droit sur desktop, et dans l'onglet
+     Introduction sur mobile/tablette, où ce rail est masqué (<1100px). -->
+<ng-template #quickStartPanel>
+  <div class="bf-guide-cards">
+
+    @if (!isFinal()) {
+      <div class="bf-qs-card" [class.bf-qs-card--warn]="!hasKeyInfo()">
+        <div class="bf-qs-card-head">
+          @if (hasKeyInfo()) {
+            <i class="bi bi-lightning-charge-fill"></i>
+            Pré-remplissage
+            <span class="bf-qs-var-badge">{{ autoFieldsDone() }} champs</span>
+          } @else {
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Pré-remplissage
+          }
+        </div>
+        @if (hasKeyInfo()) {
+          <p class="bf-qs-card-desc">Remplissage automatique des clauses depuis vos champs automatiques.</p>
+          <button type="button" class="bf-qs-card-btn" [class.bf-qs-card-btn--locked]="locked()"
+            (click)="locked() ? goToPremium() : applyQuickStart()">
+            @if (locked()) {
+              <i class="bi bi-lock-fill"></i> Premium uniquement
+            } @else {
+              <i class="bi bi-lightning-charge-fill"></i> Pré-remplir les clauses
+            }
+          </button>
+        } @else {
+          <p class="bf-qs-card-desc bf-qs-card-desc--warn">
+            {{ config().keyInfoHint }}
+          </p>
+          <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro()">
+            <i class="bi bi-pencil"></i> Compléter l'introduction
+          </button>
+        }
+      </div>
+      <div class="bf-guide-sep"></div>
+
+      @if (fillableCount() > 0) {
+        <div class="bf-fill-card">
+          <div class="bf-fill-card-head">
+            <i class="bi bi-patch-check-fill"></i>
+            Rédaction type
+            <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
+          </div>
+          <p class="bf-fill-card-desc">
+            Le texte juridique standard de chaque clause, prêt à l'emploi. Vous n'avez rien à rédiger :
+            appliquez-le, il ne reste qu'à l'ajuster si votre situation le demande.
+          </p>
+          <button type="button" class="bf-fill-card-btn" [class.bf-fill-card-btn--locked]="locked()"
+            (click)="locked() ? goToPremium() : fillAllExamples()">
+            @if (locked()) {
+              <i class="bi bi-lock-fill"></i> Premium uniquement
+            } @else {
+              <i class="bi bi-patch-check-fill"></i> Utiliser la rédaction type
+            }
+          </button>
+        </div>
+        <div class="bf-guide-sep"></div>
+      }
+    }
+
+    @for (preset of presets; track preset.id) {
+      <button class="bf-preset-card" [class.locked]="locked()" [disabled]="isFinal()"
+        (click)="locked() ? goToPremium() : applyPreset(preset.id)">
+        <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
+        <div class="bf-preset-info">
+          <span class="bf-preset-label">{{ preset.label }}</span>
+          <span class="bf-preset-desc">{{ preset.description }}</span>
+          <span class="bf-preset-meta">{{ preset.meta }}</span>
+        </div>
+        @if (locked()) {
+          <span class="bf-preset-badge badge-locked"><i class="bi bi-lock-fill"></i> Premium</span>
+        } @else {
+          <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
+        }
+      </button>
+    }
+
+  </div>
+</ng-template>
 
 }

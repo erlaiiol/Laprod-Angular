@@ -1,0 +1,120 @@
+<div class="marketing-panel">
+
+  @if (loading()) {
+    <p class="mk-loading">Chargement…</p>
+  } @else {
+
+    <!-- ── Codes promo ──────────────────────────────────────────────────── -->
+    <section class="mk-section">
+      <header class="mk-header">
+        <h3><i class="bi bi-tag-fill"></i> Codes promo</h3>
+        <a routerLink="/promo-codes" class="mk-link">Gérer mes codes →</a>
+      </header>
+
+      @if (!promos().length) {
+        <div class="mk-empty">
+          <p>
+            Aucun code promo. Une remise ciblée sur vos beats les plus écoutés est
+            le levier le plus simple pour convertir vos auditeurs en acheteurs.
+          </p>
+          <a routerLink="/promo-codes" class="mk-btn">Créer mon premier code</a>
+        </div>
+      } @else {
+        <div class="mk-stats">
+          <div class="mk-stat">
+            <span class="mk-value">{{ activePromos().length }}</span>
+            <span class="mk-label">codes actifs</span>
+          </div>
+          <div class="mk-stat">
+            <span class="mk-value">{{ totalRedemptions() }}</span>
+            <span class="mk-label">utilisations cumulées</span>
+          </div>
+        </div>
+
+        <div class="mk-chips">
+          @for (p of activePromos(); track p.id) {
+            <div class="mk-chip">
+              <span class="mk-code">{{ p.code }}</span>
+              <span class="mk-percent">−{{ p.percent }} %</span>
+              <span class="mk-usage">
+                @if (p.max_redemptions != null) {
+                  {{ p.redemption_count }}/{{ p.max_redemptions }}
+                } @else {
+                  {{ p.redemption_count }} util.
+                }
+              </span>
+            </div>
+          }
+        </div>
+
+        @if (expiringSoon().length) {
+          <p class="mk-nudge">
+            <i class="bi bi-hourglass-split"></i>
+            @for (p of expiringSoon(); track p.id) {
+              <strong>{{ p.code }}</strong>
+            }
+            expire{{ expiringSoon().length > 1 ? 'nt' : '' }} dans moins de 7 jours —
+            c'est le moment de <a routerLink="/campagnes">prévenir vos auditeurs</a>.
+          </p>
+        }
+      }
+    </section>
+
+    <!-- ── Campagnes ────────────────────────────────────────────────────── -->
+    <section class="mk-section">
+      <header class="mk-header">
+        <h3><i class="bi bi-megaphone-fill"></i> Campagnes</h3>
+        <a routerLink="/campagnes" class="mk-link">Gérer mes campagnes →</a>
+      </header>
+
+      @if (!sentCampaigns().length && !scheduledCampaigns().length) {
+        <div class="mk-empty">
+          <p>
+            Aucune campagne envoyée. Prévenez ceux qui vous suivent déjà — vos acheteurs,
+            ceux qui vous ont mis en favori — quand vous sortez un beat ou lancez une promo.
+          </p>
+          <a routerLink="/campagnes" class="mk-btn">Créer une campagne</a>
+        </div>
+      } @else {
+        <div class="mk-stats">
+          <div class="mk-stat">
+            <span class="mk-value">{{ totalReached() }}</span>
+            <span class="mk-label">personnes touchées</span>
+          </div>
+          <div class="mk-stat">
+            <span class="mk-value">{{ totalConversions() }}</span>
+            <span class="mk-label">ont utilisé le code</span>
+          </div>
+          <div class="mk-stat">
+            <span class="mk-value">{{ conversionRate() }} %</span>
+            <span class="mk-label">taux de conversion</span>
+          </div>
+          <div class="mk-stat mk-stat--revenue">
+            <span class="mk-value">{{ campaignRevenue() | number:'1.2-2' }} €</span>
+            <span class="mk-label">CA généré</span>
+          </div>
+        </div>
+
+        @if (scheduledCampaigns().length) {
+          <p class="mk-nudge">
+            <i class="bi bi-clock"></i>
+            @for (c of scheduledCampaigns(); track c.id) {
+              <strong>{{ c.subject }}</strong> part le
+              {{ c.scheduled_for | date:'dd/MM à HH\'h\'' }}.
+            }
+            Vous pouvez encore l'annuler.
+          </p>
+        }
+
+        @if (quota(); as q) {
+          <p class="mk-quota">
+            {{ q.used }} / {{ q.max }} campagnes utilisées sur 30 jours.
+            @if (q.remaining <= 0) {
+              Limite atteinte — elle protège votre taux de lecture.
+            }
+          </p>
+        }
+      }
+    </section>
+  }
+</div>

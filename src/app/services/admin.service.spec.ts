@@ -123,11 +123,11 @@ describe('AdminService', () => {
     req.flush({ success: true, feedback: { level: 'success', message: '' }, data: { is_premium: true } });
   });
 
-  it('setPlan() POSTs le plan au bon endpoint', () => {
-    service.setPlan(3, 'pro').subscribe();
+  it('setPlan() POSTs le palier au bon endpoint', () => {
+    service.setPlan(3, 'pro_structure').subscribe();
     const req = httpMock.expectOne(`${BASE}/users/3/set-plan`);
-    expect(req.request.body.plan).toBe('pro');
-    req.flush({ success: true, feedback: { level: 'success', message: '' }, data: { is_premium: true, subscription_plan: 'pro', premium_expires_at: null } });
+    expect(req.request.body.plan).toBe('pro_structure');
+    req.flush({ success: true, feedback: { level: 'success', message: '' }, data: { is_premium: true, subscription_plan: 'pro_structure', premium_expires_at: null } });
   });
 
   it('deleteUser() DELETE à /api/admin/users/:id', () => {

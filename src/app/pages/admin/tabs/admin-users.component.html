@@ -20,7 +20,7 @@
             {{ u.username }}
             @if (u.is_premium) {
               <span class="badge-premium" [title]="'Plan ' + planLabel(u.subscription_plan) + ' — expire le ' + (u.premium_expires_at | formatDate)">
-                {{ u.subscription_plan === 'pro' ? '★ Pro' : '★' }}
+                {{ u.subscription_plan === 'pro_structure' ? '★ Pro' : '★' }}
               </span>
             }
             @if (u.is_admin) { <span class="badge-admin">ADMIN</span> }
@@ -34,6 +34,9 @@
           <td>
             @if (u.is_beatmaker)                      { <span class="role-chip role-bm">BM</span> }
             @if (u.is_artist)                         { <span class="role-chip role-art">ART</span> }
+            @if (u.is_mix_engineer && !u.is_mixmaster_engineer) {
+              <span class="role-chip role-eng-pending" title="Déclaré, pas encore certifié">MX?</span>
+            }
             @if (u.is_mixmaster_engineer)             { <span class="role-chip role-eng">MX</span> }
             @if (u.is_certified_master_engineer)      { <span class="role-chip role-mst">MST</span> }
             @if (u.is_certified_producer_arranger)    { <span class="role-chip role-pa">P/A</span> }
@@ -61,9 +64,16 @@
             <button class="btn-icon" [class.btn-icon--cert-on]="u.is_artist"
                     [title]="u.is_artist ? 'Révoquer Artiste' : 'Certifier Artiste'"
                     (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
+            <button class="btn-icon" [class.btn-icon--cert-on]="u.is_producer"
+                    [title]="u.is_producer ? 'Révoquer Producteur' : 'Accorder Producteur'"
+                    (click)="toggleRole(u, 'producer')"><i class="bi bi-file-earmark-text"></i></button>
+            <button class="btn-icon" [class.btn-icon--cert-on]="u.is_mix_engineer"
+                    [title]="u.is_mix_engineer ? 'Révoquer Mix Engineer (déclaré)' : 'Accorder Mix Engineer (déclaré)'"
+                    (click)="toggleRole(u, 'mix_engineer')"><i class="bi bi-soundwave"></i></button>
             <span class="cert-group" title="Certifications engineer">
               <button class="btn-icon btn-cert" [class.btn-cert--on]="u.is_mixmaster_engineer"
-                      [title]="u.is_mixmaster_engineer ? 'Révoquer Mix' : 'Certifier Mix Engineer'"
+                      [disabled]="!u.is_mixmaster_engineer && !u.is_mix_engineer"
+                      [title]="(!u.is_mixmaster_engineer && !u.is_mix_engineer) ? 'Doit d\'abord avoir le rôle Mix Engineer (déclaré)' : (u.is_mixmaster_engineer ? 'Révoquer Mix' : 'Certifier Mix Engineer')"
                       (click)="toggleRole(u, 'engineer')">MX</button>
               <button class="btn-icon btn-cert" [class.btn-cert--on]="u.is_certified_master_engineer"
                       [disabled]="!u.is_mixmaster_engineer"

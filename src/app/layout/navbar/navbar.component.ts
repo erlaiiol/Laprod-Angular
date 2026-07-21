@@ -10,12 +10,13 @@ import { NotificationService } from '../../services/notification.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { ThemeService } from '../../services/theme.service';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
+import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, ImgFallbackDirective],
+  imports: [CommonModule, RouterModule, ImgFallbackDirective, TourAnchorDirective],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })
@@ -90,6 +91,8 @@ export class NavbarComponent {
   isBeatmaker   = computed(() => this.authService.isBeatmaker());
   isArtist      = computed(() => this.authService.isArtist());
   isMixEngineer = computed(() => this.authService.isMixEngineer());
+  isCertifiedMixEngineer = computed(() => this.authService.isCertifiedMixEngineer());
+  isProducer    = computed(() => this.authService.isProducer());
   mixSamplePending = computed(() => this.authService.mixSamplePending());
   isAdmin       = computed(() => this.authService.isAdmin());
   isPremium     = computed(() => this.authService.isPremium());

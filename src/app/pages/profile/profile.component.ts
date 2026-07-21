@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserService, UserProfile, UserTrack } from '../../services/user.service';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, PlanKey, PLAN_ORDER } from '../../services/auth.service';
 import { PlayerService } from '../../services/player.service';
 import { TrackService, Track } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
@@ -65,6 +65,18 @@ export class ProfileComponent implements OnInit {
 
   private playlistSvc = inject(PlaylistService);
   private destroyRef  = inject(DestroyRef);
+
+  // ── Hub de rôles (propre profil uniquement) ─────────────────────────────────
+  // Espaces + outils vendeur affichés selon les rôles réellement possédés,
+  // éditables à tout moment via /profile/edit. Plus de notion de "vue active".
+  isArtist                = computed(() => this.auth.isArtist());
+  isBeatmaker             = computed(() => this.auth.isBeatmaker());
+  isMixEngineer           = computed(() => this.auth.isMixEngineer());
+  isCertifiedMixEngineer  = computed(() => this.auth.isCertifiedMixEngineer());
+  isProducer              = computed(() => this.auth.isProducer());
+  mixSamplePending        = computed(() => this.auth.mixSamplePending());
+  showSellerTools         = computed(() => this.isBeatmaker() || this.isCertifiedMixEngineer());
+  showWallet              = computed(() => this.isBeatmaker() || this.isMixEngineer());
 
   constructor(
     private route:    ActivatedRoute,
@@ -147,6 +159,13 @@ export class ProfileComponent implements OnInit {
     if (!path) return '/assets/placeholders/placeholder-track.png';
     if (path.startsWith('http')) return path;
     return `${environment.apiUrl}/db_assets/${path}`;
+  }
+
+  /** Le badge « Master Pro » est acquis par l'abonnement, à partir du Semi-Pro
+   *  (l'autre voie étant la certification par un admin, testée séparément). */
+  hasMasterProBadge(p: UserProfile): boolean {
+    const plan = (p.subscription_plan ?? 'free') as PlanKey;
+    return PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf('semi_pro');
   }
 
   isOwnProfile(): boolean {

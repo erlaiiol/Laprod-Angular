@@ -38,14 +38,15 @@ import { AppRefreshService } from '../../../services/app-refresh.service';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 import { ImgFallbackDirective } from '../../../directives/img-fallback.directive';
+import { MarketingPanelComponent } from '../../../components/marketing-panel/marketing-panel.component';
 
 export interface TrackViewStat {
   track_id:    number;
   total_views:  number;
-  unique_views: number;
+  unique_views: number | null;   // null si non-Premium (métrique réservée)
 }
 
-type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses' | 'analytics';
+type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses' | 'marketing' | 'analytics';
 
 export interface AnalyticsTrack {
   track_id:           number;
@@ -76,7 +77,7 @@ export interface BeatmakerAnalytics {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-beatmaker',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent, FormatDatePipe, ImgFallbackDirective],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, BaseChartDirective, TrackQualityScoreComponent, FormatDatePipe, ImgFallbackDirective, MarketingPanelComponent],
   templateUrl: './dashboard-beatmaker.component.html',
   styleUrls: ['./dashboard-beatmaker.component.scss'],
 })
@@ -105,6 +106,8 @@ export class DashboardBeatmakerComponent implements OnInit {
 
   viewStats        = signal<TrackViewStat[]>([]);
   viewStatsLoading = signal(false);
+  // « Visiteurs uniques » réservé au Premium (le total reste gratuit pour tous).
+  uniqueLocked     = signal(false);
 
   // ── Analytics tab ─────────────────────────────────────────────────────────
   analyticsData    = signal<BeatmakerAnalytics | null>(null);
@@ -233,7 +236,11 @@ export class DashboardBeatmakerComponent implements OnInit {
 
     this.viewStatsLoading.set(true);
     this.trackSvc.getViewStats().subscribe({
-      next: res => { this.viewStats.set(res.data?.stats ?? []); this.viewStatsLoading.set(false); },
+      next: res => {
+        this.viewStats.set(res.data?.stats ?? []);
+        this.uniqueLocked.set(res.data?.unique_locked ?? false);
+        this.viewStatsLoading.set(false);
+      },
       error: () => this.viewStatsLoading.set(false),
     });
 
@@ -267,7 +274,7 @@ export class DashboardBeatmakerComponent implements OnInit {
 
   viewStatFor(trackId: number): TrackViewStat {
     return this.viewStats().find(s => s.track_id === trackId)
-      ?? { track_id: trackId, total_views: 0, unique_views: 0 };
+      ?? { track_id: trackId, total_views: 0, unique_views: null };
   }
 
   setTab(tab: Tab): void {

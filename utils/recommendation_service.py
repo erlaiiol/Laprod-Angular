@@ -59,13 +59,46 @@ def _listen_weight(completion_ratio: float) -> float:
     return 1.5
 
 
-# ── Bonus récence (max 0.5, décroît linéairement sur 30 jours) ────────────────
+# ── Fraîcheur du BEAT (freshness du catalogue) ────────────────────────────────
+# NE PAS confondre avec _taste_decay (plus bas). Ici on parle de l'âge du BEAT
+# (sa date d'upload), pas de l'écoute. But : faire remonter les nouveautés — un
+# beat mis en ligne récemment reçoit un petit bonus au moment du scoring
+# (score_track), pour tout le monde. Bonus additif (+0.5 max), linéaire sur 30 j.
 
-def _recency_bonus(created_at: datetime) -> float:
-    age_days = (datetime.now() - created_at).days
+def _recency_bonus(track_created_at: datetime) -> float:
+    age_days = (datetime.now() - track_created_at).days
     if age_days >= 30:
         return 0.0
     return 0.5 * (1 - age_days / 30)
+
+
+# ── Fraîcheur de l'ÉCOUTE (décroissance du goût) ──────────────────────────────
+# NE PAS confondre avec _recency_bonus (au-dessus). Ici on parle de l'âge de
+# l'ÉCOUTE, pas du beat. But : pondérer le comportement — une écoute ancienne
+# reflète moins le goût actuel de l'utilisateur, on atténue son poids au moment
+# de CONSTRUIRE le vecteur (build_user_vector). Facteur MULTIPLICATIF (0.25→1.0),
+# demi-vie 45 j, avec plancher : les vieux goûts comptent moins mais ne
+# disparaissent pas — ils font partie de qui on est.
+#
+# Résumé de la distinction (les deux prennent un created_at, d'où la confusion) :
+#   _recency_bonus  → âge du BEAT   → bonus additif   → score_track (par candidat)
+#   _taste_decay    → âge de l'ÉCOUTE → poids multiplicatif → build_user_vector
+_TASTE_HALF_LIFE_DAYS = 45.0
+_TASTE_DECAY_FLOOR = 0.25
+
+
+def _taste_decay(listen_created_at: datetime) -> float:
+    if listen_created_at is None:
+        return 1.0
+    age_days = max(0, (datetime.now() - listen_created_at).days)
+    decay = 0.5 ** (age_days / _TASTE_HALF_LIFE_DAYS)
+    return max(_TASTE_DECAY_FLOOR, decay)
+
+
+# Un ACHAT est le signal d'intention le plus fort de la plateforme : on ne débourse
+# pas 10-50 € pour un style qu'on n'aime pas. Il pèse donc plus qu'une écoute
+# aboutie (1.5 max), et ne décroît pas dans le temps — un achat reste un engagement.
+_PURCHASE_TASTE_WEIGHT = 3.0
 
 
 # ── Vecteur de préférences utilisateur ────────────────────────────────────────
@@ -121,7 +154,8 @@ def build_user_vector(user_id: int) -> dict:
             boosted_composers.add(f.track.composer_id)
 
     for ev in events:
-        w = _listen_weight(ev.completion_ratio)
+        # Décroissance temporelle : une écoute ancienne pèse moins qu'une récente.
+        w = _listen_weight(ev.completion_ratio) * _taste_decay(ev.created_at)
         if replay_counts[ev.track_id] >= 3:
             w += 0.3
 
@@ -149,6 +183,27 @@ def build_user_vector(user_id: int) -> dict:
 
         if track.composer_id in boosted_composers:
             beatmaker_scores[track.composer_id] += abs_w
+
+    # ── Signal d'ACHAT : goût explicite, poids fort, sans décroissance ────────
+    # On réutilise la liste `purchases` déjà chargée pour le boost beatmaker.
+    for p in purchases:
+        track = p.track
+        if track is None:
+            continue
+        pw = _PURCHASE_TASTE_WEIGHT
+        if track.key:
+            keys[track.key] += pw
+        if track.style:
+            styles[track.style] += pw
+        for tag in track.tags:
+            tags[tag.name] += pw
+        for artist in (track.similar_artists or []):
+            similar_artists[artist.name] += pw
+        if track.bpm:
+            bpm_weighted_sum += track.bpm * pw
+            total_weight += pw
+        if track.composer_id:
+            beatmaker_scores[track.composer_id] += pw
 
     preferred_bpm = (bpm_weighted_sum / total_weight) if total_weight > 0 else 100.0
     preferred_duration = (duration_weighted_sum / total_weight) if total_weight > 0 else 180.0

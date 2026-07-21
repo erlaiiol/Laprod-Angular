@@ -12,14 +12,15 @@ import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { MarketingPanelComponent } from '../../../components/marketing-panel/marketing-panel.component';
 
-type Tab = 'awaiting' | 'active' | 'revisions' | 'completed' | 'refused';
+type Tab = 'awaiting' | 'active' | 'revisions' | 'completed' | 'refused' | 'marketing';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-mix-engineer',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, FormatDatePipe],
+  imports: [CommonModule, RouterModule, FormsModule, FormatDatePipe, MarketingPanelComponent],
   templateUrl: './dashboard-mix-engineer.component.html',
   styleUrls: ['./dashboard-mix-engineer.component.scss'],
 })
@@ -44,6 +45,9 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   // Briefing panel
   expandedOrderId = signal<number | null>(null);
 
+  // Vues de la page d'ingénieur : total (gratuit) + uniques (Premium).
+  viewStats = signal<{ total_views: number; unique_views: number | null; unique_locked: boolean } | null>(null);
+
   // Blob URLs gérés localement (libérés dans ngOnDestroy)
   private blobUrls = new Map<string, string>();
 
@@ -58,6 +62,10 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     this.loadDashboard();
+    this.mixSvc.getMyEngineerViewStats().subscribe({
+      next: res => this.viewStats.set(res.data ?? null),
+      error: () => {},
+    });
   }
 
   private loadDashboard(): void {
@@ -82,7 +90,10 @@ export class DashboardMixEngineerComponent implements OnInit, OnDestroy {
   currentOrders(): MixOrder[] {
     const d = this.data();
     if (!d) return [];
-    return d.orders[this.activeTab()];
+    const tab = this.activeTab();
+    // « marketing » n'est pas un panier de commandes : c'est un onglet à part
+    // entière. On le sort explicitement plutôt que d'indexer d.orders à l'aveugle.
+    return tab === 'marketing' ? [] : d.orders[tab];
   }
 
   toggleBriefing(orderId: number): void {

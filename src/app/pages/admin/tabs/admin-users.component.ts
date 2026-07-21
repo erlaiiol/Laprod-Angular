@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { PLAN_ORDER, PLAN_LABELS, PlanKey } from '../../../services/auth.service';
 import { Observable } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AdminUser } from '../../../services/admin.service';
@@ -40,9 +41,11 @@ export class AdminUsersComponent implements OnInit {
 
   // Plan modal
   planUser       = signal<AdminUser | null>(null);
-  planTarget     = signal<'free' | 'amateur' | 'pro'>('amateur');
+  planTarget     = signal<PlanKey>('premium');
   planSubmitting = signal(false);
-  readonly planOptions: ('free' | 'amateur' | 'pro')[] = ['free', 'amateur', 'pro'];
+  // Dérivé de PLAN_ORDER (miroir de utils/plans.py) : ajouter un palier côté
+  // serveur le rend automatiquement pilotable ici, sans liste à re-synchroniser.
+  readonly planOptions = PLAN_ORDER;
 
   constructor(private adminSvc: AdminService, private toast: ToastService) {}
 
@@ -86,11 +89,11 @@ export class AdminUsersComponent implements OnInit {
 
   openPlanModal(user: AdminUser): void {
     this.planUser.set(user);
-    const current = user.subscription_plan ?? 'free';
-    // Proposer le plan suivant par défaut (logique ascendante)
-    if (current === 'free')         this.planTarget.set('amateur');
-    else if (current === 'amateur') this.planTarget.set('pro');
-    else                            this.planTarget.set('free');
+    const current = (user.subscription_plan ?? 'free') as PlanKey;
+    // Proposer le palier suivant par défaut (logique ascendante), et reboucler
+    // sur 'free' une fois au sommet.
+    const next = PLAN_ORDER[PLAN_ORDER.indexOf(current) + 1] ?? 'free';
+    this.planTarget.set(next);
   }
 
   closePlanModal(): void {
@@ -221,10 +224,8 @@ export class AdminUsersComponent implements OnInit {
     return Math.max(0, Math.ceil(diff / 86_400_000));
   }
 
-  planLabel(plan: 'free' | 'amateur' | 'pro' | null): string {
-    if (plan === 'amateur') return 'Amateur';
-    if (plan === 'pro')     return 'Pro';
-    return 'Free';
+  planLabel(plan: string | null): string {
+    return PLAN_LABELS[(plan ?? 'free') as PlanKey] ?? 'Découverte';
   }
 
   imgUrl(path: string): string {

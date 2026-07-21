@@ -17,18 +17,20 @@ export class SelectRoleComponent {
   isArtist      = signal(false);
   isBeatmaker   = signal(false);
   isMixEngineer = signal(false);
+  isProducer    = signal(false);
 
   loading = signal(false);
   error   = signal<string | null>(null);
 
-  hasSelection = () => this.isArtist() || this.isBeatmaker() || this.isMixEngineer();
+  hasSelection = () => this.isArtist() || this.isBeatmaker() || this.isMixEngineer() || this.isProducer();
 
   constructor(private auth: AuthService, private router: Router) {}
 
-  toggle(role: 'artist' | 'beatmaker' | 'mix'): void {
+  toggle(role: 'artist' | 'beatmaker' | 'mix' | 'producer'): void {
     if (role === 'artist')    this.isArtist.update(v => !v);
     if (role === 'beatmaker') this.isBeatmaker.update(v => !v);
     if (role === 'mix')       this.isMixEngineer.update(v => !v);
+    if (role === 'producer')  this.isProducer.update(v => !v);
   }
 
   onSubmit(): void {
@@ -43,6 +45,7 @@ export class SelectRoleComponent {
       is_artist:       this.isArtist(),
       is_beatmaker:    this.isBeatmaker(),
       is_mix_engineer: this.isMixEngineer(),
+      is_producer:     this.isProducer(),
     }).pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {

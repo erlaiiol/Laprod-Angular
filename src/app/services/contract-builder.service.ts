@@ -14,7 +14,7 @@ export type ClauseType =
 
 export type PartyType = 'physical' | 'company';
 export type ContractStatus = 'draft' | 'final';
-export type ContractType = 'exploitation' | 'performance';
+export type ContractType = 'exploitation' | 'performance' | 'management';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -72,6 +72,9 @@ export interface ContractParty {
   // Commun
   address?:         string | null;
   email?:           string | null;
+  // Lien optionnel vers un compte LaProd réel (contrat de management généré
+  // depuis un lien roster). Toujours null pour les contrats exploitation/performance.
+  linked_user_id?:  number | null;
 }
 
 export interface ContractValue {

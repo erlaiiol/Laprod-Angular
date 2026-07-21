@@ -416,3 +416,87 @@
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Code promo ───────────────────────────────────────────────────────────────
+
+.promo-block {
+  margin: .75rem 0;
+  padding-top: .75rem;
+  border-top: 1px solid v.$bg-border-subtle;
+}
+
+.promo-row {
+  display: flex;
+  gap: .45rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: .45rem .6rem;
+    border: 1px solid v.$bg-border;
+    border-radius: 8px;
+    background: v.$bg-base;
+    color: v.$text-primary;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: .82rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+
+    &:focus { outline: none; border-color: v.$primary; }
+  }
+}
+
+.promo-apply {
+  flex-shrink: 0;
+  padding: .45rem .85rem;
+  border: 1px solid v.$primary;
+  border-radius: 8px;
+  background: transparent;
+  color: v.$primary;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: v.$primary; color: #fff; }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+.promo-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .4rem .6rem;
+  border-radius: 8px;
+  background: v.$success-light;
+}
+
+.promo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: v.$success-dark;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.promo-remove {
+  border: none;
+  background: none;
+  color: v.$success-dark;
+  font-size: .74rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.promo-error {
+  margin: .4rem 0 0;
+  font-size: .75rem;
+  line-height: 1.4;
+  color: v.$danger;
+}
+
+.price-row--discount {
+  color: v.$success-dark;
+  font-weight: 600;
+}

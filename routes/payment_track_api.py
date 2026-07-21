@@ -16,13 +16,17 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from extensions import db, csrf
+from extensions import db, csrf, limiter
 from models import Track, User, Purchase
 from serializers import ok, err
 from utils.auth_helpers import require_user
 
 _TWO_PLACES = Decimal('0.01')
 from utils.payment_validator import TrackPriceCalculator
+from utils.money import to_money, to_cents, from_cents, split_platform_fee
+from utils.promo_service import PromoError, apply_to_track, consume as consume_promo
+from utils.track_pricing import normalize_track_options, compute_track_gross
+from models import PromoCode
 from utils.wallet_service import credit_wallet_for_beat_sale
 from utils.notification_service import notify_purchase_confirmed, notify_sale_completed
 from utils.email_service import send_purchase_confirmation_email, send_sale_notification_email
@@ -40,6 +44,7 @@ payment_track_api_bp = Blueprint('payment_track_api', __name__, url_prefix='/api
 # ── POST /api/track-payment/track/<id>/<format>/checkout ──────────────────────
 
 @payment_track_api_bp.route('/track/<int:track_id>/<format_type>/checkout', methods=['POST'])
+@limiter.limit('15 per minute;100 per hour')
 @jwt_required()
 @csrf.exempt
 @require_user
@@ -109,44 +114,41 @@ def create_checkout(track_id, format_type, current_user):
             code='WITHDRAWAL_WAIVER_REQUIRED', status=400,
         )
 
-    # Barème fermé : 0 (streaming seul) ou 10 ans. Sans cette liste blanche, une
-    # durée hors barème (7 ans…) retomberait sur le fee par défaut du calculateur
-    # tout en étant écrite telle quelle dans le contrat.
-    is_lifetime_opt = bool(data.get('is_lifetime', False))
-    try:
-        duration_years_opt = int(data.get('duration_years', 0))
-    except (TypeError, ValueError):
-        return err('Durée invalide.', code='INVALID_DURATION', status=400)
-    if not is_lifetime_opt and duration_years_opt not in ALLOWED_DURATION_YEARS:
-        return err('Durée invalide.', code='INVALID_DURATION', status=400)
+    # Normalisation partagée avec l'aperçu de code promo (utils.track_pricing) :
+    # le prix annoncé à l'acheteur et celui encaissé sortent du même calcul.
+    options, opt_error = normalize_track_options(data)
+    if opt_error:
+        return err('Durée invalide.', code=opt_error, status=400)
 
-    # « Streaming seul » : aucun droit additionnel n'est concédé. Le PDF imprime
-    # d'ailleurs « aucun autre droit d'exploitation n'est accordé » dans ce cas —
-    # sans cette normalisation, une requête forgée produirait un contrat qui se
-    # contredit lui-même (art. 3 vs art. 5) et ferait payer des droits fantômes.
-    stream_only = not is_lifetime_opt and duration_years_opt == 0
-
-    options = {
-        'is_exclusive':            bool(data.get('is_exclusive', False)),
-        'is_lifetime':             is_lifetime_opt,
-        'duration_years':          duration_years_opt,
-        'territory':               data.get('territory', 'Monde entier'),
-        'mechanical_reproduction': not stream_only and bool(data.get('mechanical_reproduction', False)),
-        'public_show':             not stream_only and bool(data.get('public_show', False)),
-        'arrangement':             not stream_only and bool(data.get('arrangement', False)),
-    }
+    is_lifetime_opt    = options['is_lifetime']
+    duration_years_opt = options['duration_years']
 
     # ── Validation du prix côté serveur ──────────────────────────────────────
-    calculator = TrackPriceCalculator()
     try:
-        _base, _opts, server_total = calculator.calculate_total(
-            resource=track, options=options, format_type=format_type
-        )
+        gross_total = compute_track_gross(track, options, format_type)
     except ValueError as e:
         return err(str(e), code='PRICE_CALC_ERROR', status=400)
 
+    # ── Code promo du vendeur (facultatif) ───────────────────────────────────
+    # Le client n'envoie qu'une chaîne : le pourcentage, le périmètre et la
+    # remise sont relus en base et recalculés ici. Rien de ce qui touche au
+    # montant ne vient du navigateur.
+    promo_code_raw = (data.get('promo_code') or '').strip()
+    promo = None
+    discount_amount = Decimal('0.00')
+    server_total = gross_total
+
+    if promo_code_raw:
+        try:
+            applied = apply_to_track(promo_code_raw, track, current_user.id, gross_total)
+        except PromoError as e:
+            return err(e.message, code=e.code, status=400)
+        promo           = applied['promo']
+        discount_amount = applied['discount']
+        server_total    = applied['net']
+
     client_total = data.get('total_price')
-    if client_total is not None and abs(server_total - Decimal(str(client_total))) > Decimal('0.01'):
+    if client_total is not None and abs(server_total - to_money(client_total)) > Decimal('0.01'):
         current_app.logger.error(
             f"Prix manipulé ! Client: {client_total}€, Serveur: {server_total}€, "
             f"User: {current_user.id}, Track: {track_id}"
@@ -177,7 +179,14 @@ def create_checkout(track_id, format_type, current_user):
             'arrangement':            str(options['arrangement']),
             'buyer_address':          data.get('buyer_address', ''),
             'buyer_email':            buyer_email,
+            # track_price = montant NET réellement encaissé (remise déduite).
+            # C'est lui qui sert de base à la commission au verify : les 10 %
+            # portent sur la transaction, jamais sur le prix catalogue.
             'track_price':            str(server_total),
+            'gross_price':            str(gross_total),
+            'discount_amount':        str(discount_amount),
+            'promo_code_id':          str(promo.id) if promo else '',
+            'promo_code':             promo.code if promo else '',
             'legal_terms_accepted':           str(legal_terms_accepted),
             'withdrawal_right_waived':        str(withdrawal_right_waived),
             'buyer_declares_original_lyrics': str(buyer_declares_original_lyrics),
@@ -190,7 +199,7 @@ def create_checkout(track_id, format_type, current_user):
             line_items=[{
                 'price_data': {
                     'currency': 'eur',
-                    'unit_amount': int(server_total * 100),
+                    'unit_amount': to_cents(server_total),
                     'product_data': {
                         'name': f"{track.title} — {format_type.upper()}",
                         'description': f"Licence d'exploitation par {track.composer_user.username}",
@@ -208,11 +217,18 @@ def create_checkout(track_id, format_type, current_user):
 
         current_app.logger.info(
             f"Checkout Stripe créé | track #{track_id} {format_type} | "
-            f"total {server_total}€ | user #{current_user.id}"
+            f"brut {gross_total}€ − remise {discount_amount}€ = {server_total}€ | "
+            f"promo {promo.code if promo else '—'} | user #{current_user.id}"
         )
 
         return ok(
-            data={'checkout_url': checkout_session.url, 'total': float(server_total)},
+            data={
+                'checkout_url': checkout_session.url,
+                'total':        float(server_total),
+                'gross':        float(gross_total),
+                'discount':     float(discount_amount),
+                'promo_code':   promo.code if promo else None,
+            },
             message='Session Stripe créée.',
         )
 
@@ -296,9 +312,20 @@ def verify_payment(current_user):
                 code='TRACK_EXCLUSIVE_SOLD', status=409,
             )
 
-        total_price      = Decimal(str(meta.get('track_price', payment_intent.amount / 100)))
-        platform_fee     = (total_price * Decimal('0.10')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        composer_revenue = (total_price - platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        # total_price = montant NET encaissé (la remise a déjà été déduite au
+        # checkout). La commission de 10 % porte donc sur la transaction réelle :
+        # le vendeur finance sa remise sur sa part, LaProd sur la sienne.
+        # Repli sur le montant Stripe : from_cents (entier → Decimal), jamais
+        # `amount / 100` qui réintroduirait un float dans la répartition.
+        total_price = to_money(meta['track_price']) if meta.get('track_price') \
+            else from_cents(payment_intent.amount)
+        platform_fee, composer_revenue = split_platform_fee(total_price)
+
+        # ── Remise appliquée (métadonnées écrites par NOTRE checkout) ────────
+        gross_price     = to_money(meta.get('gross_price') or total_price)
+        discount_amount = to_money(meta.get('discount_amount') or 0)
+        promo_meta_id   = meta.get('promo_code_id') or ''
+        promo = db.session.get(PromoCode, int(promo_meta_id)) if promo_meta_id.isdigit() else None
 
         # ── Données de licence extraites des métadonnées Stripe ─────────────
         is_lifetime    = meta.get('is_lifetime') == 'True'
@@ -319,6 +346,9 @@ def verify_payment(current_user):
             track_price=total_price,
             platform_fee=platform_fee,
             composer_revenue=composer_revenue,
+            promo_code_id=promo.id if promo else None,
+            gross_price=gross_price,
+            discount_amount=discount_amount,
             stripe_payment_intent_id=payment_intent_id,
             # Champs lifecycle licence
             is_exclusive=is_exclusive,
@@ -330,6 +360,24 @@ def verify_payment(current_user):
         )
         db.session.add(purchase)
         db.session.flush()  # obtenir purchase.id
+
+        # ── Consommer le code promo ─────────────────────────────────────────
+        # Après encaissement seulement : un checkout abandonné ne doit pas
+        # grignoter le quota du vendeur.
+        if promo:
+            consumed = consume_promo(
+                promo, current_user.id,
+                gross=gross_price, discount=discount_amount, net=total_price,
+                purchase=purchase,
+            )
+            if not consumed:
+                # Le quota s'est épuisé entre le checkout et l'encaissement.
+                # L'acheteur a déjà payé le montant remisé chez Stripe : on honore
+                # la remise (impossible de revenir dessus) et on trace l'écart.
+                current_app.logger.warning(
+                    f"Promo {promo.code} (#{promo.id}) consommée au-delà de son quota — "
+                    f"purchase #{purchase.id}, buyer #{current_user.id}, remise {discount_amount}€"
+                )
 
         # ── Créer le Contract record + PDF (builder partagé) ─────────────────
         duration_text_val = build_duration_text(is_lifetime, duration_years)

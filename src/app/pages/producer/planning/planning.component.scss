@@ -1,0 +1,231 @@
+@use 'variables' as v;
+
+.planning {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3rem) 1rem 3rem;
+}
+
+.planning__header { text-align: center; margin-bottom: 2rem; }
+
+.planning__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: v.$radius-pill;
+  font-size: 0.78rem;
+  font-weight: v.$weight-bold;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #{v.$tag-violet};
+  background: color-mix(in srgb, #{v.$tag-violet} 14%, transparent);
+  border: 1px solid color-mix(in srgb, #{v.$tag-violet} 40%, transparent);
+}
+
+.planning__title {
+  margin: 1rem 0 0.5rem;
+  font-family: v.$font-display;
+  font-weight: v.$weight-bold;
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  color: v.$text-primary;
+}
+
+.planning__sub {
+  margin: 0 auto;
+  max-width: 34rem;
+  color: v.$text-secondary;
+}
+
+.planning__loading, .planning__empty {
+  color: v.$text-secondary;
+  text-align: center;
+  padding: 1.5rem 0;
+
+  a { color: #{v.$tag-violet}; font-weight: v.$weight-bold; }
+}
+
+.planning__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.planning__feed {
+  padding: 1rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: v.$text-secondary;
+
+  p { margin: 0 0 0.6rem; }
+}
+
+.planning__feed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  code {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    border-radius: v.$radius-md;
+    background: v.$bg-elevated;
+    color: v.$text-primary;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+// ── Formulaire ───────────────────────────────────────────────────────────────
+.planning__form {
+  padding: 1.2rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.planning__form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+
+.planning__form-field, .planning__form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: v.$weight-bold;
+  color: v.$text-secondary;
+}
+
+input, select, textarea {
+  padding: 0.55rem 0.75rem;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$bg-border;
+  background: v.$bg-elevated;
+  color: v.$text-primary;
+  font-size: 0.95rem;
+  font-weight: normal;
+
+  &:focus { outline: 2px solid #{v.$tag-violet}; outline-offset: 1px; }
+}
+
+.planning__error {
+  margin: 0;
+  color: v.$danger;
+  font-size: 0.88rem;
+}
+
+.planning__form-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+// ── Agenda ───────────────────────────────────────────────────────────────────
+.planning__day { margin-bottom: 1.5rem; }
+
+.planning__day-label {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: v.$weight-bold;
+  color: v.$text-primary;
+  text-transform: capitalize;
+}
+
+.planning__day-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.planning__event {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: v.$radius-md;
+  background: v.$bg-elevated;
+
+  &--confirmed { border-left: 3px solid v.$success; }
+  &--proposed  { border-left: 3px solid v.$gold; }
+}
+
+.planning__event-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #{v.$tag-violet} 16%, transparent);
+  color: #{v.$tag-violet};
+  flex-shrink: 0;
+}
+
+.planning__event-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.planning__event-title {
+  font-weight: v.$weight-bold;
+  color: v.$text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planning__event-meta {
+  font-size: 0.8rem;
+  color: v.$text-secondary;
+}
+
+// ── Boutons ──────────────────────────────────────────────────────────────────
+.planning__btn {
+  padding: 0.5rem 1rem;
+  border-radius: v.$radius-pill;
+  font-size: 0.88rem;
+  font-weight: v.$weight-bold;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.planning__btn--sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+
+.planning__btn--primary {
+  background: #{v.$tag-violet};
+  color: v.$white;
+
+  &:hover:not(:disabled) { filter: brightness(1.08); }
+}
+
+.planning__btn--ghost {
+  background: transparent;
+  border-color: v.$bg-border;
+  color: v.$text-secondary;
+
+  &:hover:not(:disabled) { border-color: #{v.$tag-violet}; color: #{v.$tag-violet}; }
+}

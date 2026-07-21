@@ -1,0 +1,273 @@
+@if (loading()) {
+  <div class="loading-row"><span>Chargement…</span></div>
+}
+
+@if (stats(); as s) {
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value text-blue">{{ s.total_listen_events }}</div>
+      <div class="stat-label">Événements d'écoute</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value text-green">{{ s.active_users_last_7d }}</div>
+      <div class="stat-label">Utilisateurs actifs (7j)</div>
+    </div>
+    @if (music(); as m) {
+      <div class="stat-card">
+        <div class="stat-value text-purple">{{ m.total_tracks }}</div>
+        <div class="stat-label">Beats analysés</div>
+      </div>
+    }
+  </div>
+
+  <!-- ── Portrait musical du catalogue (métadonnées) ─────────────────────── -->
+  @if (hasMusic()) {
+    <h2 class="section-title">Portrait musical du catalogue</h2>
+    <p class="section-sub">
+      Corrélations calculées sur les métadonnées des beats approuvés (tonalité, mode,
+      tempo, style) — indépendamment du comportement des auditeurs.
+    </p>
+
+    <div class="charts-grid">
+      <div class="panel chart-panel">
+        <h3>Mode majeur / mineur</h3>
+        <div class="chart-box chart-box--doughnut">
+          <canvas baseChart type="doughnut" [data]="modesData()" [options]="doughnutOptions"></canvas>
+        </div>
+        <p class="chart-note">Le rap et la trap penchent nettement vers le mineur.</p>
+      </div>
+
+      <div class="panel chart-panel">
+        <h3>Répartition des styles</h3>
+        <div class="chart-box chart-box--doughnut">
+          <canvas baseChart type="doughnut" [data]="stylesData()" [options]="doughnutOptions"></canvas>
+        </div>
+      </div>
+
+      <div class="panel chart-panel">
+        <h3>Distribution des tonalités</h3>
+        <div class="chart-box">
+          <canvas baseChart type="bar" [data]="keysData()" [options]="barOptions"></canvas>
+        </div>
+        <p class="chart-note">Toniques rangées dans l'ordre chromatique (ordre du clavier).</p>
+      </div>
+
+      <div class="panel chart-panel">
+        <h3>Familles de tempo</h3>
+        <div class="chart-box">
+          <canvas baseChart type="bar" [data]="tempoData()" [options]="barOptions"></canvas>
+        </div>
+      </div>
+
+      <!-- Une seule proportion (part de mineur) → jauge demi-anneau. -->
+      <div class="panel chart-panel">
+        <h3>Catalogue en tonalité mineure</h3>
+        <div class="chart-box chart-box--gauge">
+          <canvas baseChart type="doughnut" [data]="minorGaugeData()" [options]="gaugeOptions"></canvas>
+          <div class="gauge-value">{{ music()!.minor_ratio.pct_minor }}%</div>
+        </div>
+        <p class="chart-note">Part des beats en mode mineur — la couleur dominante du rap/trap.</p>
+      </div>
+
+      <!-- Toplines par tempo = profil multi-axes → radar. -->
+      <div class="panel chart-panel">
+        <h3>Où se posent les toplines ?</h3>
+        <div class="chart-box">
+          <canvas baseChart type="radar" [data]="toplineTempoData()" [options]="radarOptions"></canvas>
+        </div>
+        <p class="chart-note">
+          Nombre de toplines enregistrées selon le tempo du beat : sur quels rythmes
+          les artistes ont-ils le plus envie de poser leur voix.
+        </p>
+      </div>
+
+      @if (music()!.mode_by_style.length > 0) {
+        <div class="panel chart-panel">
+          <h3>Corrélation mode × style</h3>
+          <div class="chart-box">
+            <canvas baseChart type="bar" [data]="modeByStyleData()" [options]="stackedOptions"></canvas>
+          </div>
+          <p class="chart-note">Part de mineur / majeur au sein de chaque style.</p>
+        </div>
+      }
+
+      @if (music()!.avg_tempo_by_style.length > 0) {
+        <div class="panel chart-panel">
+          <h3>Tempo moyen par style</h3>
+          <div class="chart-box">
+            <canvas baseChart type="bar" [data]="avgTempoData()" [options]="barOptions"></canvas>
+          </div>
+          <p class="chart-note">BPM moyen des beats de chaque style.</p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Activité & parcours ─────────────────────────────────────────────── -->
+  @if (behavior(); as b) {
+    <h2 class="section-title">Activité & parcours</h2>
+
+    <div class="charts-grid">
+      <!-- Série temporelle → aire. -->
+      <div class="panel chart-panel chart-panel--wide">
+        <h3>Régularité des publications (12 semaines)</h3>
+        <div class="chart-box">
+          <canvas baseChart type="line" [data]="uploadRegularityData()" [options]="areaOptions"></canvas>
+        </div>
+        <p class="chart-note">Beats approuvés publiés par semaine — l'élan de production.</p>
+      </div>
+
+      <!-- Donnée cyclique (jours) → polaire. -->
+      <div class="panel chart-panel">
+        <h3>Publications par jour de la semaine</h3>
+        <div class="chart-box chart-box--doughnut">
+          <canvas baseChart type="polarArea" [data]="weekdayData()" [options]="polarOptions"></canvas>
+        </div>
+      </div>
+
+      <!-- Part d'un tout → anneau. -->
+      <div class="panel chart-panel">
+        <h3>Provenance des écoutes</h3>
+        <div class="chart-box chart-box--doughnut">
+          <canvas baseChart type="doughnut" [data]="listenSourcesData()" [options]="doughnutOptions"></canvas>
+        </div>
+        <p class="chart-note">Découverte (home), intention (search) ou fidélité (profile).</p>
+      </div>
+
+      <!-- Distribution → histogramme. -->
+      <div class="panel chart-panel">
+        <h3>Beats écoutés avant une topline</h3>
+        <div class="chart-box">
+          <canvas baseChart type="bar" [data]="browseHistogramData()" [options]="barOptions"></canvas>
+        </div>
+        <p class="chart-note">
+          Repérage des artistes avant de poser leur voix (7 j avant chaque topline).
+          @if (b.beats_before_topline.median !== null) {
+            Médiane : <strong>{{ b.beats_before_topline.median }}</strong>
+            sur {{ b.beats_before_topline.sample }} topline{{ b.beats_before_topline.sample > 1 ? 's' : '' }}.
+          }
+        </p>
+      </div>
+
+      <!-- Régularité des CONNEXIONS (distinct de la régularité de PUBLICATION
+           ci-dessus) : même paire de graphes, sur l'activité de retour des
+           utilisateurs — le meilleur indicateur de rétention dont on dispose. -->
+      @if (hasLogins()) {
+        <div class="panel chart-panel chart-panel--wide">
+          <h3>Régularité des connexions (12 semaines)</h3>
+          <div class="chart-box">
+            <canvas baseChart type="line" [data]="loginRegularityData()" [options]="areaOptions"></canvas>
+          </div>
+          <p class="chart-note">
+            Connexions dédupliquées par utilisateur et par jour — indicateur de rétention.
+          </p>
+        </div>
+
+        <div class="panel chart-panel">
+          <h3>Connexions par jour de la semaine</h3>
+          <div class="chart-box chart-box--doughnut">
+            <canvas baseChart type="polarArea" [data]="loginsByWeekdayData()" [options]="polarOptions"></canvas>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Corrélations d'écoute (comportement brut) ───────────────────────── -->
+  <h2 class="section-title">Corrélations d'écoute</h2>
+
+  <div class="two-col">
+    <div class="panel">
+      <h3>Top gammes écoutées</h3>
+      @for (item of s.top_keys; track item[0]) {
+        <div class="bar-row">
+          <span class="bar-label">{{ item[0] }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="barPct(item[1], s.top_keys)"></div>
+          </div>
+          <span class="bar-count">{{ item[1] }}</span>
+        </div>
+      }
+      @if (s.top_keys.length === 0) {
+        <p class="empty-note">Aucune donnée.</p>
+      }
+    </div>
+
+    <div class="panel">
+      <h3>Top tags écoutés</h3>
+      @for (item of s.top_tags; track item[0]) {
+        <div class="bar-row">
+          <span class="bar-label">{{ item[0] }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="barPct(item[1], s.top_tags)"></div>
+          </div>
+          <span class="bar-count">{{ item[1] }}</span>
+        </div>
+      }
+      @if (s.top_tags.length === 0) {
+        <p class="empty-note">Aucune donnée.</p>
+      }
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Corrélations de gammes (top 20)</h3>
+    @if (s.top_correlations.length > 0) {
+      <table class="corr-table">
+        <thead>
+          <tr><th>Si l'utilisateur écoute</th><th>Il écoutera aussi</th><th>Probabilité</th></tr>
+        </thead>
+        <tbody>
+          @for (c of s.top_correlations; track c.from + c.to) {
+            <tr>
+              <td>{{ c.from }}</td>
+              <td>{{ c.to }}</td>
+              <td>{{ (c.probability * 100) | number:'1.0-0' }}%</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="empty-note">Aucune corrélation calculée. Le job nightly n'a pas encore tourné.</p>
+    }
+  </div>
+
+  @if (s.top_artists && s.top_artists.length > 0) {
+    <div class="panel">
+      <h3>Top artistes similaires écoutés</h3>
+      @for (item of s.top_artists; track item[0]) {
+        <div class="bar-row">
+          <span class="bar-label bar-label--artist">{{ item[0] }}</span>
+          <div class="bar-track">
+            <div class="bar-fill bar-fill--artist" [style.width.%]="barPct(item[1], s.top_artists!)"></div>
+          </div>
+          <span class="bar-count">{{ item[1] }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  @if (s.artist_correlations && s.artist_correlations.length > 0) {
+    <div class="panel">
+      <h3>Corrélations artistes similaires (top 20)</h3>
+      <table class="corr-table">
+        <thead>
+          <tr><th>Si écoute référencé par</th><th>Écoute aussi référencé par</th><th>Probabilité</th></tr>
+        </thead>
+        <tbody>
+          @for (c of s.artist_correlations; track c.from + c.to) {
+            <tr>
+              <td class="italic">{{ c.from }}</td>
+              <td class="italic">{{ c.to }}</td>
+              <td>{{ (c.probability * 100) | number:'1.0-0' }}%</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+@if (error()) {
+  <div class="state-error">{{ error() }}</div>
+}

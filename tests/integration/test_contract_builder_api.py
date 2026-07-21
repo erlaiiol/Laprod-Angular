@@ -344,3 +344,196 @@ class TestGenerateContract:
 
         db.session.delete(contract)
         db.session.commit()
+
+
+# ── Contrat de management (add-on Premium+ sur un RosterLink) ────────────────────
+
+class TestManagementContract:
+    """Le contrat de management a son propre seuil (Premium+, can_use_management_
+    contract) — plus bas que le reste du contract builder (Semi-Pro+, contract_quota),
+    et n'est pas soumis au quota mensuel."""
+
+    def _create(self, client, headers, **overrides):
+        payload = {'title': 'Mandat de management', 'contract_type': 'management', **overrides}
+        return client.post('/api/contract-builder/contracts', json=payload, headers=headers)
+
+    def test_free_ne_peut_pas_creer_de_contrat_de_management(self, client, auth_headers, user, db):
+        user.subscription_plan = 'free'
+        db.session.commit()
+
+        resp = self._create(client, auth_headers)
+        assert resp.status_code == 403
+
+    def test_premium_peut_creer_un_contrat_de_management(self, client, auth_headers, user, db):
+        """Premium n'a normalement PAS accès au contract builder générique
+        (contract_quota == 0), mais DOIT avoir accès au contrat de management :
+        c'est précisément le seuil qui distingue les deux."""
+        from models import UserContract
+
+        user.subscription_plan = 'premium'
+        db.session.commit()
+
+        resp = self._create(client, auth_headers)
+        assert resp.status_code == 201
+        data = json.loads(resp.data)
+        contract_id = data['data']['contract']['id']
+        assert data['data']['contract']['contract_type'] == 'management'
+
+        db.session.delete(db.session.get(UserContract, contract_id))
+        db.session.commit()
+
+    def test_pas_de_quota_mensuel_sur_le_management(self, client, auth_headers, user, db):
+        """Semi-Pro n'a qu'1 contrat/mois sur le contract builder générique ; le
+        management n'est pas concerné par ce quota."""
+        from models import UserContract
+
+        user.subscription_plan = 'semi_pro'
+        db.session.commit()
+
+        created = []
+        for _ in range(2):
+            resp = self._create(client, auth_headers)
+            assert resp.status_code == 201
+            created.append(json.loads(resp.data)['data']['contract']['id'])
+
+        for cid in created:
+            db.session.delete(db.session.get(UserContract, cid))
+        db.session.commit()
+
+    def test_linked_user_id_est_persiste_sur_une_partie(self, client, auth_headers, user, db):
+        from models import UserContract, UserContractParty
+
+        user.subscription_plan = 'premium'
+        db.session.commit()
+
+        resp = self._create(client, auth_headers)
+        contract_id = json.loads(resp.data)['data']['contract']['id']
+
+        update_resp = client.put(
+            f'/api/contract-builder/contracts/{contract_id}',
+            json={
+                'parties': [
+                    {'party_type': 'physical', 'role': 'Manager', 'sort_order': 0},
+                    {'party_type': 'physical', 'role': 'Artiste', 'sort_order': 1, 'linked_user_id': user.id},
+                ],
+                'values': [],
+            },
+            headers=auth_headers,
+        )
+        assert update_resp.status_code == 200
+        parties = json.loads(update_resp.data)['data']['contract']['parties']
+        artiste_party = next(p for p in parties if p['role'] == 'Artiste')
+        assert artiste_party['linked_user_id'] == user.id
+
+        db.session.delete(db.session.get(UserContract, contract_id))
+        db.session.commit()
+
+
+# ── POST /api/roster/<id>/attach-contract ─────────────────────────────────────────
+
+class TestAttachManagementContract:
+
+    def _make_roster_link(self, db, producer, artist):
+        from models import RosterLink, RosterLinkStatus
+        link = RosterLink(
+            producer_id=producer.id, artist_id=artist.id,
+            invited_by_id=producer.id, status=RosterLinkStatus.active,
+        )
+        db.session.add(link)
+        db.session.commit()
+        return link
+
+    def test_attache_un_contrat_de_management_au_lien(self, client, db, app, bound_factories):
+        from flask_jwt_extended import create_access_token
+        from models import RosterLink, UserContract
+        from tests.factories.user_factory import UserFactory
+        from tests.scenarios import _teardown_user
+
+        producer = UserFactory(is_producer=True, subscription_plan='premium')
+        artist   = UserFactory(is_artist=True, subscription_plan='free')
+        db.session.commit()
+        with app.app_context():
+            headers = {'Authorization': f'Bearer {create_access_token(identity=str(producer.id))}',
+                       'Content-Type': 'application/json'}
+
+        link = self._make_roster_link(db, producer, artist)
+        contract = UserContract(user_id=producer.id, title='Mandat', contract_type='management')
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.post(
+            f'/api/roster/{link.id}/attach-contract',
+            json={'contract_id': contract.id},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert json.loads(resp.data)['data']['link']['has_management_contract'] is True
+        assert db.session.get(RosterLink, link.id).management_contract_id == contract.id
+
+        db.session.delete(contract)
+        db.session.delete(link)
+        db.session.commit()
+        _teardown_user(db, artist)
+        _teardown_user(db, producer)
+
+    def test_refuse_un_contrat_qui_n_est_pas_de_type_management(self, client, db, app, bound_factories):
+        from flask_jwt_extended import create_access_token
+        from models import UserContract
+        from tests.factories.user_factory import UserFactory
+        from tests.scenarios import _teardown_user
+
+        producer = UserFactory(is_producer=True, subscription_plan='premium')
+        artist   = UserFactory(is_artist=True, subscription_plan='free')
+        db.session.commit()
+        with app.app_context():
+            headers = {'Authorization': f'Bearer {create_access_token(identity=str(producer.id))}',
+                       'Content-Type': 'application/json'}
+
+        link = self._make_roster_link(db, producer, artist)
+        contract = UserContract(user_id=producer.id, title='Cession', contract_type='exploitation')
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.post(
+            f'/api/roster/{link.id}/attach-contract',
+            json={'contract_id': contract.id},
+            headers=headers,
+        )
+        assert resp.status_code == 400
+
+        db.session.delete(contract)
+        db.session.delete(link)
+        db.session.commit()
+        _teardown_user(db, artist)
+        _teardown_user(db, producer)
+
+    def test_l_artiste_ne_peut_pas_attacher_le_contrat(self, client, db, app, bound_factories):
+        from flask_jwt_extended import create_access_token
+        from models import UserContract
+        from tests.factories.user_factory import UserFactory
+        from tests.scenarios import _teardown_user
+
+        producer = UserFactory(is_producer=True, subscription_plan='premium')
+        artist   = UserFactory(is_artist=True, subscription_plan='premium')
+        db.session.commit()
+        with app.app_context():
+            headers = {'Authorization': f'Bearer {create_access_token(identity=str(artist.id))}',
+                       'Content-Type': 'application/json'}
+
+        link = self._make_roster_link(db, producer, artist)
+        contract = UserContract(user_id=producer.id, title='Mandat', contract_type='management')
+        db.session.add(contract)
+        db.session.commit()
+
+        resp = client.post(
+            f'/api/roster/{link.id}/attach-contract',
+            json={'contract_id': contract.id},
+            headers=headers,
+        )
+        assert resp.status_code == 403
+
+        db.session.delete(contract)
+        db.session.delete(link)
+        db.session.commit()
+        _teardown_user(db, artist)
+        _teardown_user(db, producer)

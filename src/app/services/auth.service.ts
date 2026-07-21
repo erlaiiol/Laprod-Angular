@@ -4,6 +4,37 @@ import { catchError, finalize, map, Observable, of, shareReplay, tap, throwError
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 
+/**
+ * Paliers d'abonnement — miroir de utils/plans.py (PLAN_ORDER).
+ * L'ordre est significatif : il sert aux comparaisons « au moins ce palier ».
+ */
+export const PLAN_ORDER = ['free', 'premium', 'semi_pro', 'pro_structure'] as const;
+export type PlanKey = (typeof PLAN_ORDER)[number];
+
+export const PLAN_LABELS: Record<PlanKey, string> = {
+  free:          'Découverte',
+  premium:       'Premium',
+  semi_pro:      'Semi-Pro',
+  pro_structure: 'Pro Structuré',
+};
+
+/** Capacités calculées par le serveur — la seule source de vérité. */
+export interface PlanCapabilities {
+  can_set_custom_prices:    boolean;
+  can_offer_exclusive:      boolean;
+  can_use_contract_builder: boolean;
+  can_do_mastering:         boolean;
+  /** null = illimité, 0 = aucun accès. */
+  contract_quota:           number | null;
+  /** Nouveaux beats publiables par jour. Le catalogue total en ligne est illimité. */
+  uploads_per_day:          number;
+  /** Formaliser un lien roster par un contrat de management. Le lien roster et
+   *  le rétroplanning partagé restent libres à tous les paliers : seule cette
+   *  capacité et can_view_royalties sont gatées Premium+. */
+  can_use_management_contract: boolean;
+  can_view_royalties:          boolean;
+}
+
 interface LoginSuccess {
   success: true;
   feedback: { level: string; message: string };
@@ -34,6 +65,7 @@ export interface User {
       is_beatmaker:                   boolean;
       is_mix_engineer:                boolean;
       is_artist:                      boolean;
+      is_producer:                    boolean;
       is_mixmaster_engineer:          boolean;
       is_certified_producer_arranger: boolean;
       mixmaster_sample_submitted:     boolean;
@@ -44,7 +76,11 @@ export interface User {
     upload_track_tokens:     number,
     topline_tokens:          number,
     is_premium:              boolean,
-    subscription_plan:       'free' | 'amateur' | 'pro',
+    subscription_plan:       PlanKey,
+    /** Capacités calculées PAR LE SERVEUR. Le front les lit, il ne les redérive
+     *  jamais : une règle d'autorisation dupliquée en Angular finirait par se
+     *  désynchroniser de celle qui protège réellement l'API. */
+    capabilities?:           PlanCapabilities,
     preferred_tag_category:  string | null,
     instagram?: string | null,
     twitter?:   string | null,
@@ -162,25 +198,56 @@ export class AuthService {
   readonly isAdmin = computed(() => this._currentUser()?.roles?.is_admin || false);
   readonly isBeatmaker = computed(() => this._currentUser()?.roles?.is_beatmaker || false);
   readonly isMixEngineer = computed(() => this._currentUser()?.roles?.is_mix_engineer || false);
+  /** Certifié par un admin (échantillon validé) — condition réelle pour vendre des
+   *  prestations Mix/Master (codes promo, campagnes), contrairement à isMixEngineer
+   *  qui n'est qu'une auto-déclaration non vérifiée. */
+  readonly isCertifiedMixEngineer = computed(() => this._currentUser()?.roles?.is_mixmaster_engineer || false);
   readonly isArtist = computed(() => this._currentUser()?.roles?.is_artist || false);
+  /** Auto-déclaré, sans certification (contrairement à isCertifiedMixEngineer). */
+  readonly isProducer = computed(() => this._currentUser()?.roles?.is_producer || false);
 
   readonly mixSamplePending = computed(() =>
     this._currentUser()?.roles?.is_mix_engineer === true &&
     this._currentUser()?.roles?.mixmaster_sample_submitted === false
   );
 
+  /** Un abonnement payant est-il actif (quel que soit le palier) ? */
   readonly isPremium = computed(() => {
     const u = this._currentUser();
     return !!u && u.is_premium && u.subscription_plan !== 'free';
   });
-  readonly isPro = computed(() => {
+
+  /** Palier actif, normalisé (retombe sur 'free' si l'abonnement a expiré). */
+  readonly plan = computed<PlanKey>(() => {
     const u = this._currentUser();
-    return !!u && u.is_premium && u.subscription_plan === 'pro';
+    return u && u.is_premium ? u.subscription_plan : 'free';
   });
-  readonly isAmateur = computed(() => {
-    const u = this._currentUser();
-    return !!u && u.is_premium && u.subscription_plan === 'amateur';
-  });
+
+  /** Le palier actif est-il au moins `minimum` ? Un rang, pas une cascade de
+   *  comparaisons : ajouter un palier ne casse aucun appelant. */
+  planAtLeast(minimum: PlanKey): boolean {
+    return PLAN_ORDER.indexOf(this.plan()) >= PLAN_ORDER.indexOf(minimum);
+  }
+
+  /** Pro Structuré (accès total au contract builder). */
+  readonly isPro = computed(() => this.planAtLeast('pro_structure'));
+
+  /** Libellé lisible du palier actif. */
+  readonly planLabel = computed(() => PLAN_LABELS[this.plan()]);
+
+  // ── Capacités : lues du serveur, jamais recalculées ────────────────────────
+  private caps = computed<PlanCapabilities | null>(
+    () => this._currentUser()?.capabilities ?? null,
+  );
+
+  readonly canSetCustomPrices   = computed(() => this.caps()?.can_set_custom_prices    ?? false);
+  readonly canOfferExclusive    = computed(() => this.caps()?.can_offer_exclusive      ?? false);
+  readonly canUseContractBuilder = computed(() => this.caps()?.can_use_contract_builder ?? false);
+  readonly canDoMastering       = computed(() => this.caps()?.can_do_mastering         ?? false);
+  /** null = illimité, 0 = aucun accès. */
+  readonly contractQuota        = computed(() => this.caps()?.contract_quota           ?? 0);
+  readonly canUseManagementContract = computed(() => this.caps()?.can_use_management_contract ?? false);
+  readonly canViewRoyalties         = computed(() => this.caps()?.can_view_royalties          ?? false);
 
   // Préférence locale pour les utilisateurs non connectés (pas persistée)
   private _localTagCategoryPref = signal<string | null>(null);
@@ -208,11 +275,13 @@ export class AuthService {
 
   login(identifier : string,
     password : string,
-    remember : boolean ): Observable<LoginResponse>{
+    remember : boolean,
+    captchaToken : string | null = null ): Observable<LoginResponse>{
     return this.http.post<LoginResponse>(`${this.authUrl}/login`, {
       identifier,
       password,
-      remember
+      remember,
+      captcha_token: captchaToken,
     }).pipe(
       tap((res) => {
         if (res.success === true) {
@@ -448,7 +517,7 @@ export class AuthService {
   }
 
   /** Sélectionne les rôles de l'utilisateur. */
-  selectRole(roles: { is_artist: boolean; is_beatmaker: boolean; is_mix_engineer: boolean }):
+  selectRole(roles: { is_artist: boolean; is_beatmaker: boolean; is_mix_engineer: boolean; is_producer: boolean }):
       Observable<{ success: boolean; data?: { user: User; next: string }; feedback?: { message: string } }> {
     return this.http.post<any>(
       `${this.authUrl}/select-role`,
@@ -474,6 +543,7 @@ export class AuthService {
     email: string,
     signature: string,
     accept_terms: boolean,
+    captchaToken: string | null = null,
   ): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.authUrl}/register`, {
       username,
@@ -482,6 +552,7 @@ export class AuthService {
       email,
       signature,
       accept_terms,
+      captcha_token: captchaToken,
     }).pipe(
       catchError((err) => throwError(() => err))
     );

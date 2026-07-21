@@ -17,6 +17,9 @@ export interface CheckoutOptions {
   total_price?:             number;
   buyer_address?:           string;
   buyer_email?:             string;
+  /** Code promo du vendeur. Le serveur revalide et recalcule la remise :
+   *  ce champ ne transporte jamais de montant. */
+  promo_code?:              string;
   // Obligatoires côté backend (create_checkout renvoie 400 sinon) — non
   // optionnels ici pour qu'un futur appelant de createCheckout() ne puisse
   // pas compiler sans les fournir (même garde-fou que initiateRenewal()).
@@ -27,7 +30,10 @@ export interface CheckoutOptions {
 
 export interface CheckoutData {
   checkout_url: string;
-  total:        number;
+  total:        number;   // net réellement encaissé (remise déduite)
+  gross?:       number;
+  discount?:    number;
+  promo_code?:  string | null;
 }
 
 export interface VerifyPurchaseData {

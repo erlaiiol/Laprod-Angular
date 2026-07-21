@@ -6,4 +6,6 @@ export const environment = {
   appTitle: 'LaProd',
   testimonialsEnabled: false,
   isNative: true,
+  // CAPTCHA web uniquement : jamais rendu en natif (isNative), clé laissée vide.
+  turnstileSiteKey: '',
 };

@@ -35,6 +35,9 @@
           @if (p.roles.is_beatmaker) {
             <span class="role-badge beatmaker"><i class="bi bi-music-note-beamed"></i> Beatmaker</span>
           }
+          @if (p.roles.is_producer) {
+            <span class="role-badge producer"><i class="bi bi-file-earmark-text"></i> Producteur</span>
+          }
           @if (p.roles.is_mixmaster_engineer) {
             <span class="role-badge badge-eng-mix"><i class="bi bi-patch-check-fill"></i> Certifié Mix</span>
           } @else if (p.roles.is_mix_engineer) {
@@ -42,7 +45,7 @@
           }
           @if (p.is_certified_master_engineer) {
             <span class="role-badge badge-eng-master"><i class="bi bi-patch-check-fill"></i> Certifié Master</span>
-          } @else if (p.subscription_plan === 'pro' && p.roles.is_mixmaster_engineer) {
+          } @else if (hasMasterProBadge(p) && p.roles.is_mixmaster_engineer) {
             <span class="role-badge badge-eng-master-pro"><i class="bi bi-star-fill"></i> Master Pro</span>
           }
           @if (p.is_certified_producer_arranger) {
@@ -94,15 +97,64 @@
           <a [routerLink]="['/profile/edit']" class="btn-action">
             <i class="bi bi-pencil"></i> Modifier le profil
           </a>
-          <a [routerLink]="['/profile/security']" class="btn-action btn-action--sec">
-            <i class="bi bi-shield-lock"></i> Sécurité
-          </a>
-          <a [routerLink]="['/wallet']" class="btn-action btn-action--wallet">
-            <i class="bi bi-cash-stack"></i> Portefeuille
-          </a>
         }
       </div>
     </div>
+
+    <!-- ── Hub de rôles (propre profil uniquement) ──────────────────────────── -->
+    <!-- Espaces + outils vendeur selon les rôles réellement possédés — édition
+         des rôles à tout moment sur /profile/edit, aucune "vue" à basculer. -->
+    @if (isOwnProfile()) {
+      <div class="role-hub">
+        <div class="role-hub__grid">
+          @if (isArtist()) {
+            <a class="role-card role-card--artist" [routerLink]="['/dashboard/artist']">
+              <span class="role-card__icon"><i class="bi bi-mic-fill"></i></span>
+              <span class="role-card__label">Espace Artiste</span>
+            </a>
+          }
+          @if (isBeatmaker()) {
+            <a class="role-card role-card--beatmaker" [routerLink]="['/dashboard/beatmaker']">
+              <span class="role-card__icon"><i class="bi bi-music-note-beamed"></i></span>
+              <span class="role-card__label">Espace Beatmaker</span>
+            </a>
+          }
+          @if (isMixEngineer()) {
+            <a class="role-card role-card--mix" [routerLink]="['/dashboard/mix-engineer']">
+              <span class="role-card__icon"><i class="bi bi-sliders"></i></span>
+              <span class="role-card__label">
+                Espace Mix Engineer
+                @if (mixSamplePending()) {
+                  <span class="role-pending-dot" title="Preview à soumettre">!</span>
+                }
+              </span>
+            </a>
+          }
+          @if (isProducer()) {
+            <a class="role-card role-card--producer" [routerLink]="['/dashboard/producer']">
+              <span class="role-card__icon"><i class="bi bi-file-earmark-text"></i></span>
+              <span class="role-card__label">Espace Producteur</span>
+            </a>
+          }
+          @if (showWallet()) {
+            <a class="role-card role-card--wallet" [routerLink]="['/wallet']">
+              <span class="role-card__icon"><i class="bi bi-wallet2"></i></span>
+              <span class="role-card__label">Mes gains</span>
+            </a>
+          }
+          @if (showSellerTools()) {
+            <a class="role-card role-card--promo" [routerLink]="['/promo-codes']">
+              <span class="role-card__icon"><i class="bi bi-tag-fill"></i></span>
+              <span class="role-card__label">Codes promo</span>
+            </a>
+            <a class="role-card role-card--campaign" [routerLink]="['/campagnes']">
+              <span class="role-card__icon"><i class="bi bi-megaphone-fill"></i></span>
+              <span class="role-card__label">Campagnes</span>
+            </a>
+          }
+        </div>
+      </div>
+    }
 
     <!-- ── Playlists (beatmakers) — affichées avant les tracks ─────────────── -->
     @if (playlists().length > 0) {

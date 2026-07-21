@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -11,6 +11,8 @@ import { ToastService } from '../../../services/toast.service';
 import {
   CONTRACT_TYPE_CONFIGS, ContractTypeConfig, IntroFieldDef,
 } from '../contract-type-configs';
+import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
+import { TourService } from '../../../services/tour.service';
 
 interface LocalValue {
   is_enabled: boolean;
@@ -21,11 +23,11 @@ interface LocalValue {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-builder-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TourAnchorDirective],
   templateUrl: './builder-form.component.html',
   styleUrl: './builder-form.component.scss',
 })
-export class BuilderFormComponent implements OnInit {
+export class BuilderFormComponent implements OnInit, OnDestroy {
 
   // ── State ──────────────────────────────────────────────────────────────────
   loading    = signal(true);
@@ -117,6 +119,18 @@ export class BuilderFormComponent implements OnInit {
   definedIntroVars = computed(() => this.introVarEntries().filter(e => !!e.value));
   hasAnyIntroVar   = computed(() => this.definedIntroVars().length > 0);
 
+  // Compteur « n / m champs auto renseignés » affiché dans le récapitulatif.
+  autoFieldsDone  = computed(() => this.definedIntroVars().length);
+  autoFieldsTotal = computed(() => this.introVarEntries().length);
+
+  // Le récapitulatif des champs auto est replié tant que l'utilisateur ne le
+  // déplie pas — il occupait un tiers de la hauteur de l'onglet Introduction.
+  autoFieldsOpen = signal(false);
+
+  toggleAutoFields(): void {
+    this.autoFieldsOpen.update(v => !v);
+  }
+
   // True when the essential variables (both party names + type-specific keys) are set
   hasKeyInfo = computed(() => {
     const m = this.introVarMap();
@@ -198,7 +212,14 @@ export class BuilderFormComponent implements OnInit {
     private router: Router,
     private svc:    ContractBuilderService,
     private toast:  ToastService,
+    private tour:   TourService,
   ) {}
+
+  // Les ancres du builder ne sont dans le DOM qu'une fois `loading` retombé à false :
+  // on ne peut donc pas lancer la visite depuis ngOnInit.
+  private maybeStartTour(): void {
+    setTimeout(() => this.tour.maybeAutoStart('contract-builder'), 700);
+  }
 
   ngOnInit(): void {
     if (this.route.snapshot.data['demo']) {
@@ -244,6 +265,7 @@ export class BuilderFormComponent implements OnInit {
         this.loading.set(false);
         this.activeGroup.set(0);
         this.showIntroTab.set(true);
+        this.maybeStartTour();
       },
       error: () => this.loading.set(false),
     });
@@ -285,6 +307,7 @@ export class BuilderFormComponent implements OnInit {
       this.loading.set(false);
       this.activeGroup.set(0);
       this.showIntroTab.set(true);
+      this.maybeStartTour();
     };
 
     // Le contrat d'abord (il porte son type), puis le template correspondant.
@@ -509,9 +532,9 @@ export class BuilderFormComponent implements OnInit {
       }
     }
     if (filled === 0) {
-      this.toast.showToast({ level: 'warning', message: 'Aucune clause activée ne dispose d\'un exemple.' });
+      this.toast.showToast({ level: 'warning', message: 'Aucune clause activée ne dispose d\'une rédaction type.' });
     } else {
-      this.toast.showToast({ level: 'info', message: `${filled} clause(s) remplies avec les exemples. Personnalisez-les selon votre situation.` });
+      this.toast.showToast({ level: 'info', message: `${filled} clause(s) rédigées. Ajustez le texte uniquement si votre situation le demande.` });
     }
   }
 
@@ -636,7 +659,26 @@ export class BuilderFormComponent implements OnInit {
   }
 
   togglePreview(): void {
-    this.showPreview.update(v => !v);
+    this.showPreview() ? this.closePreview() : this.openPreview();
+  }
+
+  openPreview(): void {
+    this.showPreview.set(true);
+    document.body.style.overflow = 'hidden';
+  }
+
+  closePreview(): void {
+    this.showPreview.set(false);
+    document.body.style.overflow = '';
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.showPreview()) this.closePreview();
+  }
+
+  ngOnDestroy(): void {
+    document.body.style.overflow = '';
   }
 
   applyPreset(presetId: string): void {
@@ -736,7 +778,7 @@ export class BuilderFormComponent implements OnInit {
     if (this.groups().length) this.setGroup(this.groups()[0].id);
     this.toast.showToast({
       level: 'info',
-      message: 'Clauses pré-remplies ! Utilisez « Tout résoudre » dans chaque clause pour personnaliser.',
+      message: 'Clauses pré-remplies ! Utilisez « Tout remplir » dans chaque clause pour personnaliser.',
     });
   }
 
@@ -800,6 +842,57 @@ export class BuilderFormComponent implements OnInit {
     }
     return result;
   });
+
+  // ── Progression ────────────────────────────────────────────────────────────
+  // Ne comptent que les clauses réellement retenues (activées ou obligatoires)
+  // dans un article actif : le dénominateur suit donc les choix de l'utilisateur.
+  progress = computed<{ done: number; total: number; pct: number }>(() => {
+    const artNums = this.articleNumbers();
+    let done = 0;
+    let total = 0;
+    for (const group of this.groups()) {
+      if (artNums[group.id] === undefined) continue;
+      for (const clause of group.clauses) {
+        const lv = this.getValue(clause.id, clause);
+        if (!lv.is_enabled && !clause.is_required) continue;
+        total++;
+        if (this.isClauseFilled(clause.id, clause)) done++;
+      }
+    }
+    return { done, total, pct: total ? Math.round((done / total) * 100) : 0 };
+  });
+
+  // Circonférence du cercle de progression (r=14) — utilisée pour le stroke-dasharray.
+  readonly ringCircumference = 2 * Math.PI * 14;
+
+  ringOffset = computed(() =>
+    this.ringCircumference * (1 - this.progress().pct / 100)
+  );
+
+  // ── Étape suivante ─────────────────────────────────────────────────────────
+  // Ordre de navigation : Introduction → Parties → articles, dans l'ordre des groupes.
+
+  nextStep = computed<{ label: string; groupId: number | null } | null>(() => {
+    if (this.showIntroTab()) {
+      return { label: 'Parties au contrat', groupId: 0 };
+    }
+    const groups = this.groups();
+    if (this.activeGroup() === 0) {
+      const first = groups[0];
+      return first ? { label: first.name, groupId: first.id } : null;
+    }
+    const idx = groups.findIndex(g => g.id === this.activeGroup());
+    const next = idx >= 0 ? groups[idx + 1] : undefined;
+    return next ? { label: next.name, groupId: next.id } : null;
+  });
+
+  goToNextStep(): void {
+    const step = this.nextStep();
+    if (!step) return;
+    if (step.groupId === 0) this.goToParties();
+    else if (step.groupId !== null) this.setGroup(step.groupId);
+    document.querySelector('.bf-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   back(): void {
     this.router.navigate(['/contract-builder']);

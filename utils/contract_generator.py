@@ -274,6 +274,18 @@ def generate_contract_pdf(output_path, contract_data):
         spaceAfter=5,
     )
 
+    # Une échéance à durée légale (vie de l'auteur + 70 ans) n'est, en pratique,
+    # jamais atteinte pendant l'exploitation commerciale de l'œuvre par les
+    # Parties : elle correspond à l'entrée dans le domaine public, bien après le
+    # décès du Compositeur. Rédiger cette échéance dans les mêmes termes qu'un
+    # terme déterminé (« à l'expiration », « sans délai de carence »…) laisserait
+    # croire au Compositeur qu'il retrouvera la main sur son œuvre à un horizon
+    # commercial raisonnable — alors qu'une exclusivité consentie pour la durée
+    # légale l'engage, dans les faits, à titre définitif.
+    has_finite_term = bool(duration_text_val := contract_data.get('duration_text', '')) \
+        and not is_streaming_only \
+        and 'durée légale' not in duration_text_val.lower()
+
     story.append(Paragraph(
         "<b>1. Droits moraux permanents (art. L.121-1 CPI) :</b> "
         "Le Compositeur conserve ses droits moraux en permanence, quelles que soient les cessions de droits patrimoniaux "
@@ -281,21 +293,40 @@ def generate_contract_pdf(output_path, contract_data):
         legal_expiry_style
     ))
 
-    story.append(Paragraph(
-        "<b>2. Retour automatique des droits patrimoniaux :</b> "
-        "À la date d'expiration indiquée à l'article 3, les droits patrimoniaux concédés reviennent "
-        "automatiquement au Compositeur, sans qu'aucune formalité supplémentaire ne soit requise. "
-        "L'Interprète n'est plus autorisé à créer de nouvelles exploitations commerciales de la composition après cette date.",
-        legal_expiry_style
-    ))
+    if has_finite_term:
+        story.append(Paragraph(
+            "<b>2. Retour automatique des droits patrimoniaux :</b> "
+            "À la date d'expiration indiquée à l'article 3, les droits patrimoniaux concédés reviennent "
+            "automatiquement au Compositeur, sans qu'aucune formalité supplémentaire ne soit requise. "
+            "L'Interprète n'est plus autorisé à créer de nouvelles exploitations commerciales de la composition après cette date.",
+            legal_expiry_style
+        ))
 
-    story.append(Paragraph(
-        "<b>3. Liberté de re-licence :</b> "
-        "À l'expiration du présent contrat, le Compositeur est libre de concéder une nouvelle licence "
-        "sur cette composition à tout tiers, y compris de manière exclusive, sans délai de carence et "
-        "sans obligation d'en informer l'Interprète au préalable.",
-        legal_expiry_style
-    ))
+        story.append(Paragraph(
+            "<b>3. Liberté de re-licence :</b> "
+            "À l'expiration du présent contrat, le Compositeur est libre de concéder une nouvelle licence "
+            "sur cette composition à tout tiers, y compris de manière exclusive, sans délai de carence et "
+            "sans obligation d'en informer l'Interprète au préalable.",
+            legal_expiry_style
+        ))
+    else:
+        story.append(Paragraph(
+            "<b>2. Portée pratique de l'échéance légale :</b> "
+            "La durée retenue à l'article 3 est la durée légale de protection du droit d'auteur (vie du "
+            "Compositeur augmentée de 70 ans). Cette échéance correspond à l'entrée de l'œuvre dans le domaine "
+            "public et n'interviendra donc, dans les faits, jamais pendant l'exploitation commerciale de "
+            "l'œuvre par les Parties. Les droits patrimoniaux concédés par le présent contrat n'ont ainsi pas "
+            "vocation à faire retour au Compositeur de son vivant.",
+            legal_expiry_style
+        ))
+
+        story.append(Paragraph(
+            "<b>3. Absence de re-licence à échéance rapprochée :</b> "
+            "Contrairement à une licence à durée déterminée, la présente licence n'ouvre au Compositeur aucune "
+            "perspective réaliste de concéder une nouvelle licence sur cette composition avant l'entrée de "
+            "l'œuvre dans le domaine public.",
+            legal_expiry_style
+        ))
 
     story.append(Paragraph(
         "<b>4. Sort des œuvres créées pendant la période de licence :</b> "
@@ -307,12 +338,21 @@ def generate_contract_pdf(output_path, contract_data):
     ))
 
     is_exclusive_contract = contract_data.get('is_exclusive', False)
-    if is_exclusive_contract:
+    if is_exclusive_contract and has_finite_term:
         story.append(Paragraph(
             "<b>5. Fin de l'exclusivité :</b> "
             "À l'échéance de la présente licence exclusive, la composition redevient automatiquement disponible "
             "à la vente sur la plateforme LaProd et le Compositeur peut la licencier à de nouveaux acheteurs, "
             "y compris exclusivement, sans notification préalable à l'Interprète.",
+            legal_expiry_style
+        ))
+    elif is_exclusive_contract:
+        story.append(Paragraph(
+            "<b>5. Portée de l'exclusivité :</b> "
+            "La présente licence exclusive étant consentie pour la durée légale de protection du droit "
+            "d'auteur, elle n'a pas vocation à prendre fin avant l'entrée de l'œuvre dans le domaine public. "
+            "Le Compositeur ne pourra donc pas, de son vivant, proposer cette composition à un autre "
+            "Interprète, y compris sur la plateforme LaProd.",
             legal_expiry_style
         ))
 

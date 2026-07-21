@@ -5,15 +5,22 @@
     <div class="premium-hero__eyebrow">
       <i class="bi bi-lightning-charge-fill"></i> LaProd<span class="plus">+</span>
     </div>
+    <!-- Tutoiement : registre par défaut de la page, comme sur toute la partie
+         création/marketplace (home, track-detail, commande mix). La page s'adresse
+         d'abord aux indépendants ; seule la carte Pro Structuré passe au « vous »,
+         parce qu'elle parle à une organisation.
+         Aucune promesse de « visibilité » : l'abonnement n'en donne pas. -->
     <h1 class="premium-hero__title">
-      Tu crées.<br>Il est temps d'être payé pour ça.
+      Tu crées.<br>Tu fixes tes règles.
     </h1>
     <p class="premium-hero__sub">
-      LaProd+ supprime les limites qui te ralentissent — plus de tokens, plus de visibilité, plus de contrôle sur tes droits.
+      Tes prix, tes droits, tes remises. LaProd prélève 10 % de ce qui est
+      <strong>réellement encaissé</strong> — jamais de ton prix affiché, jamais de
+      tes promotions. Le reste t'appartient.
     </p>
     @if (!isPremium()) {
       <a class="premium-hero__cta" (click)="scrollToPlans($event)" href="#plans">
-        Voir les offres <i class="bi bi-arrow-down"></i>
+        Voir les paliers <i class="bi bi-arrow-down"></i>
       </a>
     }
   </section>
@@ -22,7 +29,7 @@
   @if (activating()) {
     <div class="alert alert-info activation-loader">
       <div class="spinner-border spinner-border-sm me-2"></div>
-      Activation de votre abonnement…
+      Activation de ton abonnement…
     </div>
   }
 
@@ -32,200 +39,183 @@
       <i class="bi bi-check-circle-fill"></i>
       <div>
         <strong>Abonnement activé !</strong>
-        <p>Bienvenue dans LaProd+. Toutes vos nouvelles fonctionnalités sont disponibles.</p>
+        <p>Bienvenue dans LaProd+. Toutes tes nouvelles fonctionnalités sont disponibles.</p>
       </div>
     </div>
   }
 
-  <!-- ── Plan actif ────────────────────────────────────────────────────────── -->
+  <!-- ── Palier actif ─────────────────────────────────────────────────────── -->
   @if (isPremium() && !activating()) {
     <div class="current-plan">
-      <div class="current-plan-badge" [class.is-pro]="isPro()">
-        @if (isPro()) {
-          <i class="bi bi-star-fill"></i> Plan Pro
-        } @else {
-          <i class="bi bi-lightning-charge-fill"></i> Plan Amateur
-        }
+      <div class="current-plan-badge" [class.is-pro]="auth.isPro()">
+        <i class="bi bi-check-circle-fill"></i> {{ auth.planLabel() }}
       </div>
       <div class="current-plan-info">
-        <p>Votre abonnement est actif.</p>
-        @if (!isPro()) {
-          <p class="upgrade-hint">Passez en Pro pour débloquer le Contract Builder.</p>
+        <!-- Registre du palier détenu : on ne tutoie pas une SMAC abonnée. -->
+        @if (auth.isPro()) {
+          <p>Votre abonnement est actif. Merci de faire vivre LaProd.</p>
+        } @else {
+          <p>Ton abonnement est actif. Merci de faire vivre LaProd.</p>
         }
       </div>
     </div>
   }
 
-  <!-- ── Section douleur : sans Premium, tu perds ça ──────────────────────── -->
+  <!-- ── Positionnement ───────────────────────────────────────────────────────
+       Pas de marketing par la culpabilité (« sans Premium tu perds ça ») : on
+       explique à qui sert chaque palier et on laisse les gens décider. La
+       fidélité se construit sur la clarté, pas sur la peur de rater quelque chose.
+  -->
   @if (!isPremium()) {
-    <section class="pain-section">
-      <h2 class="pain-section__title">Sans Premium, tu perds ça chaque semaine.</h2>
-      <div class="pain-cards">
-        <div class="pain-card">
-          <i class="bi bi-hourglass-split pain-card__icon pain-card__icon--orange"></i>
-          <h3>Tokens épuisés.</h3>
-          <p>5 toplines par semaine, 1 upload par jour. Tu travailles à l'efficacité, pas à ton rythme.</p>
-        </div>
-        <div class="pain-card">
-          <i class="bi bi-eye-slash pain-card__icon pain-card__icon--red"></i>
-          <h3>Beats exclusifs invisibles.</h3>
-          <p>Les beats exclusifs — les plus rares, les plus ciblés — sont réservés aux membres Premium.</p>
-        </div>
-        <div class="pain-card">
-          <i class="bi bi-file-earmark-x pain-card__icon pain-card__icon--purple"></i>
-          <h3>Pas de contrats sur-mesure.</h3>
-          <p>Tu ne peux pas générer de contrats personnalisés. Tu signes sans vraiment comprendre ce que tu cèdes.</p>
-        </div>
-      </div>
+    <section class="intro-section">
+      <h2 class="intro-section__title">Un palier par moment de ton parcours.</h2>
+      <p class="intro-section__lead">
+        Commence gratuitement, aussi longtemps que tu veux. Monte d'un cran le jour
+        où tu en as besoin — et pas avant. Aucun engagement, résiliable à tout moment.
+      </p>
     </section>
   }
 
-  <!-- ── Ce que LaProd+ change concrètement ───────────────────────────────── -->
-  <section class="benefits-section">
-    <h2 class="benefits-section__title">Ce que LaProd+ change concrètement.</h2>
-    <div class="benefits-grid">
-      <div class="benefit-item">
-        <span class="benefit-item__num">+200</span>
-        <span class="benefit-item__label">toplines / semaine</span>
+  <!-- ── Tableau comparatif ───────────────────────────────────────────────────
+       Format tableau à coches : plus lisible que des colonnes-cartes étroites, et
+       plus classique pour comparer des droits ligne par ligne. La matrice vient du
+       serveur (GET /api/premium/plans → comparison), dérivée des capacités réelles :
+       une case cochée correspond toujours à ce que l'API autorise.
+  -->
+  <section class="plans-table-wrap" id="plans">
+    @if (comparison(); as cmp) {
+      <div class="plans-table-scroll">
+        <table class="plans-table">
+          <thead>
+            <tr>
+              <th class="ptable-corner"></th>
+              @for (col of cmp.columns; track col.key) {
+                <th class="ptable-col"
+                    [class.ptable-col--reco]="isRecommended(col.key)"
+                    [class.ptable-col--current]="isCurrentPlan(col.key)">
+                  @if (isRecommended(col.key) && !isPremium()) {
+                    <div class="ptable-badge"><i class="bi bi-star-fill"></i> Le plus choisi</div>
+                  } @else if (isCurrentPlan(col.key)) {
+                    <div class="ptable-badge ptable-badge--current">Palier actuel</div>
+                  }
+                  <div class="ptable-name">{{ col.label }}</div>
+                  <div class="ptable-price">
+                    {{ col.price === 0 ? 'Gratuit' : (col.price | number:'1.2-2') + ' €' }}
+                    @if (col.price > 0) { <span>/mois</span> }
+                  </div>
+                  @if (isColumnLocked(col.key)) {
+                    <button class="btn-plan btn-plan-disabled" disabled>{{ lockedLabel(col.key) }}</button>
+                  } @else {
+                    <button class="btn-plan" [class]="'btn-plan-' + col.key"
+                            [disabled]="subscribing() !== null"
+                            (click)="subscribe(col.key)">
+                      @if (subscribing() === col.key) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                      }
+                      {{ ctaLabel(col) }}
+                    </button>
+                  }
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (group of cmp.groups; track group.title) {
+              <tr class="ptable-grouprow">
+                <th [attr.colspan]="cmp.columns.length + 1" scope="colgroup">{{ group.title }}</th>
+              </tr>
+              @for (row of group.rows; track row.label) {
+                <tr class="ptable-row">
+                  <th class="ptable-rowlabel" scope="row">
+                    {{ row.label }}
+                    @if (row.help) {
+                      <span class="ptable-help" [title]="row.help"><i class="bi bi-info-circle"></i></span>
+                    }
+                  </th>
+                  @for (cell of row.cells; track $index) {
+                    <td class="ptable-cell"
+                        [class.ptable-cell--reco]="isRecommended(cmp.columns[$index].key)">
+                      @switch (cell.kind) {
+                        @case ('yes') {
+                          <i class="bi bi-check-lg ptable-yes" title="Inclus"></i>
+                        }
+                        @case ('no') {
+                          <span class="ptable-no" title="Non inclus">—</span>
+                        }
+                        @case ('text') {
+                          <span class="ptable-text">{{ cell.text }}</span>
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
       </div>
-      <div class="benefit-item">
-        <span class="benefit-item__num">+10</span>
-        <span class="benefit-item__label">uploads / jour</span>
-      </div>
-      <div class="benefit-item">
-        <span class="benefit-item__num benefit-item__num--gold">Accès</span>
-        <span class="benefit-item__label">beats exclusifs</span>
-      </div>
-      <div class="benefit-item">
-        <span class="benefit-item__num benefit-item__num--gold">PDF</span>
-        <span class="benefit-item__label">contrats exportables</span>
-      </div>
+    }
+
+    <!-- Les arguments de vente (typologie + argument massue) descendent sous le
+         tableau : ils gardent leur force sans étrangler les colonnes. -->
+    <div class="highlights-strip">
+      @for (p of highlights(); track p.key) {
+        <div class="highlight-card" [class.highlight-card--org]="p.tone === 'vous'">
+          <div class="highlight-card__name">{{ p.label }}</div>
+          <p class="highlight-card__aud">{{ p.audience }}</p>
+          <p class="highlight-card__text">{{ p.highlight }}</p>
+        </div>
+      }
     </div>
   </section>
-
-  <!-- ── Tableau comparatif ───────────────────────────────────────────────── -->
-  <div class="plans-grid" id="plans">
-
-    <!-- Free -->
-    <div class="plan-card plan-free">
-      <div class="plan-header">
-        <h2>Free</h2>
-        <div class="plan-price">0 €<span>/mois</span></div>
-      </div>
-      <ul class="plan-features">
-        <li><i class="bi bi-check"></i> +1 token upload / jour (cap 2)</li>
-        <li><i class="bi bi-check"></i> +5 tokens topline / semaine (cap 5)</li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Beats exclusifs</span></li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Analyzer</span></li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Builder</span></li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Badge Engineer Pro</span></li>
-      </ul>
-      <div class="plan-cta">
-        <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
-      </div>
-    </div>
-
-    <!-- Amateur -->
-    <div class="plan-card plan-amateur" [class.plan-current]="isAmateur()">
-      @if (isAmateur()) {
-        <div class="plan-badge-current">Actuel</div>
-      }
-      <div class="plan-header">
-        <h2>Amateur</h2>
-        <div class="plan-price">1,99 €<span>/mois</span></div>
-      </div>
-      <ul class="plan-features">
-        <li><i class="bi bi-check-circle-fill"></i> +5 tokens upload / jour (cap 15)</li>
-        <li><i class="bi bi-check-circle-fill"></i> +50 tokens topline / semaine (cap 50)</li>
-        <li><i class="bi bi-check-circle-fill"></i> Beats exclusifs</li>
-        <li><i class="bi bi-check-circle-fill"></i> Contract Analyzer</li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Contract Builder</span></li>
-        <li><i class="bi bi-x text-muted"></i> <span class="muted">Badge Engineer Pro</span></li>
-      </ul>
-      <div class="plan-cta">
-        @if (!isAmateur()) {
-          <button
-            class="btn-plan btn-plan-amateur"
-            [disabled]="subscribing() !== null"
-            (click)="subscribe('amateur')"
-          >
-            @if (subscribing() === 'amateur') {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Essayer Amateur
-          </button>
-        } @else {
-          <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
-        }
-      </div>
-    </div>
-
-    <!-- Pro -->
-    <div class="plan-card plan-pro" [class.plan-current]="isPro()">
-      <div class="plan-badge-popular">
-        <i class="bi bi-star-fill"></i> Recommandé
-      </div>
-      @if (isPro()) {
-        <div class="plan-badge-current">Actuel</div>
-      }
-      <div class="plan-header">
-        <h2>Pro <i class="bi bi-star-fill text-warning"></i></h2>
-        <div class="plan-price">19,99 €<span>/mois</span></div>
-      </div>
-      <ul class="plan-features">
-        <li><i class="bi bi-check-circle-fill"></i> +10 tokens upload / jour (cap 30)</li>
-        <li><i class="bi bi-check-circle-fill"></i> +200 tokens topline / semaine (cap 200)</li>
-        <li><i class="bi bi-check-circle-fill"></i> Beats exclusifs</li>
-        <li><i class="bi bi-check-circle-fill"></i> Contract Analyzer</li>
-        <li><i class="bi bi-check-circle-fill"></i> Contract Builder</li>
-        <li><i class="bi bi-check-circle-fill"></i> Badge Engineer Master Pro</li>
-      </ul>
-      <div class="plan-cta">
-        @if (!isPro()) {
-          <button
-            class="btn-plan btn-plan-pro"
-            [disabled]="subscribing() !== null"
-            (click)="subscribe('pro')"
-          >
-            @if (subscribing() === 'pro') {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Commencer maintenant
-          </button>
-        } @else {
-          <button class="btn-plan btn-plan-disabled" disabled>Plan actuel</button>
-        }
-      </div>
-    </div>
-
-  </div>
 
   <!-- ── FAQ étendue ──────────────────────────────────────────────────────── -->
   <div class="faq">
     <h3>Questions fréquentes</h3>
+
+    <!-- Registre : tutoiement, comme le reste de la page. Seule la question sur
+         le Pro Structuré vouvoie — c'est la seule qui s'adresse à une structure. -->
     <div class="faq-item">
-      <strong>Puis-je essayer sans risque ?</strong>
-      <p>Oui. Vous pouvez résilier à tout moment depuis notre support. Votre accès reste actif jusqu'à la fin de la période en cours — aucune facturation surprise.</p>
+      <strong>Je peux essayer sans risque ?</strong>
+      <p>Oui. Tu peux résilier à tout moment depuis notre support. Ton accès reste actif jusqu'à la fin de la période en cours — aucune facturation surprise.</p>
     </div>
     <div class="faq-item">
-      <strong>Puis-je changer de plan ?</strong>
-      <p>Oui, vous pouvez passer du plan Amateur au plan Pro à tout moment. Votre abonnement sera prolongé en conséquence.</p>
+      <strong>Je peux changer de palier ?</strong>
+      <p>Oui, à tout moment. Ton abonnement est prolongé en conséquence — tu ne perds jamais ce que tu as déjà payé.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Qu'est-ce que le badge Mastering Pro ?</strong>
+      <p>À partir du palier Semi-Pro, ton profil d'ingénieur affiche un badge indiquant que tu es habilité à proposer — et à facturer — le service de mastering. Tu peux aussi l'obtenir sans abonnement en faisant valider un échantillon par notre équipe.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Et si j'oublie d'annuler ?</strong>
+      <p>On t'envoie un email de rappel 7 jours avant chaque renouvellement. Tu peux résilier depuis la page <a routerLink="/contact">Contact</a> à tout moment.</p>
     </div>
     <div class="faq-item">
       <strong>Le paiement est-il sécurisé ?</strong>
       <p>Oui, les paiements sont traités par Stripe, certifié PCI-DSS. Aucune donnée bancaire ne transite sur nos serveurs.</p>
     </div>
-    <div class="faq-item">
-      <strong>Qu'est-ce que le Badge Engineer Master Pro ?</strong>
-      <p>Avec un abonnement Pro, votre profil ingénieur affiche un badge doré indiquant que vous êtes habilité à proposer le service de mastering.</p>
-    </div>
-    <div class="faq-item">
-      <strong>Et si j'oublie d'annuler ?</strong>
-      <p>Nous envoyons un email de rappel 7 jours avant chaque renouvellement. Vous pouvez résilier depuis la page <a routerLink="/contact">Contact</a> à tout moment.</p>
-    </div>
-    <div class="faq-item">
-      <strong>Comment résilier ?</strong>
-      <p>Contactez notre support depuis la page <a routerLink="/contact">Contact</a>. Votre accès reste actif jusqu'à la fin de la période en cours.</p>
+
+    <!-- Question adressée aux structures : on y vouvoie, comme sur la carte
+         Pro Structuré et comme dans le Contract Builder lui-même. -->
+    <div class="faq-item faq-item--org">
+      <strong>
+        <i class="bi bi-building"></i>
+        Notre structure hésite entre Semi-Pro et Pro Structuré. Que choisir ?
+      </strong>
+      <p>
+        Le Semi-Pro suffit à un indépendant, même très actif : un contrat par mois
+        couvre la quasi-totalité des besoins hors structure. Le Pro Structuré
+        s'adresse à vous si vous contractualisez <strong>des dizaines d'intervenants
+        par saison</strong> — SMAC, festival, club, label. Un contrat rédigé par un
+        juriste coûte entre 500 et 2 000 € : le premier que vous générez a déjà
+        remboursé une année d'abonnement.
+      </p>
+      <p>
+        Vos contrats vous appartiennent et restent exportables en PDF. Si vous
+        arrêtez votre abonnement, vous conservez l'accès à tous ceux que vous avez
+        déjà générés — vous ne pouvez simplement plus en créer de nouveaux.
+      </p>
     </div>
   </div>
 

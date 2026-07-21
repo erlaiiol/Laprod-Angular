@@ -110,10 +110,12 @@
   &.selected .role-icon.artist    { color: v.$tag-blue; }
   &.selected .role-icon.beatmaker { color: v.$tag-green; }
   &.selected .role-icon.mix       { color: v.$gold; }
+  &.selected .role-icon.producer  { color: v.$tag-violet; }
 
   &.selected:has(.role-icon.artist)    { border-color: v.$tag-blue; }
   &.selected:has(.role-icon.beatmaker) { border-color: v.$tag-green; }
   &.selected:has(.role-icon.mix)       { border-color: v.$gold; }
+  &.selected:has(.role-icon.producer)  { border-color: v.$tag-violet; }
 }
 
 .role-icon {

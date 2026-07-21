@@ -15,7 +15,7 @@ const mockOauthUser = {
   profile_image: '',
   roles: {
     is_admin: false, is_beatmaker: false, is_mix_engineer: false,
-    is_artist: false, is_mixmaster_engineer: false, is_certified_producer_arranger: false,
+    is_artist: false, is_producer: false, is_mixmaster_engineer: false, is_certified_producer_arranger: false,
   },
   user_type_selected: false,
   email_verified: true,

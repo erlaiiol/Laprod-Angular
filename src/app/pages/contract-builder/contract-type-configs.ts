@@ -91,8 +91,8 @@ const EXPLOITATION_CONFIG: ContractTypeConfig = {
   firstPartyBadge: 'Contractant 1 — Artiste / Titulaire',
   rolePlaceholder: 'ex : Artiste, Éditeur, Distributeur…',
   keyBrackets: ["[l'Œuvre]"],
-  keyInfoHint: "Pour activer le Quick Start, renseignez le nom des deux parties et le titre de l'œuvre.",
-  quickStartDescription: "Pré-remplissez les clauses essentielles d'une licence numérique avec vos variables.",
+  keyInfoHint: "Pour activer le pré-remplissage, renseignez le nom des deux parties et le titre de l'œuvre.",
+  quickStartDescription: "Pré-remplissez les clauses essentielles d'une licence numérique à partir de vos champs automatiques.",
   guideNote: 'Ces modèles respectent le CPI (Code de la Propriété Intellectuelle). Consultez un avocat spécialisé pour toute clause sensible.',
 
   introSections: [
@@ -459,8 +459,8 @@ const PERFORMANCE_CONFIG: ContractTypeConfig = {
   firstPartyBadge: 'Contractant 1 — Artiste / Producteur du spectacle',
   rolePlaceholder: 'ex : Artiste, Producteur, Organisateur…',
   keyBrackets: ["[l'Évènement]"],
-  keyInfoHint: "Pour activer le Quick Start, renseignez le nom des deux parties et le nom de l'évènement.",
-  quickStartDescription: "Pré-remplissez les clauses essentielles d'un contrat de concert avec vos variables.",
+  keyInfoHint: "Pour activer le pré-remplissage, renseignez le nom des deux parties et le nom de l'évènement.",
+  quickStartDescription: "Pré-remplissez les clauses essentielles d'un contrat de concert à partir de vos champs automatiques.",
   guideNote: "Ces modèles suivent les usages du spectacle vivant (contrat de cession / prestation entre entrepreneurs indépendants). Ils ne remplacent pas un contrat d'engagement d'artiste salarié : en cas de doute, consultez un avocat ou le GUSO.",
 
   introSections: [
@@ -844,9 +844,189 @@ const PERFORMANCE_CONFIG: ContractTypeConfig = {
   ],
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANAGEMENT — mandat de management artistique (add-on optionnel sur un lien roster)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MANAGEMENT_CONFIG: ContractTypeConfig = {
+  type: 'management',
+  label: 'Contrat de management',
+  firstPartyBadge: 'Contractant 1 — Manager / Producteur',
+  rolePlaceholder: 'ex : Manager, Artiste, Structure de management…',
+  keyBrackets: ['[début du mandat]'],
+  keyInfoHint: 'Pour activer le pré-remplissage, renseignez le nom des deux parties et la date de début du mandat.',
+  quickStartDescription: "Pré-remplissez les clauses essentielles d'un mandat de management à partir de vos champs automatiques.",
+  guideNote: "Ce module génère un mandat de management (conseil, stratégie, mise en réseau) entre entrepreneurs indépendants, régi par le droit commun du mandat (art. 1984 et s. du Code civil). Il ne remplace pas un contrat d'agent artistique, activité réglementée nécessitant une licence : en cas de doute sur votre activité réelle, consultez un avocat spécialisé.",
+
+  introSections: [
+    {
+      title: 'Le mandat',
+      icon: 'bi-briefcase',
+      fields: [
+        { id: 'mandateStart', label: 'Début du mandat', placeholder: 'ex : 01/09/2026', inputType: 'text', bracket: '[début du mandat]', wide: true },
+        { id: 'mandateDuration', label: 'Durée initiale', placeholder: 'ex : 12 mois', inputType: 'text', bracket: '[durée du mandat]' },
+        { id: 'mandateScope', label: 'Nature du mandat', inputType: 'select', options: ['Mandat non-exclusif', 'Mandat exclusif'], bracket: '[nature du mandat]' },
+      ],
+    },
+    {
+      title: 'Clés financières',
+      icon: 'bi-percent',
+      fields: [
+        { id: 'commissionRate', label: 'Taux de commission (%)', placeholder: 'ex : 15', inputType: 'number', bracket: '[taux de commission]', suffix: '%', min: 0, max: 50 },
+      ],
+    },
+  ],
+
+  legalWarning: {
+    title: 'Management ≠ agent artistique',
+    text: "Ce module produit un mandat de conseil et de développement de carrière entre entrepreneurs indépendants (art. 1984 et s. du Code civil). "
+        + "Si votre rôle consiste, à titre habituel et contre rémunération, à négocier et conclure des contrats d'engagement de spectacles pour le compte de l'Artiste, "
+        + "vous exercez une activité d'AGENT ARTISTIQUE réglementée, qui nécessite une licence spécifique et dont la commission est plafonnée par la réglementation "
+        + "(art. L.7121-9 et s. du Code du travail, régime issu de la loi n° 2011-893 du 26 juillet 2011). Ce générateur n'est pas adapté à cette activité — consultez un avocat spécialisé.",
+  },
+
+  presets: [
+    {
+      id: 'mandat-simple',
+      icon: 'bi-handshake',
+      label: 'Mandat simple non-exclusif',
+      description: 'Conseil et mise en réseau, sans exclusivité, pour tester la collaboration.',
+      meta: '6 mois · Non-exclusif · Commission 15 %',
+      badge: 'Débutant',
+      level: 'easy',
+      clauses: [
+        { group: 'Préambule', clause: 'Contexte et volonté des parties' },
+        { group: 'Objet du mandat', clause: 'Nature du mandat', value: { selected: 'Mandat non-exclusif' } },
+        { group: 'Objet du mandat', clause: 'Périmètre du mandat', value: { selected: ['Conseil et stratégie de carrière', 'Mise en réseau (labels, médias, partenaires)'] } },
+        { group: 'Objet du mandat', clause: "Limite de l'activité d'agent artistique" },
+        { group: 'Objet du mandat', clause: 'Finalité et description' },
+        { group: 'Durée et renouvellement', clause: 'Durée initiale', value: { amount: 6, unit: 'mois' } },
+        { group: 'Durée et renouvellement', clause: 'Date de prise d\'effet' },
+        { group: 'Commission', clause: 'Taux de commission (%)', value: { number: 15 } },
+        { group: 'Commission', clause: 'Assiette de la commission', value: { selected: 'Revenus nets (après frais de production/promotion)' } },
+        { group: 'Commission', clause: 'Modalités de reversement' },
+        { group: 'Obligations du Manager', clause: 'Compte-rendu périodique', value: { selected: 'Mensuel' } },
+        { group: 'Obligations du Manager', clause: 'Transparence sur les opportunités reçues' },
+        { group: "Obligations de l'Artiste", clause: 'Disponibilité et bonne foi' },
+        { group: 'Révocation et résiliation', clause: 'Résiliation pour inexécution' },
+        { group: 'Confidentialité', clause: 'Clause de confidentialité' },
+        { group: 'Droit applicable et juridiction compétente', clause: 'Droit applicable' },
+        { group: 'Notifications', clause: 'Email de contact du Manager' },
+        { group: 'Notifications', clause: "Email de contact de l'Artiste" },
+        { group: 'Clauses générales', clause: "Intégralité de l'accord" },
+        { group: 'Clauses générales', clause: 'Modification écrite' },
+        { group: 'Clauses générales', clause: 'Indépendance des parties' },
+        { group: 'Annexes', clause: 'Liste des annexes' },
+      ],
+    },
+    {
+      id: 'mandat-exclusif',
+      icon: 'bi-shield-check',
+      label: 'Mandat exclusif structuré',
+      description: 'Exclusivité, commission structurée, clause de survie et non-sollicitation.',
+      meta: '12 mois · Exclusif France · Commission 20 %',
+      badge: 'Intermédiaire',
+      level: 'medium',
+      clauses: [
+        { group: 'Préambule', clause: 'Contexte et volonté des parties' },
+        { group: 'Préambule', clause: "Qualité d'indépendant des parties" },
+        { group: 'Objet du mandat', clause: 'Nature du mandat', value: { selected: 'Mandat exclusif' } },
+        { group: 'Objet du mandat', clause: 'Périmètre du mandat', value: { selected: ['Conseil et stratégie de carrière', 'Développement artistique', 'Mise en réseau (labels, médias, partenaires)', 'Coordination administrative', 'Supervision de la promotion et de la communication'] } },
+        { group: 'Objet du mandat', clause: "Limite de l'activité d'agent artistique" },
+        { group: 'Objet du mandat', clause: 'Finalité et description' },
+        { group: 'Durée et renouvellement', clause: 'Durée initiale', value: { amount: 12, unit: 'mois' } },
+        { group: 'Durée et renouvellement', clause: 'Date de prise d\'effet' },
+        { group: 'Durée et renouvellement', clause: 'Renouvellement tacite' },
+        { group: 'Durée et renouvellement', clause: 'Préavis de non-reconduction' },
+        { group: 'Commission', clause: 'Taux de commission (%)', value: { number: 20 } },
+        { group: 'Commission', clause: 'Assiette de la commission', value: { selected: 'Revenus nets de commissions tierces (label, distributeur, agent booking)' } },
+        { group: 'Commission', clause: 'Revenus inclus dans l\'assiette', value: { selected: ['Cachets de concert', 'Royalties d\'exploitation (streaming, ventes)', 'Synchronisations', 'Partenariats et sponsoring'] } },
+        { group: 'Commission', clause: 'Modalités de reversement' },
+        { group: 'Commission', clause: 'Facturation de la commission' },
+        { group: 'Exclusivité territoriale', clause: 'Territoire du mandat', value: { territory: 'France' } },
+        { group: 'Exclusivité territoriale', clause: "Exceptions à l'exclusivité" },
+        { group: 'Obligations du Manager', clause: 'Compte-rendu périodique', value: { selected: 'Trimestriel' } },
+        { group: 'Obligations du Manager', clause: 'Transparence sur les opportunités reçues' },
+        { group: "Obligations de l'Artiste", clause: 'Disponibilité et bonne foi' },
+        { group: "Obligations de l'Artiste", clause: 'Communication des opportunités reçues directement' },
+        { group: "Obligations de l'Artiste", clause: "Respect de l'exclusivité" },
+        { group: 'Révocation et résiliation', clause: 'Résiliation pour inexécution' },
+        { group: 'Révocation et résiliation', clause: 'Révocation ad nutum du mandat' },
+        { group: 'Révocation et résiliation', clause: 'Clause de survie post-résiliation (affaires en cours)' },
+        { group: 'Révocation et résiliation', clause: 'Clause de non-sollicitation' },
+        { group: 'Confidentialité', clause: 'Clause de confidentialité' },
+        { group: 'Confidentialité', clause: 'Durée de confidentialité post-résiliation (années)' },
+        { group: 'Droit applicable et juridiction compétente', clause: 'Droit applicable' },
+        { group: 'Droit applicable et juridiction compétente', clause: 'Médiation préalable obligatoire' },
+        { group: 'Notifications', clause: 'Email de contact du Manager' },
+        { group: 'Notifications', clause: "Email de contact de l'Artiste" },
+        { group: 'Clauses générales', clause: "Intégralité de l'accord" },
+        { group: 'Clauses générales', clause: 'Modification écrite' },
+        { group: 'Clauses générales', clause: 'Divisibilité' },
+        { group: 'Clauses générales', clause: 'Indépendance des parties' },
+        { group: 'Annexes', clause: 'Liste des annexes' },
+      ],
+    },
+  ],
+
+  quickStartClauses: [
+    {
+      group: 'Préambule', clause: 'Contexte et volonté des parties', field: 'text',
+      value:
+        "[Contractant 1], ci-après dénommé(e) « le Manager », et [Contractant 2], ci-après dénommé(e) " +
+        "« l'Artiste », collaborent depuis [début du mandat] au développement du projet artistique de " +
+        "l'Artiste. Les parties, agissant chacune en qualité d'entrepreneur indépendant, ont convenu de " +
+        "formaliser les conditions de cette collaboration dans les stipulations qui suivent, dont elles " +
+        "déclarent accepter les termes sans réserve.",
+    },
+    {
+      group: 'Objet du mandat', clause: 'Finalité et description', field: 'text',
+      value:
+        "Le présent contrat a pour objet de définir les conditions dans lesquelles [Contractant 2] confie à " +
+        "[Contractant 1] un [nature du mandat] de management, en vue du développement de sa carrière " +
+        "artistique, à compter du [début du mandat] et pour une durée initiale de [durée du mandat].",
+    },
+    {
+      group: 'Objet du mandat', clause: "Limite de l'activité d'agent artistique", field: 'details',
+      value:
+        "Les parties reconnaissent expressément que le présent mandat porte sur des missions de conseil, de " +
+        "stratégie de carrière, de développement artistique et de coordination, à l'exclusion de toute " +
+        "activité de mise en rapport habituelle et rémunérée de l'Artiste avec des entrepreneurs de " +
+        "spectacles vivants en vue de la conclusion de contrats d'engagement, laquelle relève du régime " +
+        "réglementé de l'agent artistique (art. L.7121-9 et s. du Code du travail) et suppose une licence " +
+        "que le Manager ne détient pas dans le cadre du présent contrat.",
+    },
+    {
+      group: 'Commission', clause: 'Modalités de reversement', field: 'text',
+      value:
+        "[Contractant 2] encaisse directement l'ensemble des revenus visés à l'article « Revenus inclus dans " +
+        "l'assiette » et reverse à [Contractant 1] la commission de [taux de commission] due dans un délai de " +
+        "[nombre] jours suivant leur encaissement effectif, accompagnée d'un relevé détaillant l'origine de " +
+        "chaque somme.",
+    },
+    {
+      group: 'Révocation et résiliation', clause: 'Clause de survie post-résiliation (affaires en cours)', field: 'details',
+      value:
+        "Pour les affaires dont les négociations ont été engagées par [Contractant 1] avant la date de fin du " +
+        "présent mandat et qui aboutissent dans les [nombre] mois suivant cette date, la commission prévue à " +
+        "l'article « Commission » reste due à [Contractant 1] dans les conditions habituelles.",
+    },
+  ],
+
+  quickStartToggles: [
+    'Préambule||Contexte et volonté des parties',
+    "Objet du mandat||Limite de l'activité d'agent artistique",
+    'Confidentialité||Clause de confidentialité',
+    'Clauses générales||Intégralité de l\'accord',
+    'Clauses générales||Modification écrite',
+    'Clauses générales||Indépendance des parties',
+  ],
+};
+
 // ── Export ────────────────────────────────────────────────────────────────────
 
 export const CONTRACT_TYPE_CONFIGS: Record<ContractType, ContractTypeConfig> = {
   exploitation: EXPLOITATION_CONFIG,
   performance:  PERFORMANCE_CONFIG,
+  management:   MANAGEMENT_CONFIG,
 };

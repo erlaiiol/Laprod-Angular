@@ -11,8 +11,11 @@ import { MUSICAL_KEYS } from '../../services/track.service';
 import { UploadStatusService } from '../../services/upload-status.service';
 import { YoutubeTemplateService } from '../../services/youtube-template.service';
 import { Playlist, PlaylistService } from '../../services/playlist.service';
+import { PromoService, PromoCode } from '../../services/promo.service';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { environment } from '../../../environments/environment';
+import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
+import { TourService } from '../../services/tour.service';
 
 
 
@@ -26,7 +29,7 @@ interface TagGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector:    'app-upload-track',
   standalone:  true,
-  imports:     [CommonModule, FormsModule, RouterLink],
+  imports:     [CommonModule, FormsModule, RouterLink, TourAnchorDirective],
   templateUrl: './upload-track.component.html',
   styleUrl:    './upload-track.component.scss',
 })
@@ -72,6 +75,30 @@ export class UploadTrackComponent implements OnInit {
   /* ── Playlists ──────────────────────────────────────────────────────────── */
   playlists            = signal<Playlist[]>([]);
   selectedPlaylistIds  = signal<number[]>([]);
+
+  /* ── Codes promo ─────────────────────────────────────────────────────────── */
+  // On ne propose que les codes ciblés : ceux en « tous mes beats » couvrent déjà
+  // ce nouveau beat, les rattacher un par un n'aurait aucun sens.
+  promoCodes            = signal<PromoCode[]>([]);
+  selectedPromoCodeIds  = signal<number[]>([]);
+  showPromoCodes        = signal(false);
+
+  selectablePromoCodes = computed(() =>
+    this.promoCodes().filter(c => c.scope === 'track' && !c.applies_to_all && c.is_active),
+  );
+  globalPromoCodes = computed(() =>
+    this.promoCodes().filter(c => c.scope === 'track' && c.applies_to_all && c.is_active),
+  );
+
+  togglePromoCode(id: number): void {
+    this.selectedPromoCodeIds.update(ids =>
+      ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id],
+    );
+  }
+
+  isPromoCodeSelected(id: number): boolean {
+    return this.selectedPromoCodeIds().includes(id);
+  }
 
   hasCustomPrices = computed(() => {
     const d = this.DEFAULT_CONTRACT_PRICES;
@@ -124,21 +151,27 @@ export class UploadTrackComponent implements OnInit {
     this.previewDurationFee() + this.previewTerritoryFee()
   );
 
+  // « Streaming seul » : aucun droit additionnel n'est concédé (même règle que
+  // sur la page d'achat réelle, cf. streamOnly dans track-contract-config).
+  // Sans ce garde-fou, la simulation montrerait au beatmaker des droits
+  // cochables et facturés que l'acheteur n'obtiendrait jamais réellement.
+  previewStreamOnly = computed(() => this.previewDuration() === 'stream');
+
   previewMechanicalAutoIncluded = computed(() => this.previewSubtotal() >= 199.99);
   previewPublicShowAutoIncluded  = computed(() => this.previewSubtotal() >= 74.99);
 
   previewMechanicalFee = computed(() =>
-    this.previewMechanical() && !this.previewMechanicalAutoIncluded()
+    !this.previewStreamOnly() && this.previewMechanical() && !this.previewMechanicalAutoIncluded()
       ? this.cpMechanical() : 0
   );
 
   previewPublicShowFee = computed(() =>
-    this.previewPublicShow() && !this.previewPublicShowAutoIncluded()
+    !this.previewStreamOnly() && this.previewPublicShow() && !this.previewPublicShowAutoIncluded()
       ? this.cpPublicShow() : 0
   );
 
   previewArrangementFee = computed(() =>
-    this.previewArrangement() ? this.cpArrangement() : 0
+    !this.previewStreamOnly() && this.previewArrangement() ? this.cpArrangement() : 0
   );
 
   previewTotal = computed(() =>
@@ -242,6 +275,8 @@ export class UploadTrackComponent implements OnInit {
     private ytTemplateSvc:         YoutubeTemplateService,
     private playlistService:       PlaylistService,
     private similarArtistsSvc:     SimilarArtistsService,
+    private tour:                  TourService,
+    private promoService:          PromoService,
   ) {
     effect(() => { if (this.previewMechanicalAutoIncluded()) this.previewMechanical.set(false); });
     effect(() => { if (this.previewPublicShowAutoIncluded())  this.previewPublicShow.set(false); });
@@ -251,6 +286,9 @@ export class UploadTrackComponent implements OnInit {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
 
     this.auth.me().subscribe();
+
+    // Délai : laisse le formulaire se peindre et les directives d'ancrage s'enregistrer.
+    setTimeout(() => this.tour.maybeAutoStart('upload-track'), 900);
 
     this.tagsService.getTags().subscribe({
       next: res => {
@@ -264,6 +302,14 @@ export class UploadTrackComponent implements OnInit {
     if (this.auth.isBeatmaker()) {
       this.playlistService.getMyPlaylists().subscribe({
         next: res => this.playlists.set(res.data ?? []),
+      });
+
+      // Codes promo existants du vendeur, pour les rattacher directement au beat.
+      // Échec silencieux : la section promo est un bonus, son indisponibilité ne
+      // doit jamais empêcher de publier un beat.
+      this.promoService.list().subscribe({
+        next:  res => this.promoCodes.set(res.data?.promo_codes ?? []),
+        error: () => this.promoCodes.set([]),
       });
     }
 
@@ -389,6 +435,7 @@ export class UploadTrackComponent implements OnInit {
         tag_ids:                  this.selectedTagIds().join(','),
         similar_artist_ids:       this.selectedArtistIds().length ? this.selectedArtistIds().join(',') : undefined,
         playlist_ids:             this.selectedPlaylistIds().length ? this.selectedPlaylistIds().join(',') : undefined,
+        promo_code_ids:           this.selectedPromoCodeIds().length ? this.selectedPromoCodeIds().join(',') : undefined,
         file_mp3:                 this.fileMp3() ?? undefined,
         file_wav:                 this.fileWav() ?? undefined,
         file_stems:               this.fileStems() ?? undefined,

@@ -20,6 +20,7 @@ export interface TrackData {
   tag_ids?: string;
   similar_artist_ids?: string;
   playlist_ids?: string;
+  promo_code_ids?: string;
   file_mp3?: File;
   file_wav?: File;
   file_image?: File;
@@ -104,6 +105,10 @@ export class CudTrackService {
 
     if (trackData.playlist_ids) {
       formData.append('playlist_ids', trackData.playlist_ids);
+    }
+
+    if (trackData.promo_code_ids) {
+      formData.append('promo_code_ids', trackData.promo_code_ids);
     }
 
     const contractFields: (keyof TrackData)[] = [

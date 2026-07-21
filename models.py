@@ -8,6 +8,8 @@ from datetime import datetime, date, time, timedelta
 from sqlalchemy import CheckConstraint, and_, or_, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
+from utils import plans
+
 _TWO_PLACES = Decimal('0.01')
 
 class User(UserMixin, db.Model):
@@ -36,6 +38,15 @@ class User(UserMixin, db.Model):
     #enabling info sources
     terms_accepted_at = db.Column(db.DateTime, nullable=True)
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
+
+    # ── Consentement prospection commerciale (RGPD art. 6.1.a / L.34-5 CPCE) ──
+    # FAUX par défaut, et c'est structurant : les campagnes des vendeurs sont de
+    # la prospection commerciale. Sans acte positif de l'utilisateur, LaProd (le
+    # responsable de traitement) est exposé, pas le vendeur qui appuie sur envoyer.
+    # Aucun code ne doit lire l'email d'un user pour du marketing sans passer par
+    # can_receive_marketing.
+    marketing_opt_in    = db.Column(db.Boolean, default=False, nullable=False)
+    marketing_opt_in_at = db.Column(db.DateTime, nullable=True)  # preuve horodatée du consentement
 
     #TIMESTAMPS
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -68,6 +79,7 @@ class User(UserMixin, db.Model):
     is_artist = db.Column(db.Boolean, default=False, nullable=False)  # Interprète/chanteur
     is_beatmaker = db.Column(db.Boolean, default=False, nullable=False)  # Beatmaker/compositeur/producteur
     is_mix_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Mix/master engineer
+    is_producer = db.Column(db.Boolean, default=False, nullable=False)  # Producteur/label : gestion de contrats et de roster — auto-déclaré, sans certification (contrairement à is_mixmaster_engineer)
 
     #  SYSTÈME MIX/MASTER
     is_mixmaster_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Certifié par admin
@@ -107,6 +119,12 @@ class User(UserMixin, db.Model):
     #  PRÉFÉRENCES D'AFFICHAGE
     preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
 
+    # Token opaque d'abonnement au flux iCal du rétroplanning (planning_event).
+    # Régénérable par l'utilisateur — pas de JWT/itsdangerous ici : Apple/Google
+    # Calendar pollent l'URL indéfiniment sans header Authorization, il faut un
+    # secret révocable dans l'URL elle-même, pas un token à expiration.
+    ical_feed_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+
     # Relations
     tracks = db.relationship('Track', foreign_keys='Track.composer_id', backref='composer_user', lazy=True, cascade='all, delete-orphan')
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')
@@ -122,12 +140,29 @@ class User(UserMixin, db.Model):
     # UPLOAD QUOTA METHODS
     # ===========================================
 
+    # ── Éligibilité au mailing marketing ─────────────────────────────────────
+
+    @hybrid_property
+    def can_receive_marketing(self):
+        """Seule porte d'entrée autorisée pour cibler un utilisateur en campagne.
+
+        Exige le consentement ET un email vérifié : mailer une adresse non
+        vérifiée, c'est envoyer sur une boîte qui n'appartient peut-être pas à
+        l'utilisateur, et flinguer la réputation d'expédition du domaine au passage.
+        """
+        return bool(self.marketing_opt_in) and bool(self.email_verified)
+
+    @can_receive_marketing.expression
+    def can_receive_marketing(cls):
+        return and_(cls.marketing_opt_in.is_(True), cls.email_verified.is_(True))
+
     # Premium status check
 
     @property
     def is_premium_active(self):
-        """True si abonnement amateur ou pro en cours (non expiré)."""
-        if self.subscription_plan == 'free':
+        """True si un abonnement payant est en cours (non expiré), quel que soit
+        le palier. Ne dit RIEN du niveau : utiliser has_plan_at_least() pour ça."""
+        if plans.normalize(self.subscription_plan) == plans.FREE:
             return False
         return self.premium_expires_at is None or self.premium_expires_at >= datetime.now()
 
@@ -138,42 +173,120 @@ class User(UserMixin, db.Model):
 
     @is_premium.expression
     def is_premium(cls):
+        # Volontairement « != free » plutôt qu'une liste de paliers : la requête
+        # reste juste quel que soit le nombre de paliers payants ajoutés ensuite.
         return and_(
-            cls.subscription_plan != 'free',
+            cls.subscription_plan != plans.FREE,
             or_(cls.premium_expires_at.is_(None), cls.premium_expires_at >= func.now())
         )
 
+    # ── Capacités dérivées du palier ─────────────────────────────────────────
+    # Aucun code métier ne doit comparer subscription_plan à une chaîne : on
+    # interroge ces propriétés. Ajouter un palier ne casse alors aucun appelant.
+
+    @property
+    def plan(self):
+        """Palier canonique (les anciens identifiants sont normalisés)."""
+        return plans.normalize(self.subscription_plan)
+
+    def has_plan_at_least(self, minimum) -> bool:
+        """Le palier ACTIF est-il au moins `minimum` ? Un abonnement expiré
+        retombe à FREE : payer hier ne donne pas de droits aujourd'hui."""
+        if not self.is_premium_active:
+            return plans.plan_rank(plans.FREE) >= plans.plan_rank(minimum)
+        return plans.plan_rank(self.plan) >= plans.plan_rank(minimum)
+
     @property
     def is_pro(self):
-        """True si abonnement Pro en cours."""
-        return self.subscription_plan == 'pro' and self.is_premium_active
+        """Rétrocompatibilité — True si Pro Structuré actif.
+
+        Conservé parce que le contract builder l'utilise déjà partout ; sa
+        sémantique (« accès total au contract builder ») reste exacte.
+        """
+        return self.has_plan_at_least(plans.PRO_STRUCTURE)
+
+    @property
+    def can_set_custom_prices(self):
+        """Fixer soi-même le prix de chaque droit de ses beats. Premium et +."""
+        return self.has_plan_at_least(plans.PREMIUM)
+
+    @property
+    def can_offer_exclusive(self):
+        """PROPOSER ses beats en exclusivité. Premium et +.
+
+        Côté VENDEUR, jamais côté acheteur : le premium outille celui qui vend,
+        il ne dresse pas un péage devant celui qui achète — l'exclusivité est la
+        vente la plus chère du site, y mettre un abonnement en obstacle tuerait
+        des ventes.
+        """
+        return self.has_plan_at_least(plans.PREMIUM)
+
+    @property
+    def can_use_contract_builder(self):
+        """Accès au contract builder (limité en Semi-Pro, total en Pro Structuré)."""
+        return self.contract_quota != 0
+
+    @property
+    def contract_quota(self):
+        """Contrats générables par mois. None = illimité, 0 = aucun accès."""
+        if not self.is_premium_active:
+            return plans.get(plans.FREE).contract_quota
+        return plans.get(self.plan).contract_quota
 
     @property
     def can_do_mastering(self):
-        """True si certifié master par admin OU abonnement Pro actif."""
-        return self.is_certified_master_engineer or self.is_pro
+        """Certifié master par admin OU palier Semi-Pro et plus.
 
-    
+        C'est le « badge Mastering Pro » : il atteste d'un abonnement, pas d'une
+        validation d'échantillon par un admin — les deux voies coexistent.
+        """
+        return self.is_certified_master_engineer or self.has_plan_at_least(plans.SEMI_PRO)
+
+    @property
+    def can_use_management_contract(self):
+        """Contrat de management formel (mandat, commission, exclusivité). Premium et +.
+
+        Le lien roster et le rétroplanning partagé (RosterLink/PlanningEvent) ne
+        dépendent eux que du rôle is_producer/is_artist, pas du palier — seule la
+        formalisation juridique/financière est réservée aux abonnés.
+        """
+        return self.has_plan_at_least(plans.PREMIUM)
+
+    @property
+    def can_view_royalties(self):
+        """Cap-table / splits chiffrés par titre. Premium et +, même seuil que
+        can_use_management_contract."""
+        return self.has_plan_at_least(plans.PREMIUM)
+
+
     # TRACKS ALLOW UPLOAD METHODS
 
+
+    @property
+    def _active_plan(self):
+        """Le palier qui s'applique RÉELLEMENT (FREE si l'abonnement a expiré)."""
+        return plans.get(self.plan if self.is_premium_active else plans.FREE)
+
+    @property
+    def uploads_per_day(self):
+        """Nouveaux beats publiables par jour au palier actif. Le catalogue total
+        en ligne, lui, n'est jamais plafonné."""
+        return self._active_plan.uploads_per_day
 
     def _reset_daily_uploads(self):
         """Réinitialise les tokens d'upload quotidiennement si nécessaire.
 
-        - Free    : +1/jour, cap 2
-        - Amateur : +5/jour, cap 15
-        - Pro     : +10/jour, cap 30
+        Les plafonds viennent de utils/plans.py : les recopier ici garantirait
+        qu'ils divergent de la grille affichée à l'utilisateur le jour où on
+        ajuste un palier.
         """
         today = date.today()
         if self.last_upload_reset < today:
-            if self.subscription_plan == 'pro' and self.is_premium_active:
-                cap, gain = 30, 10
-            elif self.subscription_plan == 'amateur' and self.is_premium_active:
-                cap, gain = 15, 5
-            else:
-                cap, gain = 2, 1
-            if self.upload_track_tokens < cap:
-                self.upload_track_tokens = min(cap, self.upload_track_tokens + gain)
+            plan = self._active_plan
+            if self.upload_track_tokens < plan.upload_cap:
+                self.upload_track_tokens = min(
+                    plan.upload_cap, self.upload_track_tokens + plan.upload_gain,
+                )
             self.last_upload_reset = today
 
     def can_upload_track(self):
@@ -196,12 +309,13 @@ class User(UserMixin, db.Model):
         if self.upload_track_tokens > 0:
             return True, f"✓ {self.upload_track_tokens} token(s) restant(s)"
 
-        if self.subscription_plan == 'pro' and self.is_premium_active:
-            return False, "Plus de tokens. Recharge demain (+10 tokens)."
-        elif self.is_premium_active:
-            return False, "Plus de tokens. Recharge demain (+5 tokens)."
-        else:
-            return False, "Plus de tokens. Recharge demain (+1 token) ou passez LaProd+."
+        plan = self._active_plan
+        if self.is_premium_active:
+            return False, f"Plus de tokens. Recharge demain (+{plan.upload_gain} tokens)."
+        return False, (
+            f"Plus de tokens. Recharge demain (+{plan.upload_gain} token) "
+            f"ou passez LaProd+."
+        )
 
     def consume_upload_token(self):
         """Consomme un token d'upload après validation réussie
@@ -251,39 +365,31 @@ class User(UserMixin, db.Model):
         self.upload_track_tokens = (self.upload_track_tokens or 0) + additional_tokens
 
     def apply_premium_tokens(self):
-        """Monte immédiatement les tokens au plafond du plan actif (activation / renouvellement).
+        """Monte immédiatement les tokens au plafond du palier (activation/renouvellement).
 
-        - Amateur : upload cap 15, topline cap 50
-        - Pro     : upload cap 30, topline cap 200
+        Un abonné qui paie doit disposer de ses crédits tout de suite, pas attendre
+        le reset de minuit — sinon il a payé pour rien pendant une journée.
         """
         today = date.today()
-        upload_cap, topline_cap = (30, 200) if self.subscription_plan == 'pro' else (15, 50)
-        if self.upload_track_tokens < upload_cap:
-            self.upload_track_tokens = upload_cap
+        plan = self._active_plan
+        if self.upload_track_tokens < plan.upload_cap:
+            self.upload_track_tokens = plan.upload_cap
             self.last_upload_reset = today
-        if self.topline_tokens < topline_cap:
-            self.topline_tokens = topline_cap
+        if self.topline_tokens < plan.topline_cap:
+            self.topline_tokens = plan.topline_cap
             self.last_topline_reset = today
 
     # TOPLINE ALLOW UPLOAD METHODS
 
     def _reset_weekly_toplines(self):
-        """Réinitialise les tokens de toplines chaque semaine.
-
-        - Free    : +5/semaine, cap 5
-        - Amateur : +50/semaine, cap 50
-        - Pro     : +200/semaine, cap 200
-        """
+        """Réinitialise les tokens de toplines chaque semaine (plafonds : utils/plans.py)."""
         today = date.today()
         if self.last_topline_reset + timedelta(days=7) <= today:
-            if self.subscription_plan == 'pro' and self.is_premium_active:
-                cap, gain = 200, 200
-            elif self.subscription_plan == 'amateur' and self.is_premium_active:
-                cap, gain = 50, 50
-            else:
-                cap, gain = 5, 5
-            if self.topline_tokens < cap:
-                self.topline_tokens = min(cap, self.topline_tokens + gain)
+            plan = self._active_plan
+            if self.topline_tokens < plan.topline_cap:
+                self.topline_tokens = min(
+                    plan.topline_cap, self.topline_tokens + plan.topline_gain,
+                )
             self.last_topline_reset = today
 
     @property
@@ -693,7 +799,15 @@ class Purchase(db.Model):
     track_price      = db.Column(db.Numeric(10, 2), nullable=False)   # Prix du track uniquement
     platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
     composer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit le compositeur (90%)
-    
+
+    #  REMISE (promo code du vendeur)
+    # price_paid reste le montant RÉELLEMENT encaissé : platform_fee et
+    # composer_revenue en découlent, la commission ne porte donc jamais sur la
+    # remise. gross_price garde le prix catalogue pour la réconciliation.
+    promo_code_id   = db.Column(db.Integer, db.ForeignKey('promo_code.id', ondelete='SET NULL'), nullable=True)
+    gross_price     = db.Column(db.Numeric(10, 2), nullable=True)                        # prix avant remise
+    discount_amount = db.Column(db.Numeric(10, 2), default=Decimal('0'), nullable=False) # remise accordée
+
     # Stripe
     stripe_payment_intent_id = db.Column(db.String(200), unique=True, nullable=False)
     stripe_transfer_id = db.Column(db.String(200), nullable=True)  # ID du transfert au compositeur
@@ -728,11 +842,13 @@ class Purchase(db.Model):
     )
 
     def calculate_fees(self, total_amount, platform_commission=Decimal('0.10')):
-        """Calcule la répartition des revenus"""
-        total = Decimal(str(total_amount))
-        commission = Decimal(str(platform_commission))
-        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        self.composer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        """Calcule la répartition des revenus.
+
+        `total_amount` est le montant NET encaissé (remise déjà déduite) : la
+        commission suit la transaction réelle, jamais le prix catalogue.
+        """
+        from utils.money import split_platform_fee
+        self.platform_fee, self.composer_revenue = split_platform_fee(total_amount, platform_commission)
     
     def __repr__(self):
         return f"<Purchase Track#{self.track_id} - {self.format_purchased}>"
@@ -880,6 +996,14 @@ class MixMasterRequest(db.Model):
     platform_fee     = db.Column(db.Numeric(10, 2), nullable=False)   # Commission plateforme (10%)
     engineer_revenue = db.Column(db.Numeric(10, 2), nullable=False)   # Ce que reçoit l'engineer
 
+    #  REMISE (promo code de l'ingénieur)
+    # total_price est le montant NET (remise déduite). Tous les calculs dérivés
+    # — acompte 30 %, transferts de révision, remboursements — partent de
+    # total_price et restent donc cohérents avec ce qui a été autorisé chez Stripe.
+    promo_code_id   = db.Column(db.Integer, db.ForeignKey('promo_code.id', ondelete='SET NULL'), nullable=True)
+    gross_price     = db.Column(db.Numeric(10, 2), nullable=True)                        # prix avant remise
+    discount_amount = db.Column(db.Numeric(10, 2), default=Decimal('0'), nullable=False) # remise accordée
+
     # Stripe - Nouveau système avec Payment Intent
     stripe_payment_intent_id = db.Column(db.String(200), nullable=True)  # ID Payment Intent (autorisation totale)
     stripe_payment_status = db.Column(db.String(50), default='pending')  # pending, authorized, partially_captured, fully_captured, canceled
@@ -967,12 +1091,11 @@ class MixMasterRequest(db.Model):
         IMPORTANT: Tous les montants sont arrondis à 2 décimales.
         Stripe supporte les centimes (montants en cents : 7500 = 75.00€).
         """
-        total      = Decimal(str(self.total_price))
-        commission = Decimal(str(platform_commission))
-        self.deposit_amount   = (total * Decimal('0.30')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        self.remaining_amount = (total - self.deposit_amount).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        self.platform_fee     = (total * commission).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        self.engineer_revenue = (total - self.platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        from utils.money import to_money, split_platform_fee
+        total = to_money(self.total_price)
+        self.deposit_amount   = to_money(total * Decimal('0.30'))
+        self.remaining_amount = to_money(total - self.deposit_amount)
+        self.platform_fee, self.engineer_revenue = split_platform_fee(total, platform_commission)
 
     def get_total_transferred_to_engineer(self):
         """
@@ -1180,6 +1303,104 @@ class TrackView(db.Model):
         return f"<TrackView Track#{self.track_id} source={self.source}>"
 
 
+class EngineerView(db.Model):
+    """Impression de vue sur la page de commande d'un ingénieur mix/master.
+
+    Miroir de TrackView, côté prestation : c'est l'équivalent d'une vue de fiche
+    produit pour un ingénieur. user_id nullable → vues anonymes. ip_hash pour
+    dédupliquer les vues uniques (même règle 24h que les tracks).
+    """
+    __tablename__ = 'engineer_view'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    engineer_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    ip_hash     = db.Column(db.String(64), nullable=False)
+    created_at  = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    engineer = db.relationship('User', foreign_keys=[engineer_id], backref='engineer_views')
+    viewer   = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.Index('ix_engineer_view_engineer', 'engineer_id'),
+        db.Index('ix_engineer_view_ip_date',  'engineer_id', 'ip_hash', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<EngineerView Engineer#{self.engineer_id}>"
+
+
+class LoginEvent(db.Model):
+    """Une connexion authentifiée par utilisateur et par JOUR calendaire.
+
+    Sert uniquement à mesurer la régularité de connexion (admin) — ni IP, ni
+    device : le strict minimum pour la stat demandée.
+
+    Pourquoi dédupliquer par jour plutôt que d'enregistrer chaque événement brut :
+    /refresh est appelé à la fois PROACTIVEMENT (timer JS toutes les ~55 min tant
+    qu'un onglet reste ouvert) et RÉACTIVEMENT (intercepteur 401 quand l'utilisateur
+    revient après une absence, avec un access token expiré mais un refresh token
+    encore valide jusqu'à 30 jours en mode « se souvenir de moi »). Cette seconde
+    voie est en pratique le principal canal de retour d'un utilisateur — un compte
+    « remember me » peut ne plus jamais retoucher /login pendant des semaines. Sans
+    dédup, un onglet resté ouvert toute une journée gonflerait indéfiniment le
+    compteur ; avec dédup au jour, on obtient exactement ce qu'on veut mesurer :
+    « sur combien de jours distincts cet utilisateur s'est-il présenté ? ».
+    """
+    __tablename__ = 'login_event'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    login_date = db.Column(db.Date, nullable=False)   # jour calendaire (clé de dédup)
+    source     = db.Column(db.String(20), nullable=False)  # 'password' | 'oauth' | 'refresh'
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # cascade='all, delete-orphan' (côté COLLECTION User.login_events, via
+    # db.backref) : SQLAlchemy supprime lui-même les login_event d'un user AVANT
+    # de le supprimer, au lieu de tenter par défaut un UPDATE ... SET user_id=NULL
+    # qui échouerait (colonne NOT NULL). Géré au niveau ORM plutôt que délégué au
+    # ON DELETE CASCADE de la base : ça marche identiquement quel que soit le
+    # moteur (le test suite tourne sur SQLite, qui n'applique ses contraintes FK
+    # que si PRAGMA foreign_keys=ON — jamais activé ici — donc s'appuyer sur le
+    # seul niveau DB laisserait des lignes orphelines derrière chaque suppression
+    # de test). Sans incidence en prod : le RGPD anonymise les User en place et
+    # ne les DELETE jamais réellement.
+    user = db.relationship('User', backref=db.backref('login_events', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'login_date', name='uq_login_event_user_day'),
+        db.Index('ix_login_event_date', 'login_date'),
+    )
+
+    @classmethod
+    def record(cls, user_id, source):
+        """Enregistre une connexion pour aujourd'hui, si pas déjà fait.
+
+        Ne DOIT jamais faire échouer le flux d'authentification appelant : toute
+        erreur est avalée après rollback. Un stat manquée n'est jamais aussi grave
+        qu'un login cassé par une table d'analytics.
+        """
+        try:
+            today = date.today()
+            exists = db.session.query(cls.id).filter_by(
+                user_id=user_id, login_date=today,
+            ).first()
+            if exists:
+                return False
+            db.session.add(cls(user_id=user_id, login_date=today, source=source))
+            db.session.commit()
+            return True
+        except Exception:
+            # Course entre deux requêtes concurrentes sur la même contrainte
+            # unique (double onglet, double clic) — ou tout autre souci : on
+            # annule proprement et on continue, l'auth ne doit rien en savoir.
+            db.session.rollback()
+            return False
+
+    def __repr__(self):
+        return f"<LoginEvent user={self.user_id} date={self.login_date} source={self.source}>"
+
+
 class Notification(db.Model):
     """Rappel des 'nouvelles entrées' pour l'utilisateur
     en particulier pour ce qui concerne les ventes & achats"""
@@ -1199,6 +1420,14 @@ class Notification(db.Model):
     # - 'tokens_recharged' : Tokens rechargés
     # - 'topline_submitted' : Topline soumise sur votre track (beatmaker)
     # - 'mix_sample_pending' : Rappel de soumission de preview (mix/master engineer)
+    # - 'roster_invite' : Invitation à rejoindre un roster (artiste invité)
+    # - 'roster_accepted' : Invitation roster acceptée (producteur)
+    # - 'roster_declined' : Invitation roster déclinée (producteur)
+    # - 'roster_revoked' : Lien roster révoqué (l'autre partie)
+    # - 'roster_ended' : Lien roster quitté (l'autre partie)
+    # - 'planning_event_created' : Nouvel événement de rétroplanning (l'autre partie)
+    # - 'planning_event_confirmed' : Événement confirmé (le créateur)
+    # - 'planning_event_cancelled' : Événement annulé (l'autre partie)
     # - 'system' : Notification système
 
     # Content
@@ -1322,6 +1551,197 @@ class TokenBlocklist(db.Model):
 
 
 # =============================================================================
+# ROSTER — Lien mutuel producteur ↔ artiste
+# =============================================================================
+
+class RosterLinkStatus(enum.Enum):
+    invited  = 'invited'   # invitation envoyée, en attente de réponse
+    active   = 'active'    # les deux parties sont liées
+    declined = 'declined'  # l'invité a refusé
+    revoked  = 'revoked'   # invitation annulée avant acceptation, ou lien actif révoqué
+    ended    = 'ended'     # l'une des deux parties a quitté un lien actif
+
+
+class RosterLink(db.Model):
+    """Lien mutuel producteur↔artiste : invitation puis acceptation explicite,
+    jamais automatique. Aucun contrat requis pour être actif — sert de socle au
+    rétroplanning partagé (PlanningEvent) et, plus tard, à un contrat de
+    management optionnel (management_contract_id), attachable sur un lien déjà
+    actif.
+
+    Unicité stricte sur (producer_id, artist_id) : un couple n'a qu'une seule
+    ligne dans le temps. Décliner/révoquer/quitter ne supprime pas la ligne,
+    elle change de statut ; une ré-invitation ultérieure réutilise la même
+    ligne plutôt que d'en créer une nouvelle.
+    """
+    __tablename__ = 'roster_link'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    producer_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    artist_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status        = db.Column(db.Enum(RosterLinkStatus), nullable=False, default=RosterLinkStatus.invited)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Contrat de management optionnel, attaché plus tard sur un lien déjà actif.
+    # Nullable : le lien roster reste valide sans jamais être formalisé.
+    management_contract_id = db.Column(db.Integer, db.ForeignKey('user_contract.id'), nullable=True)
+
+    created_at   = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at   = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    responded_at = db.Column(db.DateTime, nullable=True)   # accept / decline
+    ended_at     = db.Column(db.DateTime, nullable=True)   # revoke / quitter
+
+    producer = db.relationship(
+        'User', foreign_keys=[producer_id],
+        backref=db.backref('roster_as_producer', cascade='all, delete-orphan', lazy=True),
+    )
+    artist = db.relationship(
+        'User', foreign_keys=[artist_id],
+        backref=db.backref('roster_as_artist', cascade='all, delete-orphan', lazy=True),
+    )
+    invited_by = db.relationship('User', foreign_keys=[invited_by_id])
+    management_contract = db.relationship('UserContract')
+
+    __table_args__ = (
+        db.UniqueConstraint('producer_id', 'artist_id', name='uq_roster_link_pair'),
+        db.Index('idx_roster_producer_status', 'producer_id', 'status'),
+        db.Index('idx_roster_artist_status', 'artist_id', 'status'),
+    )
+
+    def __repr__(self):
+        return f"<RosterLink #{self.id} producer={self.producer_id} artist={self.artist_id} ({self.status.value})>"
+
+
+# =============================================================================
+# PLANNING — Rétroplanning partagé sur un lien roster actif
+# =============================================================================
+
+class PlanningEventTypeEnum(enum.Enum):
+    recording_session    = 'recording_session'     # session d'enregistrement
+    writing_session       = 'writing_session'        # session d'écriture / topline
+    rehearsal              = 'rehearsal'               # répétition
+    concert                  = 'concert'                 # concert / date de tournée
+    showcase                   = 'showcase'                # showcase pro (label, diffuseur)
+    residency                    = 'residency'               # résidence artistique
+    video_shoot                    = 'video_shoot'             # tournage clip
+    media_interview                   = 'media_interview'        # interview média / promo
+    meeting                              = 'meeting'                # réunion (label, équipe)
+    appointment                            = 'appointment'           # rendez-vous générique
+    sacem_deposit                             = 'sacem_deposit'        # dépôt SACEM / déclaration d'œuvre
+    contractual_deadline                        = 'contractual_deadline'  # échéance contractuelle
+    release                                        = 'release'              # date de sortie / mise en ligne
+    other                                             = 'other'
+
+
+class PlanningEventStatus(enum.Enum):
+    proposed  = 'proposed'
+    confirmed = 'confirmed'
+    cancelled = 'cancelled'
+
+
+class PlanningEvent(db.Model):
+    """Événement du rétroplanning partagé entre un producteur et un artiste.
+    Rattaché à un RosterLink (implicitement le couple des deux users) plutôt
+    qu'à deux user_id directs, pour garantir qu'un événement ne peut exister
+    que dans le cadre d'un lien roster déjà noué."""
+    __tablename__ = 'planning_event'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=False)
+    created_by_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    title       = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    event_type  = db.Column(db.Enum(PlanningEventTypeEnum), nullable=False, default=PlanningEventTypeEnum.other)
+    status      = db.Column(db.Enum(PlanningEventStatus), nullable=False, default=PlanningEventStatus.proposed)
+
+    # Convention du projet : datetime naïf partout (cf. User.created_at...). On
+    # garde ce style plutôt qu'introduire une première colonne tz-aware isolée,
+    # et on ajoute `timezone` (nom IANA) pour l'affichage et la génération .ics.
+    start_at = db.Column(db.DateTime, nullable=False)
+    end_at   = db.Column(db.DateTime, nullable=True)
+    timezone = db.Column(db.String(50), nullable=False, default='Europe/Paris')
+    all_day  = db.Column(db.Boolean, nullable=False, default=False)
+
+    location = db.Column(db.String(300), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    roster_link = db.relationship(
+        'RosterLink',
+        backref=db.backref('planning_events', cascade='all, delete-orphan', lazy=True),
+    )
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    __table_args__ = (
+        db.Index('idx_planning_roster_start', 'roster_link_id', 'start_at'),
+        CheckConstraint('end_at IS NULL OR end_at >= start_at', name='ck_planning_event_end_after_start'),
+    )
+
+    def __repr__(self):
+        return f"<PlanningEvent #{self.id} '{self.title}' roster_link={self.roster_link_id} ({self.status.value})>"
+
+
+# =============================================================================
+# ROYALTIES — Cap-table déclarative par titre
+# =============================================================================
+
+class TrackSplitRole(enum.Enum):
+    topliner     = 'topliner'
+    beatmaker    = 'beatmaker'
+    mix_engineer = 'mix_engineer'
+    label        = 'label'
+    producer     = 'producer'
+    other        = 'other'
+
+
+class TrackSplitStatus(enum.Enum):
+    declared  = 'declared'    # ajouté par un intervenant, pas encore confirmé par le titulaire de la part
+    confirmed = 'confirmed'   # confirmé par le titulaire de la part
+
+
+class TrackSplit(db.Model):
+    """Cap-table déclarative d'un titre : qui possède quel pourcentage, à quel
+    titre (topliner, beatmaker, ingé, label, producteur). Purement traçable —
+    aucun paiement automatisé (l'intégration Wallet pour un reversement
+    automatique est une piste future distincte, hors scope)."""
+    __tablename__ = 'track_split'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
+    user_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # Nom affiché, toujours renseigné par la route (même pour une part liée à
+    # un compte) : la cap-table doit rester lisible et valide même si le
+    # compte lié est supprimé plus tard — même logique que les snapshots
+    # composer_address/composer_email sur Contract.
+    external_name = db.Column(db.String(200), nullable=False)
+    role          = db.Column(db.Enum(TrackSplitRole), nullable=False)
+    percentage    = db.Column(db.Numeric(5, 2), nullable=False)
+    status        = db.Column(db.Enum(TrackSplitStatus), nullable=False, default=TrackSplitStatus.declared)
+
+    # Qui a ajouté la ligne. Nullable et sans cascade : si ce compte est
+    # supprimé plus tard, la ligne (qui décrit les droits d'un AUTRE
+    # intervenant) doit survivre — seule la traçabilité de l'auteur se perd.
+    added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at  = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    track = db.relationship(
+        'Track', backref=db.backref('splits', cascade='all, delete-orphan', lazy=True),
+    )
+    user     = db.relationship('User', foreign_keys=[user_id])
+    added_by = db.relationship('User', foreign_keys=[added_by_id])
+
+    __table_args__ = (
+        CheckConstraint('percentage > 0 AND percentage <= 100', name='ck_track_split_percentage_range'),
+        db.Index('idx_track_split_track', 'track_id'),
+    )
+
+    def __repr__(self):
+        return f"<TrackSplit #{self.id} track={self.track_id} role={self.role.value} {self.percentage}%>"
+
+
+# =============================================================================
 # CONTRACT BUILDER — Générateur de contrats d'exploitation musicale
 # =============================================================================
 
@@ -1346,9 +1766,11 @@ class UserContractStatus(enum.Enum):
 
 
 class ContractTemplateTypeEnum(enum.Enum):
-    """Famille de contrat du builder : exploitation d'œuvre ou représentation (live)."""
+    """Famille de contrat du builder : exploitation d'œuvre, représentation (live)
+    ou mandat de management (add-on optionnel sur un RosterLink actif)."""
     exploitation = 'exploitation'
     performance  = 'performance'
+    management   = 'management'
 
 
 class PartyTypeEnum(enum.Enum):
@@ -1483,7 +1905,13 @@ class UserContractParty(db.Model):
     address = db.Column(db.Text, nullable=True)
     email   = db.Column(db.String(120), nullable=True)
 
-    contract = db.relationship('UserContract', back_populates='parties')
+    # Lien optionnel vers un compte LaProd réel (ex : contrat de management
+    # généré depuis un RosterLink). Nullable pour ne rien changer aux contrats
+    # existants ni aux parties externes sans compte (éditeur, distributeur...).
+    linked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    contract    = db.relationship('UserContract', back_populates='parties')
+    linked_user = db.relationship('User', foreign_keys=[linked_user_id])
 
     def __repr__(self):
         return f"<UserContractParty #{self.id} role='{self.role}' contract={self.contract_id}>"
@@ -1579,3 +2007,351 @@ class TestimonialRequest(db.Model):
 
     def __repr__(self):
         return f"<TestimonialRequest id={self.id} email={self.email} published={self.is_published}>"
+
+
+# =============================================================================
+# PROMO CODES — remises créées et pilotées par les vendeurs eux-mêmes
+# =============================================================================
+
+# Beats couverts par un code (ignoré si applies_to_all est vrai).
+promo_code_track = db.Table(
+    'promo_code_track',
+    db.Column('promo_code_id', db.Integer, db.ForeignKey('promo_code.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('track_id',      db.Integer, db.ForeignKey('track.id',      ondelete='CASCADE'), primary_key=True),
+)
+
+# Prestations mix/master couvertes par un code (ignoré si applies_to_all est vrai).
+promo_code_service = db.Table(
+    'promo_code_service',
+    db.Column('promo_code_id', db.Integer, db.ForeignKey('promo_code.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('service_key',   db.String(20), primary_key=True),
+)
+
+
+class PromoCodeScope(enum.Enum):
+    TRACK     = 'track'      # remise sur l'achat de beats
+    MIXMASTER = 'mixmaster'  # remise sur les prestations mix/master
+
+
+# Clés de service mix/master remisables, alignées sur MixMasterRequest.
+# `stems` correspond à has_separated_stems, les autres à service_<clé>.
+MIXMASTER_SERVICE_KEYS = ('cleaning', 'effects', 'artistic', 'mastering', 'stems')
+
+
+class PromoCode(db.Model):
+    """Code promo appartenant à un vendeur (beatmaker ou ingénieur).
+
+    Le vendeur fixe librement sa remise ; elle est financée sur sa propre part.
+    La commission de 10 % de LaProd porte sur le montant réellement encaissé
+    (cf. utils.money.split_platform_fee), elle n'est donc jamais prélevée sur
+    de l'argent que personne n'a payé.
+    """
+    __tablename__ = 'promo_code'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+
+    # Toujours stocké en MAJUSCULES (cf. normalize_code) : la contrainte d'unicité
+    # est sensible à la casse, sans normalisation "Summer30" et "SUMMER30" seraient
+    # deux codes distincts du même vendeur.
+    code    = db.Column(db.String(15), nullable=False)
+    percent = db.Column(db.Integer, nullable=False)   # 10 | 20 | 30 | 50 | 70
+    scope   = db.Column(db.String(20), nullable=False, default=PromoCodeScope.TRACK.value)
+
+    # Vrai = s'applique à tout le catalogue du vendeur (y compris ses futurs beats),
+    # sans avoir à re-cocher quoi que ce soit à chaque upload.
+    applies_to_all = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Limites facultatives, cumulables (une expiration ET un quota).
+    expires_at      = db.Column(db.DateTime, nullable=True)
+    max_redemptions = db.Column(db.Integer,  nullable=True)
+
+    # Compteur dénormalisé, incrémenté par un UPDATE atomique conditionnel
+    # (cf. try_consume) : un COUNT() sur promo_code_redemption serait sujet à
+    # une race entre deux paiements simultanés sur le dernier lot disponible.
+    redemption_count = db.Column(db.Integer, default=0, nullable=False)
+
+    # Vrai = un acheteur donné ne peut utiliser le code qu'une seule fois.
+    once_per_user = db.Column(db.Boolean, default=False, nullable=False)
+
+    is_active  = db.Column(db.Boolean,  default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    owner    = db.relationship('User', backref=db.backref('promo_codes', cascade='all, delete-orphan'))
+    tracks   = db.relationship('Track', secondary=promo_code_track,
+                               backref=db.backref('promo_codes', lazy='dynamic'), lazy='selectin')
+
+    __table_args__ = (
+        # Unicité par vendeur, pas globale : au checkout on connaît déjà le vendeur
+        # (le beat ou l'ingénieur ciblé), donc le code est résolu sans ambiguïté.
+        # Deux vendeurs peuvent tous deux avoir « SUMMER30 » sans collision possible.
+        db.UniqueConstraint('owner_id', 'code', name='uq_promo_code_owner_code'),
+        CheckConstraint('percent IN (10, 20, 30, 50, 70)', name='ck_promo_percent_allowed'),
+        CheckConstraint('length(code) BETWEEN 4 AND 15',   name='ck_promo_code_length'),
+        CheckConstraint('max_redemptions IS NULL OR max_redemptions > 0', name='ck_promo_max_redemptions_positive'),
+        CheckConstraint('redemption_count >= 0',           name='ck_promo_redemption_count_positive'),
+        db.Index('idx_promo_owner_active', 'owner_id', 'is_active'),
+    )
+
+    # ── Normalisation ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def normalize_code(raw: str) -> str:
+        """Casse et espaces neutralisés. Utilisé à l'écriture ET à la lecture."""
+        return (raw or '').strip().upper()
+
+    # ── Périmètre ────────────────────────────────────────────────────────────
+
+    @property
+    def service_keys(self):
+        """Clés de service mix/master couvertes (liste de str)."""
+        rows = db.session.execute(
+            promo_code_service.select().where(promo_code_service.c.promo_code_id == self.id)
+        ).all()
+        return [r.service_key for r in rows]
+
+    def covers_track(self, track_id) -> bool:
+        if self.scope != PromoCodeScope.TRACK.value:
+            return False
+        if self.applies_to_all:
+            return True
+        return any(t.id == track_id for t in self.tracks)
+
+    def covers_service(self, service_key) -> bool:
+        if self.scope != PromoCodeScope.MIXMASTER.value:
+            return False
+        if self.applies_to_all:
+            return True
+        return service_key in self.service_keys
+
+    # ── Validité ─────────────────────────────────────────────────────────────
+
+    @property
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and datetime.now() > self.expires_at
+
+    @property
+    def is_exhausted(self) -> bool:
+        return self.max_redemptions is not None and (self.redemption_count or 0) >= self.max_redemptions
+
+    @property
+    def remaining_redemptions(self):
+        if self.max_redemptions is None:
+            return None
+        return max(0, self.max_redemptions - (self.redemption_count or 0))
+
+    def used_by(self, user_id) -> bool:
+        """Cet acheteur a-t-il déjà consommé ce code ?"""
+        return db.session.query(
+            PromoCodeRedemption.query
+            .filter_by(promo_code_id=self.id, user_id=user_id)
+            .exists()
+        ).scalar()
+
+    def check_usable_by(self, user_id):
+        """Renvoie (True, None) ou (False, code_erreur). Ne consomme rien."""
+        if not self.is_active:
+            return False, 'PROMO_INACTIVE'
+        if self.is_expired:
+            return False, 'PROMO_EXPIRED'
+        if self.is_exhausted:
+            return False, 'PROMO_EXHAUSTED'
+        if user_id == self.owner_id:
+            return False, 'PROMO_OWN_CODE'
+        if self.once_per_user and self.used_by(user_id):
+            return False, 'PROMO_ALREADY_USED'
+        return True, None
+
+    # ── Consommation ─────────────────────────────────────────────────────────
+
+    def try_consume(self, user_id) -> bool:
+        """Incrémente le compteur de façon atomique, sous la contrainte du quota.
+
+        Un UPDATE conditionnel en base (et non un read-modify-write en Python) :
+        deux paiements concurrents sur la dernière utilisation disponible verraient
+        tous deux redemption_count < max_redemptions et dépasseraient le quota.
+        Ici le second UPDATE ne touche aucune ligne et renvoie False.
+
+        Ne commit pas : l'appelant l'intègre à la transaction du paiement.
+        """
+        stmt = (
+            PromoCode.__table__.update()
+            .where(PromoCode.id == self.id)
+            .where(PromoCode.is_active.is_(True))
+            .where(or_(
+                PromoCode.max_redemptions.is_(None),
+                PromoCode.redemption_count < PromoCode.max_redemptions,
+            ))
+            .values(redemption_count=PromoCode.redemption_count + 1)
+        )
+        result = db.session.execute(stmt)
+        return result.rowcount == 1
+
+    def __repr__(self):
+        return f"<PromoCode {self.code} -{self.percent}% owner={self.owner_id}>"
+
+
+class PromoCodeRedemption(db.Model):
+    """Trace d'une utilisation effective d'un code (une ligne = un paiement réussi).
+
+    Sert à deux choses : appliquer once_per_user, et garder une piste d'audit du
+    montant réellement remisé — le vendeur comme LaProd doivent pouvoir réconcilier
+    un encaissement Stripe avec la remise qui l'explique.
+    """
+    __tablename__ = 'promo_code_redemption'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    promo_code_id = db.Column(db.Integer, db.ForeignKey('promo_code.id', ondelete='CASCADE'), nullable=False)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id',       ondelete='CASCADE'), nullable=False)
+
+    purchase_id           = db.Column(db.Integer, db.ForeignKey('purchase.id'),           nullable=True)
+    mixmaster_request_id  = db.Column(db.Integer, db.ForeignKey('mixmaster_request.id'),  nullable=True)
+
+    gross_amount    = db.Column(db.Numeric(10, 2), nullable=False)  # prix catalogue
+    discount_amount = db.Column(db.Numeric(10, 2), nullable=False)  # remise accordée
+    net_amount      = db.Column(db.Numeric(10, 2), nullable=False)  # réellement encaissé
+    percent_applied = db.Column(db.Integer, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    promo_code = db.relationship('PromoCode', backref=db.backref('redemptions', cascade='all, delete-orphan'))
+    user       = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        CheckConstraint('discount_amount >= 0', name='ck_redemption_discount_positive'),
+        CheckConstraint('net_amount >= 0',      name='ck_redemption_net_positive'),
+        db.Index('idx_redemption_promo_user', 'promo_code_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<PromoCodeRedemption promo={self.promo_code_id} user={self.user_id} -{self.discount_amount}€>"
+
+
+# =============================================================================
+# CAMPAGNES DE MAILING — prospection pilotée par les vendeurs (Premium)
+# =============================================================================
+
+class CampaignSegment(enum.Enum):
+    """Audiences ciblables. L'ordre reflète la qualification décroissante."""
+    BUYERS    = 'buyers'      # ont déjà acheté chez ce vendeur
+    FAVORITES = 'favorites'   # ont mis un de ses beats en favori
+    LISTENERS = 'listeners'   # ont écouté un de ses beats récemment
+    # Ne connaissent PAS encore ce vendeur, mais leurs goûts (déduits par l'algo de
+    # reco : tags/styles écoutés et mis en favori) collent à son catalogue. C'est
+    # l'audience d'expansion : des prospects tièdes qu'aucun autre segment n'atteint.
+    AFFINITY  = 'affinity'
+    ALL       = 'all'         # toute la plateforme — Super Premium (payant)
+
+
+class CampaignStatus(enum.Enum):
+    DRAFT     = 'draft'       # en cours d'écriture
+    SCHEDULED = 'scheduled'   # créneau validé, en attente du job de dispatch
+    SENDING   = 'sending'     # dispatch en cours
+    SENT      = 'sent'
+    FAILED    = 'failed'
+    CANCELLED = 'cancelled'
+
+
+class MarketingCampaign(db.Model):
+    """Campagne d'emailing d'un vendeur vers une audience segmentée.
+
+    Une campagne n'est JAMAIS envoyée dans la foulée de sa création : elle est
+    planifiée sur un créneau validé (cf. utils.campaign_service.validate_slot),
+    puis dispatchée par un job. C'est ce qui empêche le mitraillage de la base.
+    """
+    __tablename__ = 'marketing_campaign'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+
+    subject = db.Column(db.String(120), nullable=False)
+    body    = db.Column(db.Text, nullable=False)   # texte brut, échappé au rendu
+
+    segment = db.Column(db.String(20), nullable=False, default=CampaignSegment.BUYERS.value)
+    status  = db.Column(db.String(20), nullable=False, default=CampaignStatus.DRAFT.value)
+
+    # Code promo mis en avant. C'est aussi le pivot d'attribution : les
+    # redemptions de ce code par les destinataires après l'envoi mesurent la
+    # conversion réelle de la campagne (et pas un taux d'ouverture décoratif).
+    promo_code_id = db.Column(db.Integer, db.ForeignKey('promo_code.id', ondelete='SET NULL'), nullable=True)
+
+    # ── Super Premium (segment ALL) ──────────────────────────────────────────
+    # Le paiement unique débloque UNE campagne à diffusion totale. Consommé à
+    # l'envoi (is_consumed), jamais rejouable sur une seconde campagne.
+    stripe_payment_intent_id = db.Column(db.String(200), unique=True, nullable=True)
+    amount_paid              = db.Column(db.Numeric(10, 2), nullable=True)
+
+    scheduled_for = db.Column(db.DateTime, nullable=True)  # créneau d'envoi validé
+    sent_at       = db.Column(db.DateTime, nullable=True)
+
+    recipient_count = db.Column(db.Integer, default=0, nullable=False)  # audience au moment du dispatch
+    sent_count      = db.Column(db.Integer, default=0, nullable=False)  # emails réellement partis
+    failed_count    = db.Column(db.Integer, default=0, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    owner      = db.relationship('User', backref=db.backref('campaigns', cascade='all, delete-orphan'))
+    promo_code = db.relationship('PromoCode')
+
+    __table_args__ = (
+        CheckConstraint("segment IN ('buyers','favorites','listeners','affinity','all')",
+                        name='ck_campaign_segment'),
+        CheckConstraint('recipient_count >= 0 AND sent_count >= 0 AND failed_count >= 0',
+                        name='ck_campaign_counts_positive'),
+        db.Index('idx_campaign_owner_status', 'owner_id', 'status'),
+        db.Index('idx_campaign_dispatch', 'status', 'scheduled_for'),
+    )
+
+    @property
+    def requires_payment(self):
+        """Le segment « toute la plateforme » est le seul payant."""
+        return self.segment == CampaignSegment.ALL.value
+
+    @property
+    def is_paid(self):
+        return self.stripe_payment_intent_id is not None
+
+    @property
+    def is_editable(self):
+        # FAILED inclus : une campagne qui n'a atteint personne peut être corrigée
+        # et rejouée. Seule une campagne réellement partie est figée — la réécrire
+        # rendrait ses statistiques mensongères.
+        return self.status in (CampaignStatus.DRAFT.value,
+                               CampaignStatus.SCHEDULED.value,
+                               CampaignStatus.FAILED.value)
+
+    def __repr__(self):
+        return f"<MarketingCampaign #{self.id} {self.segment} {self.status} owner={self.owner_id}>"
+
+
+class CampaignRecipient(db.Model):
+    """Un destinataire d'une campagne (une ligne = un email tenté).
+
+    Sert à trois choses : ne jamais envoyer deux fois le même mail, plafonner la
+    fréquence subie par un utilisateur (tous vendeurs confondus), et attribuer
+    les conversions — sans cette table, « le code a été utilisé » ne dit pas si
+    la campagne y est pour quelque chose.
+    """
+    __tablename__ = 'campaign_recipient'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('marketing_campaign.id', ondelete='CASCADE'), nullable=False)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+
+    sent_at = db.Column(db.DateTime, nullable=True)   # None = échec d'envoi
+    error   = db.Column(db.String(200), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    campaign = db.relationship('MarketingCampaign', backref=db.backref('recipients', cascade='all, delete-orphan'))
+    user     = db.relationship('User')
+
+    __table_args__ = (
+        # Un utilisateur n'apparaît qu'une fois par campagne — garde-fou en base
+        # contre un double dispatch (retry de job, double clic sur « envoyer »).
+        db.UniqueConstraint('campaign_id', 'user_id', name='uq_campaign_recipient'),
+        db.Index('idx_recipient_user_sent', 'user_id', 'sent_at'),
+    )
+
+    def __repr__(self):
+        return f"<CampaignRecipient campaign={self.campaign_id} user={self.user_id}>"

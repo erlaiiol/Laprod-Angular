@@ -1,0 +1,139 @@
+<section class="royalties">
+
+  <header class="royalties__header">
+    <span class="royalties__eyebrow"><i class="bi bi-pie-chart"></i> Splits &amp; royalties</span>
+    <h1 class="royalties__title">La cap-table de tes titres</h1>
+    <p class="royalties__sub">
+      Qui possède quel pourcentage sur chaque titre — topliner, beatmaker, ingé, label.
+      Purement déclaratif : aucun paiement n'est automatisé.
+    </p>
+  </header>
+
+  @if (loadingArtists()) {
+    <p class="royalties__loading">Chargement…</p>
+  } @else if (artistOptions().length === 0) {
+    <p class="royalties__empty">
+      Aucun titre accessible. Si tu es producteur, établis d'abord un
+      <a routerLink="/producer/roster">lien roster actif</a> avec un artiste.
+    </p>
+  } @else {
+
+    <div class="royalties__pickers">
+      <label class="royalties__field">
+        Artiste
+        <select [ngModel]="selectedArtist()" (ngModelChange)="selectArtist($event)">
+          @for (a of artistOptions(); track a.username) {
+            <option [value]="a.username">{{ a.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="royalties__field">
+        Titre
+        @if (loadingTracks()) {
+          <span class="royalties__inline-loading">Chargement…</span>
+        } @else if (tracks().length === 0) {
+          <span class="royalties__inline-loading">Aucun titre publié.</span>
+        } @else {
+          <select [ngModel]="selectedTrackId()" (ngModelChange)="selectTrack($event)">
+            @for (t of tracks(); track t.id) {
+              <option [value]="t.id">{{ t.title }}</option>
+            }
+          </select>
+        }
+      </label>
+    </div>
+
+    @if (selectedTrackId()) {
+      @if (loadingSplits()) {
+        <p class="royalties__loading">Chargement de la cap-table…</p>
+      } @else {
+
+        <div class="royalties__total">
+          <div class="royalties__total-bar">
+            <div class="royalties__total-fill" [style.width.%]="totalPercentage()"
+                 [class.royalties__total-fill--full]="totalPercentage() >= 100"></div>
+          </div>
+          <span class="royalties__total-label">{{ totalPercentage() }} % attribués</span>
+        </div>
+
+        @if (splits().length === 0) {
+          <p class="royalties__empty">Aucune part déclarée pour ce titre.</p>
+        } @else {
+          <ul class="royalties__list">
+            @for (s of splits(); track s.id) {
+              <li class="royalties__item">
+                <div class="royalties__item-main">
+                  <span class="royalties__item-name">
+                    {{ s.user?.username || s.external_name }}
+                  </span>
+                  <span class="royalties__item-role">{{ roleLabels[s.role] }}</span>
+                </div>
+                <span class="royalties__item-pct">{{ s.percentage }} %</span>
+                <span class="royalties__status royalties__status--{{ s.status }}">
+                  {{ s.status === 'confirmed' ? 'Confirmée' : 'Déclarée' }}
+                </span>
+                @if (canConfirm(s)) {
+                  <button type="button" class="royalties__btn royalties__btn--primary royalties__btn--sm"
+                          [disabled]="actingOnSplit() === s.id" (click)="confirmSplit(s)">
+                    Confirmer
+                  </button>
+                }
+                @if (canManage()) {
+                  <button type="button" class="royalties__btn royalties__btn--ghost royalties__btn--sm"
+                          [disabled]="actingOnSplit() === s.id" (click)="removeSplit(s)">
+                    Retirer
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (canManage()) {
+          @if (!showForm()) {
+            <button type="button" class="royalties__btn royalties__btn--primary" (click)="toggleForm()">
+              <i class="bi bi-plus-lg"></i> Ajouter une part
+            </button>
+          } @else {
+            <div class="royalties__form">
+              <div class="royalties__form-row">
+                <label class="royalties__field">
+                  Nom
+                  <input type="text" [ngModel]="formName()" (ngModelChange)="formName.set($event)"
+                         placeholder="Nom du collaborateur" />
+                </label>
+                <label class="royalties__field">
+                  Rôle
+                  <select [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
+                    @for (key of roleKeys; track key) {
+                      <option [value]="key">{{ roleLabels[key] }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="royalties__field">
+                  % (reste {{ remainingPercentage() }} %)
+                  <input type="number" min="1" max="100" [ngModel]="formPercentage()"
+                         (ngModelChange)="formPercentage.set($event)" />
+                </label>
+              </div>
+
+              @if (formError()) {
+                <p class="royalties__error">{{ formError() }}</p>
+              }
+
+              <div class="royalties__form-actions">
+                <button type="button" class="royalties__btn royalties__btn--primary"
+                        [disabled]="saving()" (click)="submitSplit()">
+                  @if (saving()) { Ajout… } @else { Ajouter }
+                </button>
+                <button type="button" class="royalties__btn royalties__btn--ghost" (click)="toggleForm()">Annuler</button>
+              </div>
+            </div>
+          }
+        }
+      }
+    }
+  }
+
+</section>

@@ -18,6 +18,7 @@ const mockUser: User = {
     is_beatmaker: true,
     is_mix_engineer: false,
     is_artist: false,
+    is_producer: false,
     is_mixmaster_engineer: false,
     is_certified_producer_arranger: false,
     mixmaster_sample_submitted: false,
@@ -103,6 +104,7 @@ describe('AuthService', () => {
       identifier: 'user@test.com',
       password: 'password123',
       remember: false,
+      captcha_token: null,
     });
 
     req.flush(mockLoginSuccess);

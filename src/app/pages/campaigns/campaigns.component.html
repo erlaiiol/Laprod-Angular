@@ -1,0 +1,283 @@
+<div class="campaigns-page">
+
+  <header class="campaigns-header">
+    <div>
+      <h1>Mes campagnes</h1>
+      <p class="subtitle">
+        Prévenez ceux qui vous suivent déjà — une sortie, une promo, un nouveau statut.
+        Vos destinataires ont tous accepté de recevoir vos offres.
+      </p>
+    </div>
+
+    @if (canCreate() && !quotaExhausted()) {
+      <button type="button" class="btn-primary" (click)="openCreate()">+ Nouvelle campagne</button>
+    }
+  </header>
+
+  <!-- Quota — affiché en permanence, pas seulement au moment de l'échec -->
+  @if (quota(); as q) {
+    <div class="quota-bar" [class.quota-bar--full]="q.remaining <= 0">
+      <div>
+        <strong>{{ q.used }} / {{ q.max }}</strong> campagnes utilisées sur 30 jours
+      </div>
+      <p class="quota-note">
+        @if (q.remaining <= 0) {
+          Limite atteinte. Elle protège vos abonnés — et votre taux de lecture :
+          une base sur-sollicitée se désabonne.
+        } @else if (q.next_allowed_at) {
+          Prochaine campagne possible à partir du
+          {{ q.next_allowed_at | date:'dd/MM/yyyy' }}
+          ({{ q.cooldown_days }} jours entre deux envois).
+        } @else {
+          Il vous reste {{ q.remaining }} campagne{{ q.remaining > 1 ? 's' : '' }}.
+        }
+      </p>
+    </div>
+  }
+
+  @if (!loading() && !canCreate()) {
+    <div class="premium-cta">
+      <h2>Les campagnes sont réservées aux vendeurs Premium</h2>
+      <p>
+        Touchez vos acheteurs, ceux qui vous ont mis en favori ou vos auditeurs récents,
+        avec un code promo à la clé — et mesurez exactement ce que ça vous rapporte.
+      </p>
+      <a routerLink="/premium" class="btn-primary">Passer Premium</a>
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Chargement…</p>
+  } @else if (!campaigns().length) {
+    <div class="empty"><p>Vous n'avez pas encore de campagne.</p></div>
+  } @else {
+
+    <div class="campaign-list">
+      @for (c of campaigns(); track c.id) {
+        <article class="campaign-card">
+
+          <div class="campaign-main">
+            <div class="campaign-title-line">
+              <span class="campaign-subject">{{ c.subject }}</span>
+              <span class="campaign-status" [class]="'status-' + statusLabel(c).kind">
+                {{ statusLabel(c).label }}
+              </span>
+              @if (c.promo_code) {
+                <span class="campaign-promo">{{ c.promo_code }} · −{{ c.promo_percent }} %</span>
+              }
+            </div>
+
+            <p class="campaign-meta">
+              {{ segmentLabels[c.segment] }}
+              @if (c.scheduled_for && c.status === 'scheduled') {
+                · envoi le {{ c.scheduled_for | date:'dd/MM/yyyy à HH\'h\'' }}
+              }
+              @if (c.sent_at) {
+                · envoyée le {{ c.sent_at | date:'dd/MM/yyyy' }}
+              }
+            </p>
+
+            <!-- Résultats : on ne montre que ce qu'on sait établir honnêtement -->
+            @if (c.status === 'sent') {
+              <div class="campaign-stats">
+                <div class="stat">
+                  <span class="stat-value">{{ c.stats.sent_count }}</span>
+                  <span class="stat-label">emails envoyés</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value">{{ c.stats.conversions }}</span>
+                  <span class="stat-label">ont utilisé le code</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value">{{ conversionRate(c) }} %</span>
+                  <span class="stat-label">taux de conversion</span>
+                </div>
+                <div class="stat stat--revenue">
+                  <span class="stat-value">{{ c.stats.revenue | number:'1.2-2' }} €</span>
+                  <span class="stat-label">chiffre d'affaires généré</span>
+                </div>
+              </div>
+              @if (!c.promo_code) {
+                <p class="stat-hint">
+                  Sans code promo, impossible de relier une vente à cette campagne.
+                  Ajoutez-en un la prochaine fois pour mesurer ce qu'elle rapporte.
+                </p>
+              }
+            }
+          </div>
+
+          <div class="campaign-actions">
+            @if (c.is_editable) {
+              <button type="button" class="btn-ghost" (click)="openEdit(c)">Modifier</button>
+            }
+            @if (c.status === 'scheduled') {
+              <button type="button" class="btn-ghost" (click)="cancel(c)">Annuler l'envoi</button>
+            }
+            @if (c.status !== 'sent' && c.status !== 'sending') {
+              <button type="button" class="btn-ghost danger" (click)="remove(c)">Supprimer</button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  <!-- ── Composition ────────────────────────────────────────────────────── -->
+
+  @if (showForm()) {
+    <div class="modal-backdrop" (click)="closeForm()"></div>
+
+    <div class="campaign-modal" role="dialog" aria-modal="true">
+      <header class="modal-header">
+        <h2>{{ editingId() ? 'Modifier la campagne' : 'Nouvelle campagne' }}</h2>
+        <button type="button" class="btn-close" (click)="closeForm()" aria-label="Fermer">×</button>
+      </header>
+
+      <div class="modal-body">
+
+        <!-- Mails-types : brouillons ancrés dans l'activité récente. Un clic
+             pré-remplit le formulaire, le vendeur complète ensuite. -->
+        @if (templates().length && !editingId()) {
+          <div class="field">
+            <label>Partir d'un modèle <em>(facultatif)</em></label>
+            <div class="template-chips">
+              @for (t of templates(); track t.id) {
+                <button type="button" class="template-chip" (click)="applyTemplate(t)">
+                  <i class="bi bi-{{ t.icon }}"></i> {{ t.label }}
+                </button>
+              }
+            </div>
+            <p class="hint">
+              Ces suggestions viennent de tes dernières actions (un beat publié, un
+              code promo créé…). Choisis-en une pour démarrer, tu ajustes ensuite.
+            </p>
+          </div>
+        }
+
+        <!-- Audience -->
+        <div class="field">
+          <label>À qui ?</label>
+          <div class="segment-list">
+            @for (s of segments; track s) {
+              <button type="button" class="segment-card"
+                      [class.active]="fSegment() === s"
+                      [disabled]="audienceOf(s) === 0 && s !== 'all'"
+                      (click)="fSegment.set(s)">
+                <div class="segment-top">
+                  <span class="segment-name">{{ segmentLabels[s] }}</span>
+                  <span class="segment-count">{{ audienceOf(s) }}</span>
+                </div>
+                <span class="segment-hint">{{ segmentHints[s] }}</span>
+                @if (s === 'all') {
+                  <span class="segment-price">Diffusion payante — {{ superPrice() | number:'1.2-2' }} €</span>
+                }
+              </button>
+            }
+          </div>
+          <p class="hint">
+            Ces chiffres ne comptent que les membres ayant accepté de recevoir des offres.
+            Personne d'autre ne peut être contacté — et vous ne voyez jamais leurs adresses.
+          </p>
+        </div>
+
+        <!-- Sujet -->
+        <div class="field">
+          <label for="c-subject">Sujet de l'email</label>
+          <input id="c-subject" type="text" [maxlength]="subjectMax"
+                 placeholder="Nouveau beat + 30 % pour vous cette semaine"
+                 [ngModel]="fSubject()" (ngModelChange)="fSubject.set($event)">
+          <p class="hint" [class.error]="subjectError()">
+            {{ subjectError() || (fSubject().length + ' / ' + subjectMax) }}
+          </p>
+        </div>
+
+        <!-- Message -->
+        <div class="field">
+          <label for="c-body">Message</label>
+          <textarea id="c-body" rows="7" [maxlength]="bodyMax"
+                    placeholder="Parlez-leur directement. Ce qui sort, pourquoi ça compte, ce qu'ils y gagnent."
+                    [ngModel]="fBody()" (ngModelChange)="fBody.set($event)"></textarea>
+          <p class="hint" [class.error]="bodyError()">
+            {{ bodyError() || (fBody().length + ' / ' + bodyMax) }}
+          </p>
+        </div>
+
+        <!-- Code promo -->
+        <div class="field">
+          <label for="c-promo">Code promo à mettre en avant <em>(facultatif)</em></label>
+          @if (!promoCodes().length) {
+            <p class="hint">
+              Vous n'avez aucun code promo actif.
+              <a routerLink="/promo-codes">Créez-en un</a> — c'est ce qui permet de mesurer
+              ce que la campagne vous rapporte réellement.
+            </p>
+          } @else {
+            <select id="c-promo" [ngModel]="fPromoId()"
+                    (ngModelChange)="fPromoId.set($event ? +$event : null)">
+              <option [ngValue]="null">Aucun</option>
+              @for (p of promoCodes(); track p.id) {
+                <option [ngValue]="p.id">{{ p.code }} — −{{ p.percent }} %</option>
+              }
+            </select>
+            <p class="hint">
+              Le code apparaît en évidence dans l'email, et sert à relier les ventes
+              à cette campagne.
+            </p>
+          }
+        </div>
+
+        <!-- Créneau -->
+        <div class="field">
+          <label for="c-slot">Quand ?</label>
+          @if (!slots().length) {
+            <p class="hint error">
+              Aucun créneau disponible pour le moment — votre quota ou le délai entre
+              deux campagnes n'est pas encore écoulé.
+            </p>
+          } @else {
+            <select id="c-slot" [ngModel]="fSlot()" (ngModelChange)="fSlot.set($event)">
+              <option value="">Choisir un créneau…</option>
+              @for (s of slots(); track s) {
+                <option [value]="s">{{ s | date:'EEEE d MMMM, HH\'h\'' }}</option>
+              }
+            </select>
+            <p class="hint">
+              Les campagnes partent le mardi, mercredi ou jeudi en journée — c'est là
+              qu'elles sont lues. Vous pouvez annuler jusqu'au dernier moment.
+            </p>
+          }
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-ghost" (click)="closeForm()">Fermer</button>
+
+        <button type="button" class="btn-ghost"
+                [disabled]="!formValid() || saving()"
+                (click)="saveDraft()">
+          {{ saving() ? 'Enregistrement…' : 'Enregistrer le brouillon' }}
+        </button>
+
+        @if (editingId(); as id) {
+          @for (c of campaigns(); track c.id) {
+            @if (c.id === id) {
+              @if (c.requires_payment && !c.is_paid) {
+                <button type="button" class="btn-primary"
+                        [disabled]="checkingOut()"
+                        (click)="payAndUnlock(c)">
+                  {{ checkingOut() ? 'Redirection…' : 'Payer ' + (superPrice() | number:'1.2-2') + ' € et débloquer' }}
+                </button>
+              } @else {
+                <button type="button" class="btn-primary"
+                        [disabled]="!fSlot() || !formValid()"
+                        (click)="schedule(c)">
+                  Planifier l'envoi
+                </button>
+              }
+            }
+          }
+        }
+      </footer>
+    </div>
+  }
+</div>

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard }         from './guards/auth.guard';
 import { adminGuard }        from './guards/admin.guard';
 import { testimonialsGuard } from './guards/testimonials.guard';
+import { royaltiesGuard }    from './guards/royalties.guard';
 
 // data.preload = true → chunk préchargé en idle après le premier rendu
 // (voir routing/idle-preload.strategy.ts). Réservé aux routes du parcours
@@ -89,9 +90,31 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/dashboard/dashboard-mix-engineer/dashboard-mix-engineer.component').then(m => m.DashboardMixEngineerComponent),
     canActivate: [authGuard] },
 
+  { path: 'dashboard/producer',
+    loadComponent: () => import('./pages/profile/producer-space/producer-space.component').then(m => m.ProducerSpaceComponent),
+    canActivate: [authGuard] },
+
   { path: 'purchases',
     loadComponent: () => import('./pages/purchases/purchases.component').then(m => m.PurchasesComponent),
     canActivate: [authGuard] },
+
+  // authGuard et non premiumGuard : la création est réservée au Premium (contrôlée
+  // côté serveur), mais un Premium expiré doit pouvoir accéder à la page pour
+  // désactiver des codes encore actifs sur son catalogue.
+  { path: 'promo-codes',
+    loadComponent: () => import('./pages/promo-codes/promo-codes.component').then(m => m.PromoCodesComponent),
+    canActivate: [authGuard] },
+
+  // Idem : la création est Premium (contrôlée serveur), mais un Premium expiré
+  // doit pouvoir consulter ses résultats passés et annuler une campagne planifiée.
+  { path: 'campagnes',
+    loadComponent: () => import('./pages/campaigns/campaigns.component').then(m => m.CampaignsComponent),
+    canActivate: [authGuard] },
+
+  // Publique et sans guard : se désinscrire doit être au moins aussi simple que
+  // de s'inscrire (art. L.34-5 CPCE). Exiger un login serait une friction illégale.
+  { path: 'desinscription',
+    loadComponent: () => import('./pages/unsubscribe/unsubscribe.component').then(m => m.UnsubscribeComponent) },
 
   { path: 'mix/engineers',
     loadComponent: () => import('./pages/mixmaster/engineers/engineers.component').then(m => m.MixmasterEngineersComponent) },
@@ -121,6 +144,20 @@ export const routes: Routes = [
 
   { path: 'contract-analyzer',
     loadComponent: () => import('./pages/contract-analyzer/contract-analyzer.component').then(m => m.ContractAnalyzerComponent) },
+
+  // Roster et planning libres à tous les paliers (rôle uniquement) : pas de guard de palier.
+  { path: 'producer/roster',
+    loadComponent: () => import('./pages/producer/roster/roster.component').then(m => m.RosterComponent),
+    canActivate: [authGuard] },
+
+  { path: 'producer/planning',
+    loadComponent: () => import('./pages/producer/planning/planning.component').then(m => m.PlanningComponent),
+    canActivate: [authGuard] },
+
+  // Royalties gaté Premium+ (can_view_royalties), contrairement à roster/planning.
+  { path: 'producer/royalties',
+    loadComponent: () => import('./pages/producer/royalties/royalties.component').then(m => m.RoyaltiesComponent),
+    canActivate: [authGuard, royaltiesGuard] },
 
   { path: 'premium',
     loadComponent: () => import('./pages/premium/premium.component').then(m => m.PremiumComponent),

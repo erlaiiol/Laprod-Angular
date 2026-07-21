@@ -176,3 +176,49 @@ def revoke_all_refresh_tokens(user_id: int) -> None:
     keys = redis_client.keys(f"{REFRESH_PREFIX}{user_id}:*")
     if keys:
         redis_client.delete(*keys)
+
+
+# ── Compteur d'échecs de login (anti-bruteforce progressif) ───────────────────
+# Après LOGIN_CAPTCHA_AFTER échecs sur un même identifiant, le login exige un
+# CAPTCHA (web). Clé auto-expirante, remise à zéro dès un login réussi. Toutes
+# les fonctions échouent en silence (fail-open) : un Redis indisponible ne doit
+# jamais bloquer une connexion légitime.
+
+LOGIN_FAIL_PREFIX   = "login_fail:"
+LOGIN_FAIL_TTL      = 900   # 15 min
+LOGIN_CAPTCHA_AFTER = 3     # nb d'échecs avant d'exiger un CAPTCHA
+
+
+def _login_fail_key(identifier: str) -> str:
+    return f"{LOGIN_FAIL_PREFIX}{(identifier or '').strip().lower()}"
+
+
+def get_login_failure_count(identifier: str) -> int:
+    """Nombre d'échecs de login récents pour cet identifiant (0 si Redis KO)."""
+    from extensions import redis_client
+    try:
+        return int(redis_client.get(_login_fail_key(identifier)) or 0)
+    except Exception:
+        return 0
+
+
+def record_login_failure(identifier: str) -> None:
+    """Incrémente le compteur d'échecs (avec TTL glissant)."""
+    from extensions import redis_client
+    try:
+        key = _login_fail_key(identifier)
+        pipe = redis_client.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, LOGIN_FAIL_TTL)
+        pipe.execute()
+    except Exception:
+        pass
+
+
+def clear_login_failures(identifier: str) -> None:
+    """Réinitialise le compteur (login réussi)."""
+    from extensions import redis_client
+    try:
+        redis_client.delete(_login_fail_key(identifier))
+    except Exception:
+        pass

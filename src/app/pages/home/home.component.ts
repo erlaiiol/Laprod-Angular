@@ -20,6 +20,8 @@ import { FavoritesService } from '../../services/favorites.service';
 import { AuthService } from '../../services/auth.service';
 import { RevealOnScrollDirective } from '../../directives/reveal-on-scroll.directive';
 import { environment } from '../../../environments/environment';
+import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
+import { TourService } from '../../services/tour.service';
 
 const PER_PAGE = 20;
 
@@ -44,7 +46,7 @@ const STATS_COUNTUP_MS = 1600;
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent, RevealOnScrollDirective],
+  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent, RevealOnScrollDirective, TourAnchorDirective],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +59,8 @@ export class HomeComponent implements OnInit {
 
   showOnboarding  = signal(false);
   showHero        = signal(false);
+  // Onglets marketing du hero visiteur — purement locaux, indépendants de
+  // toute navigation connectée (l'ancien système de vue active a été retiré).
   heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
   displayMode     = signal<'list' | 'gallery' | 'compact'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'
@@ -79,6 +83,7 @@ export class HomeComponent implements OnInit {
   private toast              = inject(ToastService);
   private favSvc             = inject(FavoritesService);
   readonly auth              = inject(AuthService);
+  private tour               = inject(TourService);
 
   // -1 = premier rendu (retour depuis une autre page → restaurer savedPage)
   private _lastApplied = -1;
@@ -118,6 +123,13 @@ export class HomeComponent implements OnInit {
     if (hasRole && !alreadyHasPref && OnboardingModalComponent.shouldShow()) {
       localStorage.setItem('laprod_onboarding_done', '1');
       this.showOnboarding.set(true);
+    }
+
+    // Visite guidée : jamais par-dessus le hero (visiteur non connecté) ni la modale
+    // d'onboarding — on ne superpose pas deux sollicitations. Le délai laisse aux
+    // widgets @defer (on idle) le temps d'enregistrer leurs ancres (bouton Guide).
+    if (!this.showHero() && !this.showOnboarding()) {
+      setTimeout(() => this.tour.maybeAutoStart('home'), 1200);
     }
 
     // Charger les stats réelles de la plateforme pour le bandeau landing

@@ -56,8 +56,13 @@ def _make_vector(keys=None, tags=None, styles=None, bpm_center=100.0,
 
 
 def _make_listen_event(track_id, completion_ratio, key='A minor', bpm=90,
-                       style='trap', tags=None, composer_id=1, track_duration=180.0):
-    """Événement d'écoute simulé pour build_user_vector()."""
+                       style='trap', tags=None, composer_id=1, track_duration=180.0,
+                       created_at=None):
+    """Événement d'écoute simulé pour build_user_vector().
+
+    created_at par défaut = maintenant → _taste_decay() ≈ 1.0, donc le poids
+    d'écoute n'est pas atténué et les assertions de poids restent exactes.
+    """
     tag_ns = [SimpleNamespace(name=t) for t in (tags or [])]
     track = SimpleNamespace(key=key, style=style, bpm=bpm, tags=tag_ns, similar_artists=[], composer_id=composer_id)
     ev = MagicMock()
@@ -65,6 +70,7 @@ def _make_listen_event(track_id, completion_ratio, key='A minor', bpm=90,
     ev.completion_ratio = completion_ratio
     ev.track_duration = track_duration
     ev.track = track
+    ev.created_at = created_at or datetime.now()
     return ev
 
 
@@ -417,3 +423,69 @@ class TestBuildUserVector:
         vec = build_user_vector(user_id=1)
 
         assert vec['tags']['trap'] == pytest.approx(2.5)
+
+
+# ── _taste_decay() — décroissance temporelle du goût (fonction pure) ────────────
+
+class TestTasteDecay:
+    """Un goût ancien pèse moins qu'une écoute récente, mais ne disparaît jamais
+    complètement (plancher). Fonction pure : datetime.now() seul, pas de DB."""
+
+    def test_aujourd_hui_poids_plein(self):
+        from utils.recommendation_service import _taste_decay
+        assert _taste_decay(datetime.now()) == pytest.approx(1.0, abs=0.01)
+
+    def test_demi_vie(self):
+        from utils.recommendation_service import _taste_decay, _TASTE_HALF_LIFE_DAYS
+        d = _taste_decay(datetime.now() - timedelta(days=_TASTE_HALF_LIFE_DAYS))
+        assert d == pytest.approx(0.5, abs=0.02)
+
+    def test_plancher_jamais_zero(self):
+        from utils.recommendation_service import _taste_decay, _TASTE_DECAY_FLOOR
+        # Un goût de plusieurs années reste au plancher, jamais nul.
+        assert _taste_decay(datetime.now() - timedelta(days=3650)) == _TASTE_DECAY_FLOOR
+        assert _TASTE_DECAY_FLOOR > 0
+
+    def test_monotone_decroissante(self):
+        from utils.recommendation_service import _taste_decay
+        recent = _taste_decay(datetime.now() - timedelta(days=10))
+        older  = _taste_decay(datetime.now() - timedelta(days=100))
+        assert recent > older
+
+    def test_created_at_none_ne_penalise_pas(self):
+        from utils.recommendation_service import _taste_decay
+        assert _taste_decay(None) == 1.0
+
+    def test_achat_pese_plus_qu_une_ecoute_aboutie(self):
+        """Un achat (3.0) doit peser plus qu'une écoute complète (1.5 max) : c'est
+        le signal d'intention le plus fort de la plateforme."""
+        from utils.recommendation_service import _PURCHASE_TASTE_WEIGHT, _listen_weight
+        assert _PURCHASE_TASTE_WEIGHT > _listen_weight(1.0)
+
+
+# ── Signal d'ACHAT dans le vecteur (mock DB) ───────────────────────────────────
+
+def _make_purchase(key='G minor', style='drill', bpm=140, tags=None, composer_id=7):
+    """Achat simulé : porte un track avec ses métadonnées."""
+    tag_ns = [SimpleNamespace(name=t) for t in (tags or [])]
+    track = SimpleNamespace(key=key, style=style, bpm=bpm, tags=tag_ns,
+                            similar_artists=[], composer_id=composer_id)
+    return SimpleNamespace(track=track, composer_id=composer_id)
+
+
+class TestPurchaseSignal:
+    def test_l_achat_injecte_le_gout_dans_le_vecteur(self, mocker):
+        """Un beat ACHETÉ (mais jamais écouté) doit tout de même peser dans les
+        préférences — c'est le signal d'intention le plus fort."""
+        from utils.recommendation_service import build_user_vector, _PURCHASE_TASTE_WEIGHT
+
+        purchase = _make_purchase(key='G minor', style='drill', tags=['dark'])
+        _setup_vector_db(mocker, events=[], purchases=[purchase])
+
+        v = build_user_vector(user_id=1)
+        # La clé/style/tag de l'achat apparaissent avec le poids d'achat.
+        assert v['keys']['G minor'] == pytest.approx(_PURCHASE_TASTE_WEIGHT)
+        assert v['styles']['drill'] == pytest.approx(_PURCHASE_TASTE_WEIGHT)
+        assert v['tags']['dark'] == pytest.approx(_PURCHASE_TASTE_WEIGHT)
+        # Le beatmaker vendeur est aussi boosté.
+        assert v['favorite_beatmakers'].get(7, 0) > 0

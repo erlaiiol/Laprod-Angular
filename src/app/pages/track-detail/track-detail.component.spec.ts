@@ -77,9 +77,12 @@ describe('TrackDetailComponent — licences et confirmation', () => {
       darkenColor:      vi.fn().mockReturnValue('#000'),
     };
     const authSvc = {
-      isLoggedIn:   vi.fn().mockReturnValue(true),
-      currentUser:  vi.fn().mockReturnValue({ id: 1, username: 'artist', roles: {} }),
-      getToken:     vi.fn().mockReturnValue('fake-jwt'),
+      isLoggedIn:    vi.fn().mockReturnValue(true),
+      currentUser:   vi.fn().mockReturnValue({ id: 1, username: 'artist', roles: {} }),
+      getToken:      vi.fn().mockReturnValue('fake-jwt'),
+      isArtist:      vi.fn().mockReturnValue(false),
+      isBeatmaker:   vi.fn().mockReturnValue(false),
+      isMixEngineer: vi.fn().mockReturnValue(false),
     };
 
     TestBed.configureTestingModule({

@@ -1,0 +1,118 @@
+@use '../../../styles/variables' as v;
+
+$tv-z: 2000;
+
+// ── Halo ──────────────────────────────────────────────────────────────────────
+// L'assombrissement est produit par un box-shadow démesuré : le rectangle lui-même
+// reste transparent et l'élément ciblé demeure parfaitement lisible en dessous.
+
+.tv-spotlight {
+  position: fixed; z-index: $tv-z;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.68);
+  border: 2px solid v.$tag-blue;
+  pointer-events: auto;
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  animation: tv-pulse 2s ease-in-out infinite;
+}
+
+// Repli quand l'ancre n'est pas mesurable (élément retiré du DOM en cours de route).
+.tv-backdrop {
+  position: fixed; inset: 0; z-index: $tv-z;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+@keyframes tv-pulse {
+  0%, 100% { border-color: v.$tag-blue; }
+  50%      { border-color: color-mix(in srgb, v.$tag-blue 45%, transparent); }
+}
+
+// ── Bulle ─────────────────────────────────────────────────────────────────────
+
+.tv-bubble {
+  position: fixed; z-index: $tv-z + 1;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  border-radius: 12px;
+  padding: 0.9rem 1rem 0.75rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  animation: tv-bubble-in 0.2s ease;
+}
+
+@keyframes tv-bubble-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.tv-bubble__head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.tv-bubble__step {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+  color: v.$tag-blue; text-transform: uppercase;
+}
+
+.tv-bubble__close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  color: v.$text-muted; font-size: 0.75rem; border-radius: 6px;
+  &:hover { color: v.$text-primary; background: v.$bg-elevated; }
+}
+
+.tv-bubble__title {
+  font-size: 0.98rem; font-weight: 800; margin: 0 0 0.35rem;
+  color: v.$text-primary;
+}
+
+.tv-bubble__text {
+  font-size: 0.83rem; line-height: 1.55; margin: 0 0 0.75rem;
+  color: v.$text-secondary;
+}
+
+// ── Progression ───────────────────────────────────────────────────────────────
+
+.tv-dots {
+  display: flex; gap: 0.3rem; margin-bottom: 0.75rem;
+}
+
+.tv-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: v.$bg-border;
+  transition: background 0.2s, width 0.2s;
+  &.is-done   { background: color-mix(in srgb, v.$tag-blue 50%, transparent); }
+  &.is-active { background: v.$tag-blue; width: 16px; border-radius: 3px; }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+.tv-bubble__actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.45rem;
+}
+
+.tv-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  border-radius: 7px; padding: 0.4rem 0.8rem;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &--ghost {
+    background: transparent; border: 1px solid v.$bg-border; color: v.$text-secondary;
+    &:hover { color: v.$text-primary; border-color: v.$text-secondary; }
+  }
+
+  &--primary {
+    background: v.$tag-blue-dark; border: 1px solid v.$tag-blue; color: v.$tag-blue-light;
+    &:hover { background: rgba(v.$tag-blue, 0.25); color: #fff; }
+  }
+}
+
+.tv-bubble__mute {
+  display: block; width: 100%; margin-top: 0.6rem;
+  background: none; border: none; padding: 0.25rem 0;
+  font-size: 0.7rem; color: v.$text-muted; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  &:hover { color: v.$text-secondary; }
+}

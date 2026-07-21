@@ -1,0 +1,53 @@
+@if (tour.isOpen() && tour.currentStep(); as step) {
+
+  <!-- Halo : un box-shadow géant assombrit tout SAUF le rectangle mis en avant. -->
+  @if (box(); as b) {
+    <div class="tv-spotlight"
+         [style.top.px]="b.top" [style.left.px]="b.left"
+         [style.width.px]="b.width" [style.height.px]="b.height"
+         (click)="onBackdropClick()"></div>
+  } @else {
+    <div class="tv-backdrop" (click)="onBackdropClick()"></div>
+  }
+
+  <div class="tv-bubble" [ngStyle]="bubbleStyle()"
+       role="dialog" aria-modal="true" [attr.aria-label]="step.title">
+
+    <div class="tv-bubble__head">
+      <span class="tv-bubble__step">{{ tour.index() + 1 }} / {{ tour.total() }}</span>
+      <button type="button" class="tv-bubble__close" (click)="tour.finish()" aria-label="Fermer la visite">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <h3 class="tv-bubble__title">{{ step.title }}</h3>
+    <p class="tv-bubble__text">{{ step.text }}</p>
+
+    <div class="tv-dots">
+      @for (s of tour.steps(); track $index) {
+        <span class="tv-dot" [class.is-active]="$index === tour.index()"
+              [class.is-done]="$index < tour.index()"></span>
+      }
+    </div>
+
+    <div class="tv-bubble__actions">
+      @if (tour.index() > 0) {
+        <button type="button" class="tv-btn tv-btn--ghost" (click)="tour.prev()">
+          <i class="bi bi-arrow-left"></i> Retour
+        </button>
+      }
+      <button type="button" class="tv-btn tv-btn--primary" (click)="tour.next()">
+        @if (tour.isLast()) {
+          Terminer <i class="bi bi-check-lg"></i>
+        } @else {
+          Suivant <i class="bi bi-arrow-right"></i>
+        }
+      </button>
+    </div>
+
+    <button type="button" class="tv-bubble__mute" (click)="tour.disableForever()">
+      Ne plus afficher les bulles d'aide
+    </button>
+
+  </div>
+}

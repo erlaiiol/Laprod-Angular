@@ -14,6 +14,30 @@
       <h1><i class="bi bi-sliders"></i> Espace Mix Engineer</h1>
     </div>
 
+    <!-- ── Vues de ma page de commande ─────────────────────────────────────── -->
+    @if (viewStats(); as vs) {
+      <div class="page-views-card">
+        <div class="pv-metric">
+          <span class="pv-value">{{ vs.total_views }}</span>
+          <span class="pv-label"><i class="bi bi-eye"></i> Vues de ta page</span>
+        </div>
+        <div class="pv-metric">
+          @if (vs.unique_locked) {
+            <a class="pv-value pv-value--locked" routerLink="/premium"
+               title="Réservé aux membres Premium">
+              <i class="bi bi-lock-fill"></i>
+            </a>
+            <a class="pv-label pv-label--cta" routerLink="/premium">
+              Visiteurs uniques — Premium
+            </a>
+          } @else {
+            <span class="pv-value">{{ vs.unique_views }}</span>
+            <span class="pv-label"><i class="bi bi-people"></i> Visiteurs uniques</span>
+          }
+        </div>
+      </div>
+    }
+
     <!-- ── Notification : échantillon non soumis ────────────────────────────── -->
     @if (!data()!.stats.sample_submitted) {
       <div class="sample-alert">
@@ -101,7 +125,15 @@
         <i class="bi bi-x-circle"></i> Refusées
         <span class="tab-count">{{ data()!.orders.refused.length }}</span>
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'marketing'" (click)="setTab('marketing')">
+        <i class="bi bi-megaphone"></i> Marketing
+      </button>
     </div>
+
+    <!-- ── Tab : Marketing (codes promo + campagnes) ──────────────────────── -->
+    @if (activeTab() === 'marketing') {
+      <app-marketing-panel></app-marketing-panel>
+    }
 
     <!-- ── Upload modal ────────────────────────────────────────────────────── -->
     @if (uploadOrderId() !== null) {

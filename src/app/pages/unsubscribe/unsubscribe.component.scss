@@ -1,0 +1,57 @@
+@use 'variables' as v;
+
+.unsub-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 2rem 1rem;
+}
+
+.unsub-card {
+  width: min(480px, 100%);
+  padding: 2rem;
+  border: 1px solid v.$bg-border;
+  border-radius: 14px;
+  background: v.$bg-surface;
+  text-align: center;
+  color: v.$text-primary;
+
+  h1 { margin: 0 0 .6rem; font-size: 1.4rem; }
+
+  p {
+    margin: 0 0 .6rem;
+    color: v.$text-secondary;
+    font-size: .92rem;
+    line-height: 1.55;
+  }
+}
+
+.unsub-loading { color: v.$text-muted; }
+
+.unsub-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  font-size: 1.6rem;
+
+  &--ok  { background: v.$success-light; color: v.$success-dark; }
+  &--err { background: v.$danger-light;  color: v.$danger-dark; }
+}
+
+.unsub-note {
+  margin-top: 1rem;
+  font-size: .8rem;
+  color: v.$text-muted;
+}
+
+.unsub-back {
+  margin-top: 1rem;
+  font-size: .85rem;
+
+  a { color: v.$primary; }
+}

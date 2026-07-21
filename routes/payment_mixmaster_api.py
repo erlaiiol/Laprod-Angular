@@ -7,7 +7,9 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
 from extensions import db, csrf
-from models import User, MixMasterRequest
+from models import User, MixMasterRequest, PromoCode
+from utils.money import to_money
+from utils.promo_service import consume as consume_promo
 from utils.notification_service import notify_mixmaster_request_received_and_sent
 from utils.email_service import send_mixmaster_request_notification
 from utils.stripe_logger import (
@@ -103,7 +105,22 @@ def verify_payment(current_user):
             engineer_revenue          = 0,
         )
 
-        mm.total_price = mm.calculate_service_price(engineer.mixmaster_reference_price)
+        # ── Prix et remise ──────────────────────────────────────────────────
+        # Le prix catalogue est recalculé côté serveur (jamais lu du client), puis
+        # la remise écrite par NOTRE checkout dans les métadonnées est déduite.
+        # total_price doit être le montant NET : tous les calculs dérivés (acompte
+        # 30 %, transferts de révision, remboursements) en découlent et doivent
+        # correspondre à ce que Stripe a réellement encaissé.
+        gross_price     = mm.calculate_service_price(engineer.mixmaster_reference_price)
+        gross_price     = to_money(meta.get('gross_price') or gross_price)
+        discount_amount = to_money(meta.get('discount_amount') or 0)
+        promo_meta_id   = meta.get('promo_code_id') or ''
+        promo = db.session.get(PromoCode, int(promo_meta_id)) if promo_meta_id.isdigit() else None
+
+        mm.gross_price     = gross_price
+        mm.discount_amount = discount_amount
+        mm.promo_code_id   = promo.id if promo else None
+        mm.total_price     = to_money(gross_price - discount_amount)
         mm.calculate_payments()
 
         # Arborescence complète de l'archive (liste de chemins strings)
@@ -117,6 +134,21 @@ def verify_payment(current_user):
 
         db.session.add(mm)
         db.session.flush()  # obtenir mm.id avant commit
+
+        # ── Consommer le code promo (après encaissement seulement) ───────────
+        if promo:
+            consumed = consume_promo(
+                promo, current_user.id,
+                gross=gross_price, discount=discount_amount, net=mm.total_price,
+                mixmaster_request=mm,
+            )
+            if not consumed:
+                # Quota épuisé entre le checkout et l'encaissement : l'artiste a
+                # déjà payé le montant remisé, on honore la remise et on trace.
+                current_app.logger.warning(
+                    f"Promo {promo.code} (#{promo.id}) consommée au-delà de son quota — "
+                    f"mixmaster #{mm.id}, artist #{current_user.id}, remise {discount_amount}€"
+                )
 
         log_stripe_payment_intent_created(
             payment_intent_id=payment_intent_id,

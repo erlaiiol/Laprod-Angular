@@ -16,7 +16,7 @@ const mockUser = (userTypeSelected = true) => ({
   profile_image: '',
   roles: {
     is_admin: false, is_beatmaker: true, is_mix_engineer: false,
-    is_artist: false, is_mixmaster_engineer: false, is_certified_producer_arranger: false,
+    is_artist: false, is_producer: false, is_mixmaster_engineer: false, is_certified_producer_arranger: false,
   },
   user_type_selected: userTypeSelected,
   email_verified: true,
@@ -101,9 +101,10 @@ describe('LoginComponent', () => {
       const req = httpMock.expectOne(`${AUTH_URL}/login`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({
-        identifier: 'test@laprod.fr',
-        password:   'TestPass123!',
-        remember:   true,
+        identifier:    'test@laprod.fr',
+        password:      'TestPass123!',
+        remember:      true,
+        captcha_token: null,
       });
 
       req.flush(loginSuccess());

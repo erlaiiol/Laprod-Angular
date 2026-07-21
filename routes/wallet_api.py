@@ -6,7 +6,7 @@ POST  /api/wallet/withdraw  → initier un retrait vers Stripe Connect (jwt_requ
 """
 from datetime import datetime, timedelta
 
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
 from sqlalchemy import select
 
@@ -89,6 +89,7 @@ def get_wallet(current_user):
 # ── POST /api/wallet/withdraw ──────────────────────────────────────────────────
 
 @wallet_api_bp.route('/withdraw', methods=['POST'])
+@csrf.exempt
 @jwt_required()
 @require_user
 def withdraw(current_user):
@@ -101,6 +102,11 @@ def withdraw(current_user):
       { success: true, data: { transfer_id: str, amount: float } }
     """
     if not (current_user.is_beatmaker or current_user.is_mix_engineer):
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=role_non_autorisé | "
+            "is_beatmaker=%s | is_mix_engineer=%s",
+            current_user.id, current_user.is_beatmaker, current_user.is_mix_engineer,
+        )
         return err(
             'Accès réservé aux beatmakers et mix engineers.',
             code='FORBIDDEN', status=403,
@@ -112,12 +118,19 @@ def withdraw(current_user):
     process_expirations(wallet)
 
     if not current_user.stripe_account_id:
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=connect_absent", current_user.id,
+        )
         return err(
             'Configurez votre compte Stripe Connect pour recevoir vos gains.',
             code='CONNECT_REQUIRED', status=403,
         )
 
     if not current_user.stripe_onboarding_complete or current_user.stripe_account_status != 'active':
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=connect_incomplet | onboarding=%s | status=%s",
+            current_user.id, current_user.stripe_onboarding_complete, current_user.stripe_account_status,
+        )
         return err(
             "Votre compte Stripe n'est pas encore complet. Finalisez la configuration.",
             code='CONNECT_INCOMPLETE', status=403,
@@ -127,6 +140,10 @@ def withdraw(current_user):
     try:
         amount = float(data.get('amount', 0))
     except (ValueError, TypeError):
+        current_app.logger.warning(
+            "[wallet] Retrait refusé | user=%s | raison=montant_invalide | payload=%s",
+            current_user.id, data.get('amount'),
+        )
         return err('Montant invalide.', code='INVALID_AMOUNT', status=400)
 
     result = perform_withdrawal(current_user, amount)

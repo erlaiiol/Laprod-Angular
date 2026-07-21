@@ -18,28 +18,83 @@ from models import ContractClause, ContractClauseGroup, ClauseTypeEnum, Contract
 from extensions import db
 
 
-def run_seed() -> None:
-    """Insert all performance contract groups and clauses. No-op if data already exists."""
-    existing = (
-        db.session.query(ContractClauseGroup)
-        .filter_by(contract_type=ContractTemplateTypeEnum.performance)
-        .count()
-    )
-    if existing > 0:
-        return
+def run_seed(force: bool = False) -> int:
+    """Insert or refresh all performance contract groups and clauses.
+
+    Idempotent : les groupes et clauses sont créés s'ils n'existent pas, et complétés
+    s'ils existent déjà. C'est indispensable, car les bases peuplées par une version
+    antérieure de ce fichier contiennent les clauses mais pas leurs textes pédagogiques
+    (« en clair », détail juridique, exemples) — un simple garde-fou « existe déjà →
+    on sort » les laissait définitivement vides.
+
+    Par défaut, seuls les champs vides (NULL) sont complétés : les textes retouchés à la
+    main depuis l'admin ne sont jamais écrasés. Avec force=True, les textes de ce fichier
+    font autorité et remplacent les valeurs en base.
+
+    Retourne le nombre de clauses créées ou mises à jour.
+    """
+    touched = 0
+
+    # Champs pédagogiques : les seuls que le backfill complète sur une clause existante.
+    # Les champs structurels (type, obligatoire, ordre, valeur par défaut) sont laissés
+    # tels quels sur une clause déjà en base : ils peuvent avoir été ajustés via l'admin.
+    content_fields = ('tooltip_short', 'tooltip_long', 'tooltip_plain',
+                      'legal_reference', 'example_text')
 
     def _g(name, description=None, tooltip=None, sort_order=0):
-        g = ContractClauseGroup(
-            name=name, description=description, tooltip=tooltip, sort_order=sort_order,
-            contract_type=ContractTemplateTypeEnum.performance,
+        g = (
+            db.session.query(ContractClauseGroup)
+            .filter_by(name=name, contract_type=ContractTemplateTypeEnum.performance)
+            .first()
         )
-        db.session.add(g)
-        db.session.flush()
+        if g is None:
+            g = ContractClauseGroup(
+                name=name, description=description, tooltip=tooltip, sort_order=sort_order,
+                contract_type=ContractTemplateTypeEnum.performance,
+            )
+            db.session.add(g)
+            db.session.flush()
+            return g
+
+        if force or g.description is None:
+            g.description = description if force else (g.description or description)
+        if force or g.tooltip is None:
+            g.tooltip = tooltip if force else (g.tooltip or tooltip)
         return g
 
     def _c(group, name, ctype, tooltip_short=None, tooltip_long=None, plain=None,
            legal_ref=None, options=None, default_value=None,
            required=False, enabled_by_default=True, sort_order=0, example=None):
+        nonlocal touched
+
+        incoming = {
+            'tooltip_short':   tooltip_short,
+            'tooltip_long':    tooltip_long,
+            'tooltip_plain':   plain,
+            'legal_reference': legal_ref,
+            'example_text':    example,
+        }
+
+        existing = (
+            db.session.query(ContractClause)
+            .filter_by(group_id=group.id, name=name)
+            .first()
+        )
+
+        if existing is not None:
+            changed = False
+            for field in content_fields:
+                new = incoming[field]
+                if new is None:
+                    continue
+                if force or getattr(existing, field) is None:
+                    if getattr(existing, field) != new:
+                        setattr(existing, field, new)
+                        changed = True
+            if changed:
+                touched += 1
+            return
+
         db.session.add(ContractClause(
             group_id              = group.id,
             name                  = name,
@@ -55,6 +110,7 @@ def run_seed() -> None:
             sort_order            = sort_order,
             example_text          = example,
         ))
+        touched += 1
 
     # ── 0 — Préambule ─────────────────────────────────────────────────────────
     g = _g("Préambule", tooltip="Contexte de l'évènement, volonté des parties, qualité juridique de chacun.", sort_order=0)
@@ -1013,3 +1069,4 @@ def run_seed() -> None:
        ))
 
     db.session.commit()
+    return touched

@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 import config
 from extensions import db, csrf
 from models import User, Notification, Track, PriceChangeRequest
-from serializers import ok, err, track_card as ser_track_card
+from serializers import ok, err, track_card as ser_track_card, capabilities_dict
 from helpers import sanitize_html
 from utils import email_service, notification_service
 from utils.file_validator import validate_image_file
@@ -63,7 +63,11 @@ def _profile_payload(user, tracks, is_own=False):
         data['producer_arranger_request_submitted'] = getattr(user, 'producer_arranger_request_submitted', False)
         data['is_certified_master_engineer']        = getattr(user, 'is_certified_master_engineer', False)
         data['master_sample_submitted']             = getattr(user, 'master_sample_submitted', False)
-        data['subscription_plan']                   = getattr(user, 'subscription_plan', 'free')
+        data['subscription_plan']                   = user.plan
+        # Capacités calculées côté serveur : le front les lit, il ne les redérive
+        # pas. Une règle d'autorisation dupliquée dans Angular finit toujours par
+        # se désynchroniser de celle qui protège réellement l'API.
+        data['capabilities'] = capabilities_dict(user)
     return data
 
 
@@ -125,6 +129,7 @@ def edit_profile(current_user):
     is_artist       = _bool('is_artist')
     is_beatmaker    = _bool('is_beatmaker')
     is_mix_engineer = _bool('is_mix_engineer')
+    is_producer     = _bool('is_producer')
 
     newly_mix_engineer = is_mix_engineer and not current_user.is_mix_engineer
 
@@ -137,6 +142,7 @@ def edit_profile(current_user):
     current_user.is_artist       = is_artist
     current_user.is_beatmaker    = is_beatmaker
     current_user.is_mix_engineer = is_mix_engineer
+    current_user.is_producer     = is_producer
 
     # ── Certification Producteur/Arrangeur ────────────────────────────────────
     if current_user.is_mixmaster_engineer:

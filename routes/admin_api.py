@@ -55,7 +55,9 @@ from extensions import db, csrf
 from utils.search import LIKE_ESCAPE, escape_like
 from serializers import ok, err as ser_err, track_admin, user_admin, user_ref
 from helpers import generate_track_image
-from utils import email_service, notification_service
+from utils import email_service, notification_service, plans
+from utils.music_stats import catalog_music_stats
+from utils.behavior_stats import behavior_stats
 from utils.auth_helpers import require_admin
 from utils.contract_data_builder import build_contract_data, create_contract_and_pdf
 from models import (
@@ -772,7 +774,22 @@ def toggle_user_role(user_id, role, current_user):
     elif role == 'artist':
         user.is_artist = not user.is_artist
         msg = f'Rôle Interprète {"activé" if user.is_artist else "désactivé"} pour {user.username}.'
+    elif role == 'producer':
+        user.is_producer = not user.is_producer
+        msg = f'Rôle Producteur {"activé" if user.is_producer else "désactivé"} pour {user.username}.'
+    elif role == 'mix_engineer':
+        user.is_mix_engineer = not user.is_mix_engineer
+        if not user.is_mix_engineer:
+            # On ne peut pas rester certifié Mix/Master (ni ses dérivés) une fois
+            # le rôle de base retiré — sinon l'utilisateur garderait l'accès à
+            # l'espace mix engineer et au marketplace sans plus avoir le rôle.
+            user.is_mixmaster_engineer           = False
+            user.is_certified_master_engineer    = False
+            user.is_certified_producer_arranger  = False
+        msg = f'Rôle Mix Engineer (déclaré) {"activé" if user.is_mix_engineer else "révoqué"} pour {user.username}.'
     elif role == 'engineer':
+        if not user.is_mixmaster_engineer and not user.is_mix_engineer:
+            return ser_err(f"{user.username} doit d'abord avoir le rôle Mix Engineer (déclaré).")
         user.is_mixmaster_engineer = not user.is_mixmaster_engineer
         if not user.is_mixmaster_engineer:
             user.is_certified_master_engineer      = False
@@ -863,21 +880,21 @@ def add_topline_tokens(user_id, current_user):
 @csrf.exempt
 @require_admin
 def toggle_premium(user_id, current_user):
-    """Toggle rapide free ↔ amateur (comportement admin existant conservé)."""
+    """Toggle rapide free ↔ Premier palier payant (comportement admin conservé)."""
     user = db.get_or_404(User, user_id)
 
     old_plan = user.subscription_plan
 
     if not user.is_premium_active:
-        user.subscription_plan  = 'amateur'
+        user.subscription_plan  = plans.PREMIUM
         user.premium_since      = datetime.now()
         user.premium_expires_at = datetime.now() + timedelta(days=30)
-        new_plan = 'amateur'
-        msg = f'Plan Amateur activé pour {user.username} (30 jours).'
+        new_plan = plans.PREMIUM
+        msg = f'Plan {plans.label_of(plans.PREMIUM)} activé pour {user.username} (30 jours).'
     else:
-        user.subscription_plan  = 'free'
+        user.subscription_plan  = plans.FREE
         user.premium_expires_at = datetime.now()
-        new_plan = 'free'
+        new_plan = plans.FREE
         msg = f'Abonnement désactivé pour {user.username}.'
 
     db.session.commit()
@@ -909,18 +926,30 @@ def toggle_premium(user_id, current_user):
 @csrf.exempt
 @require_admin
 def set_plan(user_id, current_user):
-    """Définit le plan de l'utilisateur : free | amateur | pro (toujours 30 jours)."""
+    """Définit le palier de l'utilisateur (toujours 30 jours).
+
+    Les valeurs acceptées viennent de utils/plans.py : coder la liste en dur ici
+    la ferait diverger le jour où un palier est ajouté ou renommé.
+    """
     import config as _cfg
     user = db.get_or_404(User, user_id)
     data = request.get_json(silent=True) or {}
-    plan = data.get('plan', '').lower()
-    if plan not in ('free', 'amateur', 'pro'):
-        return err("Plan invalide. Valeurs : 'free', 'amateur', 'pro'.", 400)
+    raw  = (data.get('plan') or '').strip().lower()
+
+    # On valide la valeur BRUTE contre la liste connue, sans passer par
+    # normalize() : celui-ci retombe sur FREE pour toute chaîne inconnue, donc
+    # une faute de frappe (« pro_structuree ») rétrograderait silencieusement un
+    # abonné payant au lieu de renvoyer une erreur.
+    accepted = set(plans.PLAN_ORDER) | set(plans.LEGACY_ALIASES)
+    if raw not in accepted:
+        return err(f"Plan invalide. Valeurs : {', '.join(plans.PLAN_ORDER)}.", 400)
+
+    plan = plans.normalize(raw)
 
     old_plan = user.subscription_plan
 
-    if plan == 'free':
-        user.subscription_plan  = 'free'
+    if plan == plans.FREE:
+        user.subscription_plan  = plans.FREE
         user.premium_expires_at = datetime.now()
         user.premium_source     = None
         user.premium_price_paid = None
@@ -973,7 +1002,7 @@ def admin_upload_engineer_sample(user_id, current_user):
     if not user.is_mix_engineer:
         return ser_err(f"{user.username} n'est pas un mix engineer.")
 
-    samples_folder = Path(config.UPLOAD_FOLDER) / 'mixmaster_samples'
+    samples_folder = config.MIXMASTER_SAMPLES_FOLDER
     samples_folder.mkdir(parents=True, exist_ok=True)
 
     file_raw  = request.files.get('sample_raw')
@@ -988,7 +1017,7 @@ def admin_upload_engineer_sample(user_id, current_user):
             return None, f'Format non supporté pour {label}.'
         fname = f'sample_{label}_{user_id}_{uuid.uuid4().hex[:8]}{ext}'
         f.save(samples_folder / fname)
-        return f'mixmaster_samples/{fname}', None
+        return Path('db_assets', 'mixmaster', 'samples', fname).as_posix(), None
 
     if file_raw:
         path, errmsg = _save_audio(file_raw, 'raw')
@@ -1858,6 +1887,12 @@ def get_recommendation_stats(current_user):
         'top_correlations': top_correlations,
         'top_artists': top_artists,
         'artist_correlations': artist_correlations,
+        # Portrait musical du catalogue (métadonnées, pas comportement) — camemberts
+        # et barres côté front.
+        'music_stats': catalog_music_stats(),
+        # Statistiques comportementales (rythme d'upload, provenance des écoutes,
+        # parcours avant topline) — aire, polaire, anneau, histogramme.
+        'behavior_stats': behavior_stats(),
     })
 
 

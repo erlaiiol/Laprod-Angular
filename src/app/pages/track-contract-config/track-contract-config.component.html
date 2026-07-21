@@ -33,8 +33,16 @@
 
       <!-- Live price box -->
       <div class="price-box">
-        <div class="price-box-total">{{ totalPrice().toFixed(2) }}€</div>
-        <div class="price-box-label">Total TTC</div>
+        @if (discount() > 0) {
+          <div class="price-box-strike">{{ totalPrice().toFixed(2) }}€</div>
+        }
+        <div class="price-box-total">{{ finalPrice().toFixed(2) }}€</div>
+        <div class="price-box-label">
+          Total TTC
+          @if (discount() > 0) {
+            <span class="price-box-promo">−{{ promoApplied()!.percent }} %</span>
+          }
+        </div>
       </div>
     </aside>
 
@@ -453,9 +461,52 @@
           </div>
         }
         <hr>
+
+        <!-- ── Code promo ────────────────────────────────────────────────── -->
+        <div class="promo-block">
+          @if (!promoApplied()) {
+            <label for="promo-code-input" class="promo-label">Code promo</label>
+            <div class="promo-row">
+              <input id="promo-code-input" type="text" maxlength="15"
+                     placeholder="Votre code"
+                     [ngModel]="promoInput()"
+                     (ngModelChange)="promoInput.set($event.toUpperCase())"
+                     (keyup.enter)="applyPromo()">
+              <button type="button" class="promo-apply"
+                      [disabled]="!promoInput().trim() || promoChecking()"
+                      (click)="applyPromo()">
+                {{ promoChecking() ? '…' : 'Appliquer' }}
+              </button>
+            </div>
+          } @else {
+            <div class="promo-applied">
+              <span class="promo-tag">
+                <i class="bi bi-tag-fill"></i>
+                {{ promoApplied()!.code }} · −{{ promoApplied()!.percent }} %
+              </span>
+              <button type="button" class="promo-remove" (click)="clearPromo()">Retirer</button>
+            </div>
+          }
+
+          @if (promoError()) {
+            <p class="promo-error">{{ promoError() }}</p>
+          }
+        </div>
+
+        @if (discount() > 0) {
+          <div class="breakdown-row">
+            <span>Sous-total</span>
+            <strong>{{ totalPrice().toFixed(2) }}€</strong>
+          </div>
+          <div class="breakdown-row discount-row">
+            <span>Remise {{ promoApplied()!.code }}</span>
+            <strong>−{{ discount().toFixed(2) }}€</strong>
+          </div>
+        }
+
         <div class="breakdown-total-row">
           <span>Total TTC</span>
-          <span class="total-price">{{ totalPrice().toFixed(2) }}€</span>
+          <span class="total-price">{{ finalPrice().toFixed(2) }}€</span>
         </div>
       </div>
 
@@ -618,7 +669,7 @@
           } @else if (!auth.isLoggedIn()) {
             <i class="bi bi-person-fill"></i> Se connecter pour acheter
           } @else {
-            <i class="bi bi-lock-fill"></i> Confirmer et payer — {{ totalPrice().toFixed(2) }}€
+            <i class="bi bi-lock-fill"></i> Confirmer et payer — {{ finalPrice().toFixed(2) }}€
           }
         </button>
       </div>

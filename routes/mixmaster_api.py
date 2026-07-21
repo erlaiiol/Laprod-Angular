@@ -6,11 +6,12 @@ cud_mixmaster_artist_api_bp  /api/mixmaster-artist  — Actions artiste (command
 cud_mixmaster_engineer_api_bp /api/mixmaster-engineer — Actions ingénieur (accept, upload, livraison)
 """
 from flask import Blueprint, request, current_app, send_file
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, verify_jwt_in_request, get_jwt_identity
 from werkzeug.utils import secure_filename
-from sqlalchemy import select
+from sqlalchemy import select, func
 from extensions import db, csrf, limiter
-from models import User, MixMasterRequest
+from models import User, MixMasterRequest, EngineerView
+import hashlib
 from serializers import ok, err as ser_err, mix_engineer, mix_order_full as ser_order_full
 from helpers import sanitize_html
 from utils.auth_helpers import require_user
@@ -22,6 +23,9 @@ from utils.stripe_logger import (
 )
 from utils.archive_utils import get_archive_file_tree
 from utils.payment_validator import MixMasterRequestPriceCalculator
+from utils.money import to_cents
+from utils.promo_service import PromoError, apply_to_mixmaster
+from decimal import Decimal
 import stripe
 import stripe._error as stripe_error
 from datetime import datetime, timedelta
@@ -101,6 +105,73 @@ def get_engineer(engineer_id):
     if not eng.is_mixmaster_engineer:
         return ser_err('Ingénieur introuvable.', status=404)
     return ok({'engineer': mix_engineer(eng)})
+
+
+# ── Vues de la page de commande d'un ingénieur ────────────────────────────────
+# Équivalent de TrackView pour les prestations mix/master. Même dédup 24h, même
+# précaution IP (remote_addr, jamais X-Forwarded-For qui est fourni par le client).
+
+@mixmaster_api_bp.route('/engineers/<int:engineer_id>/view', methods=['POST'])
+@csrf.exempt
+@limiter.limit('60 per minute')
+def record_engineer_view(engineer_id):
+    eng = db.session.get(User, engineer_id)
+    if not eng or not eng.is_mixmaster_engineer:
+        return ser_err('Ingénieur introuvable.', status=404)
+
+    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:32]
+
+    user_id = None
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+        if identity:
+            user_id = int(identity)
+    except Exception:
+        pass
+
+    # Un ingénieur qui consulte sa propre page ne se compte pas.
+    if user_id == engineer_id:
+        return ok()
+
+    cutoff = datetime.now() - timedelta(hours=24)
+    already = db.session.query(EngineerView).filter(
+        EngineerView.engineer_id == engineer_id,
+        EngineerView.ip_hash == ip_hash,
+        EngineerView.created_at >= cutoff,
+    ).first()
+    if not already:
+        db.session.add(EngineerView(engineer_id=engineer_id, user_id=user_id, ip_hash=ip_hash))
+        db.session.commit()
+    return ok()
+
+
+@mixmaster_api_bp.route('/my/view-stats', methods=['GET'])
+@jwt_required()
+@require_user
+def my_engineer_view_stats(current_user):
+    """Vues de MA page d'ingénieur : total (gratuit) + uniques (Premium).
+
+    Même règle que le beatmaker : le total est visible par tous, les « visiteurs
+    uniques » sont réservés au Premium. Gating serveur — l'unique n'est ni calculé
+    ni renvoyé aux comptes gratuits.
+    """
+    total = db.session.query(func.count(EngineerView.id)).filter(
+        EngineerView.engineer_id == current_user.id,
+    ).scalar() or 0
+
+    unique_locked = not current_user.is_premium_active
+    unique = None
+    if not unique_locked:
+        unique = db.session.query(func.count(EngineerView.ip_hash.distinct())).filter(
+            EngineerView.engineer_id == current_user.id,
+        ).scalar() or 0
+
+    return ok({
+        'total_views':   total,
+        'unique_views':  unique,
+        'unique_locked': unique_locked,
+    })
 
 
 @mixmaster_api_bp.route('/my-requests', methods=['GET'])
@@ -246,7 +317,7 @@ def create_order(engineer_id, current_user):
         return ser_err('Sélectionnez au moins un service.', level='warning')
 
     calculator = MixMasterRequestPriceCalculator()
-    base_price, options_price, total_price = calculator.calculate_total(
+    base_price, options_price, gross_price = calculator.calculate_total(
         resource=engineer,
         options={'has_separated_stems': has_separated_stems},
         service_cleaning=service_cleaning,
@@ -254,6 +325,32 @@ def create_order(engineer_id, current_user):
         service_artistic=service_artistic,
         service_mastering=service_mastering,
     )
+
+    # ── Code promo de l'ingénieur (facultatif) ───────────────────────────────
+    # Seule la chaîne du code vient du client. Le pourcentage, les prestations
+    # couvertes et la remise sont relus en base et recalculés ici.
+    promo_code_raw  = (request.form.get('promo_code') or '').strip()
+    promo           = None
+    discount_amount = Decimal('0.00')
+    total_price     = gross_price
+
+    if promo_code_raw:
+        selected_keys = [k for k, flag in (
+            ('cleaning',  service_cleaning),
+            ('effects',   service_effects),
+            ('artistic',  service_artistic),
+            ('mastering', service_mastering),
+            ('stems',     has_separated_stems),
+        ) if flag]
+        try:
+            applied = apply_to_mixmaster(
+                promo_code_raw, engineer, current_user.id, gross_price, selected_keys,
+            )
+        except PromoError as e:
+            return ser_err(e.message, code=e.code, status=400)
+        promo           = applied['promo']
+        discount_amount = applied['discount']
+        total_price     = applied['net']
 
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
     config.MIXMASTER_UPLOADS_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -296,6 +393,14 @@ def create_order(engineer_id, current_user):
         'brief_effects_brief': (brief_effects or '')[:500],
         'brief_structure':    (brief_structure or '')[:500],
         'title':              title[:50],
+        # Remise : le verify recalcule le prix des prestations à partir de zéro,
+        # il DOIT retrouver la remise ici sinon il réenregistrerait le prix
+        # catalogue alors que Stripe n'a encaissé que le net.
+        'gross_price':        str(gross_price),
+        'discount_amount':    str(discount_amount),
+        'net_price':          str(total_price),
+        'promo_code_id':      str(promo.id) if promo else '',
+        'promo_code':         promo.code if promo else '',
     }
 
     try:
@@ -304,7 +409,7 @@ def create_order(engineer_id, current_user):
             line_items=[{
                 'price_data': {
                     'currency': 'eur',
-                    'unit_amount': int(total_price * 100),
+                    'unit_amount': to_cents(total_price),
                     'product_data': {
                         'name': f'Mix/Master par {engineer.username}',
                         'description': ', '.join(filter(None, [
@@ -330,7 +435,7 @@ def create_order(engineer_id, current_user):
 
         log_stripe_checkout_session_created(
             session_id=checkout_session.id,
-            amount=int(total_price * 100),
+            amount=to_cents(total_price),
             resource_type='mixmaster',
             resource_id='pending',
             engineer_id=engineer_id,

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { PlanKey } from './auth.service';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
@@ -39,6 +40,7 @@ export interface UserProfile {
     is_artist:                      boolean;
     is_beatmaker:                   boolean;
     is_mix_engineer:                boolean;
+    is_producer:                    boolean;
     is_mixmaster_engineer:          boolean;
     is_certified_producer_arranger: boolean;
     mixmaster_sample_submitted:     boolean;
@@ -58,7 +60,7 @@ export interface UserProfile {
   is_certified_producer_arranger?:      boolean;
   is_certified_master_engineer?:        boolean;
   master_sample_submitted?:             boolean;
-  subscription_plan?:                   'free' | 'amateur' | 'pro';
+  subscription_plan?:                   PlanKey;
   producer_arranger_request_submitted?: boolean;
 }
 

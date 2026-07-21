@@ -1,0 +1,271 @@
+<div class="promo-page">
+
+  <header class="promo-header">
+    <div>
+      <h1>Mes codes promo</h1>
+      <p class="subtitle">
+        Vos remises, vos règles. La commission de 10 % de LaProd porte sur le montant
+        réellement encaissé — votre remise n'est jamais taxée.
+      </p>
+    </div>
+
+    @if (canCreate()) {
+      <button type="button" class="btn-primary" (click)="openCreate()">
+        + Créer un code
+      </button>
+    }
+  </header>
+
+  <!-- Gating Premium : contenu lisible, CTA au lieu du bouton d'action -->
+  @if (!loading() && !canCreate()) {
+    <div class="premium-cta">
+      <h2>Les codes promo sont réservés aux membres Premium</h2>
+      <p>
+        Créez vos propres remises (-10 % à -70 %), choisissez les beats ou prestations
+        concernés, fixez une date limite ou un nombre d'utilisations, et animez votre
+        catalogue comme vous l'entendez.
+      </p>
+      <button type="button" class="btn-primary" (click)="goPremium()">Passer Premium</button>
+      @if (codes().length) {
+        <p class="premium-note">
+          Vos codes existants restent visibles ci-dessous : vous pouvez toujours les
+          désactiver, même sans Premium actif.
+        </p>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Chargement…</p>
+  } @else {
+
+    <!-- ── Liste ────────────────────────────────────────────────────────── -->
+
+    @if (!codes().length) {
+      <div class="empty">
+        <p>Vous n'avez pas encore de code promo.</p>
+      </div>
+    } @else {
+      @for (group of [
+        { title: 'Beats', list: trackCodes() },
+        { title: 'Mix / Master', list: mixmasterCodes() }
+      ]; track group.title) {
+        @if (group.list.length) {
+          <section class="promo-group">
+            <h2>{{ group.title }}</h2>
+
+            <div class="promo-list">
+              @for (code of group.list; track code.id) {
+                <article class="promo-card" [class.inactive]="statusOf(code).kind === 'off'">
+
+                  <div class="promo-main">
+                    <div class="promo-code-line">
+                      <span class="promo-code">{{ code.code }}</span>
+                      <span class="promo-percent">−{{ code.percent }} %</span>
+                      <span class="promo-status" [class]="'status-' + statusOf(code).kind">
+                        {{ statusOf(code).label }}
+                      </span>
+                    </div>
+
+                    <ul class="promo-meta">
+                      <li><strong>Portée :</strong> {{ scopeLabel(code) }}</li>
+                      <li><strong>Utilisations :</strong> {{ usageLabel(code) }}</li>
+                      @if (code.expires_at) {
+                        <li><strong>Expire le :</strong> {{ code.expires_at | date:'dd/MM/yyyy' }}</li>
+                      }
+                      @if (code.once_per_user) {
+                        <li>Une seule fois par acheteur</li>
+                      }
+                    </ul>
+                  </div>
+
+                  <div class="promo-actions">
+                    <button type="button" class="btn-ghost"
+                            [disabled]="!canCreate()"
+                            (click)="openEdit(code)">Modifier</button>
+                    <button type="button" class="btn-ghost" (click)="toggleActive(code)">
+                      {{ code.is_active ? 'Désactiver' : 'Réactiver' }}
+                    </button>
+                    <button type="button" class="btn-ghost danger" (click)="remove(code)">
+                      Supprimer
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
+      }
+    }
+  }
+
+  <!-- ── Formulaire ─────────────────────────────────────────────────────── -->
+
+  @if (showForm()) {
+    <div class="promo-modal-backdrop" (click)="closeForm()"></div>
+
+    <div class="promo-modal" role="dialog" aria-modal="true">
+      <header class="modal-header">
+        <h2>{{ editingId() ? 'Modifier le code' : 'Nouveau code promo' }}</h2>
+        <button type="button" class="btn-close" (click)="closeForm()" aria-label="Fermer">×</button>
+      </header>
+
+      <div class="modal-body">
+
+        <!-- Portée -->
+        @if (!editingId()) {
+          <div class="field">
+            <label>Ce code s'applique à</label>
+            <div class="scope-toggle">
+              <button type="button" [class.active]="fScope() === 'track'"
+                      (click)="setScope('track')">Mes beats</button>
+              <button type="button" [class.active]="fScope() === 'mixmaster'"
+                      [disabled]="!canSellServices()"
+                      (click)="setScope('mixmaster')">Mes prestations mix/master</button>
+            </div>
+            @if (!canSellServices()) {
+              <p class="hint">
+                Les remises sur prestations sont réservées aux ingénieurs certifiés.
+              </p>
+            }
+          </div>
+        }
+
+        <!-- Code -->
+        <div class="field">
+          <label for="promo-code">Code</label>
+          <input id="promo-code" type="text" maxlength="15"
+                 placeholder="SUMMER30"
+                 [ngModel]="fCode()"
+                 (ngModelChange)="fCode.set($event.toUpperCase())">
+          <p class="hint" [class.error]="codeError()">
+            {{ codeError() || '4 à 15 caractères, lettres et chiffres. Vos acheteurs le saisiront tel quel.' }}
+          </p>
+        </div>
+
+        <!-- Remise -->
+        <div class="field">
+          <label>Remise</label>
+          <div class="percent-grid">
+            @for (p of percents; track p) {
+              <button type="button" class="percent-btn" [class.active]="fPercent() === p"
+                      (click)="fPercent.set(p)">−{{ p }} %</button>
+            }
+          </div>
+
+          <div class="simulation">
+            <span>Sur une vente à {{ simulation().gross }} € :</span>
+            <ul>
+              <li>L'acheteur paie <strong>{{ simulation().net | number:'1.2-2' }} €</strong></li>
+              <li>LaProd prélève {{ simulation().fee | number:'1.2-2' }} € (10 % de l'encaissé)</li>
+              <li>Vous touchez <strong>{{ simulation().seller | number:'1.2-2' }} €</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Périmètre -->
+        <div class="field">
+          <label>
+            {{ fScope() === 'track' ? 'Beats concernés' : 'Prestations concernées' }}
+          </label>
+
+          <label class="check-inline">
+            <input type="checkbox" [ngModel]="fAppliesToAll()"
+                   (ngModelChange)="fAppliesToAll.set($event)">
+            <span>
+              {{ fScope() === 'track' ? 'Tous mes beats' : 'Toutes mes prestations' }}
+              <em>(y compris ceux que j'ajouterai plus tard)</em>
+            </span>
+          </label>
+
+          @if (!fAppliesToAll()) {
+            @if (fScope() === 'track') {
+              @if (!availableTracks().length) {
+                <p class="hint">Vous n'avez encore aucun beat en ligne.</p>
+              } @else {
+                <button type="button" class="btn-link" (click)="selectAllTracks()">
+                  Tout sélectionner
+                </button>
+                <div class="track-picker">
+                  @for (t of availableTracks(); track t.id) {
+                    <button type="button" class="track-chip"
+                            [class.selected]="isTrackSelected(t.id)"
+                            (click)="toggleTrack(t.id)">
+                      <img [src]="t.cover_url"
+                           [appImgFallback]="'assets/placeholders/placeholder-track.png'"
+                           alt="">
+                      <span class="track-title">{{ t.title }}</span>
+                      @if (t.price_mp3 != null) {
+                        <span class="track-price">{{ t.price_mp3 | number:'1.2-2' }} €</span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            } @else {
+              <button type="button" class="btn-link" (click)="selectAllServices()">
+                Tout sélectionner
+              </button>
+              <div class="service-picker">
+                @for (k of availableServices(); track k) {
+                  <button type="button" class="service-chip"
+                          [class.selected]="isServiceSelected(k)"
+                          (click)="toggleService(k)">
+                    {{ serviceLabels[k] }}
+                  </button>
+                }
+              </div>
+              <p class="hint">
+                La remise ne portera que sur la part du prix correspondant aux
+                prestations cochées.
+              </p>
+            }
+          }
+        </div>
+
+        <!-- Limites -->
+        <div class="field-row">
+          <div class="field">
+            <label for="promo-expires">Date d'expiration <em>(obligatoire)</em></label>
+            <input id="promo-expires" type="date" required
+                   [min]="minExpiryDate()"
+                   [ngModel]="fExpiresAt()" (ngModelChange)="fExpiresAt.set($event)">
+            @if (expiryError()) {
+              <p class="hint error">{{ expiryError() }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label for="promo-max">Nombre d'utilisations <em>(facultatif)</em></label>
+            <input id="promo-max" type="number" min="1" placeholder="Illimité"
+                   [ngModel]="fMaxRedemptions()" (ngModelChange)="fMaxRedemptions.set($event)">
+          </div>
+        </div>
+        <p class="hint">
+          Toute promo a une fin : sans échéance, une remise s'oublie et grignote vos
+          marges pendant des mois. Ajoutez un quota d'utilisations pour créer l'urgence.
+        </p>
+
+        <div class="field">
+          <label class="check-inline">
+            <input type="checkbox" [ngModel]="fOncePerUser()"
+                   (ngModelChange)="fOncePerUser.set($event)">
+            <span>
+              Une seule utilisation par acheteur
+              <em>(sinon, chaque acheteur peut le réutiliser à chaque commande tant que le code est valide)</em>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-ghost" (click)="closeForm()">Annuler</button>
+        <button type="button" class="btn-primary"
+                [disabled]="!formValid() || saving()"
+                (click)="submit()">
+          {{ saving() ? 'Enregistrement…' : (editingId() ? 'Enregistrer' : 'Créer le code') }}
+        </button>
+      </footer>
+    </div>
+  }
+</div>

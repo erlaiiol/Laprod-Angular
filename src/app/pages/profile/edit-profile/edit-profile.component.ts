@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { UserService } from '../../../services/user.service';
 import { AuthService } from '../../../services/auth.service';
+import { CampaignService } from '../../../services/campaign.service';
+import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -28,6 +30,7 @@ export class EditProfileComponent implements OnInit {
   isArtist       = signal(false);
   isBeatmaker    = signal(false);
   isMixEngineer  = signal(false);
+  isProducer     = signal(false);
   requestProducerArranger = signal(false);
 
   // Mixmaster pricing (certifié uniquement)
@@ -47,6 +50,35 @@ export class EditProfileComponent implements OnInit {
   producerReqSubmitted        = signal(false);
   isCertifiedMasterEngineer   = signal(false);
   masterSampleSubmitted       = signal(false);
+
+  // ── Consentement marketing ────────────────────────────────────────────────
+  // Enregistré immédiatement au clic, sans passer par « Enregistrer » : un
+  // consentement (comme un retrait de consentement) doit prendre effet tout de
+  // suite, pas être suspendu à la soumission d'un formulaire qu'on peut oublier.
+  marketingOptIn = signal(false);
+  emailVerified  = signal(true);
+
+  private campaignSvc = inject(CampaignService);
+  private toastSvc    = inject(ToastService);
+
+  setMarketingOptIn(optIn: boolean): void {
+    const previous = this.marketingOptIn();
+    this.marketingOptIn.set(optIn);
+
+    this.campaignSvc.setMarketingOptIn(optIn).subscribe({
+      next: res => this.toastSvc.showToast({
+        level: 'success',
+        message: res.feedback?.message ?? 'Préférence enregistrée.',
+      }),
+      error: () => {
+        this.marketingOptIn.set(previous);  // l'UI ne ment pas sur l'état réel
+        this.toastSvc.showToast({
+          level: 'error',
+          message: 'Impossible d\'enregistrer votre préférence.',
+        });
+      },
+    });
+  }
 
   // Computed premium helpers (lus depuis le signal auth)
   private authSvc = inject(AuthService);
@@ -74,9 +106,20 @@ export class EditProfileComponent implements OnInit {
     this.isArtist.set(user.roles?.is_artist ?? false);
     this.isBeatmaker.set(user.roles?.is_beatmaker ?? false);
     this.isMixEngineer.set(user.roles?.is_mix_engineer ?? false);
+    this.isProducer.set(user.roles?.is_producer ?? false);
     this.isMixmasterCertified.set((user as any).roles?.is_mixmaster_engineer ?? false);
     this.isCertifiedProducer.set((user as any).is_certified_producer_arranger ?? false);
     this.producerReqSubmitted.set((user as any).producer_arranger_request_submitted ?? false);
+
+    // Le consentement fait autorité côté serveur : on lit son état réel plutôt
+    // que de le déduire d'un signal auth qui pourrait être périmé.
+    this.campaignSvc.getMarketingPreferences().subscribe({
+      next: res => {
+        this.marketingOptIn.set(res.data?.marketing_opt_in ?? false);
+        this.emailVerified.set(res.data?.email_verified ?? false);
+      },
+      error: () => {},
+    });
 
     // Fetch fresh data (prices, master certification — not all in User signal)
     this.userSvc.getProfile(user.username).subscribe(res => {
@@ -123,6 +166,7 @@ export class EditProfileComponent implements OnInit {
     fd.append('is_artist',      String(this.isArtist()));
     fd.append('is_beatmaker',   String(this.isBeatmaker()));
     fd.append('is_mix_engineer', String(this.isMixEngineer()));
+    fd.append('is_producer',    String(this.isProducer()));
 
     if (this.isMixmasterCertified()) {
       fd.append('request_producer_arranger', String(this.requestProducerArranger()));

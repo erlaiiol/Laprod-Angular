@@ -188,6 +188,7 @@ def init_extensions(app):
                     "'self'",
                     'https://js.stripe.com',
                     'https://cdn.jsdelivr.net',
+                    'https://challenges.cloudflare.com',  # CAPTCHA Turnstile
                 ],
                 'style-src': [
                     "'self'",
@@ -208,9 +209,11 @@ def init_extensions(app):
                     "'self'",
                     'https://api.stripe.com',
                     'https://cdn.jsdelivr.net',
+                    'https://challenges.cloudflare.com',  # CAPTCHA Turnstile
                 ],
                 'frame-src': [
                     'https://js.stripe.com',
+                    'https://challenges.cloudflare.com',  # CAPTCHA Turnstile
                 ],
                 'media-src': [
                     "'self'",
@@ -322,6 +325,32 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # ── Jobs campagnes de mailing ───────────────────────────────────────
+        from utils.campaign_jobs import dispatch_campaigns_job, campaign_opportunity_job
+        # Toutes les 10 min : envoie les campagnes dont le créneau est arrivé.
+        # Le dispatch ne se fait jamais dans le cycle requête/réponse : un envoi
+        # de masse ferait timeout, et un retour en erreur relancerait tout à zéro.
+        scheduler.add_job(
+            func=dispatch_campaigns_job,
+            trigger='interval',
+            minutes=10,
+            id='dispatch_campaigns',
+            replace_existing=True,
+            args=[app]
+        )
+        # Chaque lundi à 9h : prévient les vendeurs en pic d'intérêt qu'il est
+        # temps de lancer une campagne (juste avant les créneaux d'envoi mar–jeu).
+        scheduler.add_job(
+            func=campaign_opportunity_job,
+            trigger='cron',
+            day_of_week='mon',
+            hour=9,
+            minute=0,
+            id='campaign_opportunity',
+            replace_existing=True,
+            args=[app]
+        )
+
         # ── Jobs cycle de vie des licences ──────────────────────────────────
         from utils.scheduled_tasks import (
             run_contract_expiry_update,
@@ -416,5 +445,17 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # ── Job rétroplanning ────────────────────────────────────────────────
+        # Toutes les 10 min : rappels 48h/2h avant chaque événement confirmé.
+        # Dédupliqué par UserNotificationLog, cf. utils/planning_jobs.py.
+        from utils.planning_jobs import run_planning_event_reminders_job
+        scheduler.add_job(
+            func=run_planning_event_reminders_job,
+            trigger='interval',
+            minutes=10,
+            id='planning_event_reminders',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement + premium)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement + premium + planning)")

@@ -112,7 +112,7 @@
     </section>
 
     <!-- ── TOPLINE CTA BLOCK ───────────────────────────────────────────── -->
-    @if (!isExclusiveSold()) {
+    @if (!isExclusiveSold() && showTopline()) {
       <div class="topline-cta-block">
         <div class="topline-cta-content">
           <h3>Chante dessus avant d'acheter.</h3>
@@ -137,10 +137,12 @@
             </span>
           }
         </div>
-        <button class="btn-record" (click)="toggleRecorder()">
-          <i class="bi bi-mic-fill"></i>
-          {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
-        </button>
+        @if (showTopline()) {
+          <button class="btn-record" (click)="toggleRecorder()">
+            <i class="bi bi-mic-fill"></i>
+            {{ showRecorder() ? 'Fermer' : 'Enregistrer une topline' }}
+          </button>
+        }
       </div>
 
       <!-- @defer : le code du recorder n'est téléchargé qu'au premier clic

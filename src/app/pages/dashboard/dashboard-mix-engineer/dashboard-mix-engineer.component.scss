@@ -412,3 +412,40 @@
   cursor: pointer; transition: background 0.15s;
   &:hover { background: rgba(v.$tag-green, 0.16); }
 }
+
+// ── Vues de la page d'ingénieur ─────────────────────────────────────────────────
+.page-views-card {
+  display: flex;
+  gap: 2.5rem;
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid v.$bg-border;
+  border-radius: 12px;
+  background: v.$bg-surface;
+}
+
+.pv-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pv-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: v.$text-primary;
+  line-height: 1;
+  text-decoration: none;
+
+  &--locked { color: v.$primary; }
+}
+
+.pv-label {
+  font-size: 0.78rem;
+  color: v.$text-muted;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+
+  &--cta { color: v.$primary; text-decoration: none; &:hover { text-decoration: underline; } }
+}

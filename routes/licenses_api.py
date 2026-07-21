@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from extensions import db, csrf
+from utils.money import to_money, from_cents, split_platform_fee
 from models import Track, Purchase
 from serializers import ok, err
 from utils.auth_helpers import require_user
@@ -307,9 +308,12 @@ def verify_renewal_payment(current_user):
         is_lifetime    = meta.get('is_lifetime') == 'True'
         duration_years = int(meta.get('duration_years', 0)) or None
         territory      = meta.get('territory', 'Monde entier')
-        total_price    = Decimal(str(meta.get('track_price', payment_intent.amount / 100)))
-        platform_fee   = (total_price * Decimal('0.10')).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
-        composer_rev   = (total_price - platform_fee).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+        # from_cents en repli (jamais `amount / 100`), et split_platform_fee plutôt
+        # qu'un calcul de commission recopié : une seule implémentation de la
+        # répartition, sinon elles divergent au premier changement de taux.
+        total_price = to_money(meta['track_price']) if meta.get('track_price') \
+            else from_cents(payment_intent.amount)
+        platform_fee, composer_rev = split_platform_fee(total_price)
         expires_at_val = compute_expires_at(is_lifetime, duration_years)
 
         new_purchase = Purchase(

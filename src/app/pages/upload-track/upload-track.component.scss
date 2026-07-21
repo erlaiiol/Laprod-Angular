@@ -654,6 +654,11 @@
   &.auto-included {
     color: v.$tag-neutral;
   }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor:  default;
+  }
 }
 
 .preview-right-price {
@@ -673,6 +678,12 @@
   border-radius: 20px;
   padding:       0.1rem 0.5rem;
   white-space:   nowrap;
+
+  &--off {
+    color:      v.$tag-neutral;
+    background: rgba(120, 120, 120, 0.12);
+    border-color: rgba(120, 120, 120, 0.3);
+  }
 }
 
 .preview-total-row {
@@ -918,4 +929,25 @@
     border-color: v.$primary;
     color: v.$primary;
   }
+}
+
+// ── Codes promo ──────────────────────────────────────────────────────────────
+
+.promo-global-note {
+  margin: .6rem 0 0;
+  font-size: .8rem;
+  line-height: 1.6;
+  color: v.$text-muted;
+}
+
+.promo-global-tag {
+  display: inline-block;
+  margin-right: .35rem;
+  padding: .1rem .4rem;
+  border-radius: 5px;
+  background: v.$primary-soft;
+  color: v.$text-primary;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: .75rem;
+  font-weight: 600;
 }

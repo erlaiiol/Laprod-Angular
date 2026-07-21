@@ -176,6 +176,16 @@ GROQ_MODEL           = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
 CONTRACT_AI_PROVIDER = os.environ.get('CONTRACT_AI_PROVIDER', 'groq')
 
 # ============================================
+# CLOUDFLARE TURNSTILE — CAPTCHA anti-bot (web uniquement)
+# ============================================
+# Désactivé par défaut : le gating CAPTCHA (register + login après échecs) ne
+# s'active QUE si TURNSTILE_ENABLED=true ET qu'une clé secrète est fournie. Le
+# front doit être activé en parallèle (environment.turnstileSiteKey). Les clients
+# natifs Capacitor (header X-Client-Platform: native) sont exemptés.
+TURNSTILE_ENABLED    = os.environ.get('TURNSTILE_ENABLED', 'false').lower() == 'true'
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY')
+
+# ============================================
 # SACEM CONFIGURATION
 # ============================================
 SACEM_URL = "https://www.sacem.fr"
@@ -238,10 +248,12 @@ MIXMASTER_ALLOWED_EXTENSIONS = {'wav', 'zip', 'rar', 'mp3'}
 # ============================================
 # PREMIUM — deux plans LaProd+
 # ============================================
-PREMIUM_AMATEUR_PRICE = 1.99   # Plan Amateur — 30 jours
-PREMIUM_PRO_PRICE     = 19.99  # Plan Pro/Label — 30 jours
+# ⚠️ La grille tarifaire vit désormais dans utils/plans.py (en Decimal), PAS ici.
+# Ces constantes sont conservées uniquement pour ne pas casser un import résiduel :
+# elles ne pilotent plus aucun montant facturé. Ne les utilisez pas — un prix en
+# float ici et un prix en Decimal là-bas finiraient par diverger, et on facturerait
+# un montant différent de celui affiché.
 PREMIUM_DURATION_DAYS = 30
-PREMIUM_PRICE = PREMIUM_AMATEUR_PRICE  # alias rétrocompat (ancienne valeur)
 
 # ============================================
 # ENVIRONNEMENT

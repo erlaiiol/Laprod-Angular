@@ -123,10 +123,26 @@
       "Bash(grep -n \"^-.*assert\" /tmp/scoped_review.diff)",
       "Bash(grep -n \"db.session.flush\\(\\)\\\\|db.session.add\\(contract\\)\\\\|Contract\\(\\\\*\\\\*kwargs\\)\" /tmp/scoped_review.diff)",
       "Bash(grep -n \"from utils.license_service import\\\\|compute_expires_at\" /tmp/scoped_review.diff)",
-      "Bash(grep -n \"'price':\\\\s*total_price\\\\|'price': *total_price\\\\|composer_email=track.composer_user.email if track.composer_user\\\\|price=int\\(total_price\\)\\\\|'price': *int\\(total_price\\)\" /tmp/scoped_review.diff)"
+      "Bash(grep -n \"'price':\\\\s*total_price\\\\|'price': *total_price\\\\|composer_email=track.composer_user.email if track.composer_user\\\\|price=int\\(total_price\\)\\\\|'price': *int\\(total_price\\)\" /tmp/scoped_review.diff)",
+      "Bash(python3 -c \"import uuid; print\\(uuid.uuid4\\(\\).hex[:12]\\)\")",
+      "Bash(python3 -m py_compile models.py routes/auth_api.py routes/main_api.py routes/admin_api.py serializers.py utils/notification_service.py migrations/versions/8b4ff4fc41ff_add_is_producer_role.py)",
+      "Bash(npm ls *)",
+      "Bash(ls -la ~/.nvm/nvm.sh 2>&1; ls ~/.nvm/versions/node 2>&1)",
+      "Read(//opt/homebrew/Cellar/nvm/0.40.4/libexec/**)",
+      "Bash(docker compose *)",
+      "Bash(python3 -m py_compile app.py)",
+      "Bash(python -m pytest tests/unit/test_plans.py tests/integration/test_plan_permissions.py -q)",
+      "Bash(python3 -m pytest tests/unit/test_plans.py tests/integration/test_plan_permissions.py -q)",
+      "Bash(command -v node)",
+      "Bash(python -m pytest tests/integration/test_mixmaster_sample_paths.py tests/integration/test_security_fixes.py -v)",
+      "Bash(grep -n \"^\\\\$\" src/styles/_variables.scss)",
+      "Bash(command -v uv)",
+      "Bash(uv --version)",
+      "Bash(uv add *)"
     ],
     "additionalDirectories": [
-      "/tmp"
+      "/tmp",
+      "/Users/eliott"
     ]
   }
 }

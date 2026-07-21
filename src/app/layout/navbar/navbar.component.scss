@@ -335,6 +335,18 @@ details.filter-accordion[open] .filter-accordion-arrow {
   }
 }
 
+// En-tête de section non cliquable — regroupe "Mon espace" / "Outils vendeur"
+// pour éviter une liste plate trop longue dans le dropdown.
+.dropdown-section-label {
+  margin: 0;
+  padding: 0.35rem 1rem 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: v.$text-muted;
+}
+
 // ── Positionnement des dropdowns (pas de bootstrap.bundle.js/Popper) ─────────
 // bootstrap.css ne pose top/right/left sur .dropdown-menu(-end) que sous
 // [data-bs-popper], un attribut que seul Popper (chargé par bootstrap.bundle.js)
@@ -367,6 +379,58 @@ details.filter-accordion[open] .filter-accordion-arrow {
     background: transparent !important;
     i { color: v.$primary; opacity: 1; }
   }
+}
+
+// Liens mis en avant par rôle — même traitement que "Publier" ci-dessus :
+// seule l'icône se colore (le texte gras+coloré serait trop appuyé pour un
+// simple accent de navigation). Couleurs fixes alignées sur les badges de
+// profil et l'icône dans select-role.
+
+// Contrats — acte principal du producteur.
+.nav-link--priority {
+  color: v.$text-secondary !important;
+  font-weight: 500;
+  transition: color v.$dur-base v.$ease-out;
+
+  i { color: v.$tag-violet; opacity: 0.85; }
+
+  &:hover { color: v.$off-white !important; i { opacity: 1; } }
+
+  &.active {
+    color: v.$off-white !important;
+    background: transparent !important;
+    i { color: v.$tag-violet; opacity: 1; }
+  }
+}
+
+// Beats — acte principal de l'artiste.
+.nav-link--priority-artist {
+  color: v.$text-secondary !important;
+  font-weight: 500;
+  transition: color v.$dur-base v.$ease-out;
+
+  i { color: v.$tag-blue; opacity: 0.85; }
+
+  &:hover { color: v.$off-white !important; i { opacity: 1; } }
+
+  &.active {
+    color: v.$off-white !important;
+    background: transparent !important;
+    i { color: v.$tag-blue; opacity: 1; }
+  }
+}
+
+// "Ma preview" (mix engineer) — accent doré uniquement tant qu'aucune preview
+// n'a jamais été soumise ; ensuite le lien redevient neutre (mise à jour libre,
+// pas d'urgence).
+.nav-link--mix-pending {
+  color: v.$text-secondary !important;
+  font-weight: 500;
+  transition: color v.$dur-base v.$ease-out;
+
+  i { color: v.$gold; opacity: 0.85; }
+
+  &:hover { color: v.$off-white !important; i { opacity: 1; } }
 }
 
 // ── Cloche notifications ───────────────────────────────────────────────────────

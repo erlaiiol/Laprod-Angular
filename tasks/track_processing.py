@@ -17,7 +17,7 @@ def _safe_name_base(title: str) -> str:
     return base[:80] if base else 'track'
 from extensions import db
 from app import create_app
-from models import Track, User, Tag, Playlist, playlist_track, SimilarArtist
+from models import Track, User, Tag, Playlist, playlist_track, SimilarArtist, PromoCode, PromoCodeScope
 from sqlalchemy import func
 from helpers import generate_track_image
 from utils.image_variants import generate_variants
@@ -249,6 +249,23 @@ def process_track_data(job_payload : dict):
                                 playlist_id=pl.id, track_id=track.id, position=max_pos + 1
                             )
                         )
+                    db.session.commit()
+
+                # Rattacher le beat aux codes promo choisis à l'upload.
+                # Le filtre owner_id == user.id est la garde : un id forgé dans le
+                # formulaire ne peut pas rattacher ce beat au code d'un autre vendeur.
+                # Les codes « tous mes beats » ne sont pas concernés — ils couvrent
+                # déjà ce nouveau beat sans rattachement explicite.
+                promo_code_ids = job_payload.get('promo_code_ids', [])
+                if promo_code_ids:
+                    promos = db.session.query(PromoCode).filter(
+                        PromoCode.id.in_(promo_code_ids),
+                        PromoCode.owner_id == user.id,
+                        PromoCode.scope == PromoCodeScope.TRACK.value,
+                        PromoCode.applies_to_all.is_(False),
+                    ).all()
+                    for promo in promos:
+                        promo.tracks.append(track)
                     db.session.commit()
 
                 redis_client.hset(f"job:{job_id}", mapping={'status': 'done', 'track_id': str(track.id)})

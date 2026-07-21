@@ -7,8 +7,8 @@
 }
 
 <div class="tracks-toolbar">
-  <app-tag-category-filter [compact]="displayMode() === 'compact'" />
-  <div class="layout-toggle" role="group" aria-label="Mode d'affichage">
+  <app-tag-category-filter lpTourAnchor="home-filters" [compact]="displayMode() === 'compact'" />
+  <div class="layout-toggle" lpTourAnchor="home-layout" role="group" aria-label="Mode d'affichage">
     <button
       class="layout-btn"
       [class.layout-btn--active]="displayMode() === 'list'"

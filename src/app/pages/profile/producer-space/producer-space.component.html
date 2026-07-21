@@ -1,0 +1,56 @@
+<section class="ph">
+
+  <!-- ── Header ────────────────────────────────────────────────────────────── -->
+  <div class="ph__header">
+    <h1><i class="bi bi-file-earmark-text"></i> Espace Producteur</h1>
+  </div>
+
+  <!-- Actions rapides -->
+  <div class="ph__actions">
+    @for (a of actions; track a.title) {
+      <a class="ph__card" [routerLink]="a.link">
+        <span class="ph__card-icon"><i class="bi {{ a.icon }}"></i></span>
+        <h3>{{ a.title }}</h3>
+        <p>{{ a.desc }}</p>
+        <span class="ph__card-cta">{{ a.cta }} <i class="bi bi-arrow-right"></i></span>
+      </a>
+    }
+  </div>
+
+  <!-- Roster : vrai résumé, accessible sans condition de palier -->
+  <div class="ph__soon">
+    <div class="ph__soon-grid">
+      <a class="ph__card" routerLink="/producer/roster">
+        <span class="ph__card-icon"><i class="bi bi-people"></i></span>
+        <h3>Roster</h3>
+        <p>
+          {{ activeCount() }} artiste{{ activeCount() === 1 ? '' : 's' }} lié{{ activeCount() === 1 ? '' : 's' }}
+          @if (pendingCount() > 0) {, {{ pendingCount() }} invitation{{ pendingCount() === 1 ? '' : 's' }} en attente}.
+        </p>
+        <span class="ph__card-cta">Gérer mon roster <i class="bi bi-arrow-right"></i></span>
+      </a>
+      <a class="ph__card" routerLink="/producer/planning">
+        <span class="ph__card-icon"><i class="bi bi-calendar3"></i></span>
+        <h3>Rétroplanning</h3>
+        <p>Sessions, concerts, résidences, rendez-vous — un planning partagé avec chaque artiste de ton roster.</p>
+        <span class="ph__card-cta">Ouvrir le planning <i class="bi bi-arrow-right"></i></span>
+      </a>
+      @if (auth.canViewRoyalties()) {
+        <a class="ph__card" routerLink="/producer/royalties">
+          <span class="ph__card-icon"><i class="bi bi-pie-chart"></i></span>
+          <h3>Splits &amp; royalties</h3>
+          <p>La cap-table de chaque titre : qui possède quel pourcentage, topliner, beatmaker, ingé, label.</p>
+          <span class="ph__card-cta">Voir la cap-table <i class="bi bi-arrow-right"></i></span>
+        </a>
+      } @else {
+        <a class="ph__soon-card" routerLink="/premium">
+          <i class="bi bi-pie-chart"></i>
+          <h4>Splits &amp; royalties</h4>
+          <p>La cap-table de chaque titre : qui possède quel pourcentage, topliner, beatmaker, ingé, label.</p>
+          <span class="ph__badge-soon">Premium</span>
+        </a>
+      }
+    </div>
+  </div>
+
+</section>
