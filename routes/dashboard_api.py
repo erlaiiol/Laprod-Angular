@@ -7,9 +7,12 @@ from sqlalchemy import select, func
 from datetime import datetime, timedelta
 import json
 from extensions import db, csrf, redis_client
-from models import Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory, TrackView, ListenEvent
+from models import (
+    Track, Purchase, Topline, MixMasterRequest, Favorite, ListeningHistory, TrackView, ListenEvent,
+    RosterLink, RosterLinkStatus, PlanningEvent, PlanningEventStatus, TrackSplit, TrackSplitStatus,
+)
 from utils.image_variants import variant_or_original
-from serializers import ok, err, mix_order_full as ser_order_full
+from serializers import ok, err, user_ref, mix_order_full as ser_order_full
 from utils.auth_helpers import require_user
 
 dashboard_api_bp = Blueprint('dashboard_api', __name__, url_prefix='/api/dashboard')
@@ -431,4 +434,80 @@ def get_mix_engineer_dashboard(current_user):
             'completed': [ser_order_full(o, 'engineer') for o in orders if o.status in COMPLETED_STATUSES],
             'refused':   [ser_order_full(o, 'engineer') for o in orders if o.status in REFUSED_STATUSES],
         },
+    })
+
+
+# ─── Producteur ───────────────────────────────────────────────────────────────
+
+@dashboard_api_bp.route('/producer', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def get_producer_dashboard(current_user):
+    """Espace producteur : suivi du roster (artistes liés, invitations),
+    prochains événements du rétroplanning, splits de royalties en attente."""
+    if not current_user.is_producer:
+        return err('Accès refusé.', status=403)
+
+    roster_links = db.session.scalars(
+        select(RosterLink)
+        .where(RosterLink.producer_id == current_user.id)
+        .order_by(RosterLink.created_at.desc())
+    ).all()
+
+    active_links  = [l for l in roster_links if l.status == RosterLinkStatus.active]
+    pending_links = [l for l in roster_links if l.status == RosterLinkStatus.invited]
+
+    now = datetime.now()
+    upcoming_events = db.session.scalars(
+        select(PlanningEvent)
+        .join(RosterLink, RosterLink.id == PlanningEvent.roster_link_id)
+        .where(
+            RosterLink.producer_id == current_user.id,
+            PlanningEvent.status != PlanningEventStatus.cancelled,
+            PlanningEvent.start_at >= now,
+        )
+        .order_by(PlanningEvent.start_at.asc())
+    ).all()
+
+    # Splits en attente sur les titres composés par un artiste actuellement
+    # actif dans le roster (Track.composer_id = RosterLink.artist_id) : un
+    # artiste peut aussi être beatmaker de ses propres morceaux.
+    pending_splits_count = db.session.query(func.count(TrackSplit.id)).join(
+        Track, Track.id == TrackSplit.track_id
+    ).join(
+        RosterLink, RosterLink.artist_id == Track.composer_id
+    ).filter(
+        RosterLink.producer_id == current_user.id,
+        RosterLink.status == RosterLinkStatus.active,
+        TrackSplit.status == TrackSplitStatus.declared,
+    ).scalar() or 0
+
+    return ok({
+        'stats': {
+            'active_artists_count':  len(active_links),
+            'pending_invites_count': len(pending_links),
+            'upcoming_events_count': len(upcoming_events),
+            'pending_splits_count':  pending_splits_count,
+        },
+        'roster_preview': [
+            {
+                'link_id':      l.id,
+                'artist':       user_ref(l.artist),
+                'status':       l.status.value,
+                'has_contract': l.management_contract_id is not None,
+            }
+            for l in active_links[:5]
+        ],
+        'upcoming_events': [
+            {
+                'id':         e.id,
+                'title':      e.title,
+                'event_type': e.event_type.value,
+                'status':     e.status.value,
+                'start_at':   e.start_at.isoformat(),
+                'artist':     user_ref(e.roster_link.artist),
+            }
+            for e in upcoming_events[:5]
+        ],
     })

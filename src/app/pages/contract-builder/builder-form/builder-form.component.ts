@@ -600,9 +600,33 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Crochets [Variable] encore présents dans le texte des clauses activées : ils seraient
+  // imprimés tels quels dans le PDF final si on ne prévient pas l'utilisateur avant verrouillage.
+  unresolvedBrackets(): string[] {
+    const found = new Set<string>();
+    for (const group of this.groups()) {
+      for (const clause of group.clauses) {
+        if (!['text', 'textarea', 'toggle_with_details'].includes(clause.clause_type)) continue;
+        const lv = this.getValue(clause.id, clause);
+        if (!lv.is_enabled && !clause.is_required) continue;
+        const text = clause.clause_type === 'toggle_with_details' ? (lv.value?.details ?? '') : (lv.value?.text ?? '');
+        if (!text) continue;
+        for (const b of this.detectBrackets(text)) found.add(b);
+      }
+    }
+    return [...found];
+  }
+
   generate(): void {
     if (this.readOnly()) return;
-    if (!confirm('Générer le PDF ? Le contrat sera finalisé et ne pourra plus être modifié.')) return;
+    const unresolved = this.unresolvedBrackets();
+    const base = 'Générer le PDF ? Le contrat sera finalisé et ne pourra plus être modifié.';
+    const message = unresolved.length
+      ? `Attention : ${unresolved.length} variable(s) non renseignée(s) subsistent dans le texte `
+        + `(${unresolved.slice(0, 6).join(', ')}${unresolved.length > 6 ? '…' : ''}). `
+        + `Elles apparaîtront telles quelles dans le PDF si vous continuez.\n\n${base}`
+      : base;
+    if (!confirm(message)) return;
     this.saving.set(true);
     this.svc.updateContract(this.contractId(), this.buildPayload()).subscribe({
       next: saveRes => {

@@ -304,7 +304,15 @@ def run_seed(force: bool = False) -> int:
                     "imposée par l'organisateur, combinée à d'autres directives, peut être un indice de subordination "
                     "(risque de requalification en contrat de travail).",
        plain="À titre indicatif seulement : le programme peut évoluer, l'artiste garde la main sur son répertoire. "
-             "Si l'organisateur impose vraiment la setlist, ça ressemble davantage à du salariat.")
+             "Si l'organisateur impose vraiment la setlist, ça ressemble davantage à du salariat.",
+       example=(
+           "La Représentation sera exécutée selon le répertoire habituel de [Contractant 1], communiqué à titre "
+           "indicatif à l'Organisateur au moins [nombre] jours avant [l'Évènement]. [Contractant 1] conserve la "
+           "maîtrise artistique de son répertoire et de sa setlist, laquelle pourra évoluer jusqu'au jour de la "
+           "Représentation selon le contexte scénique. Toute demande particulière de l'Organisateur (morceau "
+           "imposé, retrait d'un titre) sera soumise à l'accord de [Contractant 1] et ne saurait lui être imposée "
+           "unilatéralement."
+       ))
     _c(g, "Exclusivité le jour de l'évènement", "toggle", sort_order=5, enabled_by_default=False,
        tooltip_short="L'artiste s'interdit toute autre prestation publique le même jour.",
        tooltip_long="Cette clause protège l'organisateur contre une prestation concurrente le même soir dans un lieu "
@@ -416,7 +424,15 @@ def run_seed(force: bool = False) -> int:
                     "être requalifiés en complément de rémunération soumis aux mêmes charges et à la même TVA que "
                     "la prestation principale.",
        plain="Des frais en plus du cachet (location de matériel spécial, transport exceptionnel...) que l'organisateur "
-             "accepte de rembourser sur justificatifs.")
+             "accepte de rembourser sur justificatifs.",
+       example=(
+           "Outre le cachet défini au présent contrat, l'Organisateur remboursera à [Contractant 1], sur "
+           "présentation de justificatifs, les frais suivants engagés pour les besoins exclusifs de la "
+           "Représentation : [liste des frais — location de matériel spécifique, transport exceptionnel, "
+           "prestataire technique additionnel]. Ces frais sont distincts du cachet et ne sauraient être "
+           "requalifiés en complément de rémunération ; ils sont remboursés à l'euro l'euro, sans marge, dans le "
+           "même délai que le solde du cachet."
+       ))
 
     # ── 6 — Défraiements et logistique ────────────────────────────────────────
     g = _g("Défraiements et hospitalité", tooltip="Transport, hébergement, restauration, per diem de l'équipe artistique.", sort_order=6)
@@ -461,7 +477,14 @@ def run_seed(force: bool = False) -> int:
                     "montant raisonnable et cohérent avec les usages du secteur pour ne pas être requalifié en "
                     "élément de rémunération soumis à charges.",
        plain="Somme forfaitaire par jour et par personne (souvent 20-40 €) versée en espèces pour couvrir les frais "
-             "quotidiens quand les repas ne sont pas fournis.")
+             "quotidiens quand les repas ne sont pas fournis.",
+       example=(
+           "L'Organisateur versera à chaque membre de l'équipe artistique un per diem forfaitaire de [per diem] "
+           "par jour de présence sur le lieu de la Représentation, en espèces ou par virement, destiné à couvrir "
+           "les frais quotidiens non pris en charge par ailleurs (repas non fournis, menues dépenses). Ce per diem "
+           "est distinct du cachet et de tout remboursement de frais sur justificatifs, et ne saurait être cumulé "
+           "avec la prise en charge intégrale d'un même repas au titre de l'article Repas / catering."
+       ))
 
     # ── 7 — Conditions techniques ─────────────────────────────────────────────
     g = _g("Conditions techniques", tooltip="Fiche technique, son, lumières, backline, loges, accréditations.", sort_order=7)
@@ -509,7 +532,15 @@ def run_seed(force: bool = False) -> int:
                     "généralement une obligation de l'organisateur au titre de la sécurité du public ; ce n'est pas "
                     "une simple prestation de confort pour l'artiste.",
        plain="Qui, côté salle, s'occupe du son et des lumières pendant votre passage. Sans personnel technique dédié, "
-             "votre équipe doit tout gérer seule.")
+             "votre équipe doit tout gérer seule.",
+       example=(
+           "L'Organisateur mettra à disposition de [Contractant 1], dès l'arrivée de l'équipe artistique et pour "
+           "toute la durée des balances et de la Représentation, un régisseur son et, le cas échéant, un régisseur "
+           "lumière connaissant parfaitement les équipements du lieu et les issues de secours. Ce personnel "
+           "technique demeure sous la responsabilité et l'autorité de l'Organisateur ; il travaille en "
+           "coordination avec l'équipe technique de [Contractant 1] pour la mise en œuvre de la fiche technique "
+           "annexée."
+       ))
     _c(g, "Loges", "toggle_with_details", sort_order=5, enabled_by_default=False,
        tooltip_short="Loge privative, fermant à clé, avec sanitaires, miroir, catering.",
        tooltip_long="La loge privative fermant à clé participe à la sécurité des effets personnels de l'artiste et à "
@@ -558,7 +589,8 @@ def run_seed(force: bool = False) -> int:
                     "de l'artiste : sa modification unilatérale par l'organisateur (soldes, gratuité massive) sans "
                     "accord préalable peut être contestée comme une atteinte à l'économie du contrat.",
        plain="À activer surtout en partage de recettes : le prix du billet détermine directement votre rémunération, "
-             "il ne doit pas pouvoir changer sans votre accord.")
+             "il ne doit pas pouvoir changer sans votre accord.",
+       example="ex : 25 € plein tarif / 18 € tarif réduit / 20 € en prévente — toute modification substantielle du prix public devra être notifiée à [Contractant 1]")
     _c(g, "Invitations et exonérés", "toggle_with_details", sort_order=2, enabled_by_default=False,
        tooltip_short="Quota d'invitations de chaque partie, traitement dans le partage des recettes.",
        tooltip_long="Un quota d'invitations non plafonné peut réduire artificiellement l'assiette du partage de "
@@ -650,7 +682,14 @@ def run_seed(force: bool = False) -> int:
                     "logo) évite les erreurs récurrentes sur les supports de communication et facilite, le cas "
                     "échéant, une réclamation fondée sur le droit moral au respect du nom.",
        plain="L'orthographe exacte de votre nom de scène à utiliser partout (affiches, programmes, réseaux) — "
-             "pour éviter les fautes de frappe qui traînent ensuite partout.")
+             "pour éviter les fautes de frappe qui traînent ensuite partout.",
+       example=(
+           "Le nom de scène de [Contractant 1] devra être reproduit à l'identique — orthographe, majuscules, "
+           "typographie — soit : « [nom de scène exact] », sur l'ensemble des supports de communication de "
+           "l'évènement (affiches, programmes, réseaux sociaux, site internet, billetterie). L'Organisateur "
+           "soumettra à validation de [Contractant 1] tout support de communication avant sa première publication, "
+           "dans un délai de [nombre] jours."
+       ))
 
     # ── 10 — Merchandising ────────────────────────────────────────────────────
     g = _g("Merchandising", tooltip="Vente de produits dérivés de l'artiste sur le lieu de l'évènement.", sort_order=10)
@@ -742,7 +781,16 @@ def run_seed(force: bool = False) -> int:
                     "information essentielle manquante ayant affecté sa prestation.",
        plain="Si la salle a un limiteur de décibels ou un couvre-feu à 22h, l'artiste doit le savoir AVANT de signer — "
              "pas en arrivant aux balances.",
-       legal_ref="Décret n° 2017-1244 (niveaux sonores)")
+       legal_ref="Décret n° 2017-1244 (niveaux sonores)",
+       example=(
+           "L'Organisateur informe [Contractant 1], avant la signature du présent contrat, des contraintes "
+           "sonores et réglementaires applicables au lieu de la Représentation : limiteur de niveau sonore fixé à "
+           "[nombre] dB(A), couvre-feu à [heure], et/ou arrêté municipal ou préfectoral limitant l'horaire ou le "
+           "volume de diffusion. [Contractant 1] adaptera sa prestation technique à ces contraintes, sous réserve "
+           "qu'elles lui aient été communiquées dans les conditions du présent article ; à défaut d'information "
+           "préalable, l'Organisateur ne pourra se prévaloir d'une prestation non conforme du fait de ces "
+           "contraintes."
+       ))
 
     # ── 12 — Obligations de l'artiste ─────────────────────────────────────────
     g = _g("Obligations de l'artiste", tooltip="Ponctualité, conformité de la prestation, comportement, matériel propre.", sort_order=12)
@@ -772,7 +820,13 @@ def run_seed(force: bool = False) -> int:
                     "(backline, sonorisation) évite tout litige sur la responsabilité en cas de dommage ou de perte "
                     "pendant le transport et l'installation.",
        plain="Ce que l'artiste apporte lui-même (son ordinateur, ses contrôleurs, ses baguettes...) et qui reste "
-             "sous sa responsabilité, par opposition à ce que fournit la salle.")
+             "sous sa responsabilité, par opposition à ce que fournit la salle.",
+       example=(
+           "[Contractant 1] apporte et demeure seul(e) responsable du matériel suivant : [liste — instruments "
+           "personnels, ordinateur et contrôleurs, câblage spécifique, baguettes et consommables]. Ce matériel "
+           "reste sous la garde de [Contractant 1] pendant le transport, l'installation et la désinstallation, à "
+           "l'exclusion du backline et de la sonorisation fournis par l'Organisateur."
+       ))
     _c(g, "Assurance de l'artiste", "toggle_with_details", sort_order=4, enabled_by_default=False,
        tooltip_short="RC professionnelle de l'artiste et assurance de ses instruments / matériel.",
        tooltip_long="L'assurance de l'artiste couvre son propre matériel et sa responsabilité professionnelle, en "
@@ -792,7 +846,15 @@ def run_seed(force: bool = False) -> int:
                     "artistique, et non une prestation de communication distincte qui appellerait sa propre "
                     "rémunération.",
        plain="De plus en plus demandé : l'artiste s'engage à annoncer la date sur ses réseaux. "
-             "Restez raisonnable (1-2 posts + 1 story), c'est un engagement contractuel.")
+             "Restez raisonnable (1-2 posts + 1 story), c'est un engagement contractuel.",
+       example=(
+           "[Contractant 1] s'engage à relayer l'annonce de [l'Évènement] sur ses réseaux sociaux officiels, à "
+           "raison d'au minimum [nombre] publication(s) et [nombre] story/stories, entre la confirmation du "
+           "présent contrat et la date de la Représentation, à partir des visuels et informations fournis par "
+           "l'Organisateur. Cet engagement constitue une obligation accessoire à la prestation artistique et ne "
+           "saurait être interprété comme une prestation de communication distincte donnant lieu à rémunération "
+           "complémentaire."
+       ))
 
     # ── 13 — Annulation et report ─────────────────────────────────────────────
     g = _g("Annulation et report", tooltip="Conséquences financières d'une annulation par l'une ou l'autre partie, et modalités de report.", sort_order=13)
@@ -969,14 +1031,16 @@ def run_seed(force: bool = False) -> int:
                     "une vertu de clarté ; elle devient déterminante dès qu'un élément d'extranéité existe (artiste "
                     "ou organisateur étranger, tournée internationale).",
        plain="Précise que c'est la loi française qui s'applique en cas de désaccord. Utile surtout si l'une des "
-             "parties est étrangère.")
+             "parties est étrangère.",
+       example="Droit français")
     _c(g, "Juridiction compétente", "text", sort_order=1, enabled_by_default=False,
        tooltip_short="Tribunal territorialement compétent (attention : inopposable aux non-commerçants).",
        tooltip_long="La clause attributive de compétence territoriale n'est valable qu'entre commerçants (art. 48 CPC). "
                     "Si l'une des parties est un particulier ou une association non commerçante, les règles légales de "
                     "compétence s'appliquent malgré la clause.",
        plain="Le tribunal qui jugerait en cas de litige. Attention : cette clause ne s'impose pas si l'une des "
-             "parties est un particulier ou une association non commerçante — la loi prévoit alors son propre tribunal.")
+             "parties est un particulier ou une association non commerçante — la loi prévoit alors son propre tribunal.",
+       example="ex : Tribunal judiciaire de Paris — clause inopposable si l'une des parties est un particulier ou une association non commerçante (art. 48 CPC)")
     _c(g, "Médiation préalable obligatoire", "toggle", sort_order=2, enabled_by_default=False,
        tooltip_short="Tentative de résolution amiable (médiation) avant toute action en justice.",
        tooltip_long="Une clause de médiation préalable, si elle est rédigée de façon suffisamment précise, peut être "
@@ -993,13 +1057,15 @@ def run_seed(force: bool = False) -> int:
                     "d'annulation, réponse à une demande de report) : elle doit être une adresse effectivement "
                     "surveillée, pas une boîte générique rarement consultée.",
        plain="L'email officiel à utiliser pour tout ce qui est important dans ce contrat (annulation, report...). "
-             "Choisissez une adresse que vous consultez vraiment.")
+             "Choisissez une adresse que vous consultez vraiment.",
+       example="ex : production@salle-exemple.fr — adresse effectivement surveillée, à privilégier à une boîte générique")
     _c(g, "Email de contact de l'artiste / production", "text", sort_order=1,
        tooltip_short="Adresse email officielle de l'artiste ou de sa production.",
        tooltip_long="Comme pour l'organisateur, cette adresse sert de référence pour le calcul des délais de "
                     "notification contractuels ; en cas de changement en cours de contrat, il est prudent d'en "
                     "informer l'autre partie par écrit.",
-       plain="L'email officiel de l'artiste ou de son équipe pour recevoir les communications importantes.")
+       plain="L'email officiel de l'artiste ou de son équipe pour recevoir les communications importantes.",
+       example="ex : contact@nomdartiste-prod.example — idéalement celle de la production plutôt qu'une adresse personnelle")
     _c(g, "Modalités de notification", "textarea", sort_order=2, enabled_by_default=False,
        tooltip_short="Formes admises : email avec accusé, LRAR pour les notifications graves (annulation, résiliation).",
        tooltip_long="Distinguer les notifications courantes (email suffisant) des notifications graves (annulation, "

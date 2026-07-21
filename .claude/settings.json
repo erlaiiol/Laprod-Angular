@@ -138,7 +138,9 @@
       "Bash(grep -n \"^\\\\$\" src/styles/_variables.scss)",
       "Bash(command -v uv)",
       "Bash(uv --version)",
-      "Bash(uv add *)"
+      "Bash(uv add *)",
+      "Bash(python3 -m py_compile routes/dashboard_api.py)",
+      "Bash(python3 -m py_compile routes/dashboard_api.py models.py)"
     ],
     "additionalDirectories": [
       "/tmp",

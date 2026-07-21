@@ -215,6 +215,43 @@ export interface MixEngineerDashboard {
   orders: MixEngineerOrders;
 }
 
+// ── Producteur ─────────────────────────────────────────────────────────────────
+
+export interface ProducerStats {
+  active_artists_count:  number;
+  pending_invites_count: number;
+  upcoming_events_count: number;
+  pending_splits_count:  number;
+}
+
+interface ProducerArtistRef {
+  id: number;
+  username: string;
+  profile_image: string | null;
+}
+
+export interface ProducerRosterPreview {
+  link_id:      number;
+  artist:       ProducerArtistRef;
+  status:       string;
+  has_contract: boolean;
+}
+
+export interface ProducerUpcomingEvent {
+  id:         number;
+  title:      string;
+  event_type: string;
+  status:     string;
+  start_at:   string;
+  artist:     ProducerArtistRef;
+}
+
+export interface ProducerDashboard {
+  stats:           ProducerStats;
+  roster_preview:  ProducerRosterPreview[];
+  upcoming_events: ProducerUpcomingEvent[];
+}
+
 // ── Service ────────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
@@ -233,5 +270,9 @@ export class DashboardService {
 
   getMixEngineerDashboard(): Observable<ApiResponse<MixEngineerDashboard>> {
     return this.http.get<ApiResponse<MixEngineerDashboard>>(`${this.dashboardUrl}/mix-engineer`);
+  }
+
+  getProducerDashboard(): Observable<ApiResponse<ProducerDashboard>> {
+    return this.http.get<ApiResponse<ProducerDashboard>>(`${this.dashboardUrl}/producer`);
   }
 }

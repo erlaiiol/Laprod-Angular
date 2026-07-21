@@ -287,6 +287,24 @@ def create_app(test_config=None):
                 f"Contrat de management : {n} clause(s) créée(s) ou complétée(s)."
             )
 
+    @app.cli.command('seed-all-contracts')
+    def seed_all_contracts():
+        """Initialise/complète en une seule commande les 3 familles de contrats
+        (exploitation, représentation, management) : idéal pour un déploiement."""
+        from utils.contract_builder_seed import run_seed as run_seed_exploitation, update_examples
+        from utils.musical_performance_seed import run_seed as run_seed_performance
+        from utils.management_contract_seed import run_seed as run_seed_management
+
+        with app.app_context():
+            run_seed_exploitation()
+            n_exploitation = update_examples()
+            n_performance = run_seed_performance()
+            n_management = run_seed_management()
+            app.logger.info(
+                f"Contrats seedés : exploitation ({n_exploitation} exemple(s) patché(s)), "
+                f"représentation ({n_performance} clause(s)), management ({n_management} clause(s))."
+            )
+
     @app.cli.command('seed-similar-artists')
     def seed_similar_artists():
         """Initialise (ou complète) la liste des artistes similaires."""

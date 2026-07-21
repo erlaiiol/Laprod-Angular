@@ -43,6 +43,22 @@
       </div>
     </div>
 
+    <!-- ── Actions rapides ─────────────────────────────────────────────────── -->
+    <div class="quick-actions">
+      <a class="action-card" [routerLink]="['/profile', auth.currentUser()?.username]">
+        <span class="action-card-icon"><i class="bi bi-eye-fill"></i></span>
+        <h3>Voir mon profil public</h3>
+        <p>Ce que les artistes voient de ton catalogue quand ils tombent sur ta page.</p>
+        <span class="action-card-cta">Voir mon profil <i class="bi bi-arrow-right"></i></span>
+      </a>
+      <a class="action-card" routerLink="/contract-analyzer">
+        <span class="action-card-icon"><i class="bi bi-shield-check"></i></span>
+        <h3>Analyser un contrat</h3>
+        <p>Avant de signer quoi que ce soit avec un producteur, comprends exactement ce que tu cèdes.</p>
+        <span class="action-card-cta">Analyser <i class="bi bi-arrow-right"></i></span>
+      </a>
+    </div>
+
     <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
     <div class="tabs">
       <button class="tab-btn" [class.active]="activeTab() === 'tracks'" (click)="setTab('tracks')">

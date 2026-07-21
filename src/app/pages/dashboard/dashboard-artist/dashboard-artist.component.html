@@ -34,6 +34,22 @@
       </div>
     </div>
 
+    <!-- ── Actions rapides ─────────────────────────────────────────────────── -->
+    <div class="quick-actions">
+      <a class="action-card" routerLink="/">
+        <span class="action-card-icon"><i class="bi bi-music-note-beamed"></i></span>
+        <h3>Explorer le catalogue</h3>
+        <p>Trie par BPM, tonalité, style — et enregistre ta topline avant même d'acheter.</p>
+        <span class="action-card-cta">Parcourir les beats <i class="bi bi-arrow-right"></i></span>
+      </a>
+      <a class="action-card" routerLink="/contract-analyzer">
+        <span class="action-card-icon"><i class="bi bi-shield-check"></i></span>
+        <h3>Analyser un contrat</h3>
+        <p>Avant de signer quoi que ce soit avec un producteur, comprends exactement ce que tu cèdes.</p>
+        <span class="action-card-cta">Analyser <i class="bi bi-arrow-right"></i></span>
+      </a>
+    </div>
+
     <!-- ── Revision modal ──────────────────────────────────────────────────── -->
     @if (revisionOrderId() !== null) {
       <div class="modal-backdrop" (click)="revisionOrderId.set(null)">

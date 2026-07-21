@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
-import { RosterService } from '../../../services/roster.service';
+import { DashboardService, ProducerDashboard } from '../../../services/dashboard.service';
+import { PLANNING_EVENT_TYPE_ICONS, PLANNING_EVENT_TYPE_LABELS, PlanningEventType } from '../../../services/planning.service';
+import { ProducerTabsComponent } from '../../producer/producer-tabs/producer-tabs.component';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCER SPACE — hub contrats/roster/planning/royalties du producteur.
-// Ex-ProducerHomeComponent (src/pages/home/producer-home) : déplacé sous le
-// profil suite à l'abandon du système de vue active (roue) — tous les espaces
-// par rôle vivent désormais sur /profile/:username plutôt que sur la home.
-// Embarqué par ProfileComponent uniquement sur son propre profil, si isProducer().
+// PRODUCER SPACE — "Vue d'ensemble" de l'espace producteur : même gabarit que
+// dashboard-beatmaker/artist/mix-engineer (dash-header, stats-grid, tabs),
+// alimenté par DashboardService.getProducerDashboard(). Onglets Roster/
+// Planning/Royalties = routes séparées (trop substantielles pour être
+// fusionnées ici) reliées par <app-producer-tabs>.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface QuickAction {
@@ -22,28 +24,34 @@ interface QuickAction {
 @Component({
   selector: 'app-producer-space',
   standalone: true,
-  imports: [RouterModule],
+  imports: [RouterModule, ProducerTabsComponent],
   templateUrl: './producer-space.component.html',
   styleUrl: './producer-space.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProducerSpaceComponent implements OnInit {
 
-  readonly auth  = inject(AuthService);
-  private roster = inject(RosterService);
+  readonly auth        = inject(AuthService);
+  private dashboardSvc = inject(DashboardService);
 
-  readonly activeCount  = signal(0);
-  readonly pendingCount = signal(0);
+  loading = signal(true);
+  error   = signal<string | null>(null);
+  data    = signal<ProducerDashboard | null>(null);
 
   ngOnInit(): void {
-    if (!this.auth.isProducer()) return;
-    this.roster.mine().subscribe({
+    this.dashboardSvc.getProducerDashboard().subscribe({
       next: res => {
-        const links = res.data?.as_producer ?? [];
-        this.activeCount.set(links.filter(l => l.status === 'active').length);
-        this.pendingCount.set(links.filter(l => l.status === 'invited').length);
+        this.loading.set(false);
+        if (res.success && res.data) {
+          this.data.set(res.data);
+        } else {
+          this.error.set(res.feedback?.message ?? 'Impossible de charger ton espace producteur.');
+        }
       },
-      error: () => {},
+      error: err => {
+        this.loading.set(false);
+        this.error.set(err?.error?.feedback?.message ?? 'Impossible de charger ton espace producteur.');
+      },
     });
   }
 
@@ -63,4 +71,18 @@ export class ProducerSpaceComponent implements OnInit {
       cta: 'Analyser',
     },
   ];
+
+  eventIcon(type: string): string {
+    return PLANNING_EVENT_TYPE_ICONS[type as PlanningEventType] ?? 'bi-calendar3';
+  }
+
+  eventLabel(type: string): string {
+    return PLANNING_EVENT_TYPE_LABELS[type as PlanningEventType] ?? type;
+  }
+
+  formatEventDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('fr-FR', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+  }
 }
