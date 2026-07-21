@@ -40,6 +40,7 @@ export interface UserProfile {
     is_artist:                      boolean;
     is_beatmaker:                   boolean;
     is_mix_engineer:                boolean;
+    is_producer:                    boolean;
     is_mixmaster_engineer:          boolean;
     is_certified_producer_arranger: boolean;
     mixmaster_sample_submitted:     boolean;

@@ -88,6 +88,7 @@
 
   &.artist              { background: v.$tag-blue-dark;    border-color: v.$tag-blue; }
   &.beatmaker           { background: v.$tag-green-dark;   border-color: v.$tag-green; }
+  &.producer            { background: v.$tag-violet-dark;  border-color: v.$tag-violet; }
   &.mix-certified       { background: v.$tag-orange-dark;  border-color: v.$tag-orange; }
   &.mix                 { background: v.$tag-neutral-dark; border-color: v.$tag-neutral; }
   &.producer-arranger   { background: v.$tag-violet-dark;  border-color: v.$tag-violet; }
@@ -97,6 +98,88 @@
   &.badge-eng-master     { background: rgba(16,185,129,0.12);  border-color: v.$tag-green; color: v.$tag-green; }
   &.badge-eng-master-pro { background: rgba(234,179,8,0.12);   border-color: v.$gold; color: v.$gold; }
   &.badge-eng-pa         { background: rgba(139,92,246,0.12);  border-color: v.$tag-violet; color: v.$tag-violet; }
+}
+
+/* ── Hub de rôles (propre profil) ─────────────────────────────────────────── */
+
+.role-hub {
+  margin: 0 0 1.5rem;
+}
+
+.role-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  text-decoration: none;
+  transition: transform v.$dur-base v.$ease-spring, border-color v.$dur-base v.$ease-out;
+
+  &:hover { transform: translateY(-2px); }
+}
+
+.role-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: v.$radius-md;
+  font-size: 1.05rem;
+  color: v.$white;
+}
+
+.role-card__label {
+  display: flex;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: v.$text-primary;
+}
+
+// Couleurs par rôle — alignées sur .role-badge ci-dessus et le reste de l'app.
+.role-card--artist:hover     { border-color: v.$tag-blue; }
+.role-card--artist   .role-card__icon { background: v.$tag-blue; }
+
+.role-card--beatmaker:hover  { border-color: v.$tag-green; }
+.role-card--beatmaker .role-card__icon { background: v.$tag-green; }
+
+.role-card--mix:hover        { border-color: v.$gold; }
+.role-card--mix       .role-card__icon { background: v.$gold; }
+
+.role-card--producer:hover   { border-color: v.$tag-violet; }
+.role-card--producer  .role-card__icon { background: v.$tag-violet; }
+
+.role-card--wallet:hover     { border-color: v.$tag-green; }
+.role-card--wallet    .role-card__icon { background: v.$tag-green; }
+
+.role-card--promo:hover,
+.role-card--campaign:hover   { border-color: v.$tag-orange; }
+.role-card--promo     .role-card__icon,
+.role-card--campaign  .role-card__icon { background: v.$tag-orange; }
+
+.role-pending-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  margin-left: 0.4rem;
+  background: v.$primary;
+  color: v.$white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: v.$radius-pill;
+  padding: 0 3px;
 }
 
 /* ── Bio / meta ───────────────────────────────────────────────────────────── */
@@ -361,69 +444,3 @@
   color: v.$text-secondary;
 }
 
-// ── Codes promo ──────────────────────────────────────────────────────────────
-
-.promo-section {
-  margin: 2rem 0;
-}
-
-.promo-heading {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  margin: 0 0 .9rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: v.$text-primary;
-}
-
-.promo-manage {
-  margin-left: auto;
-  font-size: .8rem;
-  font-weight: 500;
-  color: v.$primary;
-  text-decoration: none;
-
-  &:hover { text-decoration: underline; }
-}
-
-.promo-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .6rem;
-}
-
-.promo-chip {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .5rem .75rem;
-  border: 1px dashed v.$bg-border;
-  border-radius: 10px;
-  background: v.$bg-surface;
-}
-
-.promo-chip-code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-weight: 700;
-  letter-spacing: .05em;
-  color: v.$text-primary;
-}
-
-.promo-chip-percent {
-  padding: .1rem .4rem;
-  border-radius: 5px;
-  background: v.$primary;
-  color: #fff;
-  font-size: .74rem;
-  font-weight: 700;
-}
-
-.promo-chip-meta {
-  font-size: .76rem;
-  color: v.$text-muted;
-}
-
-.btn-action--promo {
-  i { color: v.$primary; }
-}

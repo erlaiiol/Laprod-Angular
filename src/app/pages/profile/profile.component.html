@@ -35,6 +35,9 @@
           @if (p.roles.is_beatmaker) {
             <span class="role-badge beatmaker"><i class="bi bi-music-note-beamed"></i> Beatmaker</span>
           }
+          @if (p.roles.is_producer) {
+            <span class="role-badge producer"><i class="bi bi-file-earmark-text"></i> Producteur</span>
+          }
           @if (p.roles.is_mixmaster_engineer) {
             <span class="role-badge badge-eng-mix"><i class="bi bi-patch-check-fill"></i> Certifié Mix</span>
           } @else if (p.roles.is_mix_engineer) {
@@ -90,9 +93,6 @@
 
         <app-share-button [url]="'/profile/' + p.username" [title]="p.username"></app-share-button>
 
-        <!-- Modifier / Sécurité / Gains / Codes promo / Campagnes vivent désormais
-             dans le menu de l'avatar (navbar) : un seul endroit pour « mon espace »,
-             accessible depuis n'importe quelle page et pas seulement depuis le profil. -->
         @if (isOwnProfile()) {
           <a [routerLink]="['/profile/edit']" class="btn-action">
             <i class="bi bi-pencil"></i> Modifier le profil
@@ -101,30 +101,56 @@
       </div>
     </div>
 
-    <!-- ── Codes promo (profil personnel uniquement) ───────────────────────── -->
-    <!-- Visible du seul propriétaire : un code peut être distribué en privé
-         (mailing, story), l'afficher aux visiteurs le rendrait public d'office. -->
-    @if (isOwnProfile() && activePromoCodes().length > 0) {
-      <div class="promo-section">
-        <h2 class="promo-heading">
-          <i class="bi bi-tag-fill"></i> Mes codes promo actifs
-          <a [routerLink]="['/promo-codes']" class="promo-manage">Gérer</a>
-        </h2>
-
-        <div class="promo-chips">
-          @for (c of activePromoCodes(); track c.id) {
-            <div class="promo-chip">
-              <span class="promo-chip-code">{{ c.code }}</span>
-              <span class="promo-chip-percent">−{{ c.percent }} %</span>
-              <span class="promo-chip-meta">
-                {{ c.scope === 'track' ? 'Beats' : 'Mix/Master' }}
-                @if (c.max_redemptions != null) {
-                  · {{ c.redemption_count }}/{{ c.max_redemptions }}
-                } @else {
-                  · {{ c.redemption_count }} utilisation{{ c.redemption_count > 1 ? 's' : '' }}
+    <!-- ── Hub de rôles (propre profil uniquement) ──────────────────────────── -->
+    <!-- Espaces + outils vendeur selon les rôles réellement possédés — édition
+         des rôles à tout moment sur /profile/edit, aucune "vue" à basculer. -->
+    @if (isOwnProfile()) {
+      <div class="role-hub">
+        <div class="role-hub__grid">
+          @if (isArtist()) {
+            <a class="role-card role-card--artist" [routerLink]="['/dashboard/artist']">
+              <span class="role-card__icon"><i class="bi bi-mic-fill"></i></span>
+              <span class="role-card__label">Espace Artiste</span>
+            </a>
+          }
+          @if (isBeatmaker()) {
+            <a class="role-card role-card--beatmaker" [routerLink]="['/dashboard/beatmaker']">
+              <span class="role-card__icon"><i class="bi bi-music-note-beamed"></i></span>
+              <span class="role-card__label">Espace Beatmaker</span>
+            </a>
+          }
+          @if (isMixEngineer()) {
+            <a class="role-card role-card--mix" [routerLink]="['/dashboard/mix-engineer']">
+              <span class="role-card__icon"><i class="bi bi-sliders"></i></span>
+              <span class="role-card__label">
+                Espace Mix Engineer
+                @if (mixSamplePending()) {
+                  <span class="role-pending-dot" title="Preview à soumettre">!</span>
                 }
               </span>
-            </div>
+            </a>
+          }
+          @if (isProducer()) {
+            <a class="role-card role-card--producer" [routerLink]="['/dashboard/producer']">
+              <span class="role-card__icon"><i class="bi bi-file-earmark-text"></i></span>
+              <span class="role-card__label">Espace Producteur</span>
+            </a>
+          }
+          @if (showWallet()) {
+            <a class="role-card role-card--wallet" [routerLink]="['/wallet']">
+              <span class="role-card__icon"><i class="bi bi-wallet2"></i></span>
+              <span class="role-card__label">Mes gains</span>
+            </a>
+          }
+          @if (showSellerTools()) {
+            <a class="role-card role-card--promo" [routerLink]="['/promo-codes']">
+              <span class="role-card__icon"><i class="bi bi-tag-fill"></i></span>
+              <span class="role-card__label">Codes promo</span>
+            </a>
+            <a class="role-card role-card--campaign" [routerLink]="['/campagnes']">
+              <span class="role-card__icon"><i class="bi bi-megaphone-fill"></i></span>
+              <span class="role-card__label">Campagnes</span>
+            </a>
           }
         </div>
       </div>

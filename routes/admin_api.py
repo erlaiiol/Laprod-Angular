@@ -774,6 +774,9 @@ def toggle_user_role(user_id, role, current_user):
     elif role == 'artist':
         user.is_artist = not user.is_artist
         msg = f'Rôle Interprète {"activé" if user.is_artist else "désactivé"} pour {user.username}.'
+    elif role == 'producer':
+        user.is_producer = not user.is_producer
+        msg = f'Rôle Producteur {"activé" if user.is_producer else "désactivé"} pour {user.username}.'
     elif role == 'mix_engineer':
         user.is_mix_engineer = not user.is_mix_engineer
         if not user.is_mix_engineer:
@@ -999,7 +1002,7 @@ def admin_upload_engineer_sample(user_id, current_user):
     if not user.is_mix_engineer:
         return ser_err(f"{user.username} n'est pas un mix engineer.")
 
-    samples_folder = Path(config.UPLOAD_FOLDER) / 'mixmaster_samples'
+    samples_folder = config.MIXMASTER_SAMPLES_FOLDER
     samples_folder.mkdir(parents=True, exist_ok=True)
 
     file_raw  = request.files.get('sample_raw')
@@ -1014,7 +1017,7 @@ def admin_upload_engineer_sample(user_id, current_user):
             return None, f'Format non supporté pour {label}.'
         fname = f'sample_{label}_{user_id}_{uuid.uuid4().hex[:8]}{ext}'
         f.save(samples_folder / fname)
-        return f'mixmaster_samples/{fname}', None
+        return Path('db_assets', 'mixmaster', 'samples', fname).as_posix(), None
 
     if file_raw:
         path, errmsg = _save_audio(file_raw, 'raw')

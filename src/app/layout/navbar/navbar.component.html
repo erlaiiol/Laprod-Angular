@@ -21,7 +21,8 @@
       <span>LaProd</span>
     </a>
 
-    <!-- Barre de recherche + filtres -->
+    <!-- Barre de recherche + filtres — toujours visible : tous les rôles
+         peuvent vouloir parcourir le catalogue. -->
     <div class="d-flex align-items-center mx-auto flex-grow-1 order-lg-1" style="max-width: 600px;">
       <form class="position-relative flex-grow-1 me-2"
             (submit)="$event.preventDefault(); onSearchEnter()">
@@ -85,8 +86,10 @@
          [class.show]="menuOpen()" (click)="onNavLinkClick($event)">
       <ul class="navbar-nav ms-auto" lpTourAnchor="nav-menu">
 
+        <!-- Acte principal de l'artiste : parcourir le catalogue de beats. -->
         <li class="nav-item">
-          <a class="nav-link" [routerLink]="['/']" (click)="resetFilters()"
+          <a class="nav-link" [class.nav-link--priority-artist]="isArtist()"
+             [routerLink]="['/']" (click)="resetFilters()"
              routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
             <i class="bi bi-music-note-beamed"></i> Beats
           </a>
@@ -106,8 +109,10 @@
           </li>
         }
 
+        <!-- Acte principal du producteur : les contrats. -->
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button"
+             [class.nav-link--priority]="isProducer()"
              (click)="toggleDropdown('contracts', $event)"
              [attr.aria-expanded]="openDropdown() === 'contracts'">
             <i class="bi bi-file-earmark-text"></i> Contrats
@@ -129,10 +134,28 @@
 
         @if (isLoggedIn()) {
 
+          <!-- Acte principal du beatmaker : publier un nouveau beat. Toujours
+               visible dès qu'il a le rôle — plus de dépendance à une "vue". -->
           @if (isBeatmaker()) {
             <li class="nav-item">
               <a class="nav-link nav-link--publish" [routerLink]="['/upload-track']" routerLinkActive="active">
                 <i class="bi bi-cloud-upload"></i> Publier
+              </a>
+            </li>
+          }
+
+          <!-- Le mix engineer n'a pas d'acte principal unique : le rappel est
+               de tenir sa preview à jour (soumission initiale ou mise à jour
+               des tarifs/exemples). Le badge signale une preview jamais soumise. -->
+          @if (isMixEngineer()) {
+            <li class="nav-item">
+              <a class="nav-link" [class.nav-link--mix-pending]="mixSamplePending()"
+                 [routerLink]="['/submit-sample']" routerLinkActive="active"
+                 [title]="mixSamplePending() ? 'Preview à soumettre' : 'Mettre à jour ma preview'">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Ma preview
+                @if (mixSamplePending()) {
+                  <span class="role-pending-dot" title="Preview à soumettre">!</span>
+                }
               </a>
             </li>
           }
@@ -162,33 +185,6 @@
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
                 [class.show]="openDropdown() === 'user'">
 
-              @if (isBeatmaker()) {
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
-                    <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
-                  </a>
-                </li>
-              }
-              @if (isArtist()) {
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
-                    <i class="bi bi-mic"></i> Espace Artiste
-                  </a>
-                </li>
-              }
-              @if (isMixEngineer()) {
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
-                    <i class="bi bi-sliders"></i> Espace Mix Engineer
-                    @if (mixSamplePending()) {
-                      <span class="role-pending-dot" title="Preview à soumettre">!</span>
-                    }
-                  </a>
-                </li>
-              }
-
-              <li><hr class="dropdown-divider"></li>
-
               <li>
                 <a class="dropdown-item" [routerLink]="['/profile', username()]" routerLinkActive="active">
                   <i class="bi bi-person"></i> Mon profil
@@ -200,27 +196,71 @@
                 </a>
               </li>
 
-              <!-- Outils vendeur : regroupés ici plutôt que dispersés sur la page
-                   profil, où personne n'allait naturellement les chercher. -->
-              @if (isBeatmaker() || isMixEngineer()) {
+              <!-- Espaces par rôle — repris ici pour un accès en 1 clic depuis
+                   n'importe quelle page (le profil reste le hub complet, cette
+                   liste n'en est qu'un raccourci). Groupés sous un en-tête pour
+                   ne pas noyer le dropdown dans une liste plate. -->
+              @if (isArtist() || isBeatmaker() || isMixEngineer() || isProducer()) {
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
-                    <i class="bi bi-wallet2"></i> Mes gains
-                  </a>
-                </li>
+                <li><h6 class="dropdown-section-label">Mon espace</h6></li>
+
+                @if (isArtist()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
+                      <i class="bi bi-mic-fill"></i> Espace Artiste
+                    </a>
+                  </li>
+                }
+                @if (isBeatmaker()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
+                      <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
+                    </a>
+                  </li>
+                }
+                @if (isMixEngineer()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
+                      <i class="bi bi-sliders"></i> Espace Mix Engineer
+                      @if (mixSamplePending()) {
+                        <span class="role-pending-dot" title="Preview à soumettre">!</span>
+                      }
+                    </a>
+                  </li>
+                }
+                @if (isProducer()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/dashboard/producer']" routerLinkActive="active">
+                      <i class="bi bi-file-earmark-text"></i> Espace Producteur
+                    </a>
+                  </li>
+                }
               }
-              @if (isBeatmaker() || isCertifiedMixEngineer()) {
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/promo-codes']" routerLinkActive="active">
-                    <i class="bi bi-tag"></i> Mes codes promo
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/campagnes']" routerLinkActive="active">
-                    <i class="bi bi-megaphone"></i> Mes campagnes
-                  </a>
-                </li>
+
+              <!-- Outils vendeur — même logique de raccourci. -->
+              @if ((isBeatmaker() || isMixEngineer()) || (isBeatmaker() || isCertifiedMixEngineer())) {
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-section-label">Outils vendeur</h6></li>
+
+                @if (isBeatmaker() || isMixEngineer()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
+                      <i class="bi bi-wallet2"></i> Mes gains
+                    </a>
+                  </li>
+                }
+                @if (isBeatmaker() || isCertifiedMixEngineer()) {
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/promo-codes']" routerLinkActive="active">
+                      <i class="bi bi-tag"></i> Mes codes promo
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" [routerLink]="['/campagnes']" routerLinkActive="active">
+                      <i class="bi bi-megaphone"></i> Mes campagnes
+                    </a>
+                  </li>
+                }
               }
 
               <li><hr class="dropdown-divider"></li>

@@ -64,11 +64,12 @@
 }
 
 .cb-type-choice {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.85rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; margin-bottom: 0.85rem;
   @media (max-width: 540px) { grid-template-columns: 1fr; }
 }
 
 .cb-type-card {
+  position: relative;
   display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem;
   background: v.$bg-elevated; border: 1px solid v.$bg-border; border-radius: 10px;
   padding: 0.75rem 0.9rem; cursor: pointer; text-align: left;
@@ -87,7 +88,16 @@
     i { color: v.$tag-violet-light; }
   }
 
+  &.locked { opacity: 0.75; }
+
   &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.cb-type-plan-badge {
+  position: absolute; top: 0.6rem; right: 0.6rem;
+  font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.45rem;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.03em;
+  color: v.$gold; background: rgba(v.$gold, 0.14); border: 1px solid rgba(v.$gold, 0.38);
 }
 
 .cb-new-form {
@@ -151,6 +161,11 @@
   &--perf {
     background: rgba(v.$tag-green, 0.12); color: v.$tag-green-light;
     border-color: rgba(v.$tag-green, 0.35);
+  }
+
+  &--mgmt {
+    background: rgba(v.$gold, 0.12); color: v.$gold;
+    border-color: rgba(v.$gold, 0.35);
   }
 
   @media (max-width: 540px) { display: none; }

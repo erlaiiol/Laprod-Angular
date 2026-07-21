@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard }         from './guards/auth.guard';
 import { adminGuard }        from './guards/admin.guard';
 import { testimonialsGuard } from './guards/testimonials.guard';
+import { royaltiesGuard }    from './guards/royalties.guard';
 
 // data.preload = true → chunk préchargé en idle après le premier rendu
 // (voir routing/idle-preload.strategy.ts). Réservé aux routes du parcours
@@ -89,6 +90,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/dashboard/dashboard-mix-engineer/dashboard-mix-engineer.component').then(m => m.DashboardMixEngineerComponent),
     canActivate: [authGuard] },
 
+  { path: 'dashboard/producer',
+    loadComponent: () => import('./pages/profile/producer-space/producer-space.component').then(m => m.ProducerSpaceComponent),
+    canActivate: [authGuard] },
+
   { path: 'purchases',
     loadComponent: () => import('./pages/purchases/purchases.component').then(m => m.PurchasesComponent),
     canActivate: [authGuard] },
@@ -139,6 +144,20 @@ export const routes: Routes = [
 
   { path: 'contract-analyzer',
     loadComponent: () => import('./pages/contract-analyzer/contract-analyzer.component').then(m => m.ContractAnalyzerComponent) },
+
+  // Roster et planning libres à tous les paliers (rôle uniquement) : pas de guard de palier.
+  { path: 'producer/roster',
+    loadComponent: () => import('./pages/producer/roster/roster.component').then(m => m.RosterComponent),
+    canActivate: [authGuard] },
+
+  { path: 'producer/planning',
+    loadComponent: () => import('./pages/producer/planning/planning.component').then(m => m.PlanningComponent),
+    canActivate: [authGuard] },
+
+  // Royalties gaté Premium+ (can_view_royalties), contrairement à roster/planning.
+  { path: 'producer/royalties',
+    loadComponent: () => import('./pages/producer/royalties/royalties.component').then(m => m.RoyaltiesComponent),
+    canActivate: [authGuard, royaltiesGuard] },
 
   { path: 'premium',
     loadComponent: () => import('./pages/premium/premium.component').then(m => m.PremiumComponent),

@@ -35,6 +35,9 @@ from .licenses_api import licenses_api_bp
 from .testimonials_api import testimonials_api_bp
 from .promo_api import promo_api_bp
 from .campaign_api import campaign_api_bp
+from .roster_api import roster_api_bp
+from .planning_api import planning_api_bp
+from .royalties_api import royalties_api_bp
 
 __all__ = [
     'premium_api_bp',
@@ -66,4 +69,7 @@ __all__ = [
     'testimonials_api_bp',
     'promo_api_bp',
     'campaign_api_bp',
+    'roster_api_bp',
+    'planning_api_bp',
+    'royalties_api_bp',
 ]

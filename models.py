@@ -79,6 +79,7 @@ class User(UserMixin, db.Model):
     is_artist = db.Column(db.Boolean, default=False, nullable=False)  # Interprète/chanteur
     is_beatmaker = db.Column(db.Boolean, default=False, nullable=False)  # Beatmaker/compositeur/producteur
     is_mix_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Mix/master engineer
+    is_producer = db.Column(db.Boolean, default=False, nullable=False)  # Producteur/label : gestion de contrats et de roster — auto-déclaré, sans certification (contrairement à is_mixmaster_engineer)
 
     #  SYSTÈME MIX/MASTER
     is_mixmaster_engineer = db.Column(db.Boolean, default=False, nullable=False)  # Certifié par admin
@@ -117,6 +118,12 @@ class User(UserMixin, db.Model):
 
     #  PRÉFÉRENCES D'AFFICHAGE
     preferred_tag_category = db.Column(db.String(50), nullable=True, default=None)
+
+    # Token opaque d'abonnement au flux iCal du rétroplanning (planning_event).
+    # Régénérable par l'utilisateur — pas de JWT/itsdangerous ici : Apple/Google
+    # Calendar pollent l'URL indéfiniment sans header Authorization, il faut un
+    # secret révocable dans l'URL elle-même, pas un token à expiration.
+    ical_feed_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
 
     # Relations
     tracks = db.relationship('Track', foreign_keys='Track.composer_id', backref='composer_user', lazy=True, cascade='all, delete-orphan')
@@ -235,7 +242,23 @@ class User(UserMixin, db.Model):
         """
         return self.is_certified_master_engineer or self.has_plan_at_least(plans.SEMI_PRO)
 
-    
+    @property
+    def can_use_management_contract(self):
+        """Contrat de management formel (mandat, commission, exclusivité). Premium et +.
+
+        Le lien roster et le rétroplanning partagé (RosterLink/PlanningEvent) ne
+        dépendent eux que du rôle is_producer/is_artist, pas du palier — seule la
+        formalisation juridique/financière est réservée aux abonnés.
+        """
+        return self.has_plan_at_least(plans.PREMIUM)
+
+    @property
+    def can_view_royalties(self):
+        """Cap-table / splits chiffrés par titre. Premium et +, même seuil que
+        can_use_management_contract."""
+        return self.has_plan_at_least(plans.PREMIUM)
+
+
     # TRACKS ALLOW UPLOAD METHODS
 
 
@@ -1397,6 +1420,14 @@ class Notification(db.Model):
     # - 'tokens_recharged' : Tokens rechargés
     # - 'topline_submitted' : Topline soumise sur votre track (beatmaker)
     # - 'mix_sample_pending' : Rappel de soumission de preview (mix/master engineer)
+    # - 'roster_invite' : Invitation à rejoindre un roster (artiste invité)
+    # - 'roster_accepted' : Invitation roster acceptée (producteur)
+    # - 'roster_declined' : Invitation roster déclinée (producteur)
+    # - 'roster_revoked' : Lien roster révoqué (l'autre partie)
+    # - 'roster_ended' : Lien roster quitté (l'autre partie)
+    # - 'planning_event_created' : Nouvel événement de rétroplanning (l'autre partie)
+    # - 'planning_event_confirmed' : Événement confirmé (le créateur)
+    # - 'planning_event_cancelled' : Événement annulé (l'autre partie)
     # - 'system' : Notification système
 
     # Content
@@ -1520,6 +1551,197 @@ class TokenBlocklist(db.Model):
 
 
 # =============================================================================
+# ROSTER — Lien mutuel producteur ↔ artiste
+# =============================================================================
+
+class RosterLinkStatus(enum.Enum):
+    invited  = 'invited'   # invitation envoyée, en attente de réponse
+    active   = 'active'    # les deux parties sont liées
+    declined = 'declined'  # l'invité a refusé
+    revoked  = 'revoked'   # invitation annulée avant acceptation, ou lien actif révoqué
+    ended    = 'ended'     # l'une des deux parties a quitté un lien actif
+
+
+class RosterLink(db.Model):
+    """Lien mutuel producteur↔artiste : invitation puis acceptation explicite,
+    jamais automatique. Aucun contrat requis pour être actif — sert de socle au
+    rétroplanning partagé (PlanningEvent) et, plus tard, à un contrat de
+    management optionnel (management_contract_id), attachable sur un lien déjà
+    actif.
+
+    Unicité stricte sur (producer_id, artist_id) : un couple n'a qu'une seule
+    ligne dans le temps. Décliner/révoquer/quitter ne supprime pas la ligne,
+    elle change de statut ; une ré-invitation ultérieure réutilise la même
+    ligne plutôt que d'en créer une nouvelle.
+    """
+    __tablename__ = 'roster_link'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    producer_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    artist_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status        = db.Column(db.Enum(RosterLinkStatus), nullable=False, default=RosterLinkStatus.invited)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Contrat de management optionnel, attaché plus tard sur un lien déjà actif.
+    # Nullable : le lien roster reste valide sans jamais être formalisé.
+    management_contract_id = db.Column(db.Integer, db.ForeignKey('user_contract.id'), nullable=True)
+
+    created_at   = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at   = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    responded_at = db.Column(db.DateTime, nullable=True)   # accept / decline
+    ended_at     = db.Column(db.DateTime, nullable=True)   # revoke / quitter
+
+    producer = db.relationship(
+        'User', foreign_keys=[producer_id],
+        backref=db.backref('roster_as_producer', cascade='all, delete-orphan', lazy=True),
+    )
+    artist = db.relationship(
+        'User', foreign_keys=[artist_id],
+        backref=db.backref('roster_as_artist', cascade='all, delete-orphan', lazy=True),
+    )
+    invited_by = db.relationship('User', foreign_keys=[invited_by_id])
+    management_contract = db.relationship('UserContract')
+
+    __table_args__ = (
+        db.UniqueConstraint('producer_id', 'artist_id', name='uq_roster_link_pair'),
+        db.Index('idx_roster_producer_status', 'producer_id', 'status'),
+        db.Index('idx_roster_artist_status', 'artist_id', 'status'),
+    )
+
+    def __repr__(self):
+        return f"<RosterLink #{self.id} producer={self.producer_id} artist={self.artist_id} ({self.status.value})>"
+
+
+# =============================================================================
+# PLANNING — Rétroplanning partagé sur un lien roster actif
+# =============================================================================
+
+class PlanningEventTypeEnum(enum.Enum):
+    recording_session    = 'recording_session'     # session d'enregistrement
+    writing_session       = 'writing_session'        # session d'écriture / topline
+    rehearsal              = 'rehearsal'               # répétition
+    concert                  = 'concert'                 # concert / date de tournée
+    showcase                   = 'showcase'                # showcase pro (label, diffuseur)
+    residency                    = 'residency'               # résidence artistique
+    video_shoot                    = 'video_shoot'             # tournage clip
+    media_interview                   = 'media_interview'        # interview média / promo
+    meeting                              = 'meeting'                # réunion (label, équipe)
+    appointment                            = 'appointment'           # rendez-vous générique
+    sacem_deposit                             = 'sacem_deposit'        # dépôt SACEM / déclaration d'œuvre
+    contractual_deadline                        = 'contractual_deadline'  # échéance contractuelle
+    release                                        = 'release'              # date de sortie / mise en ligne
+    other                                             = 'other'
+
+
+class PlanningEventStatus(enum.Enum):
+    proposed  = 'proposed'
+    confirmed = 'confirmed'
+    cancelled = 'cancelled'
+
+
+class PlanningEvent(db.Model):
+    """Événement du rétroplanning partagé entre un producteur et un artiste.
+    Rattaché à un RosterLink (implicitement le couple des deux users) plutôt
+    qu'à deux user_id directs, pour garantir qu'un événement ne peut exister
+    que dans le cadre d'un lien roster déjà noué."""
+    __tablename__ = 'planning_event'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=False)
+    created_by_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    title       = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    event_type  = db.Column(db.Enum(PlanningEventTypeEnum), nullable=False, default=PlanningEventTypeEnum.other)
+    status      = db.Column(db.Enum(PlanningEventStatus), nullable=False, default=PlanningEventStatus.proposed)
+
+    # Convention du projet : datetime naïf partout (cf. User.created_at...). On
+    # garde ce style plutôt qu'introduire une première colonne tz-aware isolée,
+    # et on ajoute `timezone` (nom IANA) pour l'affichage et la génération .ics.
+    start_at = db.Column(db.DateTime, nullable=False)
+    end_at   = db.Column(db.DateTime, nullable=True)
+    timezone = db.Column(db.String(50), nullable=False, default='Europe/Paris')
+    all_day  = db.Column(db.Boolean, nullable=False, default=False)
+
+    location = db.Column(db.String(300), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    roster_link = db.relationship(
+        'RosterLink',
+        backref=db.backref('planning_events', cascade='all, delete-orphan', lazy=True),
+    )
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    __table_args__ = (
+        db.Index('idx_planning_roster_start', 'roster_link_id', 'start_at'),
+        CheckConstraint('end_at IS NULL OR end_at >= start_at', name='ck_planning_event_end_after_start'),
+    )
+
+    def __repr__(self):
+        return f"<PlanningEvent #{self.id} '{self.title}' roster_link={self.roster_link_id} ({self.status.value})>"
+
+
+# =============================================================================
+# ROYALTIES — Cap-table déclarative par titre
+# =============================================================================
+
+class TrackSplitRole(enum.Enum):
+    topliner     = 'topliner'
+    beatmaker    = 'beatmaker'
+    mix_engineer = 'mix_engineer'
+    label        = 'label'
+    producer     = 'producer'
+    other        = 'other'
+
+
+class TrackSplitStatus(enum.Enum):
+    declared  = 'declared'    # ajouté par un intervenant, pas encore confirmé par le titulaire de la part
+    confirmed = 'confirmed'   # confirmé par le titulaire de la part
+
+
+class TrackSplit(db.Model):
+    """Cap-table déclarative d'un titre : qui possède quel pourcentage, à quel
+    titre (topliner, beatmaker, ingé, label, producteur). Purement traçable —
+    aucun paiement automatisé (l'intégration Wallet pour un reversement
+    automatique est une piste future distincte, hors scope)."""
+    __tablename__ = 'track_split'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
+    user_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # Nom affiché, toujours renseigné par la route (même pour une part liée à
+    # un compte) : la cap-table doit rester lisible et valide même si le
+    # compte lié est supprimé plus tard — même logique que les snapshots
+    # composer_address/composer_email sur Contract.
+    external_name = db.Column(db.String(200), nullable=False)
+    role          = db.Column(db.Enum(TrackSplitRole), nullable=False)
+    percentage    = db.Column(db.Numeric(5, 2), nullable=False)
+    status        = db.Column(db.Enum(TrackSplitStatus), nullable=False, default=TrackSplitStatus.declared)
+
+    # Qui a ajouté la ligne. Nullable et sans cascade : si ce compte est
+    # supprimé plus tard, la ligne (qui décrit les droits d'un AUTRE
+    # intervenant) doit survivre — seule la traçabilité de l'auteur se perd.
+    added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at  = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    track = db.relationship(
+        'Track', backref=db.backref('splits', cascade='all, delete-orphan', lazy=True),
+    )
+    user     = db.relationship('User', foreign_keys=[user_id])
+    added_by = db.relationship('User', foreign_keys=[added_by_id])
+
+    __table_args__ = (
+        CheckConstraint('percentage > 0 AND percentage <= 100', name='ck_track_split_percentage_range'),
+        db.Index('idx_track_split_track', 'track_id'),
+    )
+
+    def __repr__(self):
+        return f"<TrackSplit #{self.id} track={self.track_id} role={self.role.value} {self.percentage}%>"
+
+
+# =============================================================================
 # CONTRACT BUILDER — Générateur de contrats d'exploitation musicale
 # =============================================================================
 
@@ -1544,9 +1766,11 @@ class UserContractStatus(enum.Enum):
 
 
 class ContractTemplateTypeEnum(enum.Enum):
-    """Famille de contrat du builder : exploitation d'œuvre ou représentation (live)."""
+    """Famille de contrat du builder : exploitation d'œuvre, représentation (live)
+    ou mandat de management (add-on optionnel sur un RosterLink actif)."""
     exploitation = 'exploitation'
     performance  = 'performance'
+    management   = 'management'
 
 
 class PartyTypeEnum(enum.Enum):
@@ -1681,7 +1905,13 @@ class UserContractParty(db.Model):
     address = db.Column(db.Text, nullable=True)
     email   = db.Column(db.String(120), nullable=True)
 
-    contract = db.relationship('UserContract', back_populates='parties')
+    # Lien optionnel vers un compte LaProd réel (ex : contrat de management
+    # généré depuis un RosterLink). Nullable pour ne rien changer aux contrats
+    # existants ni aux parties externes sans compte (éditeur, distributeur...).
+    linked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    contract    = db.relationship('UserContract', back_populates='parties')
+    linked_user = db.relationship('User', foreign_keys=[linked_user_id])
 
     def __repr__(self):
         return f"<UserContractParty #{self.id} role='{self.role}' contract={self.contract_id}>"

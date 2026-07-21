@@ -143,6 +143,18 @@ class TestCapacitesExposees:
         assert caps['can_use_contract_builder'] is True
         assert caps['contract_quota']           == 1
 
+    def test_me_expose_aussi_les_capacites(self, client, set_plan, auth_headers):
+        """Gap corrigé : login/register/`/me` ne renvoyaient PAS `capabilities`,
+        seul `/api/premium/status` (ou le profil public en vue propriétaire) le
+        faisait — un guard front lu juste après connexion pouvait donc bloquer
+        à tort un utilisateur qui avait pourtant le droit."""
+        set_plan(plans.PREMIUM)
+        res = client.get('/api/auth/me', headers=auth_headers)
+
+        caps = res.get_json()['data']['user']['capabilities']
+        assert caps['can_use_management_contract'] is True
+        assert caps['can_view_royalties']           is True
+
     def test_grille_tarifaire_est_publique(self, client):
         """Cacher ses prix derrière un mur d'inscription est le contraire d'une
         relation de confiance : un visiteur doit pouvoir comparer avant de créer

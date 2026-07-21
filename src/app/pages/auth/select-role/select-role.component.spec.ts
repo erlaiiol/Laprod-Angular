@@ -118,6 +118,15 @@ describe('SelectRoleComponent', () => {
     expect((buttons[2] as HTMLButtonElement).classList.contains('selected')).toBe(true);
   });
 
+  it('clicking "Producteur" adds .selected class to its button', () => {
+    const buttons = fixture.nativeElement.querySelectorAll('button.role-btn') as NodeListOf<HTMLButtonElement>;
+    (buttons[3] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(component.isProducer()).toBe(true);
+    expect((buttons[3] as HTMLButtonElement).classList.contains('selected')).toBe(true);
+  });
+
   it('clicking the same button twice deselects the role', () => {
     const buttons = fixture.nativeElement.querySelectorAll('button.role-btn') as NodeListOf<HTMLButtonElement>;
     (buttons[0] as HTMLButtonElement).click();
@@ -210,10 +219,11 @@ describe('SelectRoleComponent', () => {
 
   // ── Payload HTTP ──────────────────────────────────────────────────────────────
 
-  it('sends correct payload with all three flags', () => {
+  it('sends correct payload with all four flags', () => {
     component.toggle('artist');
     component.toggle('beatmaker');
     component.toggle('mix');
+    component.toggle('producer');
     component.onSubmit();
 
     const req = httpMock.expectOne(SELECT_ROLE_URL);
@@ -222,6 +232,7 @@ describe('SelectRoleComponent', () => {
       is_artist:       true,
       is_beatmaker:    true,
       is_mix_engineer: true,
+      is_producer:     true,
     });
 
     req.flush({ success: true, data: { user: mockUser(true, true, true), next: '/' } });

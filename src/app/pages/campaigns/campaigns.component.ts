@@ -36,6 +36,7 @@ export class CampaignsComponent implements OnInit {
 
   loading   = signal(true);
   saving    = signal(false);
+  checkingOut = signal(false);
   campaigns = signal<Campaign[]>([]);
   context   = signal<CampaignContext | null>(null);
   canCreate = signal(false);
@@ -229,14 +230,22 @@ export class CampaignsComponent implements OnInit {
   }
 
   payAndUnlock(c: Campaign): void {
+    if (this.checkingOut()) return;
+    this.checkingOut.set(true);
     this.campaignSvc.checkoutSuperPremium(c.id).subscribe({
       next: res => {
+        // Pas de reset à `false` sur succès : on quitte la page vers Stripe,
+        // et laisser le bouton actif pendant la redirection ouvrirait la même
+        // fenêtre de double-clic qu'on cherche à fermer.
         if (res.data?.checkout_url) window.location.href = res.data.checkout_url;
       },
-      error: err => this.toast.showToast({
-        level: 'error',
-        message: err?.error?.feedback?.message ?? 'Paiement impossible.',
-      }),
+      error: err => {
+        this.checkingOut.set(false);
+        this.toast.showToast({
+          level: 'error',
+          message: err?.error?.feedback?.message ?? 'Paiement impossible.',
+        });
+      },
     });
   }
 

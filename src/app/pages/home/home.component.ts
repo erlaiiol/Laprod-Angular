@@ -59,6 +59,8 @@ export class HomeComponent implements OnInit {
 
   showOnboarding  = signal(false);
   showHero        = signal(false);
+  // Onglets marketing du hero visiteur — purement locaux, indépendants de
+  // toute navigation connectée (l'ancien système de vue active a été retiré).
   heroTab         = signal<'artiste' | 'beatmaker' | 'ingenieur' | 'producteur'>('artiste');
   displayMode     = signal<'list' | 'gallery' | 'compact'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'

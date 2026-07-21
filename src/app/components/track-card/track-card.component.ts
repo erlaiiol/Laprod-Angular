@@ -49,6 +49,14 @@ export class TrackCardComponent {
   isLoggedIn  = computed(() => this.authService.isLoggedIn());
   showArtists = computed(() => this.authService.preferredCardInfoMode() === 'artists');
 
+  // Poser une topline = action artiste (chanter sur un beat). Masqué pour un
+  // pur vendeur (beatmaker/ingé sans le rôle artiste) : sans intérêt pour lui.
+  // Visible pour tout le monde par défaut (visiteur, ou artiste même cumulé).
+  showTopline = computed(() => {
+    const isSeller = this.authService.isBeatmaker() || this.authService.isMixEngineer();
+    return this.authService.isArtist() || !isSeller;
+  });
+
   // Tags filtrés par catégorie active (si filtre posé), sinon tous
   private filteredTags = computed(() => {
     const pref = this.authService.preferredTagCategory();

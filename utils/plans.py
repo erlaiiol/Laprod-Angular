@@ -330,6 +330,10 @@ def comparison_matrix() -> dict:
                     'help':  'Générer des contrats prêts à signer, tous intervenants couverts.',
                     'cells': [_contract_cell(k) for k in order],
                 },
+                bool_row('Contrat de management + royalties chiffrées', PREMIUM,
+                         'Formaliser un lien roster par un mandat et suivre la '
+                         'cap-table de chaque titre. Le lien roster et le '
+                         'rétroplanning partagé restent gratuits à tous les paliers.'),
             ],
         },
     ]

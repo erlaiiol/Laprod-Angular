@@ -89,6 +89,20 @@ class TestMatriceDesCapacites:
         assert _user(plans.PRO_STRUCTURE).is_pro is True
         assert _user(plans.SEMI_PRO).is_pro      is False
 
+    @pytest.mark.parametrize('plan, management_contract, royalties', [
+        (plans.FREE,          False, False),
+        (plans.PREMIUM,       True,  True),
+        (plans.SEMI_PRO,      True,  True),
+        (plans.PRO_STRUCTURE, True,  True),
+    ])
+    def test_contrat_de_management_et_royalties_des_premium(self, plan, management_contract, royalties):
+        """Le lien roster et le rétroplanning restent libres à tous les paliers
+        (pas de capacité dédiée) — seule la formalisation par contrat et la
+        consultation des royalties chiffrées sont réservées à Premium+."""
+        u = _user(plan)
+        assert u.can_use_management_contract is management_contract
+        assert u.can_view_royalties          is royalties
+
 
 class TestExpiration:
     """Un abonnement expiré ne donne AUCUN droit : payer hier ne donne pas de
@@ -262,9 +276,10 @@ class TestTableauComparatif:
 
         # Map libellé de ligne → attribut de capacité correspondant.
         bool_rows = {
-            'Fixer le prix de chacun de tes droits': 'can_set_custom_prices',
-            'Proposer tes beats en exclusivité':     'can_offer_exclusive',
-            'Badge Mastering Pro':                   'can_do_mastering',
+            'Fixer le prix de chacun de tes droits':          'can_set_custom_prices',
+            'Proposer tes beats en exclusivité':              'can_offer_exclusive',
+            'Badge Mastering Pro':                            'can_do_mastering',
+            'Contrat de management + royalties chiffrées':    'can_use_management_contract',
         }
         for g in m['groups']:
             for row in g['rows']:

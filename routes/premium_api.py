@@ -15,7 +15,7 @@ from extensions import db, csrf
 from utils.money import to_money, to_cents
 from utils import plans
 from models import User
-from serializers import ok, err
+from serializers import ok, err, capabilities_dict
 from utils.auth_helpers import require_user
 from utils.crud_helpers import handle_route_exceptions, commit_or_rollback, EntityForbidden
 from utils.notification_service import create_notification
@@ -55,14 +55,7 @@ def _premium_status(user: User) -> dict:
         'premium_expires_at': user.premium_expires_at.isoformat() if user.premium_expires_at else None,
         'upload_track_tokens': user.upload_track_tokens,
         'topline_tokens':      user.topline_tokens,
-        'capabilities': {
-            'can_set_custom_prices':    user.can_set_custom_prices,
-            'can_offer_exclusive':      user.can_offer_exclusive,
-            'can_use_contract_builder': user.can_use_contract_builder,
-            'can_do_mastering':         user.can_do_mastering,
-            'contract_quota':           user.contract_quota,
-            'uploads_per_day':          user.uploads_per_day,
-        },
+        'capabilities': capabilities_dict(user),
     }
 
 
@@ -326,7 +319,7 @@ def update_mix_previews(current_user):
         raise EntityForbidden("Fichier traité invalide (.wav/.mp3, max 50 MB).")
 
     try:
-        folder = Path(config.UPLOAD_FOLDER) / 'mixmaster' / 'samples'
+        folder = config.MIXMASTER_SAMPLES_FOLDER
         folder.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
 

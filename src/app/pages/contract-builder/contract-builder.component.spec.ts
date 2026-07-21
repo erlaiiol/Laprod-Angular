@@ -8,19 +8,24 @@ import { vi } from 'vitest';
 
 import { ContractBuilderComponent } from './contract-builder.component';
 import { ContractBuilderService } from '../../services/contract-builder.service';
+import { RosterService } from '../../services/roster.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-function setup(auth: { isLoggedIn: boolean; isPro: boolean }) {
+function setup(auth: { isLoggedIn: boolean; isPro: boolean; canManage?: boolean }) {
   const svc = {
     listContracts:  vi.fn().mockReturnValue(of({ success: true, data: { contracts: [] } })),
     createContract: vi.fn().mockReturnValue(of({ success: true, data: { contract: { id: 42 } } })),
   };
+  const rosterSvc = {
+    attachContract: vi.fn().mockReturnValue(of({ success: true, data: {} })),
+  };
   const authSvc = {
-    isLoggedIn: vi.fn().mockReturnValue(auth.isLoggedIn),
-    isPro:      vi.fn().mockReturnValue(auth.isPro),
+    isLoggedIn:              vi.fn().mockReturnValue(auth.isLoggedIn),
+    isPro:                   vi.fn().mockReturnValue(auth.isPro),
+    canUseManagementContract: vi.fn().mockReturnValue(auth.canManage ?? false),
   };
   const toastSvc = { showToast: vi.fn() };
 
@@ -31,6 +36,7 @@ function setup(auth: { isLoggedIn: boolean; isPro: boolean }) {
       provideHttpClientTesting(),
       provideRouter([{ path: '**', component: ContractBuilderComponent }]),
       { provide: ContractBuilderService, useValue: svc },
+      { provide: RosterService, useValue: rosterSvc },
       { provide: AuthService, useValue: authSvc },
       { provide: ToastService, useValue: toastSvc },
     ],
@@ -38,7 +44,7 @@ function setup(auth: { isLoggedIn: boolean; isPro: boolean }) {
 
   const fixture = TestBed.createComponent(ContractBuilderComponent);
   fixture.detectChanges();
-  return { fixture, component: fixture.componentInstance, svc, toastSvc };
+  return { fixture, component: fixture.componentInstance, svc, rosterSvc, toastSvc };
 }
 
 function text(fixture: ComponentFixture<ContractBuilderComponent>, selector: string): string | null {
@@ -64,10 +70,11 @@ describe('ContractBuilderComponent', () => {
       expect(svc.listContracts).not.toHaveBeenCalled();
     });
 
-    it('disables the type-choice cards, shows a login CTA instead of Create', () => {
+    it('leaves the type-choice cards explorable (locked badge, not disabled), shows a login CTA instead of Create', () => {
       const { fixture } = setup({ isLoggedIn: false, isPro: false });
       const typeCard = fixture.debugElement.query(By.css('.cb-type-card'));
-      expect(typeCard.nativeElement.disabled).toBe(true);
+      expect(typeCard.nativeElement.disabled).toBe(false);
+      expect(typeCard.nativeElement.classList).toContain('locked');
       expect(fixture.debugElement.query(By.css('.cb-login-btn'))).toBeTruthy();
       expect(fixture.debugElement.query(By.css('button.btn-primary'))).toBeFalsy();
     });
@@ -89,9 +96,28 @@ describe('ContractBuilderComponent', () => {
     it('disables creation and shows a Premium CTA instead of the Create button', () => {
       const { fixture } = setup({ isLoggedIn: true, isPro: false });
       const typeCard = fixture.debugElement.query(By.css('.cb-type-card'));
-      expect(typeCard.nativeElement.disabled).toBe(true);
-      expect(text(fixture, '.cb-login-btn')).toContain('Premium uniquement');
+      expect(typeCard.nativeElement.disabled).toBe(false);
+      expect(typeCard.nativeElement.classList).toContain('locked');
+      expect(text(fixture, '.cb-login-btn')).toContain('Pro uniquement');
       expect(fixture.debugElement.query(By.css('button.btn-primary'))).toBeFalsy();
+    });
+  });
+
+  describe('connecté, Premium sans Pro (management uniquement)', () => {
+    it('unlocks only the management card and allows creating a management contract', () => {
+      const { fixture, component, svc } = setup({ isLoggedIn: true, isPro: false, canManage: true });
+      component.newType.set('management');
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('.cb-login-btn'))).toBeFalsy();
+
+      component.newTitle.set('Mandat de test');
+      fixture.detectChanges();
+      const createBtn = fixture.debugElement.query(By.css('button.btn-primary'));
+      expect(createBtn).toBeTruthy();
+      createBtn.nativeElement.click();
+
+      expect(svc.createContract).toHaveBeenCalledWith('Mandat de test', 'management');
     });
   });
 

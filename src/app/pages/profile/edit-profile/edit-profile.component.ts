@@ -30,6 +30,7 @@ export class EditProfileComponent implements OnInit {
   isArtist       = signal(false);
   isBeatmaker    = signal(false);
   isMixEngineer  = signal(false);
+  isProducer     = signal(false);
   requestProducerArranger = signal(false);
 
   // Mixmaster pricing (certifié uniquement)
@@ -105,6 +106,7 @@ export class EditProfileComponent implements OnInit {
     this.isArtist.set(user.roles?.is_artist ?? false);
     this.isBeatmaker.set(user.roles?.is_beatmaker ?? false);
     this.isMixEngineer.set(user.roles?.is_mix_engineer ?? false);
+    this.isProducer.set(user.roles?.is_producer ?? false);
     this.isMixmasterCertified.set((user as any).roles?.is_mixmaster_engineer ?? false);
     this.isCertifiedProducer.set((user as any).is_certified_producer_arranger ?? false);
     this.producerReqSubmitted.set((user as any).producer_arranger_request_submitted ?? false);
@@ -164,6 +166,7 @@ export class EditProfileComponent implements OnInit {
     fd.append('is_artist',      String(this.isArtist()));
     fd.append('is_beatmaker',   String(this.isBeatmaker()));
     fd.append('is_mix_engineer', String(this.isMixEngineer()));
+    fd.append('is_producer',    String(this.isProducer()));
 
     if (this.isMixmasterCertified()) {
       fd.append('request_producer_arranger', String(this.requestProducerArranger()));

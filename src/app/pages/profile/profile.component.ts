@@ -8,7 +8,6 @@ import { PlayerService } from '../../services/player.service';
 import { TrackService, Track } from '../../services/track.service';
 import { ToastService } from '../../services/toast.service';
 import { PlaylistService, Playlist } from '../../services/playlist.service';
-import { PromoService, PromoCode } from '../../services/promo.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
@@ -38,13 +37,6 @@ export class ProfileComponent implements OnInit {
   containingIds    = signal(new Set<number>());
   highlightTrackId = signal<number | null>(null);
 
-  // Codes promo — chargés uniquement pour son propre profil (l'API ne renvoie
-  // de toute façon que les codes du porteur du JWT).
-  promoCodes = signal<PromoCode[]>([]);
-  activePromoCodes = computed(() =>
-    this.promoCodes().filter(c => c.is_active && !c.is_expired && !c.is_exhausted),
-  );
-
   displayMode = signal<'list' | 'gallery' | 'compact'>(
     (localStorage.getItem('laprod_display_mode') as 'list' | 'gallery' | 'compact') ?? 'gallery'
   );
@@ -72,8 +64,19 @@ export class ProfileComponent implements OnInit {
   });
 
   private playlistSvc = inject(PlaylistService);
-  private promoSvc    = inject(PromoService);
   private destroyRef  = inject(DestroyRef);
+
+  // ── Hub de rôles (propre profil uniquement) ─────────────────────────────────
+  // Espaces + outils vendeur affichés selon les rôles réellement possédés,
+  // éditables à tout moment via /profile/edit. Plus de notion de "vue active".
+  isArtist                = computed(() => this.auth.isArtist());
+  isBeatmaker             = computed(() => this.auth.isBeatmaker());
+  isMixEngineer           = computed(() => this.auth.isMixEngineer());
+  isCertifiedMixEngineer  = computed(() => this.auth.isCertifiedMixEngineer());
+  isProducer              = computed(() => this.auth.isProducer());
+  mixSamplePending        = computed(() => this.auth.mixSamplePending());
+  showSellerTools         = computed(() => this.isBeatmaker() || this.isCertifiedMixEngineer());
+  showWallet              = computed(() => this.isBeatmaker() || this.isMixEngineer());
 
   constructor(
     private route:    ActivatedRoute,
@@ -114,13 +117,6 @@ export class ProfileComponent implements OnInit {
           this.profile.set(res.data.user);
           if (res.data.user.roles.is_beatmaker) {
             this.loadPlaylists(username, highlightTrack);
-          }
-          // Seulement sur son propre profil : inutile d'appeler l'API en visite.
-          if (this.isOwnProfile()) {
-            this.promoSvc.list().subscribe({
-              next: r => this.promoCodes.set(r.data?.promo_codes ?? []),
-              error: () => {},
-            });
           }
         } else {
           this.error.set(res.feedback?.message ?? 'Profil introuvable.');

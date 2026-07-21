@@ -64,6 +64,9 @@
             <button class="btn-icon" [class.btn-icon--cert-on]="u.is_artist"
                     [title]="u.is_artist ? 'Révoquer Artiste' : 'Certifier Artiste'"
                     (click)="toggleRole(u, 'artist')"><i class="bi bi-mic"></i></button>
+            <button class="btn-icon" [class.btn-icon--cert-on]="u.is_producer"
+                    [title]="u.is_producer ? 'Révoquer Producteur' : 'Accorder Producteur'"
+                    (click)="toggleRole(u, 'producer')"><i class="bi bi-file-earmark-text"></i></button>
             <button class="btn-icon" [class.btn-icon--cert-on]="u.is_mix_engineer"
                     [title]="u.is_mix_engineer ? 'Révoquer Mix Engineer (déclaré)' : 'Accorder Mix Engineer (déclaré)'"
                     (click)="toggleRole(u, 'mix_engineer')"><i class="bi bi-soundwave"></i></button>

@@ -477,14 +477,15 @@ def resend_verification():
 def select_role(current_user):
     """
     Sélection du/des rôle(s) utilisateur (obligatoire après inscription).
-    Body JSON : { is_artist, is_beatmaker, is_mix_engineer }
+    Body JSON : { is_artist, is_beatmaker, is_mix_engineer, is_producer }
     """
     data            = request.get_json() or {}
     is_artist       = bool(data.get('is_artist',       False))
     is_beatmaker    = bool(data.get('is_beatmaker',    False))
     is_mix_engineer = bool(data.get('is_mix_engineer', False))
+    is_producer     = bool(data.get('is_producer',     False))
 
-    if not (is_artist or is_beatmaker or is_mix_engineer):
+    if not (is_artist or is_beatmaker or is_mix_engineer or is_producer):
         return err('Vous devez sélectionner au moins un rôle.', level='warning')
 
     first_selection = not current_user.user_type_selected
@@ -492,6 +493,7 @@ def select_role(current_user):
     current_user.is_artist          = is_artist
     current_user.is_beatmaker       = is_beatmaker
     current_user.is_mix_engineer    = is_mix_engineer
+    current_user.is_producer        = is_producer
     current_user.user_type_selected = True
 
     # Notification Stripe Connect à la première sélection de rôle
@@ -536,6 +538,7 @@ def _user_payload(user):
             'is_beatmaker':                   user.is_beatmaker,
             'is_mix_engineer':                user.is_mix_engineer,
             'is_artist':                      user.is_artist,
+            'is_producer':                    user.is_producer,
             'is_mixmaster_engineer':          user.is_mixmaster_engineer,
             'is_certified_producer_arranger': user.is_certified_producer_arranger,
             'mixmaster_sample_submitted':     user.mixmaster_sample_submitted,

@@ -28,6 +28,11 @@ export interface PlanCapabilities {
   contract_quota:           number | null;
   /** Nouveaux beats publiables par jour. Le catalogue total en ligne est illimité. */
   uploads_per_day:          number;
+  /** Formaliser un lien roster par un contrat de management. Le lien roster et
+   *  le rétroplanning partagé restent libres à tous les paliers : seule cette
+   *  capacité et can_view_royalties sont gatées Premium+. */
+  can_use_management_contract: boolean;
+  can_view_royalties:          boolean;
 }
 
 interface LoginSuccess {
@@ -60,6 +65,7 @@ export interface User {
       is_beatmaker:                   boolean;
       is_mix_engineer:                boolean;
       is_artist:                      boolean;
+      is_producer:                    boolean;
       is_mixmaster_engineer:          boolean;
       is_certified_producer_arranger: boolean;
       mixmaster_sample_submitted:     boolean;
@@ -197,6 +203,8 @@ export class AuthService {
    *  qui n'est qu'une auto-déclaration non vérifiée. */
   readonly isCertifiedMixEngineer = computed(() => this._currentUser()?.roles?.is_mixmaster_engineer || false);
   readonly isArtist = computed(() => this._currentUser()?.roles?.is_artist || false);
+  /** Auto-déclaré, sans certification (contrairement à isCertifiedMixEngineer). */
+  readonly isProducer = computed(() => this._currentUser()?.roles?.is_producer || false);
 
   readonly mixSamplePending = computed(() =>
     this._currentUser()?.roles?.is_mix_engineer === true &&
@@ -238,6 +246,8 @@ export class AuthService {
   readonly canDoMastering       = computed(() => this.caps()?.can_do_mastering         ?? false);
   /** null = illimité, 0 = aucun accès. */
   readonly contractQuota        = computed(() => this.caps()?.contract_quota           ?? 0);
+  readonly canUseManagementContract = computed(() => this.caps()?.can_use_management_contract ?? false);
+  readonly canViewRoyalties         = computed(() => this.caps()?.can_view_royalties          ?? false);
 
   // Préférence locale pour les utilisateurs non connectés (pas persistée)
   private _localTagCategoryPref = signal<string | null>(null);
@@ -507,7 +517,7 @@ export class AuthService {
   }
 
   /** Sélectionne les rôles de l'utilisateur. */
-  selectRole(roles: { is_artist: boolean; is_beatmaker: boolean; is_mix_engineer: boolean }):
+  selectRole(roles: { is_artist: boolean; is_beatmaker: boolean; is_mix_engineer: boolean; is_producer: boolean }):
       Observable<{ success: boolean; data?: { user: User; next: string }; feedback?: { message: string } }> {
     return this.http.post<any>(
       `${this.authUrl}/select-role`,

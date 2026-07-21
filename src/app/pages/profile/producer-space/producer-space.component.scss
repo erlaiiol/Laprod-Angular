@@ -1,0 +1,145 @@
+@use 'variables' as v;
+
+// Accent fixe violet — le producteur n'est plus une "vue active" dynamique,
+// c'est un rôle possédé comme un autre. Même couleur que le badge rôle
+// producteur (profile.component.scss) et l'icône dans select-role.
+$accent: v.$tag-violet;
+
+.ph {
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1rem 4rem;
+  color: v.$text-primary;
+}
+
+// ── Header — même gabarit que les autres espaces (dashboard-beatmaker etc.) ──
+.ph__header {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+
+    i { margin-right: 0.4rem; color: #{$accent}; }
+  }
+}
+
+// ── Actions rapides ──────────────────────────────────────────────────────────
+.ph__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ph__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  text-decoration: none;
+  transition: transform v.$dur-base v.$ease-spring,
+              border-color v.$dur-base v.$ease-out,
+              box-shadow v.$dur-base v.$ease-out;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: #{$accent};
+    box-shadow: 0 10px 28px rgba($accent, 0.22);
+  }
+
+  h3 {
+    margin: 0.9rem 0 0.4rem;
+    font-size: 1.2rem;
+    font-weight: v.$weight-bold;
+    color: v.$text-primary;
+  }
+
+  p {
+    margin: 0 0 1rem;
+    color: v.$text-secondary;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+}
+
+.ph__card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: v.$radius-md;
+  font-size: 1.35rem;
+  color: v.$white;
+  background: #{$accent};
+  box-shadow: 0 3px 12px rgba($accent, 0.45);
+}
+
+.ph__card-cta {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: v.$weight-bold;
+  color: #{$accent};
+
+  i { transition: transform v.$dur-base v.$ease-out; }
+}
+.ph__card:hover .ph__card-cta i { transform: translateX(3px); }
+
+// ── Roster / planning / royalties ────────────────────────────────────────────
+.ph__soon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.ph__soon-card {
+  position: relative;
+  display: block;
+  padding: 1.4rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px dashed v.$bg-border-subtle;
+  opacity: 0.85;
+  text-decoration: none;
+  transition: border-color 0.15s, opacity 0.15s;
+
+  &:hover { opacity: 1; border-color: #{$accent}; }
+
+  i { font-size: 1.5rem; color: #{$accent}; }
+
+  h4 {
+    margin: 0.6rem 0 0.35rem;
+    font-size: 1.05rem;
+    font-weight: v.$weight-bold;
+    color: v.$text-primary;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: v.$text-secondary;
+    line-height: 1.4;
+  }
+}
+
+.ph__badge-soon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: v.$radius-pill;
+  font-size: 0.7rem;
+  font-weight: v.$weight-bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: v.$gold;
+  background: rgba(v.$gold, 0.14);
+  border: 1px solid rgba(v.$gold, 0.38);
+}

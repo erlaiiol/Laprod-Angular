@@ -14,6 +14,7 @@ export const USER_FREE_BEATMAKER: User = {
     is_beatmaker:                   true,
     is_mix_engineer:                false,
     is_artist:                      false,
+    is_producer:                    false,
     is_mixmaster_engineer:          false,
     is_certified_producer_arranger: false,
   },

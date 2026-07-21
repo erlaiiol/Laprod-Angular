@@ -76,6 +76,26 @@ def user_ref(u) -> dict | None:
     }
 
 
+def capabilities_dict(u) -> dict:
+    """
+    Capacités calculées côté serveur à partir du palier (utils/plans.py). Source
+    unique — appelée par user_auth(), routes/main_api.py::_profile_payload() et
+    routes/premium_api.py::_premium_status() : une règle d'autorisation recopiée
+    à plusieurs endroits finit toujours par diverger de celle qui protège
+    réellement l'API.
+    """
+    return {
+        'can_set_custom_prices':       u.can_set_custom_prices,
+        'can_offer_exclusive':         u.can_offer_exclusive,
+        'can_use_contract_builder':    u.can_use_contract_builder,
+        'can_do_mastering':            u.can_do_mastering,
+        'contract_quota':              u.contract_quota,
+        'uploads_per_day':             u.uploads_per_day,
+        'can_use_management_contract': u.can_use_management_contract,
+        'can_view_royalties':          u.can_view_royalties,
+    }
+
+
 def user_auth(u, notif_count: int = 0) -> dict:
     """
     Dict utilisateur pour les réponses d'authentification (login, /me, register).
@@ -92,6 +112,7 @@ def user_auth(u, notif_count: int = 0) -> dict:
             'is_beatmaker':                   u.is_beatmaker,
             'is_mix_engineer':                u.is_mix_engineer,
             'is_artist':                      u.is_artist,
+            'is_producer':                    u.is_producer,
             'is_mixmaster_engineer':          u.is_mixmaster_engineer,
             'is_certified_producer_arranger': u.is_certified_producer_arranger,
         },
@@ -102,6 +123,7 @@ def user_auth(u, notif_count: int = 0) -> dict:
         'topline_tokens':        u.topline_tokens,
         'is_premium':            bool(u.is_premium_active),
         'subscription_plan':     u.subscription_plan,
+        'capabilities':          capabilities_dict(u),
         'preferred_tag_category':   u.preferred_tag_category,
         'instagram': u.instagram,
         'twitter':   u.twitter,
@@ -125,6 +147,7 @@ def user_admin(u, tracks_count: int = 0, contracts_count: int = 0, mm_count: int
         'is_beatmaker':    u.is_beatmaker,
         'is_artist':       u.is_artist,
         'is_mix_engineer': u.is_mix_engineer,
+        'is_producer':     u.is_producer,
         'is_mixmaster_engineer':             u.is_mixmaster_engineer,
         'is_certified_master_engineer':      u.is_certified_master_engineer,
         'is_certified_producer_arranger':    u.is_certified_producer_arranger,
@@ -145,6 +168,63 @@ def user_admin(u, tracks_count: int = 0, contracts_count: int = 0, mm_count: int
         'tracks_count':    tracks_count,
         'contracts_count': contracts_count,
         'mm_count':        mm_count,
+    }
+
+
+# =============================================================================
+# Roster serializer
+# =============================================================================
+
+def roster_link(rl, viewer_id: int) -> dict:
+    """
+    Lien roster vu du point de vue de `viewer_id` : expose `counterpart`
+    (l'autre partie) plutôt que producer/artist séparément, pour que le front
+    n'ait pas à recalculer qui est « l'autre » à chaque affichage.
+    """
+    is_producer_side = viewer_id == rl.producer_id
+    return {
+        'id':                     rl.id,
+        'status':                 rl.status.value,
+        'role':                   'producer' if is_producer_side else 'artist',
+        'counterpart':            user_ref(rl.artist if is_producer_side else rl.producer),
+        'invited_by':             user_ref(rl.invited_by),
+        'created_at':             rl.created_at.isoformat(),
+        'responded_at':           rl.responded_at.isoformat() if rl.responded_at else None,
+        'ended_at':               rl.ended_at.isoformat()     if rl.ended_at     else None,
+        'has_management_contract': rl.management_contract_id is not None,
+    }
+
+
+def planning_event(e) -> dict:
+    return {
+        'id':             e.id,
+        'roster_link_id': e.roster_link_id,
+        'title':          e.title,
+        'description':    e.description,
+        'event_type':     e.event_type.value,
+        'status':         e.status.value,
+        'start_at':       e.start_at.isoformat(),
+        'end_at':         e.end_at.isoformat() if e.end_at else None,
+        'timezone':       e.timezone,
+        'all_day':        e.all_day,
+        'location':       e.location,
+        'created_by':     user_ref(e.created_by),
+        'created_at':     e.created_at.isoformat(),
+    }
+
+
+def track_split(s) -> dict:
+    return {
+        'id':            s.id,
+        'track_id':      s.track_id,
+        'user':          user_ref(s.user) if s.user_id else None,
+        'external_name': s.external_name,
+        'role':          s.role.value,
+        'percentage':    float(s.percentage),
+        'status':        s.status.value,
+        'added_by':      user_ref(s.added_by) if s.added_by_id else None,
+        'created_at':    s.created_at.isoformat(),
+        'updated_at':    s.updated_at.isoformat() if s.updated_at else None,
     }
 
 

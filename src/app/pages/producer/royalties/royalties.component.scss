@@ -1,0 +1,228 @@
+@use 'variables' as v;
+
+.royalties {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3rem) 1rem 3rem;
+}
+
+.royalties__header { text-align: center; margin-bottom: 2rem; }
+
+.royalties__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: v.$radius-pill;
+  font-size: 0.78rem;
+  font-weight: v.$weight-bold;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #{v.$tag-violet};
+  background: color-mix(in srgb, #{v.$tag-violet} 14%, transparent);
+  border: 1px solid color-mix(in srgb, #{v.$tag-violet} 40%, transparent);
+}
+
+.royalties__title {
+  margin: 1rem 0 0.5rem;
+  font-family: v.$font-display;
+  font-weight: v.$weight-bold;
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  color: v.$text-primary;
+}
+
+.royalties__sub {
+  margin: 0 auto;
+  max-width: 34rem;
+  color: v.$text-secondary;
+}
+
+.royalties__loading, .royalties__empty {
+  color: v.$text-secondary;
+  text-align: center;
+  padding: 1.5rem 0;
+
+  a { color: #{v.$tag-violet}; font-weight: v.$weight-bold; }
+}
+
+.royalties__inline-loading {
+  font-size: 0.85rem;
+  color: v.$text-muted;
+  padding: 0.55rem 0;
+}
+
+// ── Sélecteurs ───────────────────────────────────────────────────────────────
+.royalties__pickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.royalties__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: v.$weight-bold;
+  color: v.$text-secondary;
+}
+
+input, select {
+  padding: 0.55rem 0.75rem;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$bg-border;
+  background: v.$bg-elevated;
+  color: v.$text-primary;
+  font-size: 0.95rem;
+  font-weight: normal;
+
+  &:focus { outline: 2px solid #{v.$tag-violet}; outline-offset: 1px; }
+}
+
+// ── Total ────────────────────────────────────────────────────────────────────
+.royalties__total {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.royalties__total-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: v.$radius-pill;
+  background: v.$bg-elevated;
+  overflow: hidden;
+}
+
+.royalties__total-fill {
+  height: 100%;
+  background: #{v.$tag-violet};
+  transition: width 0.2s ease;
+
+  &--full { background: v.$success; }
+}
+
+.royalties__total-label {
+  font-size: 0.85rem;
+  font-weight: v.$weight-bold;
+  color: v.$text-secondary;
+  white-space: nowrap;
+}
+
+// ── Liste ────────────────────────────────────────────────────────────────────
+.royalties__list {
+  list-style: none;
+  margin: 0 0 1.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.royalties__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: v.$radius-md;
+  background: v.$bg-elevated;
+  flex-wrap: wrap;
+}
+
+.royalties__item-main {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.royalties__item-name {
+  font-weight: v.$weight-bold;
+  color: v.$text-primary;
+}
+
+.royalties__item-role {
+  font-size: 0.8rem;
+  color: v.$text-secondary;
+}
+
+.royalties__item-pct {
+  font-weight: v.$weight-bold;
+  color: #{v.$tag-violet};
+  font-size: 1.05rem;
+}
+
+.royalties__status {
+  font-size: 0.78rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: v.$radius-pill;
+  color: v.$text-secondary;
+  background: v.$bg-surface;
+
+  &--confirmed { color: v.$success; }
+  &--declared  { color: v.$gold; }
+}
+
+// ── Formulaire ───────────────────────────────────────────────────────────────
+.royalties__form {
+  padding: 1.2rem;
+  border-radius: v.$radius-lg;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.royalties__form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.8rem;
+}
+
+.royalties__form-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.royalties__error {
+  margin: 0;
+  color: v.$danger;
+  font-size: 0.88rem;
+}
+
+// ── Boutons ──────────────────────────────────────────────────────────────────
+.royalties__btn {
+  padding: 0.5rem 1rem;
+  border-radius: v.$radius-pill;
+  font-size: 0.88rem;
+  font-weight: v.$weight-bold;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.royalties__btn--sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+
+.royalties__btn--primary {
+  background: #{v.$tag-violet};
+  color: v.$white;
+
+  &:hover:not(:disabled) { filter: brightness(1.08); }
+}
+
+.royalties__btn--ghost {
+  background: transparent;
+  border-color: v.$bg-border;
+  color: v.$text-secondary;
+
+  &:hover:not(:disabled) { border-color: #{v.$tag-violet}; color: #{v.$tag-violet}; }
+}

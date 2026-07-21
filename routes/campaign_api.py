@@ -21,6 +21,7 @@ from datetime import datetime
 import stripe
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required
+from sqlalchemy import select
 
 from extensions import db, csrf
 from models import (
@@ -354,10 +355,23 @@ def delete_campaign(campaign_id, current_user):
 @require_user
 def create_super_premium_checkout(campaign_id, current_user):
     """Paiement unique débloquant la diffusion à TOUTE la plateforme pour CETTE
-    campagne. Le prix est fixé côté serveur : le client n'envoie aucun montant."""
-    campaign, error = _own_campaign(campaign_id, current_user)
-    if error:
-        return error
+    campagne. Le prix est fixé côté serveur : le client n'envoie aucun montant.
+
+    Deux garde-fous contre un double-clic / double-onglet, qui créeraient sinon
+    deux sessions Stripe payables séparément pour la même campagne (la seconde
+    resterait encaissée sans jamais débloquer quoi que ce soit) :
+      - verrou de ligne (FOR UPDATE) sur `is_paid` avant de contacter Stripe ;
+      - idempotency_key Stripe déterministe par campagne : deux appels tant que
+        la campagne n'est pas payée renvoient LA MÊME session au lieu d'en
+        recréer une (le cache Stripe expire avec la session, ~24h).
+    """
+    campaign = db.session.execute(
+        select(MarketingCampaign)
+        .where(MarketingCampaign.id == campaign_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if not campaign or campaign.owner_id != current_user.id:
+        return err('Campagne introuvable.', code='NOT_FOUND', status=404)
 
     gate = _require_seller_premium(current_user)
     if gate:
@@ -395,6 +409,7 @@ def create_super_premium_checkout(campaign_id, current_user):
                 'campaign_id': str(campaign.id),
                 'owner_id':    str(current_user.id),
             },
+            idempotency_key=f'campaign-{campaign.id}-super-premium-checkout',
         )
         return ok({'checkout_url': session.url, 'price': float(price)})
     except stripe.StripeError as e:

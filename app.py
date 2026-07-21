@@ -156,6 +156,28 @@ def create_app(test_config=None):
     from extensions import init_extensions, init_scheduler, db, login_manager
     init_extensions(app)
 
+    # ── DEV UNIQUEMENT : applique les migrations en attente à chaud ────────────
+    # En prod, entrypoint.sh lance `flask db upgrade head` une seule fois AVANT
+    # le fork des workers gunicorn — jamais ici, plusieurs workers qui
+    # migreraient en même temps serait risqué (verrous concurrents Alembic).
+    #
+    # En dev, le code est bind-mounté (docker-compose.dev.yml) et le reloader
+    # Werkzeug relance create_app() à chaque sauvegarde de fichier. Un modèle
+    # modifié est donc visible instantanément, mais SANS ce hook la colonne
+    # correspondante n'apparaissait en base qu'après un `docker compose up
+    # --build` complet (recréation du container, qui relance entrypoint.sh) —
+    # personne n'y pense à chaque migration ajoutée pendant une session de dev.
+    # WERKZEUG_RUN_MAIN=='true' cible le processus qui sert réellement (jamais
+    # le moniteur du reloader) : on migre une fois par (re)démarrage effectif,
+    # jamais deux fois par reload. upgrade() est un no-op si déjà à jour.
+    if os.environ.get('FLASK_ENV') != 'production' and os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        from flask_migrate import upgrade as _apply_pending_migrations
+        with app.app_context():
+            try:
+                _apply_pending_migrations()
+            except Exception as e:
+                app.logger.warning(f"Auto-migration dev impossible : {e}")
+
     # Démarrer APScheduler uniquement dans le processus principal
     if is_main_process:
         init_scheduler(app)
@@ -247,6 +269,24 @@ def create_app(test_config=None):
                 f"Contrat de représentation musicale : {n} clause(s) créée(s) ou complétée(s)."
             )
 
+    @app.cli.command('seed-management-contracts')
+    @click.option('--force', is_flag=True,
+                  help="Écrase les textes existants au lieu de ne compléter que les champs vides.")
+    def seed_management_contracts(force):
+        """Initialise ou complète les groupes et clauses du mandat de management.
+
+        Idempotent : relançable sans risque. Sans --force, ne remplit que les champs
+        vides (tooltips « en clair », détail juridique, exemples), sans écraser les
+        retouches faites depuis l'admin.
+        """
+        from utils.management_contract_seed import run_seed
+
+        with app.app_context():
+            n = run_seed(force=force)
+            app.logger.info(
+                f"Contrat de management : {n} clause(s) créée(s) ou complétée(s)."
+            )
+
     @app.cli.command('seed-similar-artists')
     def seed_similar_artists():
         """Initialise (ou complète) la liste des artistes similaires."""
@@ -295,20 +335,24 @@ def create_app(test_config=None):
     # ROUTE STATIQUE DB_ASSETS (assets PUBLICS uniquement)
     # ============================================
     # SÉCURITÉ : cette route ne dessert QUE les sous-dossiers publics
-    # (images de couverture, avatars, visuels marketing, fonts). Les contenus
-    # sensibles — audio complet payant, stems, contrats, factures, fichiers
-    # mixmaster — ne doivent JAMAIS transiter par ici : ils sont servis
-    # exclusivement par les endpoints authentifiés (streaming_service,
-    # mixmaster_media_api, licenses_api, invoice_api) après vérification
-    # d'achat / de propriété. En production nginx applique la même allowlist.
+    # (images de couverture, avatars, visuels marketing, fonts) ainsi que
+    # mixmaster/samples (previews d'audition publiques sur /mixmaster/engineers).
+    # Les autres contenus mixmaster (uploads bruts, livrables traités) et les
+    # contenus sensibles — audio complet payant, stems, contrats, factures —
+    # ne doivent JAMAIS transiter par ici : ils sont servis exclusivement par
+    # les endpoints authentifiés (streaming_service, mixmaster_media_api,
+    # licenses_api, invoice_api) après vérification d'achat / de propriété.
+    # En production nginx applique la même allowlist.
     _PUBLIC_DB_ASSETS_DIRS = {'images', 'main', 'fonts'}
+    _PUBLIC_DB_ASSETS_SUBDIRS = {('mixmaster', 'samples')}
 
     @app.route('/db_assets/<path:filename>')
     def serve_db_assets(filename):
         from flask import abort
-        # Premier segment du chemin = sous-dossier de premier niveau
-        top_level = PurePosixPath(filename).parts[0] if filename else ''
-        if top_level not in _PUBLIC_DB_ASSETS_DIRS:
+        parts = PurePosixPath(filename).parts if filename else ()
+        top_level = parts[0] if parts else ''
+        is_public = top_level in _PUBLIC_DB_ASSETS_DIRS or parts[:2] in _PUBLIC_DB_ASSETS_SUBDIRS
+        if not is_public:
             abort(404)
         return send_from_directory(str(config.BASE_DIR / 'db_assets'), filename)
 
@@ -346,6 +390,9 @@ def create_app(test_config=None):
         testimonials_api_bp,
         promo_api_bp,
         campaign_api_bp,
+        roster_api_bp,
+        planning_api_bp,
+        royalties_api_bp,
     )
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
@@ -383,6 +430,9 @@ def create_app(test_config=None):
     app.register_blueprint(testimonials_api_bp)
     app.register_blueprint(promo_api_bp)
     app.register_blueprint(campaign_api_bp)
+    app.register_blueprint(roster_api_bp)
+    app.register_blueprint(planning_api_bp)
+    app.register_blueprint(royalties_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

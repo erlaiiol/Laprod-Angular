@@ -92,6 +92,7 @@ export class NavbarComponent {
   isArtist      = computed(() => this.authService.isArtist());
   isMixEngineer = computed(() => this.authService.isMixEngineer());
   isCertifiedMixEngineer = computed(() => this.authService.isCertifiedMixEngineer());
+  isProducer    = computed(() => this.authService.isProducer());
   mixSamplePending = computed(() => this.authService.mixSamplePending());
   isAdmin       = computed(() => this.authService.isAdmin());
   isPremium     = computed(() => this.authService.isPremium());

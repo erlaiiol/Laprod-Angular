@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ContractBuilderService, ContractSummary, ContractType } from '../../services/contract-builder.service';
+import { RosterService } from '../../services/roster.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
@@ -20,6 +21,7 @@ export class ContractBuilderComponent implements OnInit {
   private auth = inject(AuthService);
   readonly isPro      = this.auth.isPro;
   readonly isLoggedIn = this.auth.isLoggedIn;
+  readonly canManage  = this.auth.canUseManagementContract;
 
   loading   = signal(false);
   creating  = signal(false);
@@ -27,13 +29,14 @@ export class ContractBuilderComponent implements OnInit {
   newTitle  = signal('');
   newType   = signal<ContractType>('exploitation');
 
-  readonly contractTypes: { value: ContractType; icon: string; label: string; desc: string; placeholder: string }[] = [
+  readonly contractTypes: { value: ContractType; icon: string; label: string; desc: string; placeholder: string; minPlanLabel: string }[] = [
     {
       value: 'exploitation',
       icon: 'bi-vinyl-fill',
       label: "Contrat d'exploitation",
       desc: 'Licence, cession, édition, distribution d\'une œuvre musicale.',
       placeholder: "Titre de l'œuvre ou du projet...",
+      minPlanLabel: 'Pro',
     },
     {
       value: 'performance',
@@ -41,6 +44,15 @@ export class ContractBuilderComponent implements OnInit {
       label: 'Contrat de représentation',
       desc: 'Concert, festival, DJ set, showcase, évènement privé.',
       placeholder: "Nom de l'évènement ou du concert...",
+      minPlanLabel: 'Pro',
+    },
+    {
+      value: 'management',
+      icon: 'bi-briefcase-fill',
+      label: 'Contrat de management',
+      desc: 'Mandat de management entre un producteur et un artiste de son roster.',
+      placeholder: "Nom de l'artiste ou du projet...",
+      minPlanLabel: 'Premium',
     },
   ];
 
@@ -52,14 +64,40 @@ export class ContractBuilderComponent implements OnInit {
     return this.contractTypes.find(ct => ct.value === this.newType())?.placeholder ?? '';
   }
 
+  /** Chaque type de contrat a son propre seuil de palier — le management
+   *  (Premium+) est accessible plus tôt que le reste du builder (Pro+). */
+  canCreateType(type: ContractType): boolean {
+    return type === 'management' ? this.canManage() : this.isPro();
+  }
+
+  canCreateSelected(): boolean {
+    return this.canCreateType(this.newType());
+  }
+
+  /** Renseigné via ?link_id=... quand on arrive depuis "Formaliser par contrat"
+   *  sur la fiche roster : le contrat créé est automatiquement attaché au lien. */
+  private pendingRosterLinkId: number | null = null;
+
   constructor(
     private svc:    ContractBuilderService,
+    private roster: RosterService,
     private router: Router,
+    private route:  ActivatedRoute,
     private toast:  ToastService,
   ) {}
 
   ngOnInit(): void {
     if (this.isLoggedIn()) this.load();
+
+    const params = this.route.snapshot.queryParamMap;
+    const type = params.get('type');
+    if (type === 'management' || type === 'performance' || type === 'exploitation') {
+      this.newType.set(type);
+    }
+    const title = params.get('title');
+    if (title) this.newTitle.set(title);
+    const linkId = params.get('link_id');
+    if (linkId) this.pendingRosterLinkId = Number(linkId);
   }
 
   load(): void {
@@ -81,7 +119,13 @@ export class ContractBuilderComponent implements OnInit {
       next: res => {
         this.creating.set(false);
         if (res.success && res.data) {
-          this.router.navigate(['/contract-builder', res.data.contract.id]);
+          const contractId = res.data.contract.id;
+          if (this.pendingRosterLinkId) {
+            // Attachement au lien roster best-effort : un échec ne doit pas
+            // bloquer l'accès au contrat qui, lui, a bien été créé.
+            this.roster.attachContract(this.pendingRosterLinkId, contractId).subscribe({ error: () => {} });
+          }
+          this.router.navigate(['/contract-builder', contractId]);
         } else {
           this.toast.showToast({ level: 'error', message: res.feedback?.message ?? 'Erreur.' });
         }

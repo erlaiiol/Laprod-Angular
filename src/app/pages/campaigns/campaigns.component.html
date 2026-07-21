@@ -262,8 +262,10 @@
           @for (c of campaigns(); track c.id) {
             @if (c.id === id) {
               @if (c.requires_payment && !c.is_paid) {
-                <button type="button" class="btn-primary" (click)="payAndUnlock(c)">
-                  Payer {{ superPrice() | number:'1.2-2' }} € et débloquer
+                <button type="button" class="btn-primary"
+                        [disabled]="checkingOut()"
+                        (click)="payAndUnlock(c)">
+                  {{ checkingOut() ? 'Redirection…' : 'Payer ' + (superPrice() | number:'1.2-2') + ' € et débloquer' }}
                 </button>
               } @else {
                 <button type="button" class="btn-primary"

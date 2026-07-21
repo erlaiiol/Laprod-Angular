@@ -2,7 +2,7 @@
 
   <div class="cb-list-header">
     <h1>Générateur de contrats</h1>
-    <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale ou de représentation live (concert, festival, DJ set…), adapté au droit français.</p>
+    <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale, de représentation live (concert, festival, DJ set…) ou un mandat de management, adapté au droit français.</p>
     @if (!isPro()) {
       <a routerLink="/contract-builder/demo" class="cb-demo-link">
         <i class="bi bi-eye"></i> Voir un exemple de contrat rempli
@@ -18,12 +18,18 @@
         <i class="bi bi-box-arrow-in-right"></i> Se connecter
       </a>
     </div>
-  } @else if (!isPro()) {
+  } @else if (!canCreateSelected()) {
     <div class="cb-guest-banner">
       <i class="bi bi-stars"></i>
-      <span>La création de contrats est réservée au plan Pro LaProd+.</span>
+      <span>
+        @if (newType() === 'management') {
+          Le contrat de management est réservé au plan Premium LaProd+.
+        } @else {
+          La création de contrats est réservée au plan Pro LaProd+.
+        }
+      </span>
       <a routerLink="/premium" class="cb-guest-banner-btn">
-        <i class="bi bi-stars"></i> Passer Pro
+        <i class="bi bi-stars"></i> Passer {{ newType() === 'management' ? 'Premium' : 'Pro' }}
       </a>
     </div>
   }
@@ -36,11 +42,15 @@
       @for (t of contractTypes; track t.value) {
         <button type="button" class="cb-type-card"
           [class.selected]="newType() === t.value"
+          [class.locked]="!canCreateType(t.value)"
           (click)="newType.set(t.value)"
-          [disabled]="creating() || !isPro()">
+          [disabled]="creating()">
           <i class="bi {{ t.icon }}"></i>
           <span class="cb-type-label">{{ t.label }}</span>
           <span class="cb-type-desc">{{ t.desc }}</span>
+          @if (!canCreateType(t.value)) {
+            <span class="cb-type-plan-badge">{{ t.minPlanLabel }}+</span>
+          }
         </button>
       }
     </div>
@@ -52,16 +62,16 @@
         [placeholder]="placeholderForType()"
         [ngModel]="newTitle()"
         (ngModelChange)="newTitle.set($event)"
-        (keydown.enter)="isPro() && create()"
-        [disabled]="creating() || !isPro()"
+        (keydown.enter)="canCreateSelected() && create()"
+        [disabled]="creating() || !canCreateSelected()"
       />
       @if (!isLoggedIn()) {
         <a routerLink="/login" class="btn-primary cb-login-btn">
           <i class="bi bi-box-arrow-in-right"></i> Se connecter pour créer
         </a>
-      } @else if (!isPro()) {
+      } @else if (!canCreateSelected()) {
         <a routerLink="/premium" class="btn-primary cb-login-btn">
-          <i class="bi bi-lock-fill"></i> Premium uniquement
+          <i class="bi bi-lock-fill"></i> {{ newType() === 'management' ? 'Premium' : 'Pro' }} uniquement
         </a>
       } @else {
         <button class="btn-primary" (click)="create()" [disabled]="creating() || !newTitle().trim()">
@@ -90,7 +100,9 @@
             <span class="cb-contract-title">{{ contract.title }}</span>
             <span class="cb-contract-date">{{ (contract.created_at | formatDate) }}</span>
           </div>
-          <span class="cb-type-badge" [class.cb-type-badge--perf]="contract.contract_type === 'performance'">
+          <span class="cb-type-badge"
+                [class.cb-type-badge--perf]="contract.contract_type === 'performance'"
+                [class.cb-type-badge--mgmt]="contract.contract_type === 'management'">
             {{ typeLabel(contract.contract_type || 'exploitation') }}
           </span>
           <span class="cb-status-badge" [class]="'status-' + contract.status">

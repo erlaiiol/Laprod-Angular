@@ -11,6 +11,8 @@ Couvre ce qui protège les utilisateurs et la réputation d'expédition :
 """
 from datetime import datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from flask_jwt_extended import create_access_token
@@ -376,6 +378,44 @@ class TestApiCampagnes:
             'segment': 'buyers',
         }, headers=auth_headers)
         assert res.status_code == 404
+
+
+class TestSuperPremiumCheckout:
+    """Régression : deux appels concurrents à /checkout pour la même campagne
+    non payée ne doivent jamais produire deux sessions Stripe distinctes —
+    seule la seconde vraie tentative après paiement doit être bloquée."""
+
+    def _campaign_all(self, client, auth_headers):
+        res = client.post('/api/campaigns', json={
+            'subject': 'Toute la plateforme', 'body': 'Un message assez long pour passer.',
+            'segment': 'all',
+        }, headers=auth_headers)
+        return res.get_json()['data']['campaign']['id']
+
+    def test_idempotency_key_deterministe_par_campagne(self, client, db, seller, auth_headers):
+        campaign_id = self._campaign_all(client, auth_headers)
+
+        with patch('stripe.checkout.Session.create') as mock_create:
+            mock_create.return_value = SimpleNamespace(url='https://checkout.stripe.test/sess_1')
+            res = client.post(f'/api/campaigns/{campaign_id}/checkout', headers=auth_headers)
+
+        assert res.status_code == 200
+        assert res.get_json()['data']['checkout_url'] == 'https://checkout.stripe.test/sess_1'
+        _, kwargs = mock_create.call_args
+        assert kwargs['idempotency_key'] == f'campaign-{campaign_id}-super-premium-checkout'
+
+    def test_checkout_refuse_si_deja_payee(self, client, db, seller, auth_headers):
+        campaign_id = self._campaign_all(client, auth_headers)
+        campaign = db.session.get(MarketingCampaign, campaign_id)
+        campaign.stripe_payment_intent_id = 'pi_already_paid'
+        db.session.commit()
+
+        with patch('stripe.checkout.Session.create') as mock_create:
+            res = client.post(f'/api/campaigns/{campaign_id}/checkout', headers=auth_headers)
+
+        assert res.status_code == 409
+        assert res.get_json()['code'] == 'ALREADY_PAID'
+        mock_create.assert_not_called()
 
 
 class TestDesinscription:

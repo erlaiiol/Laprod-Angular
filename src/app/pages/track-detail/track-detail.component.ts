@@ -55,6 +55,13 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
   private toast             = inject(ToastService);
   private filterState       = inject(FilterStateService);
 
+  // Même règle que sur les cartes : masqué pour un pur vendeur (beatmaker/ingé
+  // sans le rôle artiste), sans intérêt pour lui de poser une topline.
+  showTopline = computed(() => {
+    const isSeller = this.auth.isBeatmaker() || this.auth.isMixEngineer();
+    return this.auth.isArtist() || !isSeller;
+  });
+
   // Cache blob URLs pour les toplines privées (libérés dans ngOnDestroy)
   private toplineBlobUrls = new Map<number, string>();
 

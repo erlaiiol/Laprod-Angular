@@ -445,5 +445,17 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # ── Job rétroplanning ────────────────────────────────────────────────
+        # Toutes les 10 min : rappels 48h/2h avant chaque événement confirmé.
+        # Dédupliqué par UserNotificationLog, cf. utils/planning_jobs.py.
+        from utils.planning_jobs import run_planning_event_reminders_job
+        scheduler.add_job(
+            func=run_planning_event_reminders_job,
+            trigger='interval',
+            minutes=10,
+            id='planning_event_reminders',
+            replace_existing=True,
+            args=[app]
+        )
         scheduler.start()
-        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement + premium)")
+        app.logger.info("  OK APScheduler (jobs wallet + recommandations + licences + stripe + re-engagement + premium + planning)")

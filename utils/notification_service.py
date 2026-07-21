@@ -571,6 +571,7 @@ def notify_role_changed(user, role: str, granted: bool):
     role_labels = {
         'beatmaker': 'Beatmaker',
         'artist': 'Artiste',
+        'producer': 'Producteur',
         'mix_engineer': 'Mix Engineer',
         'engineer': 'Mix/Master Engineer (certifié)',
         'master': 'Certified Master Engineer',

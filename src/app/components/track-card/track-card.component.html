@@ -127,11 +127,13 @@
             title="Télécharger l'extrait gratuit">
       <i class="bi bi-download"></i>
     </button>
-    <button class="btn-quick-action btn-quick-action--rec"
-            (click)="onToplineClick($event)"
-            title="Poser une topline">
-      <i class="bi bi-mic-fill"></i>
-    </button>
+    @if (showTopline()) {
+      <button class="btn-quick-action btn-quick-action--rec"
+              (click)="onToplineClick($event)"
+              title="Poser une topline">
+        <i class="bi bi-mic-fill"></i>
+      </button>
+    }
     <app-favorite-button [trackId]="track.id"></app-favorite-button>
     <app-share-button [url]="'/track/' + track.id + '?autoplay=1'" [title]="track.title"></app-share-button>
     <div class="track-playlist-wrap">

@@ -65,6 +65,7 @@ export interface AdminUser {
   is_admin:        boolean;
   is_beatmaker:    boolean;
   is_artist:       boolean;
+  is_producer:     boolean;
   is_mix_engineer: boolean;
   is_mixmaster_engineer:          boolean;
   is_certified_master_engineer:   boolean;
