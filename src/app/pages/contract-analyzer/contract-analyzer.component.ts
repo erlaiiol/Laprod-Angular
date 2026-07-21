@@ -9,6 +9,7 @@ import {
 } from '../../services/contract-analyzer.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
+import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
 
 const LOADING_MESSAGES = [
   'Lecture du PDF en cours...',
@@ -26,7 +27,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 Mo
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contract-analyzer',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, BetaBadgeComponent],
   templateUrl: './contract-analyzer.component.html',
   styleUrl: './contract-analyzer.component.scss',
 })

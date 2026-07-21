@@ -186,3 +186,17 @@
     border: 1px solid rgba(v.$tag-green, 0.4);
   }
 }
+
+.cb-delete-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: transparent; border: 1px solid v.$bg-border;
+  border-radius: 8px; color: v.$text-secondary; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+  &:hover:not(:disabled) {
+    color: v.$tag-red-light; border-color: v.$tag-red;
+    background: rgba(v.$tag-red, 0.1);
+  }
+  &:disabled { opacity: 0.5; cursor: default; }
+}

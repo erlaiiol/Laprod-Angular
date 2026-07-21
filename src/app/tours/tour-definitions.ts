@@ -7,7 +7,7 @@
  * qu'un rôle, un état premium ou une largeur d'écran donnés.
  */
 
-export type TourId = 'home' | 'upload-track' | 'contract-builder';
+export type TourId = 'home' | 'upload-track' | 'contract-builder' | 'planning';
 
 export type TourPlacement = 'top' | 'bottom' | 'left' | 'right';
 
@@ -139,6 +139,32 @@ export const TOURS: Record<TourId, TourDef> = {
         title: 'Relisez avant de signer',
         text: "La prévisualisation affiche le contrat tel qu'il sera généré. Une fois le PDF produit, le contrat est finalisé et ne peut plus être modifié.",
         placement: 'bottom',
+      },
+    ],
+  },
+
+  // ── Rétroplanning : agenda partagé producteur ↔ artiste ────────────────────
+  planning: {
+    id: 'planning',
+    label: 'Le planning partagé',
+    steps: [
+      {
+        anchor: 'planning-toolbar',
+        title: 'Un planning à deux',
+        text: "Chaque événement est rattaché à l'un de tes liens roster — producteur ou artiste, peu importe qui l'a créé. Les deux côtés voient exactement la même chose.",
+        placement: 'bottom',
+      },
+      {
+        anchor: 'planning-ical',
+        title: 'Dans ton agenda, pas seulement ici',
+        text: "Abonne ton Apple ou Google Calendar à ce flux : les événements confirmés apparaissent directement dans ton agenda perso, sans revenir sur LaProd.",
+        placement: 'bottom',
+      },
+      {
+        anchor: 'planning-agenda',
+        title: 'Proposé, puis confirmé',
+        text: "Un événement créé par l'autre partie reste \"proposé\" tant que tu ne l'as pas confirmé. Rien ne s'impose sans l'accord des deux côtés du lien.",
+        placement: 'top',
       },
     ],
   },

@@ -518,3 +518,45 @@
   font-size: 0.8rem; color: v.$tag-neutral; margin: 0.25rem 0 0;
   a { color: v.$gold; text-decoration: none; &:hover { text-decoration: underline; } }
 }
+
+// ── Onglet "Qui me manage" ────────────────────────────────────────────────────
+
+.roster-tab-loading, .roster-tab-empty {
+  color: v.$text-secondary; font-size: 0.875rem; padding: 1.5rem 0;
+}
+
+.roster-tab-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+
+.roster-tab-item {
+  display: flex; align-items: center; gap: 0.8rem;
+  padding: 0.7rem; border-radius: 10px; background: v.$bg-elevated;
+}
+
+.roster-tab-avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+}
+
+.roster-tab-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+}
+
+.roster-tab-name {
+  font-weight: 700; color: v.$text-primary;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.roster-tab-status {
+  font-size: 0.82rem; color: v.$text-secondary;
+
+  &--active  { color: v.$tag-green; }
+  &--invited { color: v.$gold; }
+  &--declined, &--revoked, &--ended { color: v.$text-secondary; }
+}
+
+.roster-tab-actions {
+  display: flex; gap: 0.4rem;
+}

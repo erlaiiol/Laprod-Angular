@@ -11,12 +11,13 @@ import { SimilarArtistsService, SimilarArtistScene } from '../../services/simila
 import { ThemeService } from '../../services/theme.service';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
+import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, ImgFallbackDirective, TourAnchorDirective],
+  imports: [CommonModule, RouterModule, ImgFallbackDirective, TourAnchorDirective, BetaBadgeComponent],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })

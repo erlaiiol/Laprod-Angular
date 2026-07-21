@@ -8,7 +8,9 @@ import {
 import { RosterService } from '../../../services/roster.service';
 import { UserService, UserTrack } from '../../../services/user.service';
 import { AuthService } from '../../../services/auth.service';
+import { ToastService } from '../../../services/toast.service';
 import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 
 interface ArtistOption {
   username: string;
@@ -18,7 +20,7 @@ interface ArtistOption {
 @Component({
   selector: 'app-royalties',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent, BetaBadgeComponent],
   templateUrl: './royalties.component.html',
   styleUrl: './royalties.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,6 +51,7 @@ export class RoyaltiesComponent implements OnInit {
   formName    = signal('');
 
   actingOnSplit = signal<number | null>(null);
+  downloading   = signal(false);
 
   readonly remainingPercentage = computed(() => Math.max(0, 100 - this.totalPercentage()));
 
@@ -57,6 +60,7 @@ export class RoyaltiesComponent implements OnInit {
     private royalties: RoyaltiesService,
     private roster: RosterService,
     private userSvc: UserService,
+    private toast: ToastService,
   ) {}
 
   ngOnInit(): void {
@@ -169,5 +173,31 @@ export class RoyaltiesComponent implements OnInit {
     if (split.status === 'confirmed') return false;
     const myId = this.auth.currentUser()?.id;
     return split.user?.id === myId || this.canManage();
+  }
+
+  /** Le relevé PDF est l'artefact à faire sortir de LaProd : label, comptable,
+   *  PRO/SACEM, nouveau collaborateur — ce document ne fait que mettre en forme
+   *  ce que l'utilisateur voit déjà à l'écran. */
+  downloadPdf(): void {
+    const trackId = this.selectedTrackId();
+    if (!trackId || this.downloading()) return;
+
+    this.downloading.set(true);
+    this.royalties.downloadPdf(trackId).subscribe({
+      next: blob => {
+        const title = this.tracks().find(t => t.id === trackId)?.title || 'titre';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `royalties_${title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.downloading.set(false);
+      },
+      error: () => {
+        this.downloading.set(false);
+        this.toast.showToast({ level: 'error', message: 'Erreur lors du téléchargement.' });
+      },
+    });
   }
 }

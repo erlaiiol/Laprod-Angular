@@ -2,7 +2,7 @@
 
   <header class="royalties__header">
     <span class="royalties__eyebrow"><i class="bi bi-pie-chart"></i> Splits &amp; royalties</span>
-    <h1 class="royalties__title">La cap-table de tes titres</h1>
+    <h1 class="royalties__title">La cap-table de tes titres <app-beta-badge /></h1>
     <p class="royalties__sub">
       Qui possède quel pourcentage sur chaque titre — topliner, beatmaker, ingé, label.
       Purement déclaratif : aucun paiement n'est automatisé.
@@ -57,6 +57,15 @@
                  [class.royalties__total-fill--full]="totalPercentage() >= 100"></div>
           </div>
           <span class="royalties__total-label">{{ totalPercentage() }} % attribués</span>
+          <button type="button" class="royalties__btn royalties__btn--ghost royalties__btn--sm"
+                  [disabled]="downloading()" (click)="downloadPdf()"
+                  title="Exporter cette cap-table en PDF — à transmettre à un label, un comptable, la SACEM...">
+            @if (downloading()) {
+              Export…
+            } @else {
+              <i class="bi bi-share-fill"></i> Partager / Exporter
+            }
+          </button>
         </div>
 
         @if (splits().length === 0) {

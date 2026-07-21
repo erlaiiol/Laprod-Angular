@@ -2,7 +2,7 @@
 
   <header class="planning__header">
     <span class="planning__eyebrow"><i class="bi bi-calendar3"></i> Rétroplanning</span>
-    <h1 class="planning__title">Votre planning partagé</h1>
+    <h1 class="planning__title">Votre planning partagé <app-beta-badge /></h1>
     <p class="planning__sub">
       Producteur et artiste ajoutent leurs sessions, concerts et rendez-vous au même endroit.
     </p>
@@ -21,11 +21,11 @@
       </p>
     } @else {
 
-      <div class="planning__toolbar">
+      <div class="planning__toolbar" lpTourAnchor="planning-toolbar">
         <button type="button" class="planning__btn planning__btn--primary" (click)="toggleForm()">
           <i class="bi bi-plus-lg"></i> Nouvel événement
         </button>
-        <button type="button" class="planning__btn planning__btn--ghost"
+        <button type="button" class="planning__btn planning__btn--ghost" lpTourAnchor="planning-ical"
                 [disabled]="regenerating()" (click)="regenerateFeed()">
           <i class="bi bi-rss"></i> S'abonner depuis mon calendrier
         </button>
@@ -107,7 +107,7 @@
       @if (groupedEvents().length === 0) {
         <p class="planning__empty">Aucun événement à venir.</p>
       } @else {
-        <div class="planning__agenda">
+        <div class="planning__agenda" lpTourAnchor="planning-agenda">
           @for (day of groupedEvents(); track day.dateKey) {
             <div class="planning__day">
               <h2 class="planning__day-label">{{ day.label }}</h2>

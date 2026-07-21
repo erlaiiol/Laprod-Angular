@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 import { finalize } from 'rxjs';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-select-role',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, BetaBadgeComponent],
   templateUrl: './select-role.component.html',
   styleUrl: './select-role.component.scss',
 })

@@ -76,4 +76,13 @@ export class RoyaltiesService {
   remove(splitId: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/splits/${splitId}`, { headers: this.headers });
   }
+
+  /** Relevé PDF de la cap-table — même règle d'accès que list() (lecture libre
+   *  pour toute partie prenante légitime, pas de garde Premium). */
+  downloadPdf(trackId: number): Observable<Blob> {
+    return this.http.get(`${this.base}/tracks/${trackId}/splits/pdf`, {
+      headers: this.headers,
+      responseType: 'blob',
+    });
+  }
 }

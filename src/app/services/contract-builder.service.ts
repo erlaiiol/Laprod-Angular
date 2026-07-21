@@ -161,6 +161,11 @@ export class ContractBuilderService {
     });
   }
 
+  /** Brouillons uniquement — un contrat finalisé (PDF déjà généré) refuse côté serveur. */
+  deleteContract(id: number): Observable<ApiResponse> {
+    return this.http.delete<any>(`${this.base}/contracts/${id}`, { headers: this.headers });
+  }
+
   // ── Admin — Groupes ───────────────────────────────────────────────────────
 
   adminGetGroups(type?: ContractType): Observable<ApiResponse<{ groups: ClauseGroupDTO[] }>> {

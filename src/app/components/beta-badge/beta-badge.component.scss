@@ -1,0 +1,19 @@
+@use 'variables' as v;
+
+:host { display: inline-flex; vertical-align: middle; }
+
+.beta-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+  border-radius: v.$radius-pill;
+  background: rgba(v.$gold, 0.14);
+  color: v.$gold;
+  border: 1px solid rgba(v.$gold, 0.38);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}

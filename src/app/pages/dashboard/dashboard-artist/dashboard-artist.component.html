@@ -173,6 +173,10 @@
           <span class="tab-count">{{ licenses()!.length }}</span>
         }
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'roster'" (click)="setTab('roster')">
+        <i class="bi bi-person-check"></i> Qui me manage
+        <span class="tab-count">{{ rosterLinks().length }}</span>
+      </button>
     </div>
 
     <!-- ── Toplines ───────────────────────────────────────────────────────── -->
@@ -625,6 +629,49 @@
         }
 
       }
+    }
+
+    <!-- ── Qui me manage ─────────────────────────────────────────────────── -->
+    @if (activeTab() === 'roster') {
+      <div class="roster-tab">
+        @if (rosterLoading()) {
+          <p class="roster-tab-loading">Chargement…</p>
+        } @else if (rosterLinks().length === 0) {
+          <p class="roster-tab-empty">Aucun producteur ne te gère pour l'instant.</p>
+        } @else {
+          <ul class="roster-tab-list">
+            @for (link of rosterLinks(); track link.id) {
+              <li class="roster-tab-item">
+                <img class="roster-tab-avatar"
+                     [src]="imgUrl(link.counterpart.profile_image)"
+                     appImgFallback="assets/placeholders/default_profile.png"
+                     [alt]="link.counterpart.username" />
+                <div class="roster-tab-main">
+                  <span class="roster-tab-name">{{ link.counterpart.username }}</span>
+                  <span class="roster-tab-status roster-tab-status--{{ link.status }}">
+                    {{ rosterStatusLabel(link.status) }}
+                  </span>
+                </div>
+                @if (link.status === 'invited') {
+                  <div class="roster-tab-actions">
+                    <button type="button" class="btn-purchase btn-renew"
+                            [disabled]="actingOnRosterLink() === link.id"
+                            (click)="acceptRosterLink(link)">Accepter</button>
+                    <button type="button" class="btn-purchase"
+                            [disabled]="actingOnRosterLink() === link.id"
+                            (click)="declineRosterLink(link)">Décliner</button>
+                  </div>
+                }
+                @if (link.status === 'active') {
+                  <button type="button" class="btn-purchase"
+                          [disabled]="actingOnRosterLink() === link.id"
+                          (click)="revokeRosterLink(link)">Quitter</button>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
     }
 
     <!-- Contrats Pro -->

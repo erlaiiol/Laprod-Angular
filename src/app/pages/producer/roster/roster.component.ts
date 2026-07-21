@@ -6,12 +6,19 @@ import { RosterService, RosterLinkDTO, RosterSearchResult } from '../../../servi
 import { AuthService } from '../../../services/auth.service';
 import { ImgFallbackDirective } from '../../../directives/img-fallback.directive';
 import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 import { environment } from '../../../../environments/environment';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROSTER — côté producteur uniquement : "qui je gère". Le côté artiste ("qui me
+// gère") vit désormais dans /dashboard/artist (onglet Roster) — relation
+// asymétrique, un artiste pur n'a rien à faire sur une URL /producer/*.
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Component({
   selector: 'app-roster',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ImgFallbackDirective, ProducerTabsComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ImgFallbackDirective, ProducerTabsComponent, BetaBadgeComponent],
   templateUrl: './roster.component.html',
   styleUrl: './roster.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,7 +27,6 @@ export class RosterComponent implements OnInit {
 
   loading    = signal(true);
   asProducer = signal<RosterLinkDTO[]>([]);
-  asArtist   = signal<RosterLinkDTO[]>([]);
 
   inviteIdentifier = signal('');
   inviting         = signal(false);
@@ -29,7 +35,11 @@ export class RosterComponent implements OnInit {
   searchResults = signal<RosterSearchResult[]>([]);
   actingOnLink  = signal<number | null>(null);
 
-  constructor(readonly auth: AuthService, private roster: RosterService, private router: Router) {}
+  constructor(
+    readonly auth: AuthService,
+    private roster: RosterService,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.reload();
@@ -40,7 +50,6 @@ export class RosterComponent implements OnInit {
     this.roster.mine().subscribe({
       next: res => {
         this.asProducer.set(res.data?.as_producer ?? []);
-        this.asArtist.set(res.data?.as_artist ?? []);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -77,22 +86,6 @@ export class RosterComponent implements OnInit {
         this.inviting.set(false);
         this.inviteError.set(err?.error?.feedback?.message ?? "Impossible d'envoyer l'invitation.");
       },
-    });
-  }
-
-  accept(link: RosterLinkDTO): void {
-    this.actingOnLink.set(link.id);
-    this.roster.accept(link.id).subscribe({
-      next: () => { this.actingOnLink.set(null); this.reload(); },
-      error: () => this.actingOnLink.set(null),
-    });
-  }
-
-  decline(link: RosterLinkDTO): void {
-    this.actingOnLink.set(link.id);
-    this.roster.decline(link.id).subscribe({
-      next: () => { this.actingOnLink.set(null); this.reload(); },
-      error: () => this.actingOnLink.set(null),
     });
   }
 

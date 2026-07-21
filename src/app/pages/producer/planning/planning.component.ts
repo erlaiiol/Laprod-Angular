@@ -9,6 +9,9 @@ import {
 import { RosterService, RosterLinkDTO } from '../../../services/roster.service';
 import { AuthService } from '../../../services/auth.service';
 import { ProducerTabsComponent } from '../producer-tabs/producer-tabs.component';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
+import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
+import { TourService } from '../../../services/tour.service';
 
 interface DayGroup {
   dateKey: string;
@@ -19,7 +22,7 @@ interface DayGroup {
 @Component({
   selector: 'app-planning',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ProducerTabsComponent, BetaBadgeComponent, TourAnchorDirective],
   templateUrl: './planning.component.html',
   styleUrl: './planning.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,6 +75,7 @@ export class PlanningComponent implements OnInit {
     readonly auth: AuthService,
     private planning: PlanningService,
     private roster: RosterService,
+    private tour: TourService,
   ) {}
 
   ngOnInit(): void {
@@ -85,6 +89,9 @@ export class PlanningComponent implements OnInit {
       },
       error: () => {},
     });
+    // Délai : laisse le contenu (toolbar/agenda) se peindre et les ancres
+    // s'enregistrer avant de tenter de démarrer la visite guidée.
+    setTimeout(() => this.tour.maybeAutoStart('planning'), 900);
   }
 
   private reload(): void {

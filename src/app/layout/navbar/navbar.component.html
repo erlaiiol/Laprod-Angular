@@ -116,6 +116,7 @@
              (click)="toggleDropdown('contracts', $event)"
              [attr.aria-expanded]="openDropdown() === 'contracts'">
             <i class="bi bi-file-earmark-text"></i> Contrats
+            <app-beta-badge />
           </a>
           <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
               [class.show]="openDropdown() === 'contracts'">
@@ -232,6 +233,7 @@
                   <li>
                     <a class="dropdown-item" [routerLink]="['/dashboard/producer']" routerLinkActive="active">
                       <i class="bi bi-file-earmark-text"></i> Espace Producteur
+                      <app-beta-badge />
                     </a>
                   </li>
                 }

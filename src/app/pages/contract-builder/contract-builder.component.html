@@ -1,7 +1,7 @@
 <div class="cb-list-page">
 
   <div class="cb-list-header">
-    <h1>Générateur de contrats</h1>
+    <h1>Générateur de contrats <app-beta-badge /></h1>
     <p class="cb-list-subtitle">Composez un contrat d'exploitation d'œuvre musicale, de représentation live (concert, festival, DJ set…) ou un mandat de management, adapté au droit français.</p>
     @if (!isPro()) {
       <a routerLink="/contract-builder/demo" class="cb-demo-link">
@@ -108,6 +108,13 @@
           <span class="cb-status-badge" [class]="'status-' + contract.status">
             {{ contract.status === 'final' ? 'Finalisé' : 'Brouillon' }}
           </span>
+          @if (contract.status === 'draft') {
+            <button type="button" class="cb-delete-btn" title="Supprimer ce brouillon"
+                    [disabled]="deletingId() === contract.id"
+                    (click)="deleteDraft(contract, $event)">
+              <i class="bi bi-trash3"></i>
+            </button>
+          }
         </div>
       }
     }

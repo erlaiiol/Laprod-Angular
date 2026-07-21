@@ -367,6 +367,35 @@ def update_contract(contract_id):
     return _ok(data={'contract': _contract_detail_dto(contract)})
 
 
+# ── DELETE /api/contract-builder/contracts/<id> ─────────────────────────────────
+# Brouillons uniquement : un contrat finalisé (PDF généré) est un document déjà
+# potentiellement transmis/signé, on ne le fait pas disparaître silencieusement —
+# cohérent avec update_contract, qui refuse déjà toute modification sur un final.
+
+@contract_builder_api_bp.route('/contracts/<int:contract_id>', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+def delete_contract(contract_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    if err := _check_ownership(contract, user.id):
+        return err
+    if contract.status == UserContractStatus.final:
+        return _err('Ce contrat est finalisé et ne peut pas être supprimé.', status=409)
+
+    if contract.pdf_file:
+        old_path = str(config.CONTRACTS_FOLDER / 'builder' / contract.pdf_file)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    db.session.delete(contract)  # cascade='all, delete-orphan' sur parties/values
+    db.session.commit()
+    return _ok(message='Brouillon supprimé.')
+
+
 # ── POST /api/contract-builder/contracts/<id>/generate ─────────────────────────
 
 @contract_builder_api_bp.route('/contracts/<int:contract_id>/generate', methods=['POST'])
