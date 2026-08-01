@@ -2,7 +2,7 @@
 
   <header class="roster__header">
     <span class="roster__eyebrow"><i class="bi bi-people"></i> Roster</span>
-    <h1 class="roster__title">Ton portefeuille d'artistes</h1>
+    <h1 class="roster__title">Ton portefeuille d'artistes <app-beta-badge /></h1>
     <p class="roster__sub">
       Invite un artiste, il accepte quand il est prêt — aucun contrat requis pour
       commencer. Tu pourras formaliser la relation plus tard.
@@ -15,135 +15,92 @@
     <p class="roster__loading">Chargement…</p>
   } @else {
 
-    @if (auth.isProducer()) {
-      <div class="roster__section">
-        <h2 class="roster__section-title">Inviter un artiste</h2>
+    <div class="roster__section">
+      <h2 class="roster__section-title">Inviter un artiste</h2>
 
-        <div class="roster__invite">
-          <input
-            type="text"
-            class="roster__invite-input"
-            placeholder="Nom d'utilisateur ou email"
-            [ngModel]="inviteIdentifier()"
-            (ngModelChange)="onIdentifierChange($event)"
-            (keyup.enter)="invite()"
-          />
-          <button
-            type="button"
-            class="roster__btn roster__btn--primary"
-            [disabled]="inviting() || inviteIdentifier().trim().length < 2"
-            (click)="invite()"
-          >
-            @if (inviting()) { Envoi… } @else { Inviter }
-          </button>
-        </div>
-
-        @if (searchResults().length > 0) {
-          <ul class="roster__suggestions">
-            @for (r of searchResults(); track r.id) {
-              <li>
-                <button type="button" class="roster__suggestion"
-                        [disabled]="r.already_linked"
-                        (click)="inviteIdentifier.set(r.username); invite()">
-                  {{ r.username }}
-                  @if (r.already_linked) { <span class="roster__tag">déjà lié</span> }
-                </button>
-              </li>
-            }
-          </ul>
-        }
-
-        @if (inviteError()) {
-          <p class="roster__error">{{ inviteError() }}</p>
-        }
+      <div class="roster__invite">
+        <input
+          type="text"
+          class="roster__invite-input"
+          placeholder="Nom d'utilisateur ou email"
+          [ngModel]="inviteIdentifier()"
+          (ngModelChange)="onIdentifierChange($event)"
+          (keyup.enter)="invite()"
+        />
+        <button
+          type="button"
+          class="roster__btn roster__btn--primary"
+          [disabled]="inviting() || inviteIdentifier().trim().length < 2"
+          (click)="invite()"
+        >
+          @if (inviting()) { Envoi… } @else { Inviter }
+        </button>
       </div>
 
-      <div class="roster__section">
-        <h2 class="roster__section-title">Mes artistes</h2>
+      @if (searchResults().length > 0) {
+        <ul class="roster__suggestions">
+          @for (r of searchResults(); track r.id) {
+            <li>
+              <button type="button" class="roster__suggestion"
+                      [disabled]="r.already_linked"
+                      (click)="inviteIdentifier.set(r.username); invite()">
+                {{ r.username }}
+                @if (r.already_linked) { <span class="roster__tag">déjà lié</span> }
+              </button>
+            </li>
+          }
+        </ul>
+      }
 
-        @if (asProducer().length === 0) {
-          <p class="roster__empty">Aucun artiste lié pour l'instant.</p>
-        } @else {
-          <ul class="roster__list">
-            @for (link of asProducer(); track link.id) {
-              <li class="roster__item">
-                <img class="roster__avatar"
-                     [src]="imgUrl(link.counterpart.profile_image)"
-                     appImgFallback="assets/placeholders/default_profile.png"
-                     [alt]="link.counterpart.username" />
-                <div class="roster__item-main">
-                  <span class="roster__item-name">{{ link.counterpart.username }}</span>
-                  <span class="roster__status roster__status--{{ link.status }}">
-                    {{ statusLabel(link.status) }}
-                  </span>
-                </div>
-                @if (link.status === 'active' && !link.has_management_contract) {
-                  @if (auth.canUseManagementContract()) {
-                    <button type="button" class="roster__btn roster__btn--primary roster__btn--sm"
-                            (click)="formalize(link)">
-                      Formaliser par contrat
-                    </button>
-                  } @else {
-                    <a routerLink="/premium" class="roster__btn roster__btn--ghost roster__btn--sm">
-                      Formaliser (Premium)
-                    </a>
-                  }
-                }
-                @if (link.status === 'invited' || link.status === 'active') {
-                  <button type="button" class="roster__btn roster__btn--ghost"
-                          [disabled]="actingOnLink() === link.id"
-                          (click)="revoke(link)">
-                    {{ link.status === 'invited' ? 'Annuler' : 'Retirer' }}
+      @if (inviteError()) {
+        <p class="roster__error">{{ inviteError() }}</p>
+      }
+    </div>
+
+    <div class="roster__section">
+      <h2 class="roster__section-title">Mes artistes</h2>
+
+      @if (asProducer().length === 0) {
+        <p class="roster__empty">Aucun artiste lié pour l'instant.</p>
+      } @else {
+        <ul class="roster__list">
+          @for (link of asProducer(); track link.id) {
+            <li class="roster__item">
+              <img class="roster__avatar"
+                   [src]="imgUrl(link.counterpart.profile_image)"
+                   appImgFallback="assets/placeholders/default_profile.png"
+                   [alt]="link.counterpart.username" />
+              <div class="roster__item-main">
+                <span class="roster__item-name">{{ link.counterpart.username }}</span>
+                <span class="roster__status roster__status--{{ link.status }}">
+                  {{ statusLabel(link.status) }}
+                </span>
+              </div>
+              @if (link.status === 'active' && !link.has_management_contract) {
+                @if (auth.canUseManagementContract()) {
+                  <button type="button" class="roster__btn roster__btn--primary roster__btn--sm"
+                          (click)="formalize(link)">
+                    Formaliser par contrat
                   </button>
+                } @else {
+                  <a routerLink="/premium" class="roster__btn roster__btn--ghost roster__btn--sm">
+                    Formaliser (Premium)
+                  </a>
                 }
-              </li>
-            }
-          </ul>
-        }
-      </div>
-    }
+              }
+              @if (link.status === 'invited' || link.status === 'active') {
+                <button type="button" class="roster__btn roster__btn--ghost"
+                        [disabled]="actingOnLink() === link.id"
+                        (click)="revoke(link)">
+                  {{ link.status === 'invited' ? 'Annuler' : 'Retirer' }}
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
 
-    @if (auth.isArtist() || auth.isBeatmaker()) {
-      <div class="roster__section">
-        <h2 class="roster__section-title">Qui me manage</h2>
-
-        @if (asArtist().length === 0) {
-          <p class="roster__empty">Aucun producteur ne te gère pour l'instant.</p>
-        } @else {
-          <ul class="roster__list">
-            @for (link of asArtist(); track link.id) {
-              <li class="roster__item">
-                <img class="roster__avatar"
-                     [src]="imgUrl(link.counterpart.profile_image)"
-                     appImgFallback="assets/placeholders/default_profile.png"
-                     [alt]="link.counterpart.username" />
-                <div class="roster__item-main">
-                  <span class="roster__item-name">{{ link.counterpart.username }}</span>
-                  <span class="roster__status roster__status--{{ link.status }}">
-                    {{ statusLabel(link.status) }}
-                  </span>
-                </div>
-                @if (link.status === 'invited') {
-                  <div class="roster__actions">
-                    <button type="button" class="roster__btn roster__btn--primary"
-                            [disabled]="actingOnLink() === link.id"
-                            (click)="accept(link)">Accepter</button>
-                    <button type="button" class="roster__btn roster__btn--ghost"
-                            [disabled]="actingOnLink() === link.id"
-                            (click)="decline(link)">Décliner</button>
-                  </div>
-                }
-                @if (link.status === 'active') {
-                  <button type="button" class="roster__btn roster__btn--ghost"
-                          [disabled]="actingOnLink() === link.id"
-                          (click)="revoke(link)">Quitter</button>
-                }
-              </li>
-            }
-          </ul>
-        }
-      </div>
-    }
   }
 
 </section>

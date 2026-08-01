@@ -1,0 +1,39 @@
+<div class="csi-page">
+  <div class="csi-card">
+
+    @if (loading() || resolving()) {
+      <div class="csi-loading">
+        <i class="bi bi-hourglass-split"></i>
+        <span>{{ resolving() ? 'Ouverture du contrat...' : 'Chargement de l\'invitation...' }}</span>
+      </div>
+    } @else if (error()) {
+      <div class="csi-error">
+        <i class="bi bi-x-circle-fill"></i>
+        <p>{{ error() }}</p>
+        <a routerLink="/" class="btn-secondary">Retour à l'accueil</a>
+      </div>
+    } @else if (preview(); as p) {
+      <div class="csi-content">
+        <i class="bi bi-envelope-paper csi-icon"></i>
+        <h1>Invitation à signer un contrat</h1>
+        <p class="csi-desc">
+          <strong>{{ p.inviter_username }}</strong> vous invite à signer le contrat
+          « {{ p.title }} » sur LaProd.
+        </p>
+        <p class="csi-desc csi-desc-muted">
+          Pour consulter et signer ce contrat en ligne, connectez-vous ou créez un compte
+          avec l'adresse <strong>{{ p.email }}</strong>.
+        </p>
+        <div class="csi-actions">
+          <button class="btn-secondary" (click)="goToLogin()">
+            <i class="bi bi-box-arrow-in-right"></i> Se connecter
+          </button>
+          <button class="btn-primary" (click)="goToRegister()">
+            <i class="bi bi-person-plus"></i> Créer un compte
+          </button>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

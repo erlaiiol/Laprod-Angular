@@ -46,9 +46,9 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   /** Whether the player is showing a mix order reference/preview. */
   isMixOrderContext  = computed(() => this.player.viewingMixOrder() !== null);
 
-  /** Always true: buildAudioUrl() only ever uses stream_url (preview).
-   *  full_stream_url requires an Authorization header that <audio> cannot send. */
-  isPreview = computed(() => !!this.player.currentTrack());
+  /** True when the audio currently loaded is the watermarked 1:30 preview
+   *  rather than the full title — mirrors PlayerService.buildAudioUrl()'s choice. */
+  isPreview = computed(() => !!this.player.currentTrack() && this.player.isPreviewSource());
 
   /** True when the currently playing track IS the viewing track → actions work directly. */
   isViewingTrackLoaded = computed(() => {

@@ -1428,6 +1428,11 @@ class Notification(db.Model):
     # - 'planning_event_created' : Nouvel événement de rétroplanning (l'autre partie)
     # - 'planning_event_confirmed' : Événement confirmé (le créateur)
     # - 'planning_event_cancelled' : Événement annulé (l'autre partie)
+    # - 'contract_signature_requested' : Invitation à signer un contrat (destinataire)
+    # - 'contract_signed' : Une partie a signé le contrat (propriétaire)
+    # - 'contract_fully_executed' : Toutes les parties invitées ont signé (propriétaire)
+    # - 'contract_declined' : Signature refusée (propriétaire)
+    # - 'contract_invite_cancelled' : Invitation à signer annulée (destinataire)
     # - 'system' : Notification système
 
     # Content
@@ -1639,14 +1644,15 @@ class PlanningEventStatus(enum.Enum):
 
 
 class PlanningEvent(db.Model):
-    """Événement du rétroplanning partagé entre un producteur et un artiste.
-    Rattaché à un RosterLink (implicitement le couple des deux users) plutôt
-    qu'à deux user_id directs, pour garantir qu'un événement ne peut exister
-    que dans le cadre d'un lien roster déjà noué."""
+    """Événement du rétroplanning — partagé sur un RosterLink actif, OU
+    personnel (roster_link_id NULL) si l'utilisateur n'a besoin de personne
+    d'autre pour se construire un calendrier. Un événement personnel est
+    confirmé dès sa création (aucune autre partie à convaincre) et n'est
+    visible que par son créateur — cf. _can_act_on_event dans planning_api.py."""
     __tablename__ = 'planning_event'
 
     id             = db.Column(db.Integer, primary_key=True)
-    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=False)
+    roster_link_id = db.Column(db.Integer, db.ForeignKey('roster_link.id'), nullable=True)
     created_by_id  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     title       = db.Column(db.String(200), nullable=False)
@@ -1778,6 +1784,26 @@ class PartyTypeEnum(enum.Enum):
     company  = 'company'
 
 
+class PartyInviteStatus(enum.Enum):
+    """État de l'invitation à signer d'une partie de contrat, indépendant du
+    statut brouillon/final du contrat lui-même."""
+    none     = 'none'
+    pending  = 'pending'
+    signed   = 'signed'
+    declined = 'declined'
+
+
+class ContractSignatureStatus(enum.Enum):
+    """Agrégat de signature au niveau du contrat, recalculé à chaque
+    invite/cancel/sign/decline (voir _recompute_signature_status). Ne reflète
+    que les parties invitées numériquement — les autres continuent de signer
+    hors app (papier), ce qui n'empêche jamais ce statut d'atteindre 'signed'."""
+    not_sent = 'not_sent'
+    pending  = 'pending'
+    declined = 'declined'
+    signed   = 'signed'
+
+
 class ContractClauseGroup(db.Model):
     """Groupes de clauses (sections) du contract builder, gérés par l'admin."""
     __tablename__ = 'contract_clause_group'
@@ -1854,6 +1880,9 @@ class UserContract(db.Model):
                               server_default='exploitation')
     status     = db.Column(db.Enum(UserContractStatus), nullable=False, default=UserContractStatus.draft)
     pdf_file   = db.Column(db.String(300), nullable=True)
+    signature_status = db.Column(db.Enum(ContractSignatureStatus), nullable=False,
+                                  default=ContractSignatureStatus.not_sent,
+                                  server_default='not_sent')
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -1910,8 +1939,33 @@ class UserContractParty(db.Model):
     # existants ni aux parties externes sans compte (éditeur, distributeur...).
     linked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    contract    = db.relationship('UserContract', back_populates='parties')
-    linked_user = db.relationship('User', foreign_keys=[linked_user_id])
+    # Lien optionnel vers la Structure (identité légale B2B) du user courant,
+    # utilisé uniquement pour pré-remplir les champs société à la création de
+    # la partie — un instantané est copié dans les colonnes ci-dessus, ce champ
+    # ne sert qu'à la traçabilité/au pré-remplissage du prochain contrat, jamais
+    # à une lecture live (un contrat signé ne doit pas bouger si la structure
+    # change d'adresse ensuite).
+    linked_structure_id = db.Column(db.Integer, db.ForeignKey('structure.id'), nullable=True)
+
+    # Invitation à signer en ligne. `invited_by_id` est toujours le propriétaire
+    # du contrat (audit), `linked_user_id` ci-dessus devient le compte du
+    # signataire une fois résolu (recherche pseudo/email ou clic sur le lien
+    # email pour un non-inscrit — voir routes/contract_builder_api.py).
+    invite_status     = db.Column(db.Enum(PartyInviteStatus), nullable=False,
+                                   default=PartyInviteStatus.none, server_default='none')
+    invited_at        = db.Column(db.DateTime, nullable=True)
+    invited_by_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    signed_at         = db.Column(db.DateTime, nullable=True)
+    signature_name    = db.Column(db.String(200), nullable=True)
+    # Jamais exposée au frontend (cf. _party_dto) : preuve technique interne.
+    signature_ip      = db.Column(db.String(45), nullable=True)
+    consent_confirmed = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+    declined_at       = db.Column(db.DateTime, nullable=True)
+
+    contract         = db.relationship('UserContract', back_populates='parties')
+    linked_user      = db.relationship('User', foreign_keys=[linked_user_id])
+    linked_structure = db.relationship('Structure', foreign_keys=[linked_structure_id])
+    invited_by       = db.relationship('User', foreign_keys=[invited_by_id])
 
     def __repr__(self):
         return f"<UserContractParty #{self.id} role='{self.role}' contract={self.contract_id}>"
@@ -1934,6 +1988,78 @@ class UserContractValue(db.Model):
         db.UniqueConstraint('contract_id', 'clause_id', name='unique_contract_clause'),
         db.Index('idx_ucv_contract_id', 'contract_id'),
     )
+
+
+# =============================================================================
+# STRUCTURE — Identité légale B2B (SMAC, labels, structures de management)
+# =============================================================================
+
+class Structure(db.Model):
+    """Identité légale d'une structure B2B (SMAC, label, société de management)
+    portée par un compte owner unique en v1 — pas de multi-sièges pour l'instant,
+    voir StructureMembership en backlog. Réutilise exactement les mêmes noms de
+    champs que la partie "personne morale" de UserContractParty pour rester
+    cohérent avec ce qui existe déjà dans un contrat.
+
+    owner_id est unique : un seul Structure par User en v1. Aucun cascade sur
+    owner — la suppression d'un compte propriétaire d'une structure ne doit
+    jamais être tranchée implicitement, cf. TrackSplit.added_by_id (traçabilité
+    seule, pas de cascade).
+    """
+    __tablename__ = 'structure'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+
+    name            = db.Column(db.String(200), nullable=False)
+    legal_form      = db.Column(db.String(100), nullable=True)
+    capital         = db.Column(db.String(80),  nullable=True)
+    siren           = db.Column(db.String(20),  nullable=True)
+    siret           = db.Column(db.String(25),  nullable=True)
+    rcs             = db.Column(db.String(100), nullable=True)
+    legal_rep       = db.Column(db.String(200), nullable=True)
+    signatory_title = db.Column(db.String(150), nullable=True)
+    address         = db.Column(db.Text,        nullable=True)
+    email           = db.Column(db.String(120), nullable=True)
+    phone           = db.Column(db.String(30),  nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    owner = db.relationship('User', backref=db.backref('structure', uselist=False))
+
+    def __repr__(self):
+        return f"<Structure #{self.id} '{self.name}' owner={self.owner_id}>"
+
+
+# =============================================================================
+# PREMIUM PAYMENT — Historique des paiements d'abonnement LaProd+
+# =============================================================================
+
+class PremiumPayment(db.Model):
+    """Historique des paiements d'abonnement — absent jusqu'ici : User ne
+    garde qu'un instantané (premium_price_paid) écrasé à chaque renouvellement.
+    Source pour la facture LaProd+ (routes/invoice_api.py) et pour l'export
+    compta consolidé d'une Structure (routes/structure_api.py)."""
+    __tablename__ = 'premium_payment'
+
+    id      = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+
+    plan          = db.Column(db.String(20),     nullable=False)
+    amount_paid   = db.Column(db.Numeric(10, 2), nullable=False)
+    duration_days = db.Column(db.Integer,        nullable=False)
+    is_renewal    = db.Column(db.Boolean, default=False, nullable=False)
+
+    stripe_payment_intent_id    = db.Column(db.String(120), nullable=True)
+    stripe_checkout_session_id  = db.Column(db.String(120), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    user = db.relationship('User', backref='premium_payments')
+
+    def __repr__(self):
+        return f"<PremiumPayment #{self.id} user={self.user_id} plan={self.plan} {self.amount_paid}€>"
 
 
 class LicenseNotificationLog(db.Model):

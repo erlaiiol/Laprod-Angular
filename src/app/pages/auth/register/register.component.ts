@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { TurnstileComponent } from '../../../components/turnstile/turnstile.component';
@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
 })
-export class RegisterComponent {
+export class RegisterComponent implements OnInit {
 
   readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
 
@@ -39,7 +39,16 @@ export class RegisterComponent {
   pendingEmail     = signal<string | null>(null);
   resendSuccess    = signal(false);
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private route: ActivatedRoute) {}
+
+  ngOnInit(): void {
+    // Préremplissage depuis une invitation à signer un contrat (voir
+    // ContractSignInviteComponent.goToRegister) — pur confort, le rattachement
+    // réel du compte à l'invitation se fait via le localStorage 'pendingContractInvite'
+    // consommé par LoginComponent une fois l'email vérifié et l'utilisateur connecté.
+    const email = this.route.snapshot.queryParamMap.get('email');
+    if (email) this.email = email;
+  }
 
   onSubmit(): void {
     this.loading.set(true);

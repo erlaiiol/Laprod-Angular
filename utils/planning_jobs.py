@@ -58,6 +58,11 @@ def run_planning_event_reminders_job(app):
 
             for event in due:
                 link = event.roster_link
+                # Événement personnel (roster_link_id NULL) : pas de rappel —
+                # seul le créateur le voit déjà dans son propre planning, il
+                # n'y a personne d'autre à notifier.
+                if link is None:
+                    continue
                 # Le lien a pu être révoqué/quitté après la création de
                 # l'événement : pas de rappel pour une relation qui n'existe
                 # plus, même si l'événement lui-même n'a pas été annulé.

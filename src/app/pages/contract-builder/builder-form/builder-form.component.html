@@ -12,13 +12,69 @@
         <i class="bi bi-lock-fill"></i>
         @if (isDemo()) {
           <span>Aperçu du générateur avec un contrat d'exemple — contenu non modifiable.</span>
+        } @else if (isRecipient()) {
+          <span>Vous consultez ce contrat en tant que partie invitée à signer.</span>
         } @else {
           <span>Vous consultez ce contrat en lecture seule.</span>
         }
       </div>
-      <a routerLink="/premium" class="bf-locked-banner-cta">
-        <i class="bi bi-stars"></i> Passer Pro pour créer et modifier vos contrats
-      </a>
+      @if (!isRecipient()) {
+        <a routerLink="/premium" class="bf-locked-banner-cta">
+          <i class="bi bi-stars"></i> Passer Pro pour créer et modifier vos contrats
+        </a>
+      }
+    </div>
+  }
+
+  @if (isRecipient()) {
+    <div class="bf-signature-card">
+      @switch (myInviteStatus()) {
+        @case ('pending') {
+          <div class="bf-signature-card-head">
+            <i class="bi bi-pen"></i>
+            <span>{{ myParty()?.role }} — signature requise</span>
+          </div>
+          <p class="bf-signature-card-desc">
+            Lisez l'intégralité du contrat ci-dessous avant de signer. La signature est électronique
+            simple : elle vaut consentement, horodaté et associé à votre compte, mais n'a pas la valeur
+            probante renforcée d'une signature qualifiée eIDAS.
+          </p>
+          <div class="bf-signature-form">
+            <label class="bf-field full">
+              <span>Votre nom légal complet</span>
+              <input type="text" [value]="signatureName()"
+                (input)="signatureName.set($any($event.target).value)"
+                placeholder="Prénom NOM" [disabled]="signing() || declining()" />
+            </label>
+            <label class="bf-signature-consent">
+              <input type="checkbox" [checked]="signatureConsent()"
+                (change)="signatureConsent.set($any($event.target).checked)"
+                [disabled]="signing() || declining()" />
+              <span>Je certifie avoir pris connaissance de l'intégralité du contrat et je consens à le signer électroniquement.</span>
+            </label>
+            <div class="bf-signature-actions">
+              <button class="btn-secondary" (click)="declineSignature()" [disabled]="signing() || declining()">
+                {{ declining() ? 'Envoi...' : 'Décliner' }}
+              </button>
+              <button class="btn-primary" (click)="submitSignature()" [disabled]="signing() || declining()">
+                <i class="bi bi-pen"></i> {{ signing() ? 'Signature...' : 'Signer le contrat' }}
+              </button>
+            </div>
+          </div>
+        }
+        @case ('signed') {
+          <div class="bf-signature-card-head bf-signature-card-head--ok">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Vous avez signé ce contrat le {{ myParty()?.signed_at | date:'dd/MM/yyyy' }}.</span>
+          </div>
+        }
+        @case ('declined') {
+          <div class="bf-signature-card-head bf-signature-card-head--ko">
+            <i class="bi bi-x-circle-fill"></i>
+            <span>Vous avez décliné la signature de ce contrat.</span>
+          </div>
+        }
+      }
     </div>
   }
 
@@ -49,6 +105,11 @@
         <button class="btn-download" (click)="download()" [disabled]="downloading()">
           <i class="bi bi-download"></i>
           {{ downloading() ? 'Téléchargement...' : 'Télécharger le PDF' }}
+        </button>
+      }
+      @if (isFinal() && !isDemo() && !isRecipient()) {
+        <button class="btn-preview" (click)="openSignaturePanel()">
+          <i class="bi bi-envelope-paper"></i> Envoyer pour signature
         </button>
       }
     </div>
@@ -865,6 +926,68 @@
                 }
               </div>
             }
+          }
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- ── Envoi pour signature — modale (propriétaire, contrat final) ─────────── -->
+  @if (showSignaturePanel()) {
+    <div class="bf-preview-backdrop" (click)="closeSignaturePanel()"
+         role="dialog" aria-modal="true" aria-label="Envoyer le contrat pour signature">
+      <div class="bf-preview-modal bf-signature-modal" (click)="$event.stopPropagation()">
+
+        <div class="bf-preview-header">
+          <span><i class="bi bi-envelope-paper"></i> Envoyer pour signature</span>
+          <button class="bf-preview-close" (click)="closeSignaturePanel()" aria-label="Fermer">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="bf-preview-body">
+          <p class="bf-section-desc">
+            Invitez chaque partie à signer ce contrat en ligne — pas besoin d'imprimer. Si la personne
+            n'a pas encore de compte LaProd, indiquez son email : elle recevra un lien pour créer un
+            compte puis signer directement.
+          </p>
+
+          @for (party of parties(); track party.id) {
+            <div class="bf-party-card bf-signature-party">
+              <div class="bf-party-header">
+                <span class="bf-party-type">{{ party.role || partyDisplayName(party) }}</span>
+                <span class="bf-signature-status" [class]="'is-' + (party.invite_status ?? 'none')">
+                  @switch (party.invite_status) {
+                    @case ('pending')  { <i class="bi bi-hourglass-split"></i> En attente }
+                    @case ('signed')   { <i class="bi bi-check-circle-fill"></i> Signé le {{ party.signed_at | date:'dd/MM/yyyy' }} }
+                    @case ('declined') { <i class="bi bi-x-circle-fill"></i> Décliné }
+                    @default           { <i class="bi bi-dash-circle"></i> Aucune invitation }
+                  }
+                </span>
+              </div>
+
+              @if (party.invite_status === 'pending') {
+                <div class="bf-signature-invite-row">
+                  <button class="btn-secondary" [disabled]="isInviteBusy(party.id!)" (click)="cancelPartyInvite(party.id!)">
+                    Annuler l'invitation
+                  </button>
+                </div>
+              } @else if (party.invite_status !== 'signed') {
+                <div class="bf-signature-invite-row">
+                  <input type="text" placeholder="Pseudo ou email LaProd"
+                    [value]="getPartyIdentifier(party.id!)"
+                    (input)="setPartyIdentifier(party.id!, $any($event.target).value)"
+                    [disabled]="isInviteBusy(party.id!)" />
+                  <button class="btn-primary" [disabled]="isInviteBusy(party.id!)" (click)="sendPartyInvite(party.id!)">
+                    {{ isInviteBusy(party.id!) ? 'Envoi...' : (party.invite_status === 'declined' ? 'Ré-inviter' : 'Inviter') }}
+                  </button>
+                </div>
+                @if (invitePartyError(party.id!)) {
+                  <p class="bf-signature-error">{{ invitePartyError(party.id!) }}</p>
+                }
+              }
+            </div>
           }
         </div>
 

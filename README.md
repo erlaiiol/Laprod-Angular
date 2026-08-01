@@ -1,6 +1,6 @@
-# LaProd — Marketplace de licences musicales
+# LaProd — Passe de ta passion à ta carrière
 
-**LaProd** est une plateforme web full-stack dédiée à la mise en relation entre beatmakers, arrangeurs et artistes. Les beatmakers y vendent des licences musicales (MP3, WAV, Stems) et proposent des services de mix/mastering. Les artistes achètent des beats et commandent des prestations d'ingénierie sonore.
+**LaProd** est une plateforme web full-stack qui accompagne la professionnalisation des créateurs de musique — beatmakers, artistes, ingénieurs du son, producteurs. Peu importe où l'utilisateur en est, LaProd fournit les outils pour travailler comme un professionnel : vendre des licences musicales (MP3, WAV, Stems), commander ou proposer des prestations de mix/mastering, contractualiser une collaboration, protéger un travail dès le premier upload. La marketplace de beats est l'un de ces outils, pas l'identité de la plateforme.
 
 ---
 
@@ -218,33 +218,38 @@ ssh deploy@51.77.192.230
 cd /var/www/LaProd/Laprod-Angular/Laprod-Angular
 
 git pull
-docker compose up -d --build
+docker compose -f docker-compose.yml up -d --build
 ```
 
 Pour reconstruire uniquement le frontend :
 
 ```bash
-docker compose up -d --build frontend
+docker compose -f docker-compose.yml up -d --build frontend
 ```
 
 Pour reconstruire uniquement le backend :
 
 ```bash
-docker compose up -d --build web
+docker compose -f docker-compose.yml up -d --build web
 ```
 
 ---
 
 ## Fonctionnalités principales
 
-- **Marketplace de beats** — catalogue filtrable par BPM, tonalité, style, gamme ; algorithme de recommandation basé sur des critères musicaux réels
-- **Licences musicales** — MP3, WAV, Stems à la carte ; contrat PDF généré automatiquement à l'achat ; droits calés sur le budget
-- **Mix & Mastering** — commande de prestations d'ingénierie sonore avec paiement progressif (acompte + solde à la livraison), briefing détaillé, révisions
-- **Analyse de contrats** — dépôt de n'importe quel contrat musical pour analyse des droits cédés, exclusivités et durée
-- **Playlists** — création, gestion, image de couverture générée ou uploadée
-- **Wallet interne** — accumulation des revenus, payout Stripe à la demande
-- **Premium** — abonnement mensuel/annuel ; fonctionnalités Pro et accès topline
-- **Topline** — système de réponse audio sur les beats (artistes enregistrent par-dessus) ; pitch-detection et monitoring autotune temps réel via plugins natifs sur mobile (voir [Application mobile](#application-mobile-ios--android))
+Chaque outil ci-dessous répond à une étape concrète de la professionnalisation d'un créateur — de la première vente à la gestion d'une équipe.
+
+- **Marketplace de beats** — commencer à générer des revenus : catalogue filtrable par BPM, tonalité, style, gamme ; algorithme de recommandation basé sur des critères musicaux réels
+- **Licences musicales** — sécuriser ses créations : MP3, WAV, Stems à la carte ; contrat PDF généré automatiquement à l'achat ; droits calés sur le budget
+- **Mix & Mastering** — accéder à des prestations professionnelles : commande d'ingénierie sonore avec paiement progressif (acompte + solde à la livraison), briefing détaillé, révisions
+- **Analyse de contrats** — travailler légalement dès les premières collaborations : dépôt de n'importe quel contrat musical pour analyse des droits cédés, exclusivités et durée
+- **Playlists** — développer un projet musical : création, gestion, image de couverture générée ou uploadée
+- **Wallet interne** — exercer une activité économique : accumulation des revenus, payout Stripe à la demande
+- **Premium** — accéder aux outils Pro plus tôt dans son parcours : abonnement mensuel/annuel, fonctionnalités Pro et accès topline
+- **Topline** — transformer une idée en morceau : système de réponse audio sur les beats (artistes enregistrent par-dessus) ; pitch-detection et monitoring autotune temps réel via plugins natifs sur mobile (voir [Application mobile](#application-mobile-ios--android))
+- **Watermark automatique** — protéger son travail dès le premier upload
+- **Contract Builder & signature en ligne** — travailler légalement dès les premières collaborations, sans juriste
+- **Module producteur** — rencontrer les bons collaborateurs et coordonner une équipe déjà présente sur LaProd (roster, planning, royalties)
 - **Gamification** — concours de beats (à venir)
 - **OAuth** — connexion Google
 - **Notifications** — système interne temps réel
@@ -320,7 +325,7 @@ Les utilitaires waveform purs (src/app/utils/waveform.utils.spec.ts) sont testé
 
 ## Philosophie produit
 
-LaProd est conçu par des musiciens pour des musiciens. L'objectif est une rémunération juste pour chaque créateur et un marché géré par ses acteurs — pas par des intermédiaires. Chaque fonctionnalité de paiement, contrat ou licence est pensée pour protéger à la fois l'acheteur et le vendeur.
+LaProd est conçu par des musiciens pour des musiciens. La plateforme n'est pas l'endroit où l'on fait de la musique, c'est l'endroit où l'on construit une carrière musicale — à son rythme, quel que soit le point de départ. Elle ne promet pas le succès ; elle fournit les outils pour travailler comme un professionnel : une rémunération juste pour chaque créateur, un marché géré par ses acteurs — pas par des intermédiaires — et des fonctionnalités de paiement, de contrat ou de licence pensées pour protéger à la fois l'acheteur et le vendeur. Voir [`docs/positioning.md`](docs/positioning.md) pour le détail des engagements que ça implique.
 
 ---
 

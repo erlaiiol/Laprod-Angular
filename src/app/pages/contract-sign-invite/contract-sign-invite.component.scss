@@ -1,0 +1,58 @@
+@use 'variables' as v;
+
+.csi-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: calc(100vh - 64px); padding: 2rem 1rem;
+}
+
+.csi-card {
+  max-width: 480px; width: 100%;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 14px; padding: 2rem;
+  text-align: center;
+}
+
+.csi-loading, .csi-error {
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  color: v.$text-secondary; font-size: 0.9rem;
+  i { font-size: 1.8rem; color: v.$tag-blue; }
+}
+
+.csi-error i { color: v.$tag-red; }
+
+.csi-icon {
+  font-size: 2rem; color: v.$tag-blue; margin-bottom: 0.75rem; display: block;
+}
+
+.csi-content h1 {
+  font-size: 1.25rem; font-weight: 800; margin: 0 0 0.85rem; color: v.$text-primary;
+}
+
+.csi-desc {
+  font-size: 0.9rem; color: v.$text-secondary; line-height: 1.5; margin: 0 0 0.75rem;
+}
+
+.csi-desc-muted {
+  font-size: 0.82rem; color: v.$text-muted;
+}
+
+.csi-actions {
+  display: flex; justify-content: center; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border-radius: 8px; padding: 0.55rem 1.1rem; font-size: 0.875rem; font-weight: 700;
+  cursor: pointer; text-decoration: none; border: 1px solid transparent;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.88; }
+}
+
+.btn-primary {
+  background: v.$primary; color: #fff;
+  &:hover { background: v.$primary-dark; opacity: 1; }
+}
+
+.btn-secondary {
+  background: transparent; border-color: v.$bg-border; color: v.$text-primary;
+}

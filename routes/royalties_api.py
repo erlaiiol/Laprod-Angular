@@ -15,9 +15,10 @@ PUT    /api/royalties/splits/<id>                  → modifier une ligne
 POST   /api/royalties/splits/<id>/confirm           → confirmer sa part
 DELETE /api/royalties/splits/<id>                    → retirer une ligne
 """
+import io
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func, select
 
@@ -26,6 +27,7 @@ from models import RosterLink, RosterLinkStatus, Track, TrackSplit, TrackSplitRo
 from serializers import err, ok
 from serializers import track_split as ser_track_split
 from utils.auth_helpers import require_user
+from utils.royalties_pdf import generate_royalties_statement
 
 royalties_api_bp = Blueprint('royalties_api', __name__, url_prefix='/api/royalties')
 
@@ -98,6 +100,38 @@ def list_splits(current_user, track_id):
         'total_percentage': float(total),
         'can_manage': _can_manage(current_user, track),
     })
+
+
+# ── GET /tracks/<id>/splits/pdf ────────────────────────────────────────────────
+# Même règle d'accès que la consultation (_can_view) : exporter en PDF n'est
+# rien de plus qu'une mise en forme partageable de ce que l'utilisateur peut
+# déjà voir à l'écran — pas un acte de gestion, pas de garde can_view_royalties.
+
+@royalties_api_bp.route('/tracks/<int:track_id>/splits/pdf', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def download_splits_pdf(current_user, track_id):
+    track = db.session.get(Track, track_id)
+    if not track:
+        return err("Titre introuvable.", status=404)
+    if not _can_view(current_user, track):
+        return err("Tu n'as pas accès à la cap-table de ce titre.", status=403)
+
+    splits = db.session.scalars(
+        select(TrackSplit).where(TrackSplit.track_id == track_id).order_by(TrackSplit.created_at.asc())
+    ).all()
+    total = sum((s.percentage for s in splits), Decimal('0'))
+
+    pdf_bytes = generate_royalties_statement(track, splits, total)
+    safe_title = ''.join(c for c in track.title if c.isalnum() or c in ' _-')[:40].strip() or 'titre'
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        as_attachment=True,
+        download_name=f'royalties_{safe_title}.pdf',
+        mimetype='application/pdf',
+    )
 
 
 # ── POST /tracks/<id>/splits ───────────────────────────────────────────────────

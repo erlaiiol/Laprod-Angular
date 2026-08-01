@@ -116,6 +116,7 @@
              (click)="toggleDropdown('contracts', $event)"
              [attr.aria-expanded]="openDropdown() === 'contracts'">
             <i class="bi bi-file-earmark-text"></i> Contrats
+            <app-beta-badge />
           </a>
           <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
               [class.show]="openDropdown() === 'contracts'">
@@ -129,6 +130,13 @@
                 <i class="bi bi-shield-check"></i> Analyser un contrat
               </a>
             </li>
+            @if (isLoggedIn()) {
+              <li>
+                <a class="dropdown-item" [routerLink]="['/contract-builder/inbox']" routerLinkActive="active">
+                  <i class="bi bi-inbox"></i> Contrats à signer
+                </a>
+              </li>
+            }
           </ul>
         </li>
 
@@ -195,6 +203,12 @@
                   <i class="bi bi-bag-check"></i> Mes achats
                 </a>
               </li>
+              <li>
+                <a class="dropdown-item" [routerLink]="['/producer/planning']" routerLinkActive="active">
+                  <i class="bi bi-calendar3"></i> Mon planning
+                  <app-beta-badge />
+                </a>
+              </li>
 
               <!-- Espaces par rôle — repris ici pour un accès en 1 clic depuis
                    n'importe quelle page (le profil reste le hub complet, cette
@@ -232,6 +246,7 @@
                   <li>
                     <a class="dropdown-item" [routerLink]="['/dashboard/producer']" routerLinkActive="active">
                       <i class="bi bi-file-earmark-text"></i> Espace Producteur
+                      <app-beta-badge />
                     </a>
                   </li>
                 }

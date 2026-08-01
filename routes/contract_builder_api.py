@@ -8,13 +8,24 @@ GET  /api/contract-builder/contracts/<id>        → détail d'un contrat
 PUT  /api/contract-builder/contracts/<id>        → mettre à jour un brouillon
 POST /api/contract-builder/contracts/<id>/generate → générer le PDF
 GET  /api/contract-builder/contracts/<id>/download → télécharger le PDF
+
+Signature en ligne (envoi à un autre utilisateur LaProd) :
+POST /api/contract-builder/contracts/<id>/parties/<party_id>/invite         → inviter une partie à signer
+POST /api/contract-builder/contracts/<id>/parties/<party_id>/cancel-invite  → annuler une invitation en attente
+POST /api/contract-builder/contracts/<id>/sign                             → signer (destinataire)
+POST /api/contract-builder/contracts/<id>/decline                          → décliner (destinataire)
+GET  /api/contract-builder/inbox                                           → contrats envoyés / reçus
+GET  /api/contract-builder/invite/preview                                  → aperçu d'une invitation email (public)
+POST /api/contract-builder/invite/resolve                                  → rattacher son compte à une invitation email
 """
 import os
+import re
 import uuid
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request, send_file, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import or_, select
 
 from extensions import db, csrf
 from models import (
@@ -25,13 +36,25 @@ from models import (
     UserContractValue,
     UserContractStatus,
     PartyTypeEnum,
+    PartyInviteStatus,
+    ContractSignatureStatus,
     ContractTemplateTypeEnum,
 )
+from utils.notification_service import (
+    notify_contract_signature_requested,
+    notify_contract_signed,
+    notify_contract_fully_executed,
+    notify_contract_declined,
+    notify_contract_invite_cancelled,
+)
+from serializers import contract_share
 import config
 
 contract_builder_api_bp = Blueprint(
     'contract_builder_api', __name__, url_prefix='/api/contract-builder'
 )
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -120,17 +143,24 @@ def _party_dto(p) -> dict:
         'address':         p.address,
         'email':           p.email,
         'linked_user_id':  p.linked_user_id,
+        # Signature en ligne — jamais signature_ip (preuve technique interne uniquement).
+        'invite_status':   p.invite_status.value,
+        'invited_at':      p.invited_at.isoformat() if p.invited_at else None,
+        'signed_at':       p.signed_at.isoformat() if p.signed_at else None,
+        'signature_name':  p.signature_name,
+        'declined_at':     p.declined_at.isoformat() if p.declined_at else None,
     }
 
 
 def _contract_summary_dto(c) -> dict:
     return {
-        'id':            c.id,
-        'title':         c.title,
-        'contract_type': c.contract_type.value,
-        'status':        c.status.value,
-        'created_at':    c.created_at.isoformat(),
-        'updated_at':    c.updated_at.isoformat() if c.updated_at else None,
+        'id':               c.id,
+        'title':            c.title,
+        'contract_type':    c.contract_type.value,
+        'status':           c.status.value,
+        'signature_status': c.signature_status.value,
+        'created_at':       c.created_at.isoformat(),
+        'updated_at':       c.updated_at.isoformat() if c.updated_at else None,
     }
 
 
@@ -149,6 +179,43 @@ def _check_ownership(contract, user_id: int):
     if contract.user_id != user_id:
         return _err('Accès non autorisé.', status=403)
     return None
+
+
+def _find_invited_party(contract, user_id: int):
+    """Renvoie la UserContractParty de `contract` liée à `user_id` avec une
+    invitation active (pending/signed/declined), ou None. Le filtre sur
+    `invite_status` est important : une invitation annulée doit couper l'accès
+    même si `linked_user_id` traîne encore sur la ligne (préremplissage)."""
+    for p in contract.parties:
+        if p.linked_user_id == user_id and p.invite_status != PartyInviteStatus.none:
+            return p
+    return None
+
+
+def _check_ownership_or_invited_party(contract, user_id: int):
+    """Lecture autorisée au propriétaire ET à tout signataire invité (même
+    après refus, pour qu'il retrouve trace de ce qu'il a décliné)."""
+    if contract.user_id == user_id:
+        return None
+    if _find_invited_party(contract, user_id) is not None:
+        return None
+    return _err('Accès non autorisé.', status=403)
+
+
+def _recompute_signature_status(contract):
+    """Recalcule l'agrégat de signature du contrat à partir de ses parties
+    invitées. Appelé avant chaque commit des routes invite/cancel/sign/decline.
+    Ne concerne que les parties invitées numériquement — les autres continuent
+    de signer hors app (papier), ce qui n'empêche jamais 'signed' d'être atteint."""
+    invited = [p for p in contract.parties if p.invite_status != PartyInviteStatus.none]
+    if not invited:
+        contract.signature_status = ContractSignatureStatus.not_sent
+    elif any(p.invite_status == PartyInviteStatus.declined for p in invited):
+        contract.signature_status = ContractSignatureStatus.declined
+    elif all(p.invite_status == PartyInviteStatus.signed for p in invited):
+        contract.signature_status = ContractSignatureStatus.signed
+    else:
+        contract.signature_status = ContractSignatureStatus.pending
 
 
 # ── GET /api/contract-builder/template ─────────────────────────────────────────
@@ -274,13 +341,20 @@ def list_contracts():
 def get_contract(contract_id):
     user     = _get_user()
     contract = db.get_or_404(UserContract, contract_id)
-    if err := _check_ownership(contract, user.id):
+    if err := _check_ownership_or_invited_party(contract, user.id):
         return err
     dto = _contract_detail_dto(contract)
-    dto['can_edit'] = (
+    is_owner = contract.user_id == user.id
+    dto['viewer_role'] = 'owner' if is_owner else 'recipient'
+    dto['can_edit'] = is_owner and (
         user.can_use_management_contract if contract.contract_type == ContractTemplateTypeEnum.management
         else user.can_use_contract_builder
     )
+    if not is_owner:
+        my_party = _find_invited_party(contract, user.id)
+        dto['my_party_id'] = my_party.id if my_party else None
+    else:
+        dto['my_party_id'] = None
     return _ok(data={'contract': dto})
 
 
@@ -298,6 +372,10 @@ def update_contract(contract_id):
     # rien. Le quota porte sur la création, pas sur le droit de se corriger.
     if err := _check_builder_access(user, contract.contract_type):
         return err
+    # L'envoi pour signature (invite) n'est lui-même permis que sur un contrat
+    # `final` (voir invite_party) : un contrat avec des invitations en cours est
+    # donc déjà non modifiable par ce seul garde-fou. Ne pas l'assouplir pour
+    # les contrats "final mais pas encore signés" sans repenser cette invariant.
     if contract.status == UserContractStatus.final:
         return _err('Ce contrat est finalisé et ne peut plus être modifié.', status=409)
 
@@ -367,23 +445,41 @@ def update_contract(contract_id):
     return _ok(data={'contract': _contract_detail_dto(contract)})
 
 
-# ── POST /api/contract-builder/contracts/<id>/generate ─────────────────────────
+# ── DELETE /api/contract-builder/contracts/<id> ─────────────────────────────────
+# Brouillons uniquement : un contrat finalisé (PDF généré) est un document déjà
+# potentiellement transmis/signé, on ne le fait pas disparaître silencieusement —
+# cohérent avec update_contract, qui refuse déjà toute modification sur un final.
 
-@contract_builder_api_bp.route('/contracts/<int:contract_id>/generate', methods=['POST'])
+@contract_builder_api_bp.route('/contracts/<int:contract_id>', methods=['DELETE'])
 @jwt_required()
 @csrf.exempt
-def generate_contract(contract_id):
+def delete_contract(contract_id):
     user     = _get_user()
     contract = db.get_or_404(UserContract, contract_id)
     if err := _check_ownership(contract, user.id):
         return err
-    # Régénérer le PDF d'un contrat existant ne consomme pas de quota (cf.
-    # _check_contract_quota) : on facture l'acte de rédiger, pas celui de relire.
-    if err := _check_builder_access(user, contract.contract_type):
-        return err
-    if len(contract.parties) < 2:
-        return _err('Le contrat doit comporter au moins deux parties.')
+    if contract.status == UserContractStatus.final:
+        return _err('Ce contrat est finalisé et ne peut pas être supprimé.', status=409)
 
+    if contract.pdf_file:
+        old_path = str(config.CONTRACTS_FOLDER / 'builder' / contract.pdf_file)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    db.session.delete(contract)  # cascade='all, delete-orphan' sur parties/values
+    db.session.commit()
+    return _ok(message='Brouillon supprimé.')
+
+
+# ── POST /api/contract-builder/contracts/<id>/generate ─────────────────────────
+
+def _build_contract_pdf_data(contract) -> dict:
+    """Construit le dict attendu par generate_custom_contract_pdf(). Partagé
+    entre la génération initiale (generate_contract) et la régénération à
+    chaque signature (sign_contract) pour que les deux ne divergent jamais."""
     value_map = {v.clause_id: v for v in contract.values}
     groups = (
         db.session.query(ContractClauseGroup)
@@ -417,13 +513,28 @@ def generate_contract(contract_id):
         ContractTemplateTypeEnum.performance:  "Contrat de représentation musicale",
         ContractTemplateTypeEnum.management:   "Mandat de management artistique",
     }
-    contract_data = {
+
+    parties_data = []
+    for p in contract.parties:
+        pd = _party_dto(p)
+        # Date lisible dans le PDF plutôt que l'ISO renvoyé au frontend.
+        pd['signed_at'] = p.signed_at.strftime('%d/%m/%Y') if p.signed_at else None
+        parties_data.append(pd)
+
+    return {
         'title':        contract.title,
         'type_label':   type_labels.get(contract.contract_type, ''),
         'generated_at': datetime.now().strftime('%d/%m/%Y'),
-        'parties':      [_party_dto(p) for p in contract.parties],
+        'parties':      parties_data,
         'sections':     sections,
     }
+
+
+def _regenerate_pdf_file(contract) -> bool:
+    """(Re)génère le PDF sur disque et met à jour contract.pdf_file (pas de
+    commit ici, laissé à l'appelant). Renvoie False si la génération échoue —
+    le contrat garde alors son ancien PDF, aucune donnée n'est perdue."""
+    contract_data = _build_contract_pdf_data(contract)
 
     builder_dir = config.CONTRACTS_FOLDER / 'builder'
     builder_dir.mkdir(parents=True, exist_ok=True)
@@ -435,20 +546,42 @@ def generate_contract(contract_id):
         generate_custom_contract_pdf(output_path, contract_data)
     except Exception as e:
         current_app.logger.error(f'contract_builder: PDF generation failed: {e}')
-        return _err('La génération du PDF a échoué. Veuillez réessayer.')
+        return False
 
-    # Supprimer l'ancien PDF si existant
-    if contract.pdf_file:
-        old_path = str(builder_dir / contract.pdf_file)
+    old_file = contract.pdf_file
+    contract.pdf_file   = filename
+    contract.updated_at = datetime.now()
+
+    if old_file:
+        old_path = str(builder_dir / old_file)
         if os.path.exists(old_path):
             try:
                 os.remove(old_path)
             except OSError:
                 pass
 
-    contract.pdf_file   = filename
-    contract.status     = UserContractStatus.final
-    contract.updated_at = datetime.now()
+    return True
+
+
+@contract_builder_api_bp.route('/contracts/<int:contract_id>/generate', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def generate_contract(contract_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    if err := _check_ownership(contract, user.id):
+        return err
+    # Régénérer le PDF d'un contrat existant ne consomme pas de quota (cf.
+    # _check_contract_quota) : on facture l'acte de rédiger, pas celui de relire.
+    if err := _check_builder_access(user, contract.contract_type):
+        return err
+    if len(contract.parties) < 2:
+        return _err('Le contrat doit comporter au moins deux parties.')
+
+    if not _regenerate_pdf_file(contract):
+        return _err('La génération du PDF a échoué. Veuillez réessayer.')
+
+    contract.status = UserContractStatus.final
     db.session.commit()
 
     return _ok(data={'pdf_url': f'/api/contract-builder/contracts/{contract.id}/download'})
@@ -466,7 +599,7 @@ def generate_contract(contract_id):
 def download_contract(contract_id):
     user_id  = int(get_jwt_identity())
     contract = db.get_or_404(UserContract, contract_id)
-    if err := _check_ownership(contract, user_id):
+    if err := _check_ownership_or_invited_party(contract, user_id):
         return err
     if not contract.pdf_file:
         return _err("Le PDF de ce contrat n'a pas encore été généré.", status=404)
@@ -482,3 +615,300 @@ def download_contract(contract_id):
         download_name=f'contrat_{safe_title}.pdf',
         mimetype='application/pdf',
     )
+
+
+# =============================================================================
+# SIGNATURE EN LIGNE — envoi à un autre utilisateur LaProd
+# =============================================================================
+
+def _get_party_or_404(contract, party_id):
+    return next((p for p in contract.parties if p.id == party_id), None)
+
+
+# ── POST /contracts/<id>/parties/<party_id>/invite ─────────────────────────────
+
+@contract_builder_api_bp.route(
+    '/contracts/<int:contract_id>/parties/<int:party_id>/invite', methods=['POST']
+)
+@jwt_required()
+@csrf.exempt
+def invite_party(contract_id, party_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    if err := _check_ownership(contract, user.id):
+        return err
+    if contract.status != UserContractStatus.final:
+        return _err('Le contrat doit être finalisé avant l\'envoi pour signature.', status=409)
+
+    party = _get_party_or_404(contract, party_id)
+    if not party:
+        return _err('Partie introuvable.', status=404)
+    if party.invite_status in (PartyInviteStatus.pending, PartyInviteStatus.signed):
+        return _err(
+            'Une invitation est déjà en attente ou a déjà été signée pour cette partie.',
+            status=409,
+        )
+
+    data = request.get_json(silent=True) or {}
+    identifier = (data.get('identifier') or '').strip()
+    if not identifier:
+        return _err("Indiquez le pseudo ou l'email de la personne à inviter.", status=400)
+
+    target = db.session.scalar(
+        select(User).where(or_(User.username == identifier, User.email == identifier))
+    )
+    if target and target.id == user.id:
+        return _err('Vous ne pouvez pas vous inviter vous-même.', status=400)
+    if not target and not _EMAIL_RE.match(identifier):
+        return _err(
+            "Aucun compte trouvé avec cet identifiant — saisissez un pseudo existant "
+            "ou une adresse email valide pour inviter une personne qui n'a pas encore "
+            "de compte LaProd.",
+            status=400,
+        )
+
+    # Réinitialisation commune (couvre la ré-invitation après un refus).
+    party.signed_at         = None
+    party.signature_name    = None
+    party.signature_ip      = None
+    party.consent_confirmed = False
+    party.declined_at       = None
+    party.invited_at        = datetime.now()
+    party.invited_by_id     = user.id
+    party.invite_status     = PartyInviteStatus.pending
+
+    if target:
+        party.linked_user_id = target.id
+        _recompute_signature_status(contract)
+        db.session.commit()
+        notify_contract_signature_requested(contract, party, target)
+        return _ok(
+            data={'party': _party_dto(party), 'signature_status': contract.signature_status.value},
+            message='Invitation envoyée.',
+        )
+
+    # Pas de compte trouvé pour cet email : on invite un futur inscrit.
+    party.email           = identifier
+    party.linked_user_id  = None
+    _recompute_signature_status(contract)
+    db.session.commit()
+
+    from utils.email_service import send_contract_invite_email
+    send_contract_invite_email(party, contract, user)
+
+    return _ok(
+        data={'party': _party_dto(party), 'signature_status': contract.signature_status.value},
+        message="Invitation envoyée par email — cette personne n'a pas encore de compte LaProd.",
+    )
+
+
+# ── POST /contracts/<id>/parties/<party_id>/cancel-invite ──────────────────────
+
+@contract_builder_api_bp.route(
+    '/contracts/<int:contract_id>/parties/<int:party_id>/cancel-invite', methods=['POST']
+)
+@jwt_required()
+@csrf.exempt
+def cancel_party_invite(contract_id, party_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    if err := _check_ownership(contract, user.id):
+        return err
+
+    party = _get_party_or_404(contract, party_id)
+    if not party:
+        return _err('Partie introuvable.', status=404)
+    if party.invite_status != PartyInviteStatus.pending:
+        return _err("Cette invitation n'est plus en attente.", status=409)
+
+    # Conserver linked_user_id pour préremplir une ré-invitation future, mais
+    # invite_status=none coupe immédiatement l'accès en lecture du destinataire
+    # (voir _find_invited_party) même si un compte était déjà résolu.
+    target_user = party.linked_user
+    party.invite_status = PartyInviteStatus.none
+    party.invited_at    = None
+    party.invited_by_id = None
+    _recompute_signature_status(contract)
+    db.session.commit()
+
+    if target_user:
+        notify_contract_invite_cancelled(contract, party, target_user)
+
+    return _ok(
+        data={'party': _party_dto(party), 'signature_status': contract.signature_status.value},
+        message='Invitation annulée.',
+    )
+
+
+# ── GET /inbox ──────────────────────────────────────────────────────────────────
+
+@contract_builder_api_bp.route('/inbox', methods=['GET'])
+@jwt_required()
+@csrf.exempt
+def get_inbox():
+    user_id = int(get_jwt_identity())
+
+    sent = (
+        db.session.query(UserContract)
+        .filter(
+            UserContract.user_id == user_id,
+            UserContract.signature_status != ContractSignatureStatus.not_sent,
+        )
+        .order_by(UserContract.updated_at.desc())
+        .all()
+    )
+
+    received_parties = (
+        db.session.query(UserContractParty)
+        .join(UserContract, UserContractParty.contract_id == UserContract.id)
+        .filter(
+            UserContractParty.linked_user_id == user_id,
+            UserContractParty.invite_status != PartyInviteStatus.none,
+        )
+        .order_by(UserContract.updated_at.desc())
+        .all()
+    )
+
+    return _ok(data={
+        'sent':     [contract_share(c) for c in sent],
+        'received': [contract_share(p.contract, p) for p in received_parties],
+    })
+
+
+# ── POST /contracts/<id>/sign ────────────────────────────────────────────────────
+
+@contract_builder_api_bp.route('/contracts/<int:contract_id>/sign', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def sign_contract(contract_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    party    = _find_invited_party(contract, user.id)
+    if not party or party.invite_status != PartyInviteStatus.pending:
+        return _err("Vous n'avez pas d'invitation à signer en attente pour ce contrat.", status=404)
+
+    data           = request.get_json(silent=True) or {}
+    signature_name = (data.get('signature_name') or '').strip()
+    consent        = data.get('consent') is True
+
+    if not signature_name:
+        return _err('Indiquez votre nom légal complet pour signer.', status=400)
+    if len(signature_name) > 200:
+        return _err('Nom trop long.', status=400)
+    if not consent:
+        return _err('Vous devez cocher la case de consentement pour signer.', status=400)
+
+    party.invite_status     = PartyInviteStatus.signed
+    party.signed_at         = datetime.now()
+    party.signature_name    = signature_name
+    party.signature_ip      = request.remote_addr
+    party.consent_confirmed = True
+    _recompute_signature_status(contract)
+
+    # Régénère le PDF pour y graver la signature — si ça échoue, on annule
+    # tout (y compris la signature) plutôt que de laisser un état incohérent.
+    if not _regenerate_pdf_file(contract):
+        db.session.rollback()
+        return _err(
+            'La signature n\'a pas pu être enregistrée (échec de génération du PDF). Réessayez.',
+            status=500,
+        )
+
+    db.session.commit()
+
+    notify_contract_signed(contract, party, user)
+    if contract.signature_status == ContractSignatureStatus.signed:
+        notify_contract_fully_executed(contract)
+
+    return _ok(data={'contract': _contract_detail_dto(contract)}, message='Contrat signé.')
+
+
+# ── POST /contracts/<id>/decline ─────────────────────────────────────────────────
+
+@contract_builder_api_bp.route('/contracts/<int:contract_id>/decline', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def decline_contract(contract_id):
+    user     = _get_user()
+    contract = db.get_or_404(UserContract, contract_id)
+    party    = _find_invited_party(contract, user.id)
+    if not party or party.invite_status != PartyInviteStatus.pending:
+        return _err("Vous n'avez pas d'invitation à signer en attente pour ce contrat.", status=404)
+
+    party.invite_status = PartyInviteStatus.declined
+    party.declined_at   = datetime.now()
+    _recompute_signature_status(contract)
+    db.session.commit()
+
+    notify_contract_declined(contract, party, user)
+
+    return _ok(data={'contract': _contract_detail_dto(contract)}, message='Signature déclinée.')
+
+
+# ── GET /invite/preview ──────────────────────────────────────────────────────────
+# Public (pas de compte requis) : permet d'afficher "X vous invite à signer Y"
+# avant même de se connecter/s'inscrire. Ne modifie rien.
+
+@contract_builder_api_bp.route('/invite/preview', methods=['GET'])
+@csrf.exempt
+def invite_preview():
+    from utils.email_service import verify_contract_invite_token
+
+    token   = request.args.get('token', '')
+    payload = verify_contract_invite_token(token)
+    if not payload:
+        return _err("Ce lien d'invitation est invalide ou a expiré.", status=410)
+
+    contract = db.session.get(UserContract, payload.get('contract_id'))
+    party    = db.session.get(UserContractParty, payload.get('party_id'))
+    if not contract or not party or party.contract_id != contract.id:
+        return _err('Invitation introuvable.', status=404)
+    if party.invite_status != PartyInviteStatus.pending:
+        return _err("Cette invitation n'est plus valide — contactez l'expéditeur.", status=409)
+
+    return _ok(data={
+        'title':            contract.title,
+        'inviter_username': contract.user.username,
+        'email':            payload.get('email'),
+    })
+
+
+# ── POST /invite/resolve ─────────────────────────────────────────────────────────
+# Rattache le compte connecté (qui vient de se créer/se connecter via le lien
+# email) à la partie invitée — condition : son email de compte correspond bien
+# à celui invité, sinon on refuse plutôt que de rattacher silencieusement le
+# mauvais compte.
+
+@contract_builder_api_bp.route('/invite/resolve', methods=['POST'])
+@jwt_required()
+@csrf.exempt
+def invite_resolve():
+    from utils.email_service import verify_contract_invite_token
+
+    user  = _get_user()
+    data  = request.get_json(silent=True) or {}
+    token = data.get('token', '')
+
+    payload = verify_contract_invite_token(token)
+    if not payload:
+        return _err("Ce lien d'invitation est invalide ou a expiré.", status=410)
+
+    contract = db.session.get(UserContract, payload.get('contract_id'))
+    party    = db.session.get(UserContractParty, payload.get('party_id'))
+    if not contract or not party or party.contract_id != contract.id:
+        return _err('Invitation introuvable.', status=404)
+    if party.invite_status != PartyInviteStatus.pending:
+        return _err("Cette invitation n'est plus valide — contactez l'expéditeur.", status=409)
+
+    invited_email = (payload.get('email') or '').strip().lower()
+    if (user.email or '').strip().lower() != invited_email:
+        return _err(
+            'Vous êtes connecté avec un autre compte que celui invité — '
+            'déconnectez-vous et réessayez avec le bon compte.',
+            status=409,
+        )
+
+    party.linked_user_id = user.id
+    db.session.commit()
+
+    return _ok(data={'contract_id': contract.id})

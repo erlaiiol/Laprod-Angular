@@ -1,0 +1,60 @@
+<div class="ci-page">
+
+  <div class="ci-header">
+    <h1><i class="bi bi-inbox"></i> Contrats à signer</h1>
+    <p class="ci-subtitle">Contrats envoyés pour signature en ligne, et contrats que d'autres utilisateurs vous ont envoyés.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="ci-loading">Chargement...</div>
+  } @else {
+
+    <section class="ci-section">
+      <h2>Reçus <span class="ci-count">{{ received().length }}</span></h2>
+
+      @if (received().length === 0) {
+        <p class="ci-empty">Aucun contrat ne vous a été envoyé pour signature.</p>
+      } @else {
+        @for (entry of received(); track entry.id) {
+          <button class="ci-card" (click)="open(entry.id)">
+            <img class="ci-avatar" [src]="imgUrl(entry.counterpart?.profile_image)" alt="" />
+            <div class="ci-card-body">
+              <div class="ci-card-title">{{ entry.title }}</div>
+              <div class="ci-card-meta">
+                Envoyé par {{ entry.counterpart?.username }} — {{ entry.my_party_role }}
+              </div>
+            </div>
+            <span class="ci-status" [class]="'is-' + entry.my_invite_status">
+              {{ inviteStatusLabel(entry.my_invite_status) }}
+            </span>
+          </button>
+        }
+      }
+    </section>
+
+    <section class="ci-section">
+      <h2>Envoyés <span class="ci-count">{{ sent().length }}</span></h2>
+
+      @if (sent().length === 0) {
+        <p class="ci-empty">Vous n'avez envoyé aucun contrat pour signature.</p>
+      } @else {
+        @for (entry of sent(); track entry.id) {
+          <button class="ci-card" (click)="open(entry.id)">
+            <div class="ci-card-body">
+              <div class="ci-card-title">{{ entry.title }}</div>
+              <div class="ci-card-meta">
+                {{ entry.signed_count }} / {{ entry.invited_count }} signature(s)
+                @if (entry.declined_count) { · {{ entry.declined_count }} refus }
+              </div>
+            </div>
+            <span class="ci-status" [class]="'is-' + entry.signature_status">
+              {{ signatureStatusLabel(entry.signature_status) }}
+            </span>
+          </button>
+        }
+      }
+    </section>
+
+  }
+
+</div>

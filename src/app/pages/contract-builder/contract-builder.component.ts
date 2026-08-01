@@ -7,12 +7,13 @@ import { RosterService } from '../../services/roster.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
+import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-contract-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, FormatDatePipe],
+  imports: [CommonModule, FormsModule, RouterModule, FormatDatePipe, BetaBadgeComponent],
   templateUrl: './contract-builder.component.html',
   styleUrl: './contract-builder.component.scss',
 })
@@ -28,6 +29,7 @@ export class ContractBuilderComponent implements OnInit {
   contracts = signal<ContractSummary[]>([]);
   newTitle  = signal('');
   newType   = signal<ContractType>('exploitation');
+  deletingId = signal<number | null>(null);
 
   readonly contractTypes: { value: ContractType; icon: string; label: string; desc: string; placeholder: string; minPlanLabel: string }[] = [
     {
@@ -140,6 +142,25 @@ export class ContractBuilderComponent implements OnInit {
 
   open(id: number): void {
     this.router.navigate(['/contract-builder', id]);
+  }
+
+  /** Brouillons uniquement — le backend refuse un contrat finalisé (409). */
+  deleteDraft(contract: ContractSummary, event: MouseEvent): void {
+    event.stopPropagation(); // ne pas déclencher open() sur la ligne
+    if (!confirm(`Supprimer le brouillon "${contract.title}" ? C'est définitif.`)) return;
+
+    this.deletingId.set(contract.id);
+    this.svc.deleteContract(contract.id).subscribe({
+      next: () => {
+        this.deletingId.set(null);
+        this.contracts.update(list => list.filter(c => c.id !== contract.id));
+      },
+      error: err => {
+        this.deletingId.set(null);
+        const msg = err?.error?.feedback?.message ?? 'Erreur lors de la suppression.';
+        this.toast.showToast({ level: 'error', message: msg });
+      },
+    });
   }
 
 }

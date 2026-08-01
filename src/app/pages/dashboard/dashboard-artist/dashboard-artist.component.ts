@@ -11,17 +11,19 @@ import { PurchasesService, PurchasesData } from '../../../services/purchases.ser
 import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
 import { LicenseService, LicenseItem } from '../../../services/license.service';
+import { RosterService, RosterLinkDTO } from '../../../services/roster.service';
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
+import { ImgFallbackDirective } from '../../../directives/img-fallback.directive';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
 
-type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases' | 'licenses';
+type Tab = 'toplines' | 'favorites' | 'history' | 'mixmaster' | 'purchases' | 'licenses' | 'roster';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard-artist',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, FormatDatePipe],
+  imports: [CommonModule, RouterModule, FormsModule, LicenseBadgeComponent, FormatDatePipe, ImgFallbackDirective],
   templateUrl: './dashboard-artist.component.html',
   styleUrls: ['./dashboard-artist.component.scss'],
 })
@@ -44,6 +46,14 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   licensesLoading = signal(false);
   renewingId      = signal<number | null>(null);
 
+  // "Qui me manage" — ex-onglet "Je suis managé" de /producer/roster, déplacé
+  // ici : un artiste pur n'a rien à faire sur une URL /producer/*, cette
+  // relation (asymétrique, contrairement au planning partagé) vit dans son
+  // propre espace.
+  rosterLinks        = signal<RosterLinkDTO[]>([]);
+  rosterLoading      = signal(false);
+  actingOnRosterLink = signal<number | null>(null);
+
   // Renouvellement = un nouveau paiement : la modale re-capte un nouvel acte
   // de consentement (mêmes exigences que l'achat initial), pas de reprise
   // silencieuse du consentement du contrat d'origine.
@@ -57,6 +67,7 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   private mixSvc       = inject(MixmasterService);
   private purchasesSvc = inject(PurchasesService);
   private licenseSvc   = inject(LicenseService);
+  private rosterSvc    = inject(RosterService);
   private router       = inject(Router);
   private toast        = inject(ToastService);
   private http         = inject(HttpClient);
@@ -71,10 +82,12 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     if (!this.auth.isLoggedIn()) { this.router.navigate(['/login']); return; }
     this.loadDashboard();
     // Chargés dès l'entrée sur le dashboard (pas au clic sur l'onglet) : les
-    // badges de comptage (achats, licences) doivent être à jour immédiatement,
-    // pas seulement après avoir ouvert cet onglet spécifique une première fois.
+    // badges de comptage (achats, licences, roster) doivent être à jour
+    // immédiatement, pas seulement après avoir ouvert cet onglet une première
+    // fois — cf. bug déjà rencontré sur achats/licences.
     this.loadPurchases();
     this.loadLicenses();
+    this.loadRoster();
 
     // Synchronisation tab <-> query param
     this.route.queryParamMap
@@ -145,6 +158,52 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
         this.toast.showToast({ level: 'error', message: 'Impossible de charger vos licences.' });
         this.licensesLoading.set(false);
       },
+    });
+  }
+
+  private loadRoster(): void {
+    this.rosterLoading.set(true);
+    this.rosterSvc.mine().subscribe({
+      next: (res) => {
+        this.rosterLinks.set(res.data?.as_artist ?? []);
+        this.rosterLoading.set(false);
+      },
+      error: () => this.rosterLoading.set(false),
+    });
+  }
+
+  rosterStatusLabel(status: RosterLinkDTO['status']): string {
+    const labels: Record<RosterLinkDTO['status'], string> = {
+      invited:  'Invitation en attente',
+      active:   'Actif',
+      declined: 'Déclinée',
+      revoked:  'Annulée',
+      ended:    'Terminé',
+    };
+    return labels[status];
+  }
+
+  acceptRosterLink(link: RosterLinkDTO): void {
+    this.actingOnRosterLink.set(link.id);
+    this.rosterSvc.accept(link.id).subscribe({
+      next: () => { this.actingOnRosterLink.set(null); this.loadRoster(); },
+      error: () => this.actingOnRosterLink.set(null),
+    });
+  }
+
+  declineRosterLink(link: RosterLinkDTO): void {
+    this.actingOnRosterLink.set(link.id);
+    this.rosterSvc.decline(link.id).subscribe({
+      next: () => { this.actingOnRosterLink.set(null); this.loadRoster(); },
+      error: () => this.actingOnRosterLink.set(null),
+    });
+  }
+
+  revokeRosterLink(link: RosterLinkDTO): void {
+    this.actingOnRosterLink.set(link.id);
+    this.rosterSvc.revoke(link.id).subscribe({
+      next: () => { this.actingOnRosterLink.set(null); this.loadRoster(); },
+      error: () => this.actingOnRosterLink.set(null),
     });
   }
 

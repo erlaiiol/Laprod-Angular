@@ -6,13 +6,14 @@ import { UserService } from '../../../services/user.service';
 import { AuthService } from '../../../services/auth.service';
 import { CampaignService } from '../../../services/campaign.service';
 import { ToastService } from '../../../services/toast.service';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-edit-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, BetaBadgeComponent],
   templateUrl: './edit-profile.component.html',
   styleUrl:    './edit-profile.component.scss',
 })

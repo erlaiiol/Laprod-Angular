@@ -2,9 +2,10 @@
 
   <header class="planning__header">
     <span class="planning__eyebrow"><i class="bi bi-calendar3"></i> Rétroplanning</span>
-    <h1 class="planning__title">Votre planning partagé</h1>
+    <h1 class="planning__title">Votre planning partagé <app-beta-badge /></h1>
     <p class="planning__sub">
-      Producteur et artiste ajoutent leurs sessions, concerts et rendez-vous au même endroit.
+      Ton calendrier perso, ou partagé avec un producteur/artiste si tu as un lien
+      roster actif — aucun des deux n'est requis pour l'autre.
     </p>
   </header>
 
@@ -14,128 +15,121 @@
     <p class="planning__loading">Chargement…</p>
   } @else {
 
-    @if (activeLinks().length === 0) {
-      <p class="planning__empty">
-        Aucun lien roster actif pour l'instant. Rends-toi sur ton
-        <a routerLink="/producer/roster">roster</a> pour en établir un.
-      </p>
-    } @else {
+    <div class="planning__toolbar" lpTourAnchor="planning-toolbar">
+      <button type="button" class="planning__btn planning__btn--primary" (click)="toggleForm()">
+        <i class="bi bi-plus-lg"></i> Nouvel événement
+      </button>
+      <button type="button" class="planning__btn planning__btn--ghost" lpTourAnchor="planning-ical"
+              [disabled]="regenerating()" (click)="regenerateFeed()">
+        <i class="bi bi-rss"></i> S'abonner depuis mon calendrier
+      </button>
+    </div>
 
-      <div class="planning__toolbar">
-        <button type="button" class="planning__btn planning__btn--primary" (click)="toggleForm()">
-          <i class="bi bi-plus-lg"></i> Nouvel événement
-        </button>
-        <button type="button" class="planning__btn planning__btn--ghost"
-                [disabled]="regenerating()" (click)="regenerateFeed()">
-          <i class="bi bi-rss"></i> S'abonner depuis mon calendrier
-        </button>
+    @if (icalFeedUrl()) {
+      <div class="planning__feed">
+        <p>Abonne Apple/Google Calendar à ce flux (il se met à jour automatiquement) :</p>
+        <div class="planning__feed-row">
+          <code>{{ icalFeedUrl() }}</code>
+          <button type="button" class="planning__btn planning__btn--ghost" (click)="copyFeedUrl()">Copier</button>
+          <a class="planning__btn planning__btn--ghost" [href]="webcalUrl(icalFeedUrl()!)">S'abonner</a>
+        </div>
       </div>
+    }
 
-      @if (icalFeedUrl()) {
-        <div class="planning__feed">
-          <p>Abonne Apple/Google Calendar à ce flux (il se met à jour automatiquement) :</p>
-          <div class="planning__feed-row">
-            <code>{{ icalFeedUrl() }}</code>
-            <button type="button" class="planning__btn planning__btn--ghost" (click)="copyFeedUrl()">Copier</button>
-            <a class="planning__btn planning__btn--ghost" [href]="webcalUrl(icalFeedUrl()!)">S'abonner</a>
-          </div>
-        </div>
-      }
-
-      @if (showForm()) {
-        <div class="planning__form">
-          <div class="planning__form-row">
-            <label>
-              Roster
-              <select [ngModel]="selectedLinkId()" (ngModelChange)="selectedLinkId.set($event)">
-                @for (link of activeLinks(); track link.id) {
-                  <option [value]="link.id">{{ link.counterpart.username }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              Type
-              <select [ngModel]="formType()" (ngModelChange)="formType.set($event)">
-                @for (key of typeKeys; track key) {
-                  <option [value]="key">{{ typeLabels[key] }}</option>
-                }
-              </select>
-            </label>
-          </div>
-
-          <label class="planning__form-field">
-            Titre
-            <input type="text" [ngModel]="formTitle()" (ngModelChange)="formTitle.set($event)"
-                   placeholder="Ex. Session d'écriture avec Léa" />
+    @if (showForm()) {
+      <div class="planning__form">
+        <div class="planning__form-row">
+          <label>
+            Roster
+            <select [ngModel]="selectedLinkId() ?? ''" (ngModelChange)="onLinkSelect($event)">
+              <option value="">Personnel (aucun lien)</option>
+              @for (link of activeLinks(); track link.id) {
+                <option [value]="link.id">{{ link.counterpart.username }}</option>
+              }
+            </select>
           </label>
-
-          <div class="planning__form-row">
-            <label class="planning__form-field">
-              Début
-              <input type="datetime-local" [ngModel]="formStart()" (ngModelChange)="formStart.set($event)" />
-            </label>
-            <label class="planning__form-field">
-              Fin (optionnel)
-              <input type="datetime-local" [ngModel]="formEnd()" (ngModelChange)="formEnd.set($event)" />
-            </label>
-          </div>
-
-          <label class="planning__form-field">
-            Lieu (optionnel)
-            <input type="text" [ngModel]="formLocation()" (ngModelChange)="formLocation.set($event)" />
+          <label>
+            Type
+            <select [ngModel]="formType()" (ngModelChange)="formType.set($event)">
+              @for (key of typeKeys; track key) {
+                <option [value]="key">{{ typeLabels[key] }}</option>
+              }
+            </select>
           </label>
+        </div>
 
+        <label class="planning__form-field">
+          Titre
+          <input type="text" [ngModel]="formTitle()" (ngModelChange)="formTitle.set($event)"
+                 placeholder="Ex. Session d'écriture avec Léa" />
+        </label>
+
+        <div class="planning__form-row">
           <label class="planning__form-field">
-            Notes (optionnel)
-            <textarea rows="2" [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)"></textarea>
+            Début
+            <input type="datetime-local" [ngModel]="formStart()" (ngModelChange)="formStart.set($event)" />
           </label>
+          <label class="planning__form-field">
+            Fin (optionnel)
+            <input type="datetime-local" [ngModel]="formEnd()" (ngModelChange)="formEnd.set($event)" />
+          </label>
+        </div>
 
-          @if (formError()) {
-            <p class="planning__error">{{ formError() }}</p>
-          }
+        <label class="planning__form-field">
+          Lieu (optionnel)
+          <input type="text" [ngModel]="formLocation()" (ngModelChange)="formLocation.set($event)" />
+        </label>
 
-          <div class="planning__form-actions">
-            <button type="button" class="planning__btn planning__btn--primary"
-                    [disabled]="saving()" (click)="submitEvent()">
-              @if (saving()) { Création… } @else { Créer l'événement }
-            </button>
-            <button type="button" class="planning__btn planning__btn--ghost" (click)="toggleForm()">Annuler</button>
+        <label class="planning__form-field">
+          Notes (optionnel)
+          <textarea rows="2" [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)"></textarea>
+        </label>
+
+        @if (formError()) {
+          <p class="planning__error">{{ formError() }}</p>
+        }
+
+        <div class="planning__form-actions">
+          <button type="button" class="planning__btn planning__btn--primary"
+                  [disabled]="saving()" (click)="submitEvent()">
+            @if (saving()) { Création… } @else { Créer l'événement }
+          </button>
+          <button type="button" class="planning__btn planning__btn--ghost" (click)="toggleForm()">Annuler</button>
+        </div>
+      </div>
+    }
+
+    @if (groupedEvents().length === 0) {
+      <p class="planning__empty">Aucun événement à venir.</p>
+    } @else {
+      <div class="planning__agenda" lpTourAnchor="planning-agenda">
+        @for (day of groupedEvents(); track day.dateKey) {
+          <div class="planning__day">
+            <h2 class="planning__day-label">{{ day.label }}</h2>
+            <ul class="planning__day-events">
+              @for (e of day.events; track e.id) {
+                <li class="planning__event planning__event--{{ e.status }}">
+                  <span class="planning__event-icon"><i class="bi {{ typeIcons[e.event_type] }}"></i></span>
+                  <div class="planning__event-main">
+                    <span class="planning__event-title">{{ e.title }}</span>
+                    <span class="planning__event-meta">
+                      {{ formatTime(e.start_at) }}
+                      @if (e.location) { · {{ e.location }} }
+                      · {{ typeLabels[e.event_type] }}
+                    </span>
+                  </div>
+                  @if (e.status === 'proposed' && e.created_by.id !== auth.currentUser()?.id) {
+                    <button type="button" class="planning__btn planning__btn--primary planning__btn--sm"
+                            [disabled]="actingOnEvent() === e.id" (click)="confirmEvent(e)">Confirmer</button>
+                  }
+                  <button type="button" class="planning__btn planning__btn--ghost planning__btn--sm"
+                          [disabled]="actingOnEvent() === e.id" (click)="cancelEvent(e)">Annuler</button>
+                </li>
+              }
+            </ul>
           </div>
-        </div>
-      }
-
-      @if (groupedEvents().length === 0) {
-        <p class="planning__empty">Aucun événement à venir.</p>
-      } @else {
-        <div class="planning__agenda">
-          @for (day of groupedEvents(); track day.dateKey) {
-            <div class="planning__day">
-              <h2 class="planning__day-label">{{ day.label }}</h2>
-              <ul class="planning__day-events">
-                @for (e of day.events; track e.id) {
-                  <li class="planning__event planning__event--{{ e.status }}">
-                    <span class="planning__event-icon"><i class="bi {{ typeIcons[e.event_type] }}"></i></span>
-                    <div class="planning__event-main">
-                      <span class="planning__event-title">{{ e.title }}</span>
-                      <span class="planning__event-meta">
-                        {{ formatTime(e.start_at) }}
-                        @if (e.location) { · {{ e.location }} }
-                        · {{ typeLabels[e.event_type] }}
-                      </span>
-                    </div>
-                    @if (e.status === 'proposed' && e.created_by.id !== auth.currentUser()?.id) {
-                      <button type="button" class="planning__btn planning__btn--primary planning__btn--sm"
-                              [disabled]="actingOnEvent() === e.id" (click)="confirmEvent(e)">Confirmer</button>
-                    }
-                    <button type="button" class="planning__btn planning__btn--ghost planning__btn--sm"
-                            [disabled]="actingOnEvent() === e.id" (click)="cancelEvent(e)">Annuler</button>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
-        </div>
-      }
+        }
+      </div>
     }
   }
 

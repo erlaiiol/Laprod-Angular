@@ -123,6 +123,28 @@ describe('PlayerService', () => {
     expect(service.buildAudioUrl({ ...mockTrack, stream_url: '' })).toBe('');
   });
 
+  it('play() bascule sur le titre entier (full_stream_url) quand disponible', () => {
+    const full = { ...mockTrack, full_stream_url: '/stream/1/full' };
+    service.play(full);
+    expect(service.isPreviewSource()).toBe(false);
+    expect(service.buildAudioUrl(full)).toBe(`${API}/stream/1/full`);
+    httpMock.match(() => true).forEach(r => r.flush({}));
+  });
+
+  it('play() avec forcePreview reste sur stream_url même si full_stream_url existe', () => {
+    const full = { ...mockTrack, full_stream_url: '/stream/1/full' };
+    service.play(full, 'home', { forcePreview: true });
+    expect(service.isPreviewSource()).toBe(true);
+    expect(service.buildAudioUrl(full)).toBe(`${API}/stream/1`);
+    httpMock.match(() => true).forEach(r => r.flush({}));
+  });
+
+  it('play() sans full_stream_url reste en isPreviewSource', () => {
+    service.play(mockTrack);
+    expect(service.isPreviewSource()).toBe(true);
+    httpMock.match(() => true).forEach(r => r.flush({}));
+  });
+
   it('playNext() GETs /api/tracks/random', () => {
     service.playNext();
     const req = httpMock.expectOne(r => r.url.includes('/api/tracks/random'));

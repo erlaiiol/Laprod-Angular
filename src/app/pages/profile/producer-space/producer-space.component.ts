@@ -4,6 +4,7 @@ import { AuthService } from '../../../services/auth.service';
 import { DashboardService, ProducerDashboard } from '../../../services/dashboard.service';
 import { PLANNING_EVENT_TYPE_ICONS, PLANNING_EVENT_TYPE_LABELS, PlanningEventType } from '../../../services/planning.service';
 import { ProducerTabsComponent } from '../../producer/producer-tabs/producer-tabs.component';
+import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PRODUCER SPACE — "Vue d'ensemble" de l'espace producteur : même gabarit que
@@ -24,7 +25,7 @@ interface QuickAction {
 @Component({
   selector: 'app-producer-space',
   standalone: true,
-  imports: [RouterModule, ProducerTabsComponent],
+  imports: [RouterModule, ProducerTabsComponent, BetaBadgeComponent],
   templateUrl: './producer-space.component.html',
   styleUrl: './producer-space.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

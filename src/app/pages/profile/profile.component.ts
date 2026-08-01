@@ -11,6 +11,7 @@ import { PlaylistService, Playlist } from '../../services/playlist.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { ShareButtonComponent } from '../../components/share-button/share-button.component';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
+import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
 import { environment } from '../../../environments/environment';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
@@ -22,7 +23,7 @@ const PLAYLISTS_PER_PAGE = 8;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent, FormatDatePipe, ImgFallbackDirective],
+  imports: [CommonModule, RouterLink, PaginationComponent, ShareButtonComponent, TrackCardComponent, BetaBadgeComponent, FormatDatePipe, ImgFallbackDirective],
   templateUrl: './profile.component.html',
   styleUrl:    './profile.component.scss',
 })

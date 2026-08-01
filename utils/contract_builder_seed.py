@@ -112,7 +112,7 @@ def run_seed() -> None:
     g = _g("Désignation des œuvres", tooltip="Identification précise de l'œuvre musicale concernée.", sort_order=3)
     _c(g, "Titre de l'œuvre", "text", sort_order=0, required=True,
        tooltip_short="Titre exact de la composition musicale.",
-       example="ex : « Nuit Électrique » — titre tel qu'il sera commercialisé")
+       example="[l'Œuvre]")
     _c(g, "Description de l'œuvre", "textarea", sort_order=1,
        tooltip_short="Description artistique, genre, durée, caractéristiques de l'œuvre.",
        example=(
@@ -127,15 +127,15 @@ def run_seed() -> None:
        tooltip_short="Identifiant international de l'œuvre musicale (composition).",
        tooltip_long="L'ISWC (International Standard Musical Work Code, ISO 15707) identifie de manière unique une composition musicale. Obtenez-le auprès de la SACEM.",
        legal_ref="ISO 15707",
-       example="ex : T-123.456.789-0 (à obtenir auprès de la SACEM après dépôt)")
+       example="[ISWC]")
     _c(g, "Code ISRC", "text", sort_order=3, enabled_by_default=False,
        tooltip_short="Identifiant international de l'enregistrement sonore.",
        tooltip_long="L'ISRC (International Standard Recording Code, ISO 3901) identifie l'enregistrement sonore, distinct de la composition. Obtenez-le via le SCPP ou l'IFPI.",
        legal_ref="ISO 3901",
-       example="ex : FRZ012345678 (code à 12 caractères attribué par le producteur phonographique)")
+       example="[ISRC]")
     _c(g, "Code UPC/EAN", "text", sort_order=4, enabled_by_default=False,
        tooltip_short="Code barre produit pour la distribution physique et numérique.",
-       example="ex : 3 610155 234727 (attribué par le distributeur à chaque référence commerciale — un par format de sortie)")
+       example="[UPC/EAN]")
     _c(g, "Versions concernées", "multi_toggle", sort_order=5,
        options=["Version originale", "Remix", "Version instrumentale", "Version acoustique", "Stems / pistes séparées", "Autres versions"],
        tooltip_short="Quelles versions de l'œuvre sont incluses dans ce contrat ?")
@@ -591,7 +591,7 @@ def run_seed() -> None:
     _c(g, "Tribunaux compétents", "text", sort_order=1, required=True,
        tooltip_short="Tribunal compétent en cas de litige.",
        default_value={"text": "Tribunaux de Paris"},
-       example="ex : Tribunal judiciaire de Paris — Chambre commerciale")
+       example="[Tribunal compétent]")
     _c(g, "Médiation préalable obligatoire", "toggle", sort_order=2, enabled_by_default=False,
        tooltip_short="Les parties s'engagent à recourir à la médiation avant toute action judiciaire.")
     _c(g, "Clause d'arbitrage", "toggle_with_details", sort_order=3, enabled_by_default=False,
@@ -602,7 +602,7 @@ def run_seed() -> None:
     g = _g("Notifications", sort_order=30)
     _c(g, "Email contractuel du cessionnaire", "text", sort_order=0,
        tooltip_short="Adresse email officielle pour toutes les notifications contractuelles.",
-       example="ex : contrats@labelmusic.example — adresse dédiée aux notifications contractuelles, distincte de l'email de contact commercial")
+       example="[Email Contractant 2]")
     _c(g, "Modalités de notification", "textarea", sort_order=1, enabled_by_default=False,
        tooltip_short="Précisez les modalités : email recommandé, lettre recommandée AR, délai de prise en compte.")
 
@@ -686,7 +686,7 @@ _EXAMPLES: dict[str, str] = {
         "dans le cadre du développement de la carrière artistique de [Contractant 1] et "
         "de la promotion de [l'Œuvre] sur l'ensemble des marchés couverts par le présent accord."
     ),
-    "Titre de l'œuvre": "ex : « Nuit Électrique » — titre tel qu'il sera commercialisé",
+    "Titre de l'œuvre": "[l'Œuvre]",
     "Description de l'œuvre": (
         "L'œuvre faisant l'objet du présent contrat est une composition musicale originale "
         "intitulée [l'Œuvre], créée en [année de création], d'une durée de [durée de l'œuvre], "
@@ -695,9 +695,9 @@ _EXAMPLES: dict[str, str] = {
         "stems multipistes, du visuel de pochette haute résolution et des métadonnées "
         "complètes conformes aux standards DDEX."
     ),
-    "Code ISWC": "ex : T-123.456.789-0 (à obtenir auprès de la SACEM après dépôt)",
-    "Code ISRC": "ex : FRZ012345678 (code à 12 caractères attribué par le producteur phonographique)",
-    "Code UPC/EAN": "ex : 3 610155 234727 (attribué par le distributeur à chaque référence commerciale — un par format de sortie)",
+    "Code ISWC": "[ISWC]",
+    "Code ISRC": "[ISRC]",
+    "Code UPC/EAN": "[UPC/EAN]",
     "Fichiers et éléments livrés": (
         "Les fichiers et éléments ci-après sont livrés par [Contractant 1] à [Contractant 2] au titre du présent "
         "contrat et constituent l'ensemble contractuel de [l'Œuvre] : le fichier audio maître au format WAV non "
@@ -716,7 +716,7 @@ _EXAMPLES: dict[str, str] = {
         "lieu à une rémunération distincte négociée entre les parties, précisée le cas échéant à l'article "
         "Intelligence artificielle — clauses spécifiques du présent contrat."
     ),
-    "Email contractuel du cessionnaire": "ex : contrats@labelmusic.example — adresse dédiée aux notifications contractuelles, distincte de l'email de contact commercial",
+    "Email contractuel du cessionnaire": "[Email Contractant 2]",
     "Exclusivité totale": (
         "[Contractant 1] concède à [Contractant 2] une exclusivité totale sur l'ensemble "
         "des droits d'exploitation de [l'Œuvre] définis au présent contrat, pour tous les "
@@ -813,7 +813,7 @@ _EXAMPLES: dict[str, str] = {
         "Les parties s'engagent à annexer au présent contrat, dans les trente (30) jours suivant sa signature, le ou les "
         "splits sheets définissant la répartition des droits d'auteur entre co-auteurs."
     ),
-    "Tribunaux compétents": "ex : Tribunal judiciaire de Paris — Chambre commerciale",
+    "Tribunaux compétents": "[Tribunal compétent]",
     "Bonus de performance": (
         "L'Éditeur garantit à l'Auteur une rémunération minimale de [montant] euros par période de [durée], "
         "indépendamment des revenus effectivement générés par l'exploitation de l'Œuvre. Cette garantie constitue un "

@@ -208,7 +208,7 @@ def run_seed(force: bool = False) -> int:
        tooltip_long="Le nom exact de l'évènement sert de référence dans toutes les clauses (SACEM, assurance, "
                     "communication) et doit correspondre à celui utilisé sur les supports de promotion et la billetterie.",
        plain="Le nom affiché sur l'affiche et les billets. Utilisez toujours le même partout (contrat, facture, promo).",
-       example="ex : « Festival Les Nuits Électriques — édition 2026 »")
+       example="[l'Évènement]")
     _c(g, "Date de la représentation", "date", sort_order=1, required=True,
        tooltip_short="Date de la représentation publique.",
        tooltip_long="La date fixe le point de départ des délais contractuels (préavis d'annulation, paiement du solde, "
@@ -220,7 +220,7 @@ def run_seed(force: bool = False) -> int:
        tooltip_long="L'adresse précise détermine la juridiction territorialement compétente à défaut de clause "
                     "attributive et sert de référence pour les autorisations administratives et l'assurance du lieu.",
        plain="Le nom et l'adresse complète du lieu. Utile aussi pour le GPS de l'équipe et les livreurs de matériel.",
-       example="ex : Le Trabendo, 211 avenue Jean Jaurès, 75019 Paris — salle en configuration debout.")
+       example="[lieu], [adresse du lieu] — [précisez la configuration : debout, assis, plein air...]")
     _c(g, "Nombre de représentations", "number", sort_order=3, enabled_by_default=False,
        tooltip_short="Nombre de représentations couvertes par le contrat (résidences, festivals multi-jours).",
        tooltip_long="Si un même contrat couvre plusieurs dates (résidence, plusieurs soirs de festival), précisez le "
@@ -265,7 +265,7 @@ def run_seed(force: bool = False) -> int:
                     "un set significativement écourté sans motif légitime peut justifier une réduction du cachet "
                     "proportionnelle, ou l'inverse si l'organisateur impose un dépassement non prévu.",
        plain="Combien de temps dure votre prestation. Précisez si les rappels sont inclus dans ce temps ou en plus.",
-       example="ex : 75 minutes, rappels inclus")
+       example="[durée de la prestation]")
     _c(g, "Horaire de passage", "text", sort_order=1,
        tooltip_short="Heure prévue de début de la prestation.",
        tooltip_long="L'horaire de passage a une valeur contractuelle propre en festival ou plateau multi-artistes : "
@@ -273,7 +273,7 @@ def run_seed(force: bool = False) -> int:
                     "partie) peut constituer un manquement justifiant une renégociation du cachet.",
        plain="En festival, l'horaire de passage a une vraie valeur : un déclassement (passage plus tôt, scène secondaire) "
              "peut justifier une renégociation. Précisez-le.",
-       example="ex : passage à 21h30, fin de set à 23h00")
+       example="[heure de passage]")
     _c(g, "Balances / Soundcheck", "toggle_with_details", sort_order=2,
        tooltip_short="Horaire et durée des balances, présence du personnel technique.",
        tooltip_long="Les balances conditionnent la qualité sonore de la prestation : leur absence ou leur réduction "
@@ -590,7 +590,7 @@ def run_seed(force: bool = False) -> int:
                     "accord préalable peut être contestée comme une atteinte à l'économie du contrat.",
        plain="À activer surtout en partage de recettes : le prix du billet détermine directement votre rémunération, "
              "il ne doit pas pouvoir changer sans votre accord.",
-       example="ex : 25 € plein tarif / 18 € tarif réduit / 20 € en prévente — toute modification substantielle du prix public devra être notifiée à [Contractant 1]")
+       example="[prix des places]")
     _c(g, "Invitations et exonérés", "toggle_with_details", sort_order=2, enabled_by_default=False,
        tooltip_short="Quota d'invitations de chaque partie, traitement dans le partage des recettes.",
        tooltip_long="Un quota d'invitations non plafonné peut réduire artificiellement l'assiette du partage de "
@@ -1040,7 +1040,7 @@ def run_seed(force: bool = False) -> int:
                     "compétence s'appliquent malgré la clause.",
        plain="Le tribunal qui jugerait en cas de litige. Attention : cette clause ne s'impose pas si l'une des "
              "parties est un particulier ou une association non commerçante — la loi prévoit alors son propre tribunal.",
-       example="ex : Tribunal judiciaire de Paris — clause inopposable si l'une des parties est un particulier ou une association non commerçante (art. 48 CPC)")
+       example="[Tribunal compétent]")
     _c(g, "Médiation préalable obligatoire", "toggle", sort_order=2, enabled_by_default=False,
        tooltip_short="Tentative de résolution amiable (médiation) avant toute action en justice.",
        tooltip_long="Une clause de médiation préalable, si elle est rédigée de façon suffisamment précise, peut être "
@@ -1058,14 +1058,14 @@ def run_seed(force: bool = False) -> int:
                     "surveillée, pas une boîte générique rarement consultée.",
        plain="L'email officiel à utiliser pour tout ce qui est important dans ce contrat (annulation, report...). "
              "Choisissez une adresse que vous consultez vraiment.",
-       example="ex : production@salle-exemple.fr — adresse effectivement surveillée, à privilégier à une boîte générique")
+       example="[Email Contractant 2]")
     _c(g, "Email de contact de l'artiste / production", "text", sort_order=1,
        tooltip_short="Adresse email officielle de l'artiste ou de sa production.",
        tooltip_long="Comme pour l'organisateur, cette adresse sert de référence pour le calcul des délais de "
                     "notification contractuels ; en cas de changement en cours de contrat, il est prudent d'en "
                     "informer l'autre partie par écrit.",
        plain="L'email officiel de l'artiste ou de son équipe pour recevoir les communications importantes.",
-       example="ex : contact@nomdartiste-prod.example — idéalement celle de la production plutôt qu'une adresse personnelle")
+       example="[Email Contractant 1]")
     _c(g, "Modalités de notification", "textarea", sort_order=2, enabled_by_default=False,
        tooltip_short="Formes admises : email avec accusé, LRAR pour les notifications graves (annulation, résiliation).",
        tooltip_long="Distinguer les notifications courantes (email suffisant) des notifications graves (annulation, "

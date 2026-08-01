@@ -15,7 +15,8 @@ export type PlanningEventStatus = 'proposed' | 'confirmed' | 'cancelled';
 
 export interface PlanningEventDTO {
   id:              number;
-  roster_link_id:  number;
+  /** null = événement personnel, aucun lien roster requis. */
+  roster_link_id:  number | null;
   title:           string;
   description:     string | null;
   event_type:      PlanningEventType;
@@ -102,8 +103,10 @@ export class PlanningService {
     return this.http.get<any>(`${this.base}/roster/${linkId}/events`, { headers: this.headers });
   }
 
-  create(linkId: number, payload: CreatePlanningEventPayload): Observable<ApiResponse<{ event: PlanningEventDTO }>> {
-    return this.http.post<any>(`${this.base}/roster/${linkId}/events`, payload, { headers: this.headers });
+  /** linkId null → événement personnel (aucun lien roster requis). */
+  create(linkId: number | null, payload: CreatePlanningEventPayload): Observable<ApiResponse<{ event: PlanningEventDTO }>> {
+    const url = linkId ? `${this.base}/roster/${linkId}/events` : `${this.base}/events`;
+    return this.http.post<any>(url, payload, { headers: this.headers });
   }
 
   update(eventId: number, payload: Partial<CreatePlanningEventPayload>): Observable<ApiResponse<{ event: PlanningEventDTO }>> {
