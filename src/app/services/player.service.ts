@@ -21,6 +21,10 @@ export class PlayerService {
   currentTime   = signal(0);
   duration      = signal(0);
   volume        = signal(0.8);
+  /** True when the audio currently loaded is the watermarked 1:30 preview
+   *  rather than the full title (mp3 complet). Set by play()/playMixAudio(),
+   *  consumed by buildAudioUrl() and by PlayerComponent for the "Aperçu" tag. */
+  isPreviewSource = signal(true);
 
   // ── Context signals ───────────────────────────────────────────────────────
   /** Track dont la page détail est ouverte — active les boutons Download/REC. */
@@ -103,8 +107,14 @@ export class PlayerService {
    * Sets the currentTrack signal — PlayerComponent's effect() watches this
    * and calls wavesurfer.load(url), then plays on 'ready'.
    * Do NOT set audioEl.src here (race condition with WaveSurfer.load()).
+   *
+   * By default, plays the full title (mp3 complet) when available, falling
+   * back to the watermarked preview otherwise. Pass `forcePreview: true` to
+   * always use the watermarked preview regardless of full_stream_url — used
+   * by the topline recorder, which must record over the same 1:30 watermarked
+   * version that ends up in the exported topline mix.
    */
-  play(track: Track, source: string = 'home'): void {
+  play(track: Track, source: string = 'home', opts: { forcePreview?: boolean } = {}): void {
     // Envoyer l'event du track en cours avant de changer (switch de track)
     const current = this.currentTrack();
     if (current && current.id > 0 && this._listenStartTime > 0) {
@@ -117,6 +127,7 @@ export class PlayerService {
     this._listenStartTime = Date.now();
     this._secondsListened = 0;
     this._startListenTimer();
+    this.isPreviewSource.set(!!opts.forcePreview || !track.full_stream_url);
 
     // Do NOT call audioEl.play() here with no src set — it corrupts the
     // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
@@ -194,6 +205,7 @@ export class PlayerService {
       first_playlist_image: null,
     };
     this.playOnReady = true;
+    this.isPreviewSource.set(true);
     this.currentTrack.set(track);
     this._updateMediaSession(track);
     this.viewingTrack.set(null);
@@ -239,10 +251,11 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    // Toujours utiliser stream_url (preview) : l'élément <audio> ne peut pas
-    // envoyer de header Authorization, donc full_stream_url (JWT requis) retourne
-    // un 401 silencieux → WaveSurfer 'ready' ne fire jamais → le track ne joue pas.
-    const url = track.stream_url;
+    // Écoute = titre entier (full_stream_url, public) quand disponible, sauf
+    // si forcePreview a été demandé par play() (ex: enregistrement topline).
+    // Le bouton télécharger du player, lui, reste câblé sur stream_url (preview)
+    // indépendamment de ce choix — voir PlayerComponent.doDownload().
+    const url = (!this.isPreviewSource() && track.full_stream_url) ? track.full_stream_url : track.stream_url;
     if (!url) return '';
     if (url.startsWith('blob:') || url.startsWith('http')) return url;
     return `${environment.apiUrl}${url}`;

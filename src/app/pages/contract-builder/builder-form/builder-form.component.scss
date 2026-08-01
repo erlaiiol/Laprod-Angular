@@ -1226,3 +1226,76 @@
   transition: border-color 0.12s, color 0.12s, background 0.12s;
   &:hover { border-color: v.$tag-blue; color: v.$text-primary; background: rgba(v.$tag-blue, 0.06); }
 }
+
+// ── Signature en ligne — bloc destinataire ──────────────────────────────────────
+
+.bf-signature-card {
+  flex-shrink: 0;
+  margin: 0.85rem 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, v.$tag-blue 8%, v.$bg-surface);
+  border: 1px solid rgba(v.$tag-blue, 0.3);
+  border-radius: 10px;
+}
+
+.bf-signature-card-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.9rem; font-weight: 700; color: v.$text-primary;
+  i { color: v.$tag-blue; }
+
+  &--ok i { color: v.$tag-green; }
+  &--ko  i { color: v.$tag-red; }
+}
+
+.bf-signature-card-desc {
+  margin: 0.5rem 0 0.85rem; font-size: 0.8rem; color: v.$text-secondary; line-height: 1.5;
+}
+
+.bf-signature-form {
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+
+.bf-signature-consent {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8rem; color: v.$text-secondary; cursor: pointer;
+  input { margin-top: 0.2rem; accent-color: v.$tag-blue; flex-shrink: 0; }
+}
+
+.bf-signature-actions {
+  display: flex; justify-content: flex-end; gap: 0.6rem;
+}
+
+// ── Signature en ligne — modale d'envoi (propriétaire) ──────────────────────────
+
+.bf-signature-party {
+  margin-bottom: 0.85rem;
+}
+
+.bf-signature-status {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px;
+
+  &.is-none    { color: v.$text-muted;  background: rgba(v.$text-muted, 0.12); }
+  &.is-pending { color: v.$tag-orange;  background: rgba(v.$tag-orange, 0.14); }
+  &.is-signed  { color: v.$tag-green;   background: rgba(v.$tag-green, 0.14); }
+  &.is-declined{ color: v.$tag-red;     background: rgba(v.$tag-red, 0.14); }
+}
+
+.bf-signature-invite-row {
+  display: flex; gap: 0.6rem; margin-top: 0.6rem;
+
+  input {
+    flex: 1; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    color: v.$text-primary; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.85rem;
+    &:focus { outline: none; border-color: v.$tag-blue; }
+    &:disabled { opacity: 0.65; }
+  }
+}
+
+.bf-signature-error {
+  margin: 0.4rem 0 0; font-size: 0.78rem; color: v.$tag-red;
+}
+
+.bf-signature-modal {
+  max-width: 640px;
+}

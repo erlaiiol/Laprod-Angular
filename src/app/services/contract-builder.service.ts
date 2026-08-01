@@ -15,6 +15,9 @@ export type ClauseType =
 export type PartyType = 'physical' | 'company';
 export type ContractStatus = 'draft' | 'final';
 export type ContractType = 'exploitation' | 'performance' | 'management';
+export type PartyInviteStatus = 'none' | 'pending' | 'signed' | 'declined';
+export type ContractSignatureStatus = 'not_sent' | 'pending' | 'declined' | 'signed';
+export type ViewerRole = 'owner' | 'recipient';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -73,8 +76,14 @@ export interface ContractParty {
   address?:         string | null;
   email?:           string | null;
   // Lien optionnel vers un compte LaProd réel (contrat de management généré
-  // depuis un lien roster). Toujours null pour les contrats exploitation/performance.
+  // depuis un lien roster, ou résolu à l'envoi d'une invitation à signer).
   linked_user_id?:  number | null;
+  // Signature en ligne — jamais renvoyés en écriture, uniquement en lecture.
+  invite_status?:   PartyInviteStatus;
+  invited_at?:      string | null;
+  signed_at?:       string | null;
+  signature_name?:  string | null;
+  declined_at?:     string | null;
 }
 
 export interface ContractValue {
@@ -84,19 +93,43 @@ export interface ContractValue {
 }
 
 export interface ContractSummary {
-  id:            number;
-  title:         string;
-  contract_type: ContractType;
-  status:        ContractStatus;
-  created_at:    string;
-  updated_at:    string | null;
+  id:                number;
+  title:             string;
+  contract_type:     ContractType;
+  status:            ContractStatus;
+  signature_status:  ContractSignatureStatus;
+  created_at:        string;
+  updated_at:        string | null;
 }
 
 export interface ContractDetail extends ContractSummary {
-  pdf_file:  string | null;
-  parties:   ContractParty[];
-  values:    ContractValue[];
-  can_edit?: boolean;
+  pdf_file:     string | null;
+  parties:      ContractParty[];
+  values:       ContractValue[];
+  can_edit?:    boolean;
+  viewer_role?: ViewerRole;
+  my_party_id?: number | null;
+}
+
+/** Ligne d'inbox/outbox de signature — voir serializers.contract_share() côté backend. */
+export interface ContractShareEntry {
+  id:                number;
+  title:             string;
+  contract_type:     ContractType;
+  signature_status:  ContractSignatureStatus;
+  role:              'sender' | 'recipient';
+  created_at:        string;
+  updated_at:        string | null;
+  // role === 'sender'
+  invited_count?:    number;
+  pending_count?:    number;
+  signed_count?:     number;
+  declined_count?:   number;
+  // role === 'recipient'
+  counterpart?:      { id: number; username: string; profile_image: string | null };
+  my_party_role?:    string;
+  my_invite_status?: PartyInviteStatus;
+  my_signed_at?:     string | null;
 }
 
 export interface UpdateContractPayload {
@@ -164,6 +197,53 @@ export class ContractBuilderService {
   /** Brouillons uniquement — un contrat finalisé (PDF déjà généré) refuse côté serveur. */
   deleteContract(id: number): Observable<ApiResponse> {
     return this.http.delete<any>(`${this.base}/contracts/${id}`, { headers: this.headers });
+  }
+
+  // ── Signature en ligne ────────────────────────────────────────────────────
+
+  /** `identifier` : pseudo ou email. Si aucun compte ne correspond mais que
+   * c'est un email valide, le backend envoie une invitation par email à un
+   * futur inscrit plutôt que de renvoyer une erreur 404. */
+  invitePartyToSign(contractId: number, partyId: number, identifier: string): Observable<ApiResponse<{ party: ContractParty; signature_status: ContractSignatureStatus }>> {
+    return this.http.post<any>(
+      `${this.base}/contracts/${contractId}/parties/${partyId}/invite`,
+      { identifier },
+      { headers: this.headers },
+    );
+  }
+
+  cancelPartyInvite(contractId: number, partyId: number): Observable<ApiResponse<{ party: ContractParty; signature_status: ContractSignatureStatus }>> {
+    return this.http.post<any>(
+      `${this.base}/contracts/${contractId}/parties/${partyId}/cancel-invite`,
+      {},
+      { headers: this.headers },
+    );
+  }
+
+  getInbox(): Observable<ApiResponse<{ sent: ContractShareEntry[]; received: ContractShareEntry[] }>> {
+    return this.http.get<any>(`${this.base}/inbox`, { headers: this.headers });
+  }
+
+  signContract(contractId: number, signatureName: string, consent: boolean): Observable<ApiResponse<{ contract: ContractDetail }>> {
+    return this.http.post<any>(
+      `${this.base}/contracts/${contractId}/sign`,
+      { signature_name: signatureName, consent },
+      { headers: this.headers },
+    );
+  }
+
+  declineContract(contractId: number): Observable<ApiResponse<{ contract: ContractDetail }>> {
+    return this.http.post<any>(`${this.base}/contracts/${contractId}/decline`, {}, { headers: this.headers });
+  }
+
+  /** Public — aperçu d'une invitation email avant connexion/inscription. */
+  getInvitePreview(token: string): Observable<ApiResponse<{ title: string; inviter_username: string; email: string }>> {
+    return this.http.get<any>(`${this.base}/invite/preview`, { params: { token } });
+  }
+
+  /** Rattache le compte connecté à l'invitation portée par le token (lien email). */
+  resolveInvite(token: string): Observable<ApiResponse<{ contract_id: number }>> {
+    return this.http.post<any>(`${this.base}/invite/resolve`, { token }, { headers: this.headers });
   }
 
   // ── Admin — Groupes ───────────────────────────────────────────────────────

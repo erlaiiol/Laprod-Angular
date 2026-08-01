@@ -38,7 +38,8 @@
 
     <div class="lp-landing__header">
       <img [src]="apiUrl + '/db_assets/main/logo.png'" class="lp-landing__logo" alt="LaProd">
-      <h1 class="lp-landing__title">Crée. Vends. Reste protégé.<br><span>Sans compromis.</span></h1>
+      <h1 class="lp-landing__title">Passe de ta passion<br><span>à ta carrière.</span></h1>
+      <p class="lp-landing__intro">Peu importe où tu en es aujourd'hui. LaProd te donne les outils pour travailler comme un professionnel — pas la promesse d'un succès qu'on ne peut pas garantir.</p>
 
       <!-- ── Onglets rôle ─────────────────────────────────────────────────── -->
       <div class="lp-landing__tabs">
@@ -63,11 +64,11 @@
       @switch (heroTab()) {
 
         @case ('artiste') {
-          <p class="lp-landing__sub">Trouve le beat qui correspond à ton projet, signe un contrat clair, garde le contrôle sur tes droits.</p>
+          <p class="lp-landing__sub">Développe ton projet musical à ton rythme : trouve le beat qui lui correspond, signe un contrat clair, garde le contrôle sur tes droits.</p>
           <div class="lp-landing__bullets">
             <span><i class="bi bi-check-circle-fill"></i> Beats triés par BPM, tonalité & style</span>
             <span><i class="bi bi-check-circle-fill"></i> Contrats lisibles, droits expliqués</span>
-            <span><i class="bi bi-check-circle-fill"></i> Topline — chante avant d'acheter</span>
+            <span><i class="bi bi-check-circle-fill"></i> Topline — transforme une idée en morceau avant d'acheter</span>
           </div>
           <div class="lp-landing__features">
             <div class="lp-feature">
@@ -78,7 +79,7 @@
             <div class="lp-feature">
               <img [src]="apiUrl + '/db_assets/main/laprod_session.png'" alt="Recherche intelligente">
               <h3>Le beat parfait est là. Maintenant.</h3>
-              <p>Notre algorithme trie par vrais critères musicaux — BPM, tonalité, style. Facile à utiliser que tu démarres ou que tu produises depuis dix ans.</p>
+              <p>Notre algorithme trie par vrais critères musicaux — BPM, tonalité, style. Aussi facile à utiliser si tu démarres que si tu produis depuis dix ans.</p>
             </div>
             <div class="lp-feature lp-feature--topline">
               <div class="lp-feature__icon-wrap"><i class="bi bi-mic-fill"></i></div>
@@ -89,11 +90,11 @@
         }
 
         @case ('beatmaker') {
-          <p class="lp-landing__sub">Mets tes prods en vente au juste prix. Fixe tes tarifs, configure tes droits SACEM, touche directement sans intermédiaire.</p>
+          <p class="lp-landing__sub">Commence à générer des revenus avec tes prods : fixe tes tarifs, configure tes droits SACEM, touche directement ce que tu as gagné.</p>
           <div class="lp-landing__bullets">
             <span><i class="bi bi-check-circle-fill"></i> Contrats personnalisés par beat</span>
             <span><i class="bi bi-check-circle-fill"></i> Paiements directs, droits conservés</span>
-            <span><i class="bi bi-check-circle-fill"></i> Preview protégée contre le vol</span>
+            <span><i class="bi bi-check-circle-fill"></i> Preview protégée dès le premier upload</span>
           </div>
           <div class="lp-landing__features">
             <div class="lp-feature">
@@ -104,18 +105,18 @@
             <div class="lp-feature">
               <img [src]="apiUrl + '/db_assets/main/laprod_mixengineer.png'" alt="Paiements sécurisés">
               <h3>Payé directement. Sans intermédiaire.</h3>
-              <p>L'argent va de l'acheteur à toi. Pas de délai, pas d'intermédiaire qui prend sa marge. Tes droits SACEM sont configurés à l'upload.</p>
+              <p>L'argent va de l'acheteur à toi, sans délai et sans marge cachée. Tes droits SACEM sont configurés dès l'upload — ta protection commence avant ta première vente.</p>
             </div>
             <div class="lp-feature">
               <img [src]="apiUrl + '/db_assets/main/laprod_session.png'" alt="Algorithme de recommandation">
-              <h3>L'algorithme propulse tes beats.</h3>
-              <p>Plus tes métadonnées sont précises — BPM, tonalité, style, tags — plus ton catalogue est visible auprès des artistes qui cherchent exactement ce que tu fais.</p>
+              <h3>L'algorithme fait grandir ton catalogue.</h3>
+              <p>Plus tes métadonnées sont précises — BPM, tonalité, style, tags — plus ton travail est visible auprès des artistes qui cherchent exactement ce que tu fais.</p>
             </div>
           </div>
         }
 
         @case ('ingenieur') {
-          <p class="lp-landing__sub">Reçois des commandes de mix/mastering depuis ta fiche certifiée. Acompte versé à la commande, solde à la livraison.</p>
+          <p class="lp-landing__sub">Accède à des prestations professionnelles depuis ta fiche certifiée. Acompte versé à la commande, solde à la livraison.</p>
           <div class="lp-landing__bullets">
             <span><i class="bi bi-check-circle-fill"></i> Profil certifié par LaProd</span>
             <span><i class="bi bi-check-circle-fill"></i> Acompte protégé, paiement garanti</span>
@@ -124,13 +125,13 @@
           <div class="lp-landing__features">
             <div class="lp-feature">
               <img [src]="apiUrl + '/db_assets/main/laprod_mixengineer.png'" alt="Acompte et paiement">
-              <h3>Tu paies au rythme du travail.</h3>
-              <p>Acompte à la commande, solde à la livraison. Ton investissement est protégé à chaque étape — zéro prise de risque inutile pour le client comme pour toi.</p>
+              <h3>Tu es payé au rythme du travail.</h3>
+              <p>Acompte à la commande, solde à la livraison. Ton activité est protégée à chaque étape — zéro prise de risque inutile pour le client comme pour toi.</p>
             </div>
             <div class="lp-feature lp-feature--icon">
               <div class="lp-feature__icon-wrap lp-feature__icon-wrap--green"><i class="bi bi-patch-check-fill"></i></div>
               <h3>Profil certifié LaProd.</h3>
-              <p>Ta certification valide ton niveau et rassure les artistes. Mix Engineer, Master Engineer ou Producteur/Arrangeur — chaque niveau a ses propres critères.</p>
+              <p>Ta certification valide ton niveau et rassure les artistes. Mix Engineer, Master Engineer ou Producteur/Arrangeur — chaque niveau a ses propres critères, comme dans un vrai parcours professionnel.</p>
             </div>
             <div class="lp-feature lp-feature--icon">
               <div class="lp-feature__icon-wrap lp-feature__icon-wrap--blue"><i class="bi bi-cloud-upload-fill"></i></div>
@@ -141,27 +142,27 @@
         }
 
         @case ('producteur') {
-          <p class="lp-landing__sub">Crée des contrats clairs avec tes artistes. Configure les droits, la SACEM, les exclusivités — sans juriste, sans ambiguïté.</p>
+          <p class="lp-landing__sub">Vos artistes utilisent déjà LaProd pour créer, collaborer et vendre. Retrouvez-les dans le même espace, sans imposer à votre équipe un nouvel outil administratif.</p>
           <div class="lp-landing__bullets">
-            <span><i class="bi bi-check-circle-fill"></i> Contrats sur-mesure en quelques clics</span>
-            <span><i class="bi bi-check-circle-fill"></i> Droits SACEM & exclusivités configurables</span>
-            <span><i class="bi bi-check-circle-fill"></i> Analyseur de contrats externes</span>
+            <span><i class="bi bi-check-circle-fill"></i> Vos artistes sont déjà là — aucun outil de plus à leur imposer</span>
+            <span><i class="bi bi-check-circle-fill"></i> Contrats professionnels, signature en ligne, droits centralisés</span>
+            <span><i class="bi bi-check-circle-fill"></i> Suivi administratif et royalties au même endroit</span>
           </div>
           <div class="lp-landing__features">
+            <div class="lp-feature lp-feature--icon">
+              <div class="lp-feature__icon-wrap lp-feature__icon-wrap--blue"><i class="bi bi-people-fill"></i></div>
+              <h3>L'espace de travail commun de votre équipe.</h3>
+              <p>Vos artistes créent, collaborent et vendent déjà sur LaProd. Vous les y retrouvez — au lieu de multiplier les e-mails, les PDF et les outils spécialisés pour chaque collaboration.</p>
+            </div>
             <div class="lp-feature">
               <img [src]="apiUrl + '/db_assets/main/laprod_contract.png'" alt="Contrats musicaux">
-              <h3>Signe en sachant ce que tu cèdes.</h3>
-              <p>Dépose n'importe quel contrat musical. LaProd t'explique droits, exclusivités et durée — avant que tu n'apposer ta signature.</p>
-            </div>
-            <div class="lp-feature lp-feature--icon">
-              <div class="lp-feature__icon-wrap lp-feature__icon-wrap--violet"><i class="bi bi-pencil-square"></i></div>
-              <h3>Builder de contrats intégré.</h3>
-              <p>Génère un contrat de cession de droits en configurant chaque clause : formats autorisés, territoire, durée, part SACEM. Exportable en PDF signable.</p>
+              <h3>Contrats professionnels, signés en ligne.</h3>
+              <p>Générez un contrat de cession de droits en configurant chaque clause — formats autorisés, territoire, durée, part SACEM — et faites-le signer électroniquement. Sécurité juridique dès la première collaboration.</p>
             </div>
             <div class="lp-feature lp-feature--icon">
               <div class="lp-feature__icon-wrap"><i class="bi bi-shield-lock-fill"></i></div>
-              <h3>Protège tes créations à chaque étape.</h3>
-              <p>Chaque transaction génère une preuve horodatée. Tu sais qui a acheté quoi, quand, et dans quelles conditions — pour toujours.</p>
+              <h3>L'administratif ne ralentit plus votre équipe.</h3>
+              <p>Planning des collaborations, suivi des prestations, export des royalties : ce qui prenait des heures de tableurs et de relances tient dans un seul espace, à jour pour tout le monde.</p>
             </div>
           </div>
         }
@@ -210,15 +211,15 @@
         </div>
         <div class="lp-step" lpReveal [lpRevealDelay]="240">
           <span class="lp-step__num">3</span>
-          <h3>Télécharge. Crée.</h3>
-          <p>Paiement sécurisé, versé directement au créateur. MP3, WAV ou stems disponibles immédiatement dans ton espace.</p>
+          <h3>Avance dans ton projet.</h3>
+          <p>Paiement sécurisé, versé directement au créateur. MP3, WAV ou stems disponibles immédiatement dans ton espace — la suite de ta carrière t'appartient.</p>
         </div>
       </div>
     </div>
 
     <div class="lp-manifesto" lpReveal>
-      <strong>Ta musique. Tes droits. Ton prix.</strong>
-      <p>LaProd connecte artistes et créateurs sans intermédiaire. Pas de commission cachée, pas de contrat opaque — juste de la musique et des transactions qui te respectent.</p>
+      <strong>Passe de ta passion à ta carrière.</strong>
+      <p>LaProd connecte artistes et créateurs sans intermédiaire, et fournit à chacun les outils pour travailler comme un professionnel — pas la promesse d'un succès qu'on ne peut pas garantir. Pas de commission cachée, pas de contrat opaque : ta musique, tes droits, ton prix.</p>
     </div>
 
   </section>

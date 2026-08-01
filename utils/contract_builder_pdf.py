@@ -406,10 +406,18 @@ def generate_custom_contract_pdf(output_path: str, contract_data: dict) -> None:
                     name_parts = [party.get('first_name', ''), party.get('last_name', '')]
                     name = ' '.join(p for p in name_parts if p) or '______________________'
                 role = party.get('role', '')
+                if party.get('invite_status') == 'signed' and party.get('signature_name'):
+                    sig_block = (
+                        f"Signé électroniquement par {_esc(party['signature_name'])}<br/>"
+                        f"le {_esc(party.get('signed_at', ''))}"
+                    )
+                else:
+                    sig_block = (
+                        "Signature : ________________________<br/><br/>"
+                        "Date : ____________________________"
+                    )
                 col_data.append(
-                    f"<b>{_esc(role)}</b><br/>{_esc(name)}<br/><br/>"
-                    "Signature : ________________________<br/><br/>"
-                    "Date : ____________________________"
+                    f"<b>{_esc(role)}</b><br/>{_esc(name)}<br/><br/>{sig_block}"
                 )
             row = [Paragraph(cell, normal_style) for cell in col_data]
             while len(row) < cols:

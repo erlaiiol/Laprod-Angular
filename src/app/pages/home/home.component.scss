@@ -184,6 +184,14 @@
   @include m.mq(md) { font-size: 2rem; }
 }
 
+.lp-landing__intro {
+  font-size: 1.05rem;
+  color: v.$text-secondary;
+  margin: 0;
+  line-height: 1.6;
+  max-width: 560px;
+}
+
 .lp-landing__tabs {
   display: flex;
   gap: 0.5rem;

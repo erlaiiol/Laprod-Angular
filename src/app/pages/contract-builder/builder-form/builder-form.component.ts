@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   ContractBuilderService,
   ClauseGroupDTO, ClauseDTO, ContractParty, ContractValue,
-  ContractDetail, ContractStatus, ContractType,
+  ContractDetail, ContractStatus, ContractType, ViewerRole,
 } from '../../../services/contract-builder.service';
 import { ToastService } from '../../../services/toast.service';
 import {
@@ -46,6 +46,31 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
   canEdit  = signal(true);
   locked   = computed(() => !this.canEdit());
   readOnly = computed(() => this.isFinal() || this.locked());
+
+  // ── Signature en ligne ─────────────────────────────────────────────────────
+  // `viewer_role`/`my_party_id` viennent du serveur (GET /contracts/:id) : un
+  // destinataire invité peut consulter le contrat en lecture pour le signer,
+  // sans en être le propriétaire.
+  viewerRole  = signal<ViewerRole>('owner');
+  myPartyId   = signal<number | null>(null);
+  isRecipient = computed(() => this.viewerRole() === 'recipient');
+  myParty     = computed(() => this.parties().find(p => p.id === this.myPartyId()) ?? null);
+  myInviteStatus = computed(() => this.myParty()?.invite_status ?? 'none');
+  canSign     = computed(() => this.isRecipient() && this.myInviteStatus() === 'pending');
+
+  // Panneau d'envoi pour signature (propriétaire) — s'ouvre automatiquement
+  // juste après une finalisation réussie (voir generate()), et peut être
+  // rouvert ensuite via le bouton d'en-tête.
+  showSignaturePanel = signal(false);
+  partyIdentifier    = signal<Record<number, string>>({});
+  partyInviteBusy    = signal<Record<number, boolean>>({});
+  partyInviteError   = signal<Record<number, string | null>>({});
+
+  // Signature (destinataire)
+  signatureName    = signal('');
+  signatureConsent = signal(false);
+  signing          = signal(false);
+  declining        = signal(false);
 
   groups  = signal<ClauseGroupDTO[]>([]);
   parties = signal<ContractParty[]>([]);
@@ -338,12 +363,24 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
     this.status.set(c.status);
     this.pdfFile.set(c.pdf_file);
     this.canEdit.set(c.can_edit ?? true);
+    this.viewerRole.set(c.viewer_role ?? 'owner');
+    this.myPartyId.set(c.my_party_id ?? null);
     this.parties.set(c.parties.length ? c.parties : []);
     const map: Record<number, LocalValue> = {};
     for (const v of c.values) {
       map[v.clause_id] = { is_enabled: v.is_enabled, value: v.value ?? null };
     }
     this.valuesMap.set(map);
+  }
+
+  /** Recharge le contrat depuis le serveur — utilisé après chaque action de
+   * signature pour rester synchronisé sans dupliquer la logique serveur côté front. */
+  private refreshContract(): void {
+    this.svc.getContract(this.contractId()).subscribe({
+      next: res => {
+        if (res.success && res.data) this.applyContract(res.data.contract);
+      },
+    });
   }
 
   // ── Value helpers ──────────────────────────────────────────────────────────
@@ -646,6 +683,9 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
               this.status.set('final');
               this.pdfFile.set(genRes.data?.pdf_url ?? '');
               this.toast.showToast({ level: 'info', message: 'PDF généré avec succès !' });
+              // Le contrat est "fini et enregistré" : on propose immédiatement
+              // l'envoi pour signature en ligne, sans action supplémentaire.
+              this.showSignaturePanel.set(true);
             } else {
               this.toast.showToast({ level: 'error', message: genRes.feedback?.message ?? 'Erreur génération.' });
             }
@@ -922,5 +962,129 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigate(['/contract-builder']);
+  }
+
+  // ── Signature en ligne — envoi (propriétaire) ─────────────────────────────
+
+  openSignaturePanel(): void {
+    this.showSignaturePanel.set(true);
+  }
+
+  closeSignaturePanel(): void {
+    this.showSignaturePanel.set(false);
+  }
+
+  getPartyIdentifier(partyId: number): string {
+    return this.partyIdentifier()[partyId] ?? '';
+  }
+
+  setPartyIdentifier(partyId: number, value: string): void {
+    this.partyIdentifier.update(m => ({ ...m, [partyId]: value }));
+  }
+
+  isInviteBusy(partyId: number): boolean {
+    return !!this.partyInviteBusy()[partyId];
+  }
+
+  invitePartyError(partyId: number): string | null {
+    return this.partyInviteError()[partyId] ?? null;
+  }
+
+  sendPartyInvite(partyId: number): void {
+    const identifier = this.getPartyIdentifier(partyId).trim();
+    if (!identifier) {
+      this.partyInviteError.update(m => ({ ...m, [partyId]: "Indiquez un pseudo ou un email." }));
+      return;
+    }
+    this.partyInviteBusy.update(m => ({ ...m, [partyId]: true }));
+    this.partyInviteError.update(m => ({ ...m, [partyId]: null }));
+    this.svc.invitePartyToSign(this.contractId(), partyId, identifier).subscribe({
+      next: res => {
+        this.partyInviteBusy.update(m => ({ ...m, [partyId]: false }));
+        if (res.success) {
+          this.toast.showToast({ level: 'info', message: res.feedback?.message ?? 'Invitation envoyée.' });
+          this.setPartyIdentifier(partyId, '');
+          this.refreshContract();
+        } else {
+          this.partyInviteError.update(m => ({ ...m, [partyId]: res.feedback?.message ?? 'Erreur.' }));
+        }
+      },
+      error: err => {
+        this.partyInviteBusy.update(m => ({ ...m, [partyId]: false }));
+        this.partyInviteError.update(m => ({ ...m, [partyId]: err?.error?.feedback?.message ?? 'Erreur.' }));
+      },
+    });
+  }
+
+  cancelPartyInvite(partyId: number): void {
+    if (!confirm('Annuler cette invitation à signer ?')) return;
+    this.partyInviteBusy.update(m => ({ ...m, [partyId]: true }));
+    this.svc.cancelPartyInvite(this.contractId(), partyId).subscribe({
+      next: res => {
+        this.partyInviteBusy.update(m => ({ ...m, [partyId]: false }));
+        if (res.success) {
+          this.toast.showToast({ level: 'info', message: 'Invitation annulée.' });
+          this.refreshContract();
+        } else {
+          this.toast.showToast({ level: 'error', message: res.feedback?.message ?? 'Erreur.' });
+        }
+      },
+      error: err => {
+        this.partyInviteBusy.update(m => ({ ...m, [partyId]: false }));
+        this.toast.showToast({ level: 'error', message: err?.error?.feedback?.message ?? 'Erreur.' });
+      },
+    });
+  }
+
+  // ── Signature en ligne — signer / décliner (destinataire) ─────────────────
+
+  submitSignature(): void {
+    if (!this.canSign() || this.signing()) return;
+    const name = this.signatureName().trim();
+    if (!name) {
+      this.toast.showToast({ level: 'error', message: 'Indiquez votre nom légal complet.' });
+      return;
+    }
+    if (!this.signatureConsent()) {
+      this.toast.showToast({ level: 'error', message: 'Vous devez cocher la case de consentement.' });
+      return;
+    }
+    this.signing.set(true);
+    this.svc.signContract(this.contractId(), name, true).subscribe({
+      next: res => {
+        this.signing.set(false);
+        if (res.success) {
+          this.toast.showToast({ level: 'info', message: 'Contrat signé.' });
+          if (res.data?.contract) this.applyContract(res.data.contract);
+        } else {
+          this.toast.showToast({ level: 'error', message: res.feedback?.message ?? 'Erreur.' });
+        }
+      },
+      error: err => {
+        this.signing.set(false);
+        this.toast.showToast({ level: 'error', message: err?.error?.feedback?.message ?? 'Erreur.' });
+      },
+    });
+  }
+
+  declineSignature(): void {
+    if (!this.canSign() || this.declining()) return;
+    if (!confirm('Décliner la signature de ce contrat ?')) return;
+    this.declining.set(true);
+    this.svc.declineContract(this.contractId()).subscribe({
+      next: res => {
+        this.declining.set(false);
+        if (res.success) {
+          this.toast.showToast({ level: 'info', message: 'Signature déclinée.' });
+          if (res.data?.contract) this.applyContract(res.data.contract);
+        } else {
+          this.toast.showToast({ level: 'error', message: res.feedback?.message ?? 'Erreur.' });
+        }
+      },
+      error: err => {
+        this.declining.set(false);
+        this.toast.showToast({ level: 'error', message: err?.error?.feedback?.message ?? 'Erreur.' });
+      },
+    });
   }
 }

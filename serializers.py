@@ -195,6 +195,42 @@ def roster_link(rl, viewer_id: int) -> dict:
     }
 
 
+def contract_share(contract, party=None) -> dict:
+    """
+    Ligne d'inbox/outbox de signature de contrat, vue du point de vue du viewer
+    (même logique que roster_link : on expose le rôle + le nécessaire relatif
+    à ce rôle, pas toute la structure brute).
+
+    - `party=None`  → vue « envoyé » : le viewer est le propriétaire du contrat,
+      on résume l'état des parties invitées (compteurs), pas leur détail.
+    - `party=<UserContractParty>` → vue « reçu » : le viewer est le signataire
+      de cette partie précise, on expose son statut d'invitation personnel et
+      le propriétaire comme `counterpart`.
+    """
+    d = {
+        'id':               contract.id,
+        'title':            contract.title,
+        'contract_type':    contract.contract_type.value,
+        'signature_status': contract.signature_status.value,
+        'created_at':       contract.created_at.isoformat(),
+        'updated_at':       contract.updated_at.isoformat() if contract.updated_at else None,
+    }
+    if party is not None:
+        d['role']             = 'recipient'
+        d['counterpart']      = user_ref(contract.user)
+        d['my_party_role']    = party.role
+        d['my_invite_status'] = party.invite_status.value
+        d['my_signed_at']     = party.signed_at.isoformat() if party.signed_at else None
+    else:
+        invited = [p for p in contract.parties if p.invite_status.value != 'none']
+        d['role']           = 'sender'
+        d['invited_count']  = len(invited)
+        d['pending_count']  = sum(1 for p in invited if p.invite_status.value == 'pending')
+        d['signed_count']   = sum(1 for p in invited if p.invite_status.value == 'signed')
+        d['declined_count'] = sum(1 for p in invited if p.invite_status.value == 'declined')
+    return d
+
+
 def planning_event(e) -> dict:
     return {
         'id':             e.id,
@@ -225,6 +261,37 @@ def track_split(s) -> dict:
         'added_by':      user_ref(s.added_by) if s.added_by_id else None,
         'created_at':    s.created_at.isoformat(),
         'updated_at':    s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+def structure(s) -> dict:
+    return {
+        'id':              s.id,
+        'owner_id':        s.owner_id,
+        'name':            s.name,
+        'legal_form':      s.legal_form,
+        'capital':         s.capital,
+        'siren':           s.siren,
+        'siret':           s.siret,
+        'rcs':             s.rcs,
+        'legal_rep':       s.legal_rep,
+        'signatory_title': s.signatory_title,
+        'address':         s.address,
+        'email':           s.email,
+        'phone':           s.phone,
+        'created_at':      s.created_at.isoformat(),
+        'updated_at':      s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+def premium_payment(p) -> dict:
+    return {
+        'id':            p.id,
+        'plan':          p.plan,
+        'amount_paid':   float(p.amount_paid),
+        'duration_days': p.duration_days,
+        'is_renewal':    p.is_renewal,
+        'created_at':    p.created_at.isoformat(),
     }
 
 

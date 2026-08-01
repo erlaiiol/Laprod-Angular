@@ -138,9 +138,22 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/contract-builder/builder-form/builder-form.component').then(m => m.BuilderFormComponent),
     data: { demo: true } },
 
+  // Doit être déclarée avant 'contract-builder/:id' (sinon "inbox" est capturé
+  // comme :id par le routeur).
+  { path: 'contract-builder/inbox',
+    loadComponent: () => import('./pages/contract-builder/contract-inbox/contract-inbox.component').then(m => m.ContractInboxComponent),
+    canActivate: [authGuard] },
+
   { path: 'contract-builder/:id',
     loadComponent: () => import('./pages/contract-builder/builder-form/builder-form.component').then(m => m.BuilderFormComponent),
     canActivate: [authGuard] },
+
+  // Atterrissage d'une invitation a signer recue par email (destinataire sans
+  // compte LaProd au moment de l'envoi) : route publique, guide vers connexion
+  // ou inscription puis rattache le compte a l'invitation (voir invite/resolve
+  // cote backend).
+  { path: 'contracts/sign-invite',
+    loadComponent: () => import('./pages/contract-sign-invite/contract-sign-invite.component').then(m => m.ContractSignInviteComponent) },
 
   { path: 'contract-analyzer',
     loadComponent: () => import('./pages/contract-analyzer/contract-analyzer.component').then(m => m.ContractAnalyzerComponent) },

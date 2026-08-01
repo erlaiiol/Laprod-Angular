@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal, viewChild } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { GuestToplineService } from '../../../services/guest-topline.service';
 import { ToastService } from '../../../services/toast.service';
@@ -45,9 +45,30 @@ export class LoginComponent {
   constructor(
     private authService : AuthService,
     private router      : Router,
+    private route       : ActivatedRoute,
     private guestSvc    : GuestToplineService,
     private toast       : ToastService,
   ) {}
+
+  /** Redirection post-connexion vers une destination différée : invitation à
+   * signer un contrat reçue par email (localStorage — survit à l'aller-retour
+   * par la vérification d'email lors d'une inscription) ou `?returnUrl=`
+   * (convention déjà posée ailleurs — ex: track-contract-config, mix/order —
+   * mais jamais consommée jusqu'ici). Retourne true si une redirection a eu lieu. */
+  private redirectToPendingDestination(): boolean {
+    const pendingInvite = localStorage.getItem('pendingContractInvite');
+    if (pendingInvite) {
+      localStorage.removeItem('pendingContractInvite');
+      this.router.navigate(['/contracts/sign-invite'], { queryParams: { token: pendingInvite } });
+      return true;
+    }
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (returnUrl) {
+      this.router.navigateByUrl(returnUrl);
+      return true;
+    }
+    return false;
+  }
 
   onSubmit() {
     this.loading.set(true);
@@ -79,7 +100,7 @@ export class LoginComponent {
             const user = this.authService.currentUser();
             if (res.code === 'SHOW_SELECT_ROLE' || (user && !user.user_type_selected)) {
               this.router.navigate(['/select-role']);
-            } else {
+            } else if (!this.redirectToPendingDestination()) {
               this.router.navigate(['/']);
             }
           } else {

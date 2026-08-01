@@ -3,7 +3,7 @@ Tests de sécurité — routes/streaming_service.py
 
 Couvre :
 1. Path traversal dans _send() — valeur de DB corrompue avec '../..'
-2. /tracks/<id>/full requiert JWT (MP3 complet non exposé publiquement)
+2. /tracks/<id>/full est public (écoute libre du titre entier, streaming pur)
 3. /tracks/<id>/preview reste public (comportement attendu)
 4. /tracks/<id>/download/<format> requiert JWT + achat
 5. /stream/contracts/<purchase_id> requiert JWT + être acheteur ou compositeur
@@ -169,30 +169,47 @@ class TestPathTraversal:
         assert resp.status_code == 404, "Un chemin valide doit retourner 404 si le fichier est absent"
 
 
-# ── 2. /full requiert authentification ───────────────────────────────────────
+# ── 2. /full est public (écoute libre du titre entier) ────────────────────────
 
 class TestFullStreamAuth:
 
-    def test_full_returns_401_without_jwt(self, client, approved_track):
-        """Le MP3 complet ne doit pas être accessible sans JWT."""
+    def test_full_accessible_without_jwt(self, client, approved_track):
+        """
+        Le MP3 complet est en écoute libre (streaming, pas de téléchargement) :
+        aucune authentification requise. Retourne 404 (fichier absent en test), pas 401.
+        """
         resp = client.get(f'/api/stream/tracks/{approved_track.id}/full')
-        assert resp.status_code == 401, (
-            "/full doit retourner 401 pour les utilisateurs non connectés"
-        )
-
-    def test_full_accessible_with_valid_jwt(self, client, app, approved_track, composer):
-        """Un utilisateur authentifié peut accéder au stream (fichier absent → 404, pas 401/403)."""
-        headers = _jwt_headers(app, composer.id)
-        resp = client.get(f'/api/stream/tracks/{approved_track.id}/full', headers=headers)
-        # 404 = fichier absent sur disque de test (normal). 401/403 = bug de sécurité.
         assert resp.status_code == 404, (
-            "Un utilisateur connecté doit pouvoir accéder au stream (même si le fichier est absent en test)"
+            "/full doit être public — 404 attendu (fichier absent en test), pas 401"
         )
 
-    def test_full_blocks_path_traversal_even_with_jwt(self, client, app, traversal_track, composer):
-        """Path traversal doit être bloqué même pour les utilisateurs authentifiés."""
-        headers = _jwt_headers(app, composer.id)
-        resp = client.get(f'/api/stream/tracks/{traversal_track.id}/full', headers=headers)
+    def test_full_returns_404_for_unapproved_track(self, client, db, composer):
+        """Un track non approuvé doit retourner 404 sur /full, comme /preview."""
+        from models import Track
+        t = Track(
+            title='Pending Beat Full',
+            composer_id=composer.id,
+            file_hash=str(uuid.uuid4()),
+            audio_file='audio/pending_preview.mp3',
+            file_mp3='audio/pending_full.mp3',
+            bpm=120,
+            key='C minor',
+            is_approved=False,
+            is_exclusive_sold=False,
+            price_mp3=9.99,
+        )
+        db.session.add(t)
+        db.session.commit()
+
+        resp = client.get(f'/api/stream/tracks/{t.id}/full')
+        assert resp.status_code == 404
+
+        db.session.delete(t)
+        db.session.commit()
+
+    def test_full_blocks_path_traversal(self, client, app, traversal_track):
+        """Path traversal doit être bloqué même sans authentification requise."""
+        resp = client.get(f'/api/stream/tracks/{traversal_track.id}/full')
         assert resp.status_code == 403
 
 

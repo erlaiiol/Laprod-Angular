@@ -2,6 +2,7 @@
 Blueprint Streaming Service — Sert les fichiers audio/PDF de façon sécurisée.
 
 GET  /api/stream/tracks/<track_id>/preview           → Preview watermarquée (public, rate-limité)
+GET  /api/stream/tracks/<track_id>/full               → MP3 complet, écoute libre (public, rate-limité)
 GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV/Stems (JWT + achat vérifié)
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
@@ -112,37 +113,23 @@ def stream_track_preview(track_id):
         abort(404)
 
 
-# ── 2. Stream MP3 complet (authentifié, rate-limité, pas d'attachment) ──────────
+# ── 2. Stream MP3 complet (public, rate-limité, pas d'attachment) ───────────────
 
 @streaming_bp.route('/tracks/<int:track_id>/full', methods=['GET'])
 @limiter.limit('60 per minute')
-@jwt_required()
-@require_user
-def stream_track_full(track_id, current_user):
+def stream_track_full(track_id):
     """
     Sert le MP3 complet d'un track approuvé en streaming pur (sans attachment).
-    Le fichier `file_mp3` est le produit PAYANT (identique à /download/mp3) : l'accès
-    est donc réservé au compositeur et aux acheteurs du format MP3. L'écoute libre
-    passe par /preview (fichier watermarqué).
+    Écoute libre, aucune authentification requise — le fichier `file_mp3` reste
+    protégé côté téléchargement (/download/mp3, attachment + achat vérifié) ;
+    seule cette route de streaming est publique, pour permettre l'écoute du
+    titre en entier depuis le player.
     """
     track = db.session.get(Track, track_id)
     if not track or not track.is_approved:
         abort(404)
     if not track.file_mp3:
         abort(404)
-
-    # Vérification d'achat — même règle que download_track_file.
-    is_composer = (track.composer_id == current_user.id)
-    if not is_composer:
-        purchase = db.session.execute(
-            select(Purchase).where(
-                Purchase.track_id         == track_id,
-                Purchase.buyer_id         == current_user.id,
-                Purchase.format_purchased == 'mp3',
-            )
-        ).scalar_one_or_none()
-        if not purchase:
-            return err("Accès non autorisé. Achetez ce fichier d'abord.", status=403)
 
     return _send(f'db_assets/audio/{track.file_mp3}', 'audio/mpeg')
 

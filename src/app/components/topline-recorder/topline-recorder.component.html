@@ -153,16 +153,27 @@
               </p>
               <button class="calib-cancel-btn" (click)="cancelCalibration()">Annuler</button>
             </div>
-            <p class="calib-overlay-instructions">
-              Tapez le bouton en rythme avec les sons que vous <strong>entendez</strong>.<br>
-              <small>2 sons de préparation, puis {{ CALIB_BEATS }} sons à tapper.</small>
-            </p>
-            <div class="calib-beat-ring" [class.calib-beat-active]="calibBeat()"></div>
-            <p class="calib-counter">{{ calibTapCount() }} / {{ CALIB_BEATS }}</p>
-            <button class="calib-tap-btn" (click)="onCalibTap()">TAP</button>
-            <p class="calib-overlay-tip">
-              Tapez juste quand vous entendez le son, pas avant.
-            </p>
+            @if (calibCountdown() !== null) {
+              <p class="calib-overlay-instructions">
+                Préparez-vous, le métronome démarre dans...
+              </p>
+              <div class="calib-beat-ring calib-beat-ring--countdown">{{ calibCountdown() }}</div>
+              <p class="calib-overlay-tip">
+                Restez concentré sur le rond, le premier son arrive à la fin du décompte.
+              </p>
+            } @else {
+              <p class="calib-overlay-instructions">
+                Tapez le bouton en rythme avec les sons que vous <strong>entendez</strong>.<br>
+                <small>2 sons de préparation, puis {{ CALIB_BEATS }} sons à tapper.</small>
+              </p>
+              <div class="calib-beat-ring" [class.calib-beat-active]="calibBeat()"></div>
+              <p class="calib-counter">{{ calibTapCount() }} / {{ CALIB_BEATS }}</p>
+              <button class="calib-tap-btn" (click)="onCalibTap()">TAP</button>
+              <p class="calib-overlay-tip">
+                Tapez juste quand vous entendez le son, pas avant.<br>
+                Rater un tap n'est pas grave : l'objectif est simplement d'en enchaîner {{ CALIB_BEATS }}.
+              </p>
+            }
           </div>
 
         }

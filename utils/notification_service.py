@@ -736,3 +736,67 @@ def notify_exclusive_license_expired(track, purchase):
             link='/dashboard/beatmaker',
         )
 
+
+# ============================================
+# NOTIFICATIONS — CONTRACT BUILDER (SIGNATURE EN LIGNE)
+# ============================================
+
+_URL_CONTRACT = '/contract-builder/{id}'
+
+
+def notify_contract_signature_requested(contract, party, target_user):
+    """Notifie le destinataire (compte LaProd déjà existant) qu'on l'invite
+    à signer un contrat."""
+    create_notification(
+        user_id=target_user.id,
+        notif_type='contract_signature_requested',
+        title='Contrat à signer',
+        message=f'{contract.user.username} vous invite à signer « {contract.title} » (rôle : {party.role}).',
+        link=_URL_CONTRACT.format(id=contract.id),
+    )
+
+
+def notify_contract_signed(contract, party, signer):
+    """Notifie le propriétaire du contrat qu'une partie vient de signer."""
+    create_notification(
+        user_id=contract.user_id,
+        notif_type='contract_signed',
+        title='Contrat signé',
+        message=f'{signer.username} ({party.role}) a signé « {contract.title} ».',
+        link=_URL_CONTRACT.format(id=contract.id),
+    )
+
+
+def notify_contract_fully_executed(contract):
+    """Notifie le propriétaire que toutes les parties invitées ont signé."""
+    create_notification(
+        user_id=contract.user_id,
+        notif_type='contract_fully_executed',
+        title='Contrat entièrement signé',
+        message=f'Toutes les parties invitées ont signé « {contract.title} ».',
+        link=_URL_CONTRACT.format(id=contract.id),
+    )
+
+
+def notify_contract_declined(contract, party, decliner):
+    """Notifie le propriétaire qu'une partie a refusé de signer."""
+    create_notification(
+        user_id=contract.user_id,
+        notif_type='contract_declined',
+        title='Signature refusée',
+        message=f'{decliner.username} ({party.role}) a décliné la signature de « {contract.title} ».',
+        link=_URL_CONTRACT.format(id=contract.id),
+    )
+
+
+def notify_contract_invite_cancelled(contract, party, target_user):
+    """Notifie le destinataire que l'invitation à signer a été annulée par
+    le propriétaire — l'accès en lecture du contrat lui est aussi retiré."""
+    create_notification(
+        user_id=target_user.id,
+        notif_type='contract_invite_cancelled',
+        title='Invitation annulée',
+        message=f'{contract.user.username} a annulé son invitation à signer « {contract.title} ».',
+        link=None,
+    )
+

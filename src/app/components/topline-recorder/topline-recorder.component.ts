@@ -42,6 +42,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   isPublished   = signal(false);
   loadingAudio   = signal(false);
   calibrating    = signal(false);
+  calibCountdown = signal<number | null>(null);
   calibTapCount  = signal(0);
   calibResult    = signal<number | null>(null);
   calibBeat      = signal(false);
@@ -102,7 +103,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private _calibCtx:       AudioContext | null = null;
   private _calibBeatTimes: number[] = [];
   private _calibTapTimes:  number[] = [];
-  readonly CALIB_BEATS           = 8;
+  private _calibCountdownTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly CALIB_BEATS            = 8;
+  readonly CALIB_COUNTDOWN_SECS   = 3;
   private readonly _CALIB_LEAD_IN = 2;
   private readonly _CALIB_BPM     = 90;
 
@@ -208,8 +211,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     // après activation du micro (évite le renvoi vers l'écouteur interne)
     await new Promise<void>(resolve => setTimeout(resolve, 150));
 
-    // Beat playback
-    this.player.play(this.track as any);
+    // Beat playback — toujours la preview watermarquée 1:30 : c'est cette version
+    // (durée + watermark) qui est mixée avec la voix dans la topline exportée.
+    this.player.play(this.track as any, 'home', { forcePreview: true });
 
     // MediaRecorder — détection du format supporté par le navigateur
     this.chunks = [];
@@ -495,10 +499,38 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   // ── Calibration ──────────────────────────────────────────────────────────────
 
   startCalibration(): void {
-    if (this._calibCtx || this.calibrating()) return;
+    if (this._calibCtx || this.calibrating() || this.calibCountdown() !== null) return;
     this._calibBeatTimes = [];
     this._calibTapTimes  = [];
     this.calibTapCount.set(0);
+    this.calibResult.set(null);
+
+    // Décompte visible avant le premier son : sans lui, le métronome
+    // démarrait sans prévenir et le premier tap ne pouvait jamais être
+    // proche de 0 ms de latence (réaction humaine face à un son surprise).
+    this.calibCountdown.set(this.CALIB_COUNTDOWN_SECS);
+    this.cdr.markForCheck();
+    this._calibCountdownTimer = setTimeout(() => this._tickCalibCountdown(), 1000);
+  }
+
+  private _tickCalibCountdown(): void {
+    const current = this.calibCountdown();
+    if (current === null) return; // annulé entre-temps
+
+    if (current <= 1) {
+      this.calibCountdown.set(null);
+      this.cdr.markForCheck();
+      this._startCalibMetronome();
+      return;
+    }
+
+    this.calibCountdown.set(current - 1);
+    this.cdr.markForCheck();
+    this._calibCountdownTimer = setTimeout(() => this._tickCalibCountdown(), 1000);
+  }
+
+  private _startCalibMetronome(): void {
+    if (this._calibCtx || this.calibrating()) return;
 
     try {
       this._calibCtx = new AudioContext();
@@ -591,7 +623,13 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   }
 
   cancelCalibration(): void {
-    if (!this.calibrating()) return;
+    if (this._calibCountdownTimer !== null) {
+      clearTimeout(this._calibCountdownTimer);
+      this._calibCountdownTimer = null;
+    }
+    this.calibCountdown.set(null);
+
+    if (!this.calibrating()) { this.cdr.markForCheck(); return; }
     this.calibrating.set(false);
     this._calibCtx?.close();
     this._calibCtx      = null;

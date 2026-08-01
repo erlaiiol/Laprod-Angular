@@ -1,0 +1,79 @@
+@use 'variables' as v;
+
+.ci-page {
+  position: relative;
+  max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; color: v.$text-primary;
+}
+
+.ci-header {
+  margin-bottom: 1.75rem;
+  h1 {
+    font-size: 1.6rem; font-weight: 800; margin: 0 0 0.4rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    i { color: v.$tag-blue; }
+  }
+}
+
+.ci-subtitle {
+  color: v.$text-secondary; font-size: 0.9rem; margin: 0;
+}
+
+.ci-loading {
+  color: v.$text-secondary; font-size: 0.9rem; padding: 2rem 0; text-align: center;
+}
+
+.ci-section {
+  margin-bottom: 2rem;
+
+  h2 {
+    font-size: 1.05rem; font-weight: 700; margin: 0 0 0.85rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+}
+
+.ci-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.4rem; height: 1.4rem; padding: 0 0.35rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 999px; font-size: 0.75rem; font-weight: 700; color: v.$text-secondary;
+}
+
+.ci-empty {
+  color: v.$text-muted; font-size: 0.875rem;
+}
+
+.ci-card {
+  display: flex; align-items: center; gap: 0.85rem; width: 100%;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.6rem;
+  cursor: pointer; text-align: left; color: inherit;
+  transition: border-color 0.15s;
+  &:hover { border-color: v.$tag-blue; }
+}
+
+.ci-avatar {
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
+
+.ci-card-body {
+  flex: 1; min-width: 0;
+}
+
+.ci-card-title {
+  font-weight: 700; font-size: 0.92rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.ci-card-meta {
+  font-size: 0.8rem; color: v.$text-secondary; margin-top: 0.15rem;
+}
+
+.ci-status {
+  flex-shrink: 0;
+  font-size: 0.78rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 999px;
+
+  &.is-not_sent, &.is-none { color: v.$text-muted;  background: rgba(v.$text-muted, 0.12); }
+  &.is-pending             { color: v.$tag-orange;  background: rgba(v.$tag-orange, 0.14); }
+  &.is-signed              { color: v.$tag-green;   background: rgba(v.$tag-green, 0.14); }
+  &.is-declined            { color: v.$tag-red;     background: rgba(v.$tag-red, 0.14); }
+}

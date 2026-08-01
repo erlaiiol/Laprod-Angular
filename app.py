@@ -411,6 +411,7 @@ def create_app(test_config=None):
         roster_api_bp,
         planning_api_bp,
         royalties_api_bp,
+        structure_api_bp,
     )
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
@@ -451,6 +452,7 @@ def create_app(test_config=None):
     app.register_blueprint(roster_api_bp)
     app.register_blueprint(planning_api_bp)
     app.register_blueprint(royalties_api_bp)
+    app.register_blueprint(structure_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

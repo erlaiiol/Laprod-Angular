@@ -4,7 +4,9 @@ Tests d'intégration — correctifs de sécurité (audit).
 Couvre :
 - C1 : /db_assets/ ne dessert plus les sous-dossiers sensibles (audio complet,
        contrats, factures, mixmaster) → 404.
-- H2 : /api/stream/tracks/<id>/full exige un achat (ou d'être le compositeur).
+- H2 (révisé) : /api/stream/tracks/<id>/full est en écoute libre (streaming public,
+  sans attachment) ; le téléchargement du même fichier via /download/mp3 reste, lui,
+  soumis à l'achat (ou au compositeur).
 - H3 : /api/stripe/webhook rejette toute requête sans signature Stripe valide.
 """
 
@@ -39,9 +41,9 @@ class TestDbAssetsAllowlist:
         assert resp.status_code in (403, 404)
 
 
-# ── H2 — stream full = achat requis ───────────────────────────────────────────
+# ── H2 (révisé) — stream full = écoute libre, download reste soumis à l'achat ──
 
-class TestStreamFullRequiresPurchase:
+class TestStreamFullIsPublicDownloadStillGated:
 
     @pytest.fixture()
     def paid_track(self, db, user):
@@ -71,25 +73,39 @@ class TestStreamFullRequiresPurchase:
             token = create_access_token(identity=str(user_id))
         return {'Authorization': f'Bearer {token}'}
 
-    def test_non_buyer_gets_403(self, app, client, db, paid_track, bound_factories):
-        """Un autre utilisateur sans achat ne peut pas streamer le MP3 complet."""
+    def test_full_stream_accessible_without_jwt(self, client, paid_track):
+        """/full est public : n'importe qui peut streamer le titre en entier
+        (écoute libre), sans authentification."""
+        resp = client.get(f'/api/stream/tracks/{paid_track.id}/full')
+        assert resp.status_code != 401
+
+    def test_full_stream_accessible_to_non_buyer(self, app, client, db, paid_track, bound_factories):
+        """Un utilisateur sans achat peut quand même streamer le MP3 complet
+        (l'écoute n'est plus gatée — seul /download/mp3 l'est)."""
+        from tests.factories.user_factory import UserFactory
+        listener = UserFactory(is_beatmaker=True)
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/stream/tracks/{paid_track.id}/full',
+            headers=self._headers_for(app, listener.id),
+        )
+        assert resp.status_code != 403
+
+    def test_download_still_requires_purchase(self, app, client, db, paid_track, bound_factories):
+        """/download/mp3 (attachment, produit payant) reste, lui, soumis à l'achat."""
         from tests.factories.user_factory import UserFactory
         attacker = UserFactory(is_beatmaker=True)
         db.session.commit()
 
         resp = client.get(
-            f'/api/stream/tracks/{paid_track.id}/full',
+            f'/api/stream/tracks/{paid_track.id}/download/mp3',
             headers=self._headers_for(app, attacker.id),
         )
         assert resp.status_code == 403
 
-    def test_anonymous_gets_401(self, client, paid_track):
-        """Sans JWT, l'accès est refusé (jwt_required)."""
-        resp = client.get(f'/api/stream/tracks/{paid_track.id}/full')
-        assert resp.status_code == 401
-
     def test_composer_is_not_forbidden(self, app, client, paid_track, user):
-        """Le compositeur n'est pas bloqué par la vérif d'achat (403) — il atteint
+        """Le compositeur n'est jamais bloqué (403) sur /full — il atteint
         le service du fichier (404 ici car le fichier n'existe pas sur disque)."""
         resp = client.get(
             f'/api/stream/tracks/{paid_track.id}/full',

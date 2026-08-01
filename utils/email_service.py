@@ -1451,6 +1451,99 @@ L'équipe LaProd
 
 
 # ============================================
+# EMAILS SPÉCIFIQUES - CONTRAT (SIGNATURE EN LIGNE)
+# ============================================
+
+def generate_contract_invite_token(contract_id, party_id, email):
+    """Token d'invitation à signer un contrat, pour un destinataire qui n'a
+    pas (encore) de compte LaProd. Porte directement les infos nécessaires
+    (pas de table dédiée) : le token EST la preuve d'invitation."""
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return serializer.dumps(
+        {'contract_id': contract_id, 'party_id': party_id, 'email': email},
+        salt='contract-signing-invite-salt',
+    )
+
+
+def verify_contract_invite_token(token, expiration=2592000):  # 30 jours
+    """Vérifie un token d'invitation à signer. Renvoie le dict décodé ou None."""
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        return serializer.loads(token, salt='contract-signing-invite-salt', max_age=expiration)
+    except SignatureExpired:
+        current_app.logger.warning("Token d'invitation contrat expiré")
+        return None
+    except (BadSignature, KeyError):
+        current_app.logger.warning("Token d'invitation contrat invalide")
+        return None
+
+
+def send_contract_invite_email(party, contract, inviter):
+    """Invite par email une personne sans compte LaProd à signer un contrat.
+    Le lien l'amène sur une page d'atterrissage qui la guide vers connexion
+    ou inscription, puis vers l'écran de signature de ce contrat précis."""
+    token = generate_contract_invite_token(contract.id, party.id, party.email)
+    invite_url = _fe(f'contracts/sign-invite?token={token}')
+
+    text_body = f"""
+Bonjour,
+
+{inviter.username} vous invite à signer le contrat « {contract.title} » sur LaProd.
+
+Vous n'avez pas encore de compte associé à cette adresse email : le lien
+ci-dessous vous permettra de vous connecter (ou de créer un compte) puis
+d'accéder directement au contrat pour le consulter et le signer en ligne.
+
+{invite_url}
+
+Ce lien est valable 30 jours.
+
+Si vous ne connaissez pas {inviter.username} ou n'attendiez pas ce contrat,
+ignorez cet email.
+
+---
+L'équipe LaProd
+https://laprod.net
+"""
+
+    html_body = f"""
+<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;color:#111;">
+  <h1 style="font-size:22px;margin:0 0 16px;">Contrat à signer sur LaProd</h1>
+  <p style="font-size:15px;line-height:1.6;color:#333;">
+    <strong>{html_module.escape(inviter.username)}</strong> vous invite à signer le contrat
+    « {html_module.escape(contract.title)} » sur LaProd.
+  </p>
+  <p style="font-size:15px;line-height:1.6;color:#333;">
+    Vous n'avez pas encore de compte associé à cette adresse email : le bouton
+    ci-dessous vous permettra de vous connecter (ou de créer un compte), puis
+    d'accéder directement au contrat pour le consulter et le signer en ligne,
+    sans rien imprimer.
+  </p>
+  <p style="margin:24px 0;">
+    <a href="{invite_url}"
+       style="display:inline-block;padding:12px 24px;background:#e5323c;color:#fff;
+              text-decoration:none;border-radius:8px;font-weight:600;">
+      Consulter et signer le contrat
+    </a>
+  </p>
+  <p style="font-size:12px;color:#999;">Ce lien est valable 30 jours.</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:32px 0 16px;">
+  <p style="font-size:12px;color:#999;">
+    Si vous ne connaissez pas {html_module.escape(inviter.username)} ou n'attendiez pas ce
+    contrat, ignorez cet email.
+  </p>
+</div>
+"""
+
+    return send_email(
+        subject=f'{inviter.username} vous invite à signer un contrat — LaProd',
+        recipients=[party.email],
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+# ============================================
 # CAMPAGNES DE MAILING (prospection vendeurs)
 # ============================================
 
