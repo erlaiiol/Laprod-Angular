@@ -109,8 +109,12 @@
           }
           <button class="btn-start-rec"
                   (click)="startRecording()"
-                  [disabled]="auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
-            <span class="rec-dot-btn"></span> Démarrer l'enregistrement
+                  [disabled]="startingRecording() || auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
+            @if (startingRecording()) {
+              <span class="btn-spinner"></span> Préparation du beat…
+            } @else {
+              <span class="rec-dot-btn"></span> Démarrer l'enregistrement
+            }
           </button>
 
           <!-- Calibration row -->
@@ -136,6 +140,8 @@
             <p class="tips-title"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
             <ul>
               <li><strong>Beat en fond</strong> — le beat joue pendant l'enregistrement, chantez par-dessus.</li>
+              <li><strong>Démarrage</strong> — un court instant de préparation avant que le beat démarre : attendez de l'entendre avant de chanter, ne partez pas sur le clic.</li>
+              <li><strong>Connexion</strong> — une connexion stable accélère le chargement du beat et rend le point de départ plus précis.</li>
               <li><strong>Monitoring</strong> — si activé, vous vous entendez en temps réel (~10 ms de latence). Utilisez un casque pour éviter le larsen.</li>
               <li><strong>Auto-tune</strong> — correction de justesse appliquée après l'enregistrement selon la gamme {{ track.key }}.</li>
               <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }}s · maximum {{ MAX_SECONDS }}s ({{ formatTimer(MAX_SECONDS) }}).</li>
