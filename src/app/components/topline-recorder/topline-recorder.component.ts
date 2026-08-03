@@ -41,6 +41,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   resultTopline = signal<PublishedTopline | null>(null);
   isPublished   = signal(false);
   loadingAudio   = signal(false);
+  startingRecording = signal(false);
   calibrating    = signal(false);
   calibCountdown = signal<number | null>(null);
   calibTapCount  = signal(0);
@@ -147,25 +148,37 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   async startRecording(): Promise<void> {
     this.errorMsg.set(null);
     this.player.pause();
-
-    if (typeof MediaRecorder === 'undefined') {
-      this.errorMsg.set('Votre navigateur ne prend pas en charge l\'enregistrement audio. Mettez à jour Safari ou utilisez Chrome.');
-      this.cdr.markForCheck();
-      return;
-    }
+    // Feedback pendant la préparation (permission micro + attente du beat
+    // audible) : sans ça, le bouton reste cliquable et silencieux pendant
+    // jusqu'à 2s, ce qui invite au double-clic et masque ce qui se passe.
+    this.startingRecording.set(true);
+    this.cdr.markForCheck();
 
     try {
-      // Désactiver le traitement du signal iOS qui peut changer la route audio
-      this.micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        video: false,
-      });
-    } catch {
-      this.errorMsg.set('Accès au microphone refusé. Autorisez le micro dans votre navigateur.');
-      this.cdr.markForCheck();
-      return;
-    }
+      if (typeof MediaRecorder === 'undefined') {
+        this.errorMsg.set('Votre navigateur ne prend pas en charge l\'enregistrement audio. Mettez à jour Safari ou utilisez Chrome.');
+        return;
+      }
 
+      try {
+        // Désactiver le traitement du signal iOS qui peut changer la route audio
+        this.micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          video: false,
+        });
+      } catch {
+        this.errorMsg.set('Accès au microphone refusé. Autorisez le micro dans votre navigateur.');
+        return;
+      }
+
+      await this._prepareAndRecord();
+    } finally {
+      this.startingRecording.set(false);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private async _prepareAndRecord(): Promise<void> {
     // Web Audio API — visualizer
     this.audioCtx = new AudioContext();
     // iOS : l'AudioContext créé dans un contexte async démarre en suspended
@@ -195,7 +208,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       this._latencyHintMs = Math.min(latencyHintMs, 500);
     }
 
-    const source  = this.audioCtx.createMediaStreamSource(this.micStream);
+    const source  = this.audioCtx.createMediaStreamSource(this.micStream!);
     this.analyser = this.audioCtx.createAnalyser();
     this.analyser.fftSize = 256;
     source.connect(this.analyser);
@@ -213,7 +226,15 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
     // Beat playback — toujours la preview watermarquée 1:30 : c'est cette version
     // (durée + watermark) qui est mixée avec la voix dans la topline exportée.
-    this.player.play(this.track as any, 'home', { forcePreview: true });
+    //
+    // player.play() ne fait que poser un signal ; le son réel ne démarre
+    // qu'après le chargement WaveSurfer (fetch + décodage), délai variable
+    // et non borné selon le cache navigateur. Sans attendre l'événement
+    // 'playing' de l'audio réel, le MediaRecorder capturait dès t≈0 alors
+    // que le beat n'était audible qu'après ce délai : à la fusion, seule la
+    // latence matérielle (calibration) est retranchée, jamais ce délai de
+    // chargement — la voix ressortait décalée du beat dans le fichier exporté.
+    await this._waitForBeatAudible();
 
     // MediaRecorder — détection du format supporté par le navigateur
     this.chunks = [];
@@ -221,7 +242,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     const recorderOptions: MediaRecorderOptions = this.recordingMimeType
       ? { mimeType: this.recordingMimeType }
       : {};
-    this.mediaRecorder = new MediaRecorder(this.micStream, recorderOptions);
+    this.mediaRecorder = new MediaRecorder(this.micStream!, recorderOptions);
     this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.mediaRecorder.onstop = () => this.onRecordingStop();
     this.mediaRecorder.start(100);
@@ -239,6 +260,29 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.state.set('recording');
     this.cdr.markForCheck();
     this.drawVisualizer();
+  }
+
+  /**
+   * Résout quand `player.audioEl` émet réellement 'playing' (son audible),
+   * pas seulement quand play() a été demandé. Filet de sécurité 2s si
+   * l'événement n'arrive jamais, pour ne pas bloquer l'enregistrement.
+   */
+  private _waitForBeatAudible(): Promise<void> {
+    return new Promise<void>(resolve => {
+      const audioEl = this.player.audioEl;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        audioEl.removeEventListener('playing', onPlaying);
+        resolve();
+      };
+      const onPlaying = () => finish();
+      audioEl.addEventListener('playing', onPlaying);
+      setTimeout(finish, 2000);
+
+      this.player.play(this.track as any, 'home', { forcePreview: true });
+    });
   }
 
   stopRecording(): void {
