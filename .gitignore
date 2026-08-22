@@ -52,6 +52,24 @@ Thumbs.db
 *.pem
 
 # ====================================
+# ANDROID - signing release (généré via `make android-keystore`)
+# ====================================
+android/keystore.properties
+android/app/*.keystore
+android/app/*.jks
+
+# ====================================
+# BUILDS MOBILE - artefacts rangés par `make android-bundle` / `android-apk`
+# ====================================
+/builds
+
+# ====================================
+# ANDROID - Rubber Band Library (GPL/commerciale, à télécharger manuellement,
+# voir android/app/src/main/cpp/CMakeLists.txt) - jamais vendorée dans le repo
+# ====================================
+android/app/src/main/cpp/rubberband/
+
+# ====================================
 # DOCKER - override local uniquement
 # ====================================
 # docker-compose.override.yml est EXCLUSIVEMENT pour le dev local.

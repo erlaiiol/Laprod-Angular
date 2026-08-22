@@ -61,6 +61,23 @@ LaProd-Angular/
 
 ---
 
+## Makefile
+
+`make help` liste toutes les cibles disponibles. Elles couvrent Docker (dev/prod),
+Angular, et le mobile (émulateur/simulateur + release Android signée) — voir
+[Application mobile](#application-mobile-ios--android) et
+[Déploiement](#déploiement-production--ovh) pour le détail des cibles pertinentes
+à chaque section.
+
+```bash
+make dev              # db+redis+web+worker en Docker, ports exposés (puis 'make serve')
+make prod-up           # stack prod complète (serveur)
+make android-emulator  # build + déploiement sur l'émulateur Android ("fake install")
+make android-bundle    # .aab signé pour le Play Store, versionCode auto-incrémenté
+```
+
+---
+
 ## Setup local (développement)
 
 ### 1. Cloner le dépôt
@@ -140,19 +157,40 @@ Deux prérequis pour que ça fonctionne réellement :
 ### Lancer sur émulateur/simulateur
 
 ```bash
-npm run dev:android        # build Angular + sync Capacitor + déploiement émulateur
-npm run dev:android:live   # idem, avec hot reload Angular (ng serve + livereload)
+make android-emulator        # (ou npm run dev:android) build Angular + sync Capacitor + déploiement émulateur — "fake install"
+make android-emulator-live   # idem, avec hot reload Angular (ng serve + livereload)
+make android-emulator AVD=Pixel_9   # cible un AVD précis
 
-npm run dev:ios            # build Angular + sync Capacitor + déploiement simulateur
-npm run dev:ios:live       # idem, avec hot reload Angular
+make ios-simulator           # (ou npm run dev:ios) build Angular + sync Capacitor + déploiement simulateur
+make ios-simulator-live      # idem, avec hot reload Angular
 ```
 
-Ces scripts (`scripts/dev-*.sh`) gèrent le choix de l'AVD/simulateur, le démarrage de l'émulateur si besoin, et le `JAVA_HOME` Android. Pour un rebuild manuel sans passer par les scripts :
+Ces scripts (`scripts/dev-*.sh`, invoqués par les cibles `make` ci-dessus) gèrent le choix de l'AVD/simulateur, le démarrage de l'émulateur si besoin, et le `JAVA_HOME` Android. Pour un rebuild manuel sans passer par les scripts :
 
 ```bash
 npm run cap:android   # build + sync + ouvre Android Studio
-npm run cap:ios        # build + sync + ouvre Xcode
+make ios-open          # (ou npm run cap:ios) build + sync + ouvre Xcode
 ```
+
+### Release Android (Play Store)
+
+`make android-bundle` construit un `.aab` signé avec la configuration `mobile`
+(pointe vers `https://laprod.net`, CORS/OAuth déjà couverts par `CORS_ORIGINS`),
+incrémente automatiquement `versionCode` dans `android/app/build.gradle`, et
+range l'artefact dans `builds/android/v<versionName>-<versionCode>/` (dossier
+gitignored).
+
+```bash
+make android-keystore   # UNE SEULE FOIS — génère android/app/laprod-release.keystore
+                         # + android/keystore.properties (gitignorés). À sauvegarder
+                         # précieusement : sans eux, impossible de publier une mise à
+                         # jour de l'app sous net.laprod.app.
+make android-bundle     # .aab signé pour l'upload Play Console
+make android-apk        # .apk signé, pour du sideload direct hors Play Store
+```
+
+`versionName` (le numéro affiché aux utilisateurs) reste manuel — à éditer dans
+`android/app/build.gradle` avant une release notable.
 
 ### Tests natifs
 
@@ -206,6 +244,10 @@ GOOGLE_CLIENT_SECRET=...
 MAIL_SERVER=smtp.example.com
 MAIL_USERNAME=...
 MAIL_PASSWORD=...
+
+# Comptes de service (créés automatiquement au démarrage, voir entrypoint.sh)
+ADMIN_PASSWORD=...
+TEST_ACCOUNT_PASSWORD=...
 ```
 
 ---
@@ -217,21 +259,23 @@ MAIL_PASSWORD=...
 ssh deploy@51.77.192.230
 cd /var/www/LaProd/Laprod-Angular/Laprod-Angular
 
-git pull
-docker compose -f docker-compose.yml up -d --build
+git pull && make prod-up   # (ou : git pull && docker compose -f docker-compose.yml up -d --build)
 ```
 
-Pour reconstruire uniquement le frontend :
+Pour reconstruire uniquement le frontend : `make deploy-frontend` (ou `docker compose -f docker-compose.yml up -d --build frontend`).
 
-```bash
-docker compose -f docker-compose.yml up -d --build frontend
-```
+Pour reconstruire uniquement le backend : `docker compose -f docker-compose.yml up -d --build web`.
 
-Pour reconstruire uniquement le backend :
+Autres cibles utiles : `make prod-down`, `make prod-logs [SERVICE=web]`, `make certbot-renew`.
 
-```bash
-docker compose -f docker-compose.yml up -d --build web
-```
+### Compte de test Play Store
+
+À chaque démarrage du conteneur `web` (donc à chaque `prod-deploy`/`prod-up`), `entrypoint.sh`
+crée automatiquement — de façon idempotente — un compte `playstore_review` /
+`playstore-review@laprod.net`, tous droits débloqués (plan le plus élevé, rôles artiste +
+beatmaker), pour la review Google Play (Play Console > App content > App access). Mot de passe
+défini par `TEST_ACCOUNT_PASSWORD` dans `.env` sur le serveur — à renseigner tel quel dans la
+fiche Play Console.
 
 ---
 

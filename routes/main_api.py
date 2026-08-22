@@ -4,19 +4,20 @@ Profile, Edit-profile, Notifications, Contact
 """
 import re
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Blueprint, request, current_app
-from flask_jwt_extended import jwt_required, verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended import jwt_required, verify_jwt_in_request, get_jwt_identity, get_jwt
 from werkzeug.utils import secure_filename
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.orm import selectinload
 
 import config
 from extensions import db, csrf
-from models import User, Notification, Track, PriceChangeRequest
+from models import User, Notification, Track, PriceChangeRequest, TokenBlocklist
 from serializers import ok, err, track_card as ser_track_card, capabilities_dict
-from helpers import sanitize_html
+from helpers import sanitize_html, revoke_all_refresh_tokens
 from utils import email_service, notification_service
 from utils.file_validator import validate_image_file
 from utils.image_variants import generate_variants, delete_variants
@@ -358,6 +359,57 @@ def edit_profile_security(current_user):
 
     return ok({'username': current_user.username},
               message=' '.join(messages) or 'Aucune modification détectée.')
+
+
+# ── DELETE /users/me ──────────────────────────────────────────────────────────
+
+@main_api_bp.route('/users/me', methods=['DELETE'])
+@jwt_required()
+@csrf.exempt
+@require_user
+def delete_own_account(current_user):
+    """
+    Suppression RGPD self-service (miroir de admin_api.delete_user, mais déclenchée
+    par l'utilisateur lui-même). Compte immédiatement bloqué (pending_deletion),
+    anonymisation complète par le job nuit après 30 jours (voir utils/gdpr_purge.py).
+    """
+    data = request.json or {}
+
+    if current_user.account_status == 'pending_deletion':
+        return err('Votre compte est déjà en attente de suppression.', status=409)
+
+    # Compte OAuth sans mot de passe local : rien à vérifier, le JWT valide suffit.
+    if current_user.password_hash:
+        current_password = data.get('current_password', '')
+        if not current_user.check_password(current_password):
+            return err('Mot de passe incorrect.', status=401)
+
+    current_user.account_status = 'pending_deletion'
+    current_user.deleted_at     = datetime.now(timezone.utc)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'delete_own_account error: {e}', exc_info=True)
+        return err('Erreur serveur.', status=500)
+
+    # Révoque la session courante — même mécanisme que /api/auth/logout.
+    jwt_data = get_jwt()
+    jti      = jwt_data.get('jti') if jwt_data else None
+    if jti:
+        try:
+            db.session.add(TokenBlocklist(jti=jti, created_at=datetime.utcnow()))
+            db.session.commit()
+            revoke_all_refresh_tokens(current_user.id)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'delete_own_account blocklist error: {e}')
+
+    current_app.logger.info(
+        f'Utilisateur #{current_user.id} ({current_user.username}) a demandé la suppression de son compte.'
+    )
+    return ok(message='Votre compte a été désactivé. Vos données seront anonymisées sous 30 jours.', level='info')
 
 
 # ── GET /notifications ────────────────────────────────────────────────────────

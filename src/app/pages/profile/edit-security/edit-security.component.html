@@ -124,5 +124,53 @@
       <i class="bi bi-person-fill"></i> Informations de profil
     </a>
 
+    <!-- ── Zone de danger ────────────────────────────────────────────────── -->
+    <div class="form-section danger-zone">
+      <h3 class="section-title section-title--danger"><i class="bi bi-exclamation-triangle-fill"></i> Zone de danger</h3>
+      <p class="field-hint">
+        Supprime définitivement votre compte LaProd. Voir la
+        <a routerLink="/suppression-compte" target="_blank">procédure détaillée</a>.
+      </p>
+      <button type="button" class="btn-danger-outline" (click)="openDeleteModal()">
+        <i class="bi bi-trash3"></i> Supprimer mon compte
+      </button>
+    </div>
+
   </div>
 </div>
+
+<!-- ── Modale de confirmation ──────────────────────────────────────────────── -->
+@if (showDeleteModal()) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal modal--danger" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-exclamation-triangle-fill"></i> Supprimer mon compte</h3>
+        <button class="btn-icon-close" (click)="closeDeleteModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <p class="modal-sub">
+        Cette action bloque immédiatement votre compte. Vos données personnelles seront
+        anonymisées automatiquement sous <strong>30 jours</strong> (conformité RGPD).
+        Vous serez déconnecté immédiatement.
+      </p>
+
+      @if (deleteError()) { <div class="form-feedback form-feedback--error">{{ deleteError() }}</div> }
+
+      @if (hasPassword()) {
+        <div class="field">
+          <label>Confirmez avec votre mot de passe</label>
+          <input type="password" placeholder="Mot de passe actuel"
+            [ngModel]="deleteConfirmPwd()" (ngModelChange)="deleteConfirmPwd.set($event)" />
+        </div>
+      }
+
+      <div class="modal-actions">
+        <button class="btn-secondary" [disabled]="deleteSubmitting()" (click)="closeDeleteModal()">Annuler</button>
+        <button class="btn-danger" [disabled]="deleteSubmitting() || (hasPassword() && !deleteConfirmPwd())" (click)="confirmDeleteAccount()">
+          @if (deleteSubmitting()) { <span class="spinner"></span> Suppression… }
+          @else { <i class="bi bi-trash3"></i> Confirmer la suppression }
+        </button>
+      </div>
+    </div>
+  </div>
+}

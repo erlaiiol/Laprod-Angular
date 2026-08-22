@@ -39,6 +39,12 @@ export class EditSecurityComponent implements OnInit {
   showCurrentPwd = signal(false);
   showNewPwd     = signal(false);
 
+  // ── Suppression de compte ────────────────────────────────────────────────
+  showDeleteModal   = signal(false);
+  deleteConfirmPwd  = signal('');
+  deleteSubmitting  = signal(false);
+  deleteError       = signal<string | null>(null);
+
   constructor(
     private userSvc: UserService,
     readonly auth:   AuthService,
@@ -119,6 +125,38 @@ export class EditSecurityComponent implements OnInit {
       error: err => {
         this.loading.set(false);
         this.error.set(err?.error?.feedback?.message ?? 'Erreur serveur.');
+      },
+    });
+  }
+
+  // ── Suppression de compte ────────────────────────────────────────────────
+  openDeleteModal(): void {
+    this.deleteConfirmPwd.set('');
+    this.deleteError.set(null);
+    this.showDeleteModal.set(true);
+  }
+
+  closeDeleteModal(): void {
+    if (this.deleteSubmitting()) return;
+    this.showDeleteModal.set(false);
+  }
+
+  confirmDeleteAccount(): void {
+    this.deleteSubmitting.set(true);
+    this.deleteError.set(null);
+
+    this.userSvc.deleteAccount(this.deleteConfirmPwd()).subscribe({
+      next: res => {
+        this.deleteSubmitting.set(false);
+        if (res.success) {
+          this.auth.silentLogout();
+        } else {
+          this.deleteError.set(res.feedback?.message ?? 'Erreur.');
+        }
+      },
+      error: err => {
+        this.deleteSubmitting.set(false);
+        this.deleteError.set(err?.error?.feedback?.message ?? 'Erreur serveur.');
       },
     });
   }

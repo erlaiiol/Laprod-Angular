@@ -1,0 +1,143 @@
+<div class="legal-page">
+  <div class="legal-container">
+
+    <header class="legal-header">
+      <h1>Suppression de compte</h1>
+      <p class="last-updated">Dernière mise à jour : {{ lastUpdated }}</p>
+    </header>
+
+    <nav class="legal-toc">
+      <p class="toc-title">Sommaire</p>
+      <ol>
+        <li><a href="#demande">Comment demander la suppression</a></li>
+        <li><a href="#deroulement">Déroulement et délais</a></li>
+        <li><a href="#donnees-supprimees">Données supprimées</a></li>
+        <li><a href="#donnees-conservees">Données conservées (obligations légales)</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+    </nav>
+
+    <div class="legal-body">
+
+      <section id="demande">
+        <h2>1. Comment demander la suppression de votre compte</h2>
+        <p>
+          Cette page est accessible publiquement, que vous ayez ou non l'application LaProd installée.
+          Elle s'applique aussi bien au compte web (laprod.net) qu'au compte utilisé dans l'application
+          mobile Android/iOS — il s'agit du même compte.
+        </p>
+        <p>
+          Pour demander la suppression de votre compte LaProd, envoyez un e-mail à
+          <a href="mailto:admin@laprod.net?subject=Suppression%20de%20compte">admin@laprod.net</a>
+          avec pour objet <strong>« Suppression de compte »</strong>, en précisant l'adresse e-mail
+          associée à votre compte. Vous pouvez aussi passer par la
+          <a routerLink="/contact">page de contact</a>.
+        </p>
+        <p>
+          Une pièce d'identité peut vous être demandée si un doute existe sur la légitimité de la
+          demande, afin d'éviter qu'un tiers ne fasse supprimer votre compte à votre insu.
+        </p>
+      </section>
+
+      <section id="deroulement">
+        <h2>2. Déroulement et délais</h2>
+        <ol>
+          <li>
+            <strong>Blocage immédiat</strong> — dès validation de votre demande, votre compte est
+            désactivé : connexion impossible, profil et contenus masqués aux autres utilisateurs.
+          </li>
+          <li>
+            <strong>Anonymisation sous 30 jours</strong> — vos données personnelles (e-mail, nom
+            d'utilisateur, bio, réseaux sociaux, contrats, coordonnées) sont anonymisées de façon
+            irréversible au plus tard 30 jours après le blocage.
+          </li>
+          <li>
+            <strong>Suppression accélérée</strong> — si vous avez une raison particulière de vouloir
+            que ce délai soit raccourci (ex. plainte CNIL en cours), indiquez-le dans votre e-mail.
+          </li>
+        </ol>
+        <p>
+          Vous disposez également du droit d'introduire une réclamation auprès de la
+          <strong>CNIL</strong> (<a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>)
+          si vous estimez que votre demande n'a pas été traitée correctement.
+        </p>
+      </section>
+
+      <section id="donnees-supprimees">
+        <h2>3. Données supprimées</h2>
+        <p>À l'issue du délai d'anonymisation, sont définitivement effacés ou anonymisés :</p>
+        <ul>
+          <li>Adresse e-mail, nom d'utilisateur, photo de profil, biographie, signature ;</li>
+          <li>Liens vers vos réseaux sociaux (Instagram, Twitter, YouTube, SoundCloud) ;</li>
+          <li>Identifiant de connexion Google (OAuth), si utilisé ;</li>
+          <li>
+            Coordonnées personnelles figurant dans vos contrats (adresse, e-mail, état civil) et les
+            PDF de contrats associés ;
+          </li>
+          <li>Nom d'acheteur associé à vos achats.</li>
+        </ul>
+      </section>
+
+      <section id="donnees-conservees">
+        <h2>4. Données conservées (obligations légales)</h2>
+        <p>
+          Certaines données ne peuvent pas être supprimées immédiatement car LaProd est légalement
+          tenu de les conserver, conformément à l'
+          <a routerLink="/privacy">Article 5 de la Politique de confidentialité</a> :
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Donnée</th>
+                <th>Durée</th>
+                <th>Motif</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Enregistrement de compte (anonymisé)</td>
+                <td>3 ans après suppression</td>
+                <td>Obligations légales générales</td>
+              </tr>
+              <tr>
+                <td>Transactions et factures</td>
+                <td>10 ans</td>
+                <td>Obligations comptables et fiscales</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Ces données conservées sont dissociées de votre identité (e-mail et nom remplacés par des
+          valeurs anonymes) et ne sont utilisées à aucune autre fin que le respect de ces obligations.
+        </p>
+      </section>
+
+      <section id="contact">
+        <h2>5. Contact</h2>
+        <div class="info-block">
+          <strong>LaProd — Responsable du traitement</strong><br>
+          E-mail : <a href="mailto:admin@laprod.net?subject=Suppression%20de%20compte">admin@laprod.net</a><br>
+          Formulaire : <a routerLink="/contact">Page de contact</a>
+        </div>
+        <p>
+          Pour plus de détails sur le traitement de vos données, consultez notre
+          <a routerLink="/privacy">Politique de confidentialité</a>.
+        </p>
+      </section>
+
+    </div>
+
+    <footer class="legal-footer">
+      <span>© 2026 LaProd.</span>
+      <a routerLink="/cgu">CGU / CGV</a> ·
+      <a routerLink="/privacy">Confidentialité</a> ·
+      <a routerLink="/cookies">Cookies</a> ·
+      <a routerLink="/dmca">DMCA</a> ·
+      <a routerLink="/mentions-legales">Mentions légales</a> ·
+      <a routerLink="/suppression-compte">Suppression de compte</a>
+    </footer>
+
+  </div>
+</div>
