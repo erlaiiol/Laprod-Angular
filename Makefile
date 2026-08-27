@@ -29,7 +29,7 @@ AVD     ?=
 
 .PHONY: help \
         dev dev-down dev-logs dev-build dev-local dev-local-down \
-        prod-up prod-down prod-logs prod-deploy deploy-frontend certbot-init certbot-renew \
+        prod-up prod-down prod-logs prod-deploy deploy-frontend prod-cleanup certbot-init certbot-renew \
         install serve build build-mobile test \
         android-emulator android-emulator-live android-keystore android-bundle android-apk android-clean \
         ios-simulator ios-simulator-live ios-open
@@ -83,6 +83,13 @@ prod-deploy: ## git pull + rebuild/redéploiement complet (à lancer sur le serv
 
 deploy-frontend: ## Rebuild + redémarre UNIQUEMENT le frontend (sans toucher au backend)
 	./scripts/deploy-frontend.sh
+
+prod-cleanup: ## Supprime les images Docker inutilisées + le cache de build (libère de l'espace disque)
+	@echo "⚠️  Supprime aussi les anciennes versions d'images non utilisées par un container actif."
+	@echo "   Ne pas lancer juste après un déploiement si tu veux garder la possibilité d'un rollback rapide."
+	docker image prune -a -f
+	docker builder prune -a -f
+	docker system df
 
 certbot-init: ## Premier certificat Let's Encrypt (laprod.net + www.laprod.net)
 	$(COMPOSE_PROD) run --rm certbot certonly --webroot \

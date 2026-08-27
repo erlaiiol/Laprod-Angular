@@ -14,13 +14,15 @@ set -euo pipefail
 
 COMPOSE="docker compose -f docker-compose.yml"
 
-echo "→ Build de l'image frontend..."
+log() { echo "→ $1"; }
+
+log "Build de l'image frontend..."
 $COMPOSE build frontend
 
-echo "→ Redémarrage du frontend (sans toucher aux autres services)..."
+log "Redémarrage du frontend (sans toucher aux autres services)..."
 $COMPOSE up -d --no-deps --force-recreate frontend
 
-echo "→ Vérification de l'état des services..."
+log "Vérification de l'état des services..."
 $COMPOSE ps
 
 echo "✓ Frontend redémarré. Logs disponibles avec :"
