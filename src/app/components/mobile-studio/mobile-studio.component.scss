@@ -89,13 +89,18 @@
 }
 
 .ms-close-btn {
-  background:  none;
-  border:      none;
-  color:       v.$text-secondary;
-  font-size:   1.1rem;
-  cursor:      pointer;
-  padding:     6px;
-  flex-shrink: 0;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  min-width:       44px;
+  min-height:      44px;
+  background:      none;
+  border:          none;
+  color:           v.$text-secondary;
+  font-size:       1.1rem;
+  cursor:          pointer;
+  padding:         0;
+  flex-shrink:     0;
   &:active { opacity: 0.6; }
 }
 
@@ -1199,67 +1204,6 @@
   }
 }
 
-// ── Affichage gamme (12 notes) ────────────────────────────────────────────────
-
-.ms-scale-display {
-  display:         flex;
-  gap:             4px;
-  width:           100%;
-  justify-content: center;
-
-  &--compact {
-    gap: 3px;
-    .ms-scale-note { width: 22px; height: 22px; }
-    .ms-scale-note__label { font-size: 0.6rem; }
-  }
-}
-
-.ms-scale-note {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  width:           26px;
-  height:          26px;
-  border-radius:   6px;
-  background:      rgba(255, 255, 255, 0.05);
-  border:          1px solid transparent;
-  transition:      background 0.1s, border-color 0.1s, transform 0.08s;
-  cursor:          default;
-
-  // Dièses (notes noires) — légèrement plus petits
-  &--sharp {
-    width:      20px;
-    height:     20px;
-    border-radius: 4px;
-    .ms-scale-note__label { font-size: 0.55rem; }
-  }
-
-  // Notes dans la gamme
-  &--in-key {
-    background:   rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  // Note détectée actuellement
-  &--active {
-    background:   v.$primary !important;
-    border-color: transparent !important;
-    transform:    scale(1.15);
-    box-shadow:   0 0 8px rgba(v.$primary, 0.5);
-  }
-}
-
-.ms-scale-note__label {
-  font-size:   0.65rem;
-  font-weight: 700;
-  color:       rgba(255, 255, 255, 0.5);
-  pointer-events: none;
-  user-select: none;
-
-  .ms-scale-note--in-key & { color: rgba(255, 255, 255, 0.8); }
-  .ms-scale-note--active & { color: #fff; }
-}
-
 // ── Punch-in ──────────────────────────────────────────────────────────────────
 
 .ms-punchin-zone {
@@ -1279,8 +1223,8 @@
   display:         flex;
   align-items:     center;
   justify-content: center;
-  width:           34px;
-  height:          34px;
+  width:           42px;
+  height:          42px;
   border:          none;
   border-radius:   10px;
   background:      rgba(255, 255, 255, 0.07);
@@ -1497,8 +1441,8 @@
   display:         flex;
   align-items:     center;
   justify-content: center;
-  width:           28px;
-  height:          28px;
+  width:           36px;
+  height:          36px;
   border:          none;
   background:      none;
   color:           rgba(255, 255, 255, 0.35);
@@ -1736,7 +1680,7 @@
   display:       flex;
   align-items:   center;
   gap:           4px;
-  font-size:     0.68rem;
+  font-size:     0.72rem;
   font-weight:   700;
   color:         #4caf81;
   background:    rgba(76, 175, 129, 0.12);
@@ -1744,7 +1688,7 @@
   padding:       2px 7px;
   flex-shrink:   0;
 
-  i { font-size: 0.68rem; }
+  i { font-size: 0.72rem; }
 }
 
 .daw-btn-mix {
@@ -1787,14 +1731,14 @@
   display:        flex;
   align-items:    center;
   gap:            6px;
-  font-size:      0.68rem;
+  font-size:      0.72rem;
   font-weight:    700;
-  color:          rgba(255, 255, 255, 0.3);
+  color:          rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin:         0 0 8px;
 
-  i { font-size: 0.75rem; }
+  i { font-size: 0.78rem; }
 }
 
 // ── Piste beat (lane) ─────────────────────────────────────────────────────────
@@ -1846,13 +1790,13 @@
   display:       flex;
   align-items:   center;
   gap:           3px;
-  font-size:     0.64rem;
+  font-size:     0.72rem;
   font-weight:   700;
   border-radius: 20px;
   padding:       2px 6px;
   flex-shrink:   0;
 
-  i { font-size: 0.64rem; }
+  i { font-size: 0.72rem; }
 
   &--green {
     color:      #4caf81;
@@ -1871,8 +1815,8 @@
   display:         flex;
   align-items:     center;
   justify-content: center;
-  width:           32px;
-  height:          32px;
+  width:           40px;
+  height:          40px;
   border:          1.5px solid rgba(255, 255, 255, 0.14);
   border-radius:   50%;
   background:      rgba(255, 255, 255, 0.05);
@@ -1919,12 +1863,12 @@
   align-items: center;
   gap:         2px;
   padding:     2px 14px 0;
-  font-size:   0.70rem;
+  font-size:   0.75rem;
   font-weight: 600;
-  color:       rgba(255, 255, 255, 0.38);
+  color:       rgba(255, 255, 255, 0.48);
   font-variant-numeric: tabular-nums;
 
-  .daw-beat-wf-time-sep { color: rgba(255, 255, 255, 0.22); }
+  .daw-beat-wf-time-sep { color: rgba(255, 255, 255, 0.3); }
 }
 
 // Shimmer pendant le chargement du blob

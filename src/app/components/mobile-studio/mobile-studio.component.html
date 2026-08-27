@@ -136,20 +136,6 @@
             </div>
           </div>
 
-          @if (track.key) {
-            <div class="ms-scale-display">
-              @for (name of noteNames; track $index) {
-                <div class="ms-scale-note"
-                     [class.ms-scale-note--in-key]="scaleNotes().has($index)"
-                     [class.ms-scale-note--active]="detectedNoteIndex() === $index"
-                     [class.ms-scale-note--sharp]="[1,3,6,8,10].includes($index)"
-                     [title]="name">
-                  <span class="ms-scale-note__label">{{ name }}</span>
-                </div>
-              }
-            </div>
-          }
-
           @if (detectedNote()) {
             <div class="ms-pitch-meter">
               <span class="ms-pitch-meter__note">{{ detectedNote() }}</span>
@@ -275,19 +261,6 @@
 
           <canvas #liveCanvas class="ms-live-canvas"
                   width="320" height="64" aria-hidden="true"></canvas>
-
-          @if (track.key) {
-            <div class="ms-scale-display ms-scale-display--compact">
-              @for (name of noteNames; track $index) {
-                <div class="ms-scale-note"
-                     [class.ms-scale-note--in-key]="scaleNotes().has($index)"
-                     [class.ms-scale-note--active]="detectedNoteIndex() === $index"
-                     [class.ms-scale-note--sharp]="[1,3,6,8,10].includes($index)"
-                     [title]="name">
-                </div>
-              }
-            </div>
-          }
 
           @if (detectedNote()) {
             <div class="ms-pitch-meter" aria-live="polite">
