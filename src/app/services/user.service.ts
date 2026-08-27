@@ -90,6 +90,11 @@ type ContactResponse = {
   feedback: { level: string; message: string };
 };
 
+type DeleteAccountResponse = {
+  success: boolean;
+  feedback: { level: string; message: string };
+};
+
 @Injectable({ providedIn: 'root' })
 export class UserService {
 
@@ -131,6 +136,14 @@ export class UserService {
       `${this.base}/users/edit-profile/security`,
       payload,
       { headers: this.headers },
+    );
+  }
+
+  // ── Suppression de compte (RGPD self-service) ────────────────────────────
+  deleteAccount(currentPassword: string): Observable<DeleteAccountResponse> {
+    return this.http.delete<DeleteAccountResponse>(
+      `${this.base}/users/me`,
+      { headers: this.headers, body: { current_password: currentPassword } },
     );
   }
 

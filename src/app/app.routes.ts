@@ -195,6 +195,9 @@ export const routes: Routes = [
   { path: 'cookies',
     loadComponent: () => import('./pages/legal/cookies/cookies.component').then(m => m.CookiesComponent) },
 
+  { path: 'suppression-compte',
+    loadComponent: () => import('./pages/legal/suppression-compte/suppression-compte.component').then(m => m.SuppressionCompteComponent) },
+
   { path: 'admin',
     loadComponent: () => import('./pages/admin/admin.component').then(m => m.AdminComponent),
     canActivate: [adminGuard] },

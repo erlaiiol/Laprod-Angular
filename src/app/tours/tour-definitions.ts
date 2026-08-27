@@ -18,6 +18,8 @@ export interface TourStep {
   text: string;
   /** Côté préféré pour la bulle. L'overlay bascule tout seul s'il manque de place. */
   placement?: TourPlacement;
+  /** L'ancre vit dans le menu mobile collapsible : l'overlay doit l'ouvrir avant de mesurer/scroller. */
+  opensNavbar?: boolean;
 }
 
 export interface TourDef {
@@ -51,12 +53,14 @@ export const TOURS: Record<TourId, TourDef> = {
         title: 'Vos espaces',
         text: "Beats, Mix & Master et Contrats : chaque menu ouvre un espace complet. Ce que vous y voyez dépend des rôles activés sur votre profil.",
         placement: 'bottom',
+        opensNavbar: true,
       },
       {
         anchor: 'nav-profile',
         title: 'Profil et rôles',
         text: "C'est ici que vous vous déclarez artiste, beatmaker ou ingénieur. Chaque rôle activé débloque son propre tableau de bord et ses fonctionnalités.",
         placement: 'bottom',
+        opensNavbar: true,
       },
       {
         anchor: 'fab-guide',

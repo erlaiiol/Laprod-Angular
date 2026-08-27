@@ -197,3 +197,115 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Zone de danger ─────────────────────────────────────────────────────────
+
+.danger-zone {
+  padding-top: 0.85rem;
+  border-top: 1px solid v.$bg-border;
+}
+
+.section-title--danger { color: v.$tag-red; }
+
+.btn-danger-outline {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: 1px solid v.$tag-red;
+  border-radius: v.$radius-sm;
+  color: v.$tag-red;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(220, 53, 69, 0.1); }
+}
+
+// ── Modale de confirmation ─────────────────────────────────────────────────
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: v.$backdrop-dim;
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: v.$z-modal;
+  padding: 1rem;
+}
+
+.modal {
+  width: 100%;
+  background: v.$bg-surface;
+  border: 1px solid v.$bg-border;
+  border-radius: v.$radius-lg;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: v.$shadow-xl, v.$edge-highlight;
+
+  &--danger { max-width: 420px; }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+
+  h3 {
+    font-size: 1.05rem; font-weight: 700; margin: 0;
+    display: flex; align-items: center; gap: 0.5rem;
+    color: v.$tag-red;
+  }
+}
+
+.btn-icon-close {
+  background: none; border: none; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.9rem; padding: 0.25rem;
+  &:hover { color: v.$off-white; }
+}
+
+.modal-sub {
+  font-size: 0.85rem;
+  color: v.$text-secondary;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.btn-danger {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: v.$tag-red;
+  color: #fff;
+  border: none;
+  border-radius: v.$radius-sm;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover:not(:disabled) { opacity: 0.85; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: v.$bg-elevated;
+  border: 1px solid v.$bg-border;
+  border-radius: v.$radius-sm;
+  color: v.$text-secondary;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  &:hover:not(:disabled) { border-color: v.$text-secondary; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}

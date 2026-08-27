@@ -238,7 +238,50 @@ def create_app(test_config=None):
             db.session.add(admin)
             db.session.commit()
             app.logger.info("Compte admin cree")
-    
+
+    @app.cli.command('create-test-account')
+    def create_test_account():
+        """
+        Crée le compte de test requis par la fiche Play Store (Google Play Console >
+        App content > App access) : les reviewers Google doivent pouvoir se connecter
+        pour évaluer l'app sans dépendre d'un compte réel. Idempotent — ne recrée pas
+        le compte s'il existe déjà. Tous droits débloqués (plan le plus élevé, rôles
+        artiste + beatmaker) pour que la review ne bute sur aucun mur premium.
+        """
+        from extensions import db
+        from models import User
+        from utils import plans
+        from datetime import datetime, timedelta
+
+        with app.app_context():
+            existing = db.session.query(User).filter_by(username='playstore_review').first()
+            if existing:
+                app.logger.info("Le compte de test Play Store existe deja")
+                return
+
+            test_password = os.environ.get('TEST_ACCOUNT_PASSWORD', 'CHANGE_ME_NOW')
+            test_account = User(
+                username='playstore_review',
+                email='playstore-review@laprod.net',
+                signature='Compte de test — Google Play',
+                account_status='active',
+                email_verified=True,
+                terms_accepted_at=datetime.now(),
+                user_type_selected=True,
+                is_artist=True,
+                is_beatmaker=True,
+                subscription_plan=plans.PRO_STRUCTURE,
+                premium_source='admin',
+                premium_since=datetime.now(),
+                # Compte pérenne (pas un octroi ponctuel de 30j) : doit rester utilisable
+                # à chaque nouvelle review Google, potentiellement des années plus tard.
+                premium_expires_at=datetime.now() + timedelta(days=3650),
+            )
+            test_account.set_password(test_password)
+            db.session.add(test_account)
+            db.session.commit()
+            app.logger.info("Compte de test Play Store cree")
+
     @app.cli.command('seed-contract-builder')
     def seed_contract_builder():
         """Initialise les groupes et clauses du contract builder."""

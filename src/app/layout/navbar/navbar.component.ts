@@ -12,6 +12,7 @@ import { ThemeService } from '../../services/theme.service';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
 import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
+import { TourService } from '../../services/tour.service';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,6 +42,12 @@ export class NavbarComponent {
   // (.collapse.show / .dropdown-menu.show) suffit, sans bootstrap.bundle.js.
   menuOpen     = signal(false);
   openDropdown = signal<'contracts' | 'user' | null>(null);
+
+  private tourSvc = inject(TourService);
+
+  // Le guide interactif force l'ouverture du menu mobile le temps de montrer
+  // les onglets/le profil, sans toucher à l'intention réelle de l'utilisateur.
+  menuVisible = computed(() => this.menuOpen() || this.tourSvc.navbarForceOpen());
 
   // Tags/gammes/styles/scènes ne sont chargés qu'à la première ouverture du
   // panneau de filtres : un visiteur qui ne filtre jamais ne coûte aucun appel.

@@ -45,12 +45,23 @@ export class TourOverlayComponent implements OnDestroy {
         return;
       }
 
+      if (this.scrollTimer) clearTimeout(this.scrollTimer);
+
       // On amène l'élément au centre avant de mesurer : sans ça, le halo se
       // dessinerait à la position d'avant-défilement.
-      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      const scrollAndMeasure = () => {
+        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        this.scrollTimer = setTimeout(() => this.measure(), 340);
+      };
 
-      if (this.scrollTimer) clearTimeout(this.scrollTimer);
-      this.scrollTimer = setTimeout(() => this.measure(), 340);
+      if (step.opensNavbar) {
+        // navbarForceOpen vient d'être levé par ce même changement de step : il
+        // faut laisser Angular appliquer la classe .show sur le menu collapsible
+        // avant de mesurer, sinon l'ancre est encore display:none (box vide).
+        requestAnimationFrame(() => requestAnimationFrame(scrollAndMeasure));
+      } else {
+        scrollAndMeasure();
+      }
     });
   }
 
@@ -102,14 +113,15 @@ export class TourOverlayComponent implements OnDestroy {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // Sur petit écran, la bulle s'ancre en bas : pas de place pour la coller à côté.
+    // Sur petit écran, pas de place pour coller la bulle à côté de l'élément :
+    // elle prend toute la largeur, en haut ou en bas selon la position de la
+    // cible. Les FABs (Guide/Premium) sont fixed en bas d'écran ; y ancrer la
+    // bulle les recouvrirait, donc on la remonte en haut dans ce cas.
     if (vw < 620) {
-      return {
-        left: `${VIEWPORT_M}px`,
-        right: `${VIEWPORT_M}px`,
-        bottom: `${VIEWPORT_M}px`,
-        width: 'auto',
-      };
+      const anchorIsLow = b.top + b.height / 2 > vh / 2;
+      return anchorIsLow
+        ? { left: `${VIEWPORT_M}px`, right: `${VIEWPORT_M}px`, top: `${VIEWPORT_M}px`, width: 'auto' }
+        : { left: `${VIEWPORT_M}px`, right: `${VIEWPORT_M}px`, bottom: `${VIEWPORT_M}px`, width: 'auto' };
     }
 
     const placement = this.resolvePlacement(b, step.placement ?? 'bottom', vw, vh);

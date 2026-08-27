@@ -60,16 +60,6 @@ const COUNTDOWN_START     = 3;
 const BT_CALIB_SHOWN_KEY  = 'laprod_bt_calib_v1';
 const DEFAULT_BEAT_VOL = 0.65;
 
-// Gammes musicales (intervalles chromatiques depuis la tonique)
-const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
-const MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 10];
-
-// Correspondance nom → index chromatique (0 = C)
-const NOTE_CHROMA: Record<string, number> = {
-  'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
-  'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
-  'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11,
-};
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // ── Composant ─────────────────────────────────────────────────────────────────
@@ -96,7 +86,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   @ViewChild('beatWaveCanvas') beatWaveCanvasRef?: ElementRef<HTMLCanvasElement>;
 
   readonly env       = environment;
-  readonly noteNames = NOTE_NAMES;
 
   // ── Services (avant les computed qui les référencent) ─────────────────────────
 
@@ -219,9 +208,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   /** true si le niveau ajusté au gain dépasse 85% du max — risque de saturation. */
   readonly clipWarning  = computed(() => this.recordRms() * this.micGain() > 0.85);
 
-  /** Notes de la gamme courante (indices chromatiques 0–11). */
-  readonly scaleNotes = computed(() => this._buildScaleNotes(this.track?.key ?? ''));
-
   /** Piste vocale en cours de punch-in (null si aucune). */
   readonly punchInTrack = computed(() =>
     this.tracks().find(t => t.id === this.punchInTrackId()) ?? null
@@ -231,13 +217,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   readonly micGainDb = computed(() => {
     const db = 20 * Math.log10(this.micGain());
     return (db >= 0 ? '+' : '') + db.toFixed(1) + ' dB';
-  });
-
-  /** Index chromatique de la note détectée (-1 si aucune). */
-  readonly detectedNoteIndex = computed(() => {
-    const note = this.detectedNote();
-    if (!note) return -1;
-    return NOTE_NAMES.indexOf(note.replace(/\d+$/, ''));
   });
 
   /** URL du beat à analyser dans le picker — étendu si déjà rallongé, original sinon. */
@@ -1518,16 +1497,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const midi   = Math.round(69 + 12 * Math.log2(hz / 440));
     const octave = Math.floor(midi / 12) - 1;
     return NOTE_NAMES[((midi % 12) + 12) % 12] + octave;
-  }
-
-  /** Retourne l'ensemble des indices chromatiques [0–11] appartenant à la gamme. */
-  private _buildScaleNotes(key: string): Set<number> {
-    const match = key.match(/^([A-G][#b]?)\s*(major|minor|maj|min)?/i);
-    if (!match) return new Set();
-    const root      = NOTE_CHROMA[match[1]] ?? 0;
-    const isMinor   = /min/i.test(match[2] ?? '');
-    const intervals = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
-    return new Set(intervals.map(i => (root + i) % 12));
   }
 
   // ── Undo toast ────────────────────────────────────────────────────────────────

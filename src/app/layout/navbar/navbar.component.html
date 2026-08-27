@@ -78,12 +78,12 @@
 
     <button class="navbar-toggler order-lg-2" type="button"
             (click)="toggleMenu()"
-            aria-controls="navbarNav" [attr.aria-expanded]="menuOpen()" aria-label="Toggle navigation">
+            aria-controls="navbarNav" [attr.aria-expanded]="menuVisible()" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse order-lg-3" id="navbarNav"
-         [class.show]="menuOpen()" (click)="onNavLinkClick($event)">
+         [class.show]="menuVisible()" (click)="onNavLinkClick($event)">
       <ul class="navbar-nav ms-auto" lpTourAnchor="nav-menu">
 
         <!-- Acte principal de l'artiste : parcourir le catalogue de beats. -->

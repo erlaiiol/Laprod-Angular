@@ -70,6 +70,10 @@ with app.app_context():
 "
 echo ">>> Admin OK"
 
+echo ">>> Création du compte de test Play Store (no-op si déjà présent)..."
+gosu appuser uv run flask create-test-account
+echo ">>> Compte de test OK"
+
 if [ "$FLASK_ENV" = "development" ]; then
     echo ">>> Démarrage Flask dev server (hot-reload)..."
     exec gosu appuser uv run flask run --host=0.0.0.0 --port=5000

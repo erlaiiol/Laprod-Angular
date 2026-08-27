@@ -32,6 +32,9 @@ export class TourService {
   readonly total       = computed(() => this.steps().length);
   readonly isLast      = computed(() => this.index() >= this.total() - 1);
 
+  /** L'étape courante cible une ancre à l'intérieur du menu mobile collapsible. */
+  readonly navbarForceOpen = computed(() => this.currentStep()?.opensNavbar ?? false);
+
   // ── Enregistrement des ancres (directive lpTourAnchor) ─────────────────────
 
   register(id: string, el: HTMLElement): void {
