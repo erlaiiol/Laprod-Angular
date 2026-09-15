@@ -60,6 +60,7 @@ from utils.music_stats import catalog_music_stats
 from utils.behavior_stats import behavior_stats
 from utils.auth_helpers import require_admin
 from utils.contract_data_builder import build_contract_data, create_contract_and_pdf
+from utils.styles import resolve_style_casing
 from models import (
     Track, User, Tag, Category, MixMasterRequest, Contract, PriceChangeRequest,
     ContractClauseGroup, ContractClause, UserContractValue, ClauseTypeEnum,
@@ -592,7 +593,7 @@ def edit_track(track_id, current_user):
     if 'title'       in data: track.title       = data['title']
     if 'bpm'         in data: track.bpm          = int(data['bpm'])
     if 'key'         in data: track.key          = data['key']
-    if 'style'       in data: track.style        = data['style']
+    if 'style'       in data: track.style        = resolve_style_casing(data['style'])
     if 'price_mp3'   in data: track.price_mp3    = float(data['price_mp3'])
     if 'price_wav'   in data: track.price_wav    = float(data['price_wav'])
     if 'price_stems' in data and data['price_stems']:

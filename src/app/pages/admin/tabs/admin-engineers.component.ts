@@ -13,7 +13,7 @@ type EngTab = 'pending' | 'certified' | 'price' | 'pa' | 'master' | 'direct';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './admin-engineers.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-engineers.component.scss'],
 })
 export class AdminEngineersComponent implements OnInit {
   @Output() pendingCountChange = new EventEmitter<number>();

@@ -121,8 +121,8 @@
 
 <!-- Token modal -->
 @if (tokenUser()) {
-  <div class="modal-backdrop" (click)="tokenUser.set(null)">
-    <div class="modal" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="tokenUser.set(null)">
+    <div class="modal">
       <h3>Ajouter des tokens {{ tokenType() === 'track' ? 'Track' : 'Topline' }}</h3>
       <p class="modal-sub">Utilisateur : <strong>{{ tokenUser()!.username }}</strong></p>
       <label>Nombre de tokens
@@ -134,13 +134,13 @@
         <button class="btn-primary"   (click)="submitTokens()">Ajouter</button>
       </div>
     </div>
-  </div>
+  </app-modal-shell>
 }
 
 <!-- Delete confirmation modal -->
 @if (deleteTarget()) {
-  <div class="modal-backdrop" (click)="deleteTarget.set(null)">
-    <div class="modal modal--danger" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="deleteTarget.set(null)">
+    <div class="modal modal--danger">
       <div class="plan-modal-header">
         <h3><i class="bi bi-exclamation-triangle-fill"></i>
           @if (deleteTarget()!.account_status === 'pending_deletion') { Compte en attente de purge }
@@ -190,13 +190,13 @@
         </div>
       }
     </div>
-  </div>
+  </app-modal-shell>
 }
 
 <!-- Plan modal -->
 @if (planUser()) {
-  <div class="modal-backdrop" (click)="closePlanModal()">
-    <div class="modal modal--plan" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="closePlanModal()">
+    <div class="modal modal--plan">
 
       <div class="plan-modal-header">
         <h3><i class="bi bi-patch-check"></i> Gérer l'abonnement</h3>
@@ -281,5 +281,5 @@
       </div>
 
     </div>
-  </div>
+  </app-modal-shell>
 }

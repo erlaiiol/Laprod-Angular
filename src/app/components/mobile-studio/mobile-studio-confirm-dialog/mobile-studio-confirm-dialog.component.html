@@ -1,0 +1,13 @@
+<div class="ms-confirm-overlay" role="dialog" aria-modal="true">
+  <div class="ms-confirm-box">
+    <i class="bi {{ icon }} ms-confirm-icon" [class.ms-confirm-icon--gold]="iconGold"></i>
+    <p class="ms-confirm-title">{{ title }}</p>
+    <p class="ms-confirm-body">{{ body }}</p>
+    <div class="ms-confirm-actions">
+      <button class="ms-confirm-cancel" (click)="cancel.emit()">{{ cancelLabel }}</button>
+      <button class="ms-confirm-ok" (click)="ok.emit()">
+        <i class="bi {{ okIcon }}"></i> {{ okLabel }}
+      </button>
+    </div>
+  </div>
+</div>

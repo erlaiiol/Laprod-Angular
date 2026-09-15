@@ -53,3 +53,9 @@ export function resampleWaveform(wf: number[], targetLen: number): number[] {
     wf[Math.floor((i / targetLen) * wf.length)] ?? 0,
   );
 }
+
+/** Formate des secondes en "m:ss" (ex. 125 → "2:05"). */
+export function formatTimer(s: number): string {
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}

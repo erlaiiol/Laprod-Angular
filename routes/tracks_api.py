@@ -40,6 +40,7 @@ from utils.crud_helpers import (
     get_or_404, require_ownership,
     handle_route_exceptions, commit_or_rollback,
 )
+from utils.styles import resolve_style_casing
 
 from rq import Queue
 
@@ -627,7 +628,7 @@ def post_track(current_user):
         title   = request.form.get('title', '').strip()
         bpm_str = request.form.get('bpm', '').strip()
         key     = request.form.get('key', '').strip()
-        style   = request.form.get('style', '').strip()
+        style   = resolve_style_casing(request.form.get('style', ''))
 
         if not title:
             return err('Le titre est obligatoire', level='warning')
@@ -930,7 +931,7 @@ def put_track(track_id, current_user):
     title   = request.form.get('title', '').strip()
     bpm_str = request.form.get('bpm', '').strip()
     key     = request.form.get('key', '').strip()
-    style   = request.form.get('style', '').strip()
+    style   = resolve_style_casing(request.form.get('style', ''))
 
     if not title:
         return err('Le titre est obligatoire', level='warning')

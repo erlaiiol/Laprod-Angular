@@ -13,19 +13,38 @@ import {
 } from '../contract-type-configs';
 import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
 import { TourService } from '../../../services/tour.service';
+import { ModalShellComponent } from '../../../components/modal-shell/modal-shell.component';
+import { ContractClauseComponent } from './contract-clause/contract-clause.component';
+import { QuickStartPanelComponent } from './quick-start-panel/quick-start-panel.component';
+import { ContractPreviewComponent } from './contract-preview/contract-preview.component';
+import { RecipientSignatureCardComponent } from './recipient-signature-card/recipient-signature-card.component';
 
-interface LocalValue {
+export interface LocalValue {
   is_enabled: boolean;
   value: any;
+}
+
+export interface PreviewClause {
+  id: number;
+  numLabel: string | undefined;
+  name: string;
+  value: string;
+}
+
+export interface PreviewGroup {
+  id: number;
+  name: string;
+  artNum: number | undefined;
+  clauses: PreviewClause[];
 }
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-builder-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TourAnchorDirective],
+  imports: [CommonModule, FormsModule, RouterModule, TourAnchorDirective, ModalShellComponent, ContractClauseComponent, QuickStartPanelComponent, ContractPreviewComponent, RecipientSignatureCardComponent],
   templateUrl: './builder-form.component.html',
-  styleUrl: './builder-form.component.scss',
+  styleUrls: ['./builder-form-shared.scss', './builder-form.component.scss'],
 })
 export class BuilderFormComponent implements OnInit, OnDestroy {
 
@@ -229,6 +248,31 @@ export class BuilderFormComponent implements OnInit, OnDestroy {
       }
     }
     return result;
+  });
+
+  // Données pour <app-contract-preview> : pré-calculées ici (plutôt que de
+  // transmettre getValue/formatValue en @Input) pour ne pas dépendre du
+  // binding de `this` d'une méthode passée en tant que valeur au template.
+  previewGroups = computed<PreviewGroup[]>(() => {
+    const artNums = this.articleNumbers();
+    const clauseNums = this.clauseNumbers();
+    return this.groups().map(group => ({
+      id: group.id,
+      name: group.name,
+      artNum: artNums[group.id],
+      clauses: group.clauses
+        .map((clause): PreviewClause | null => {
+          const lv = this.getValue(clause.id, clause);
+          if (!lv.is_enabled && !clause.is_required) return null;
+          return {
+            id: clause.id,
+            numLabel: clauseNums[clause.id],
+            name: clause.name,
+            value: this.formatValue(clause, lv),
+          };
+        })
+        .filter((c): c is PreviewClause => c !== null),
+    }));
   });
 
   // ── Presets / Quick Start (fournis par la config du type de contrat) ──────

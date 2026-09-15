@@ -48,53 +48,41 @@
 
       <!-- ── Confirmation ré-enregistrement ───────────────────────────── -->
       @if (confirmReRecordId()) {
-        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
-          <div class="ms-confirm-box">
-            <i class="bi bi-exclamation-triangle ms-confirm-icon"></i>
-            <p class="ms-confirm-title">Ré-enregistrer cette piste ?</p>
-            <p class="ms-confirm-body">La prise actuelle sera remplacée. Vous pourrez annuler dans les 6 secondes.</p>
-            <div class="ms-confirm-actions">
-              <button class="ms-confirm-cancel" (click)="cancelReRecord()">Annuler</button>
-              <button class="ms-confirm-ok" (click)="confirmReRecord()">
-                <i class="bi bi-record-circle"></i> Recommencer
-              </button>
-            </div>
-          </div>
-        </div>
+        <app-mobile-studio-confirm-dialog
+          icon="bi-exclamation-triangle"
+          title="Ré-enregistrer cette piste ?"
+          body="La prise actuelle sera remplacée. Vous pourrez annuler dans les 6 secondes."
+          okIcon="bi-record-circle"
+          okLabel="Recommencer"
+          (cancel)="cancelReRecord()"
+          (ok)="confirmReRecord()"/>
       }
 
       <!-- ── Confirmation fermeture ────────────────────────────────────── -->
       @if (confirmClose()) {
-        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
-          <div class="ms-confirm-box">
-            <i class="bi bi-x-circle ms-confirm-icon"></i>
-            <p class="ms-confirm-title">Fermer le studio ?</p>
-            <p class="ms-confirm-body">Vos enregistrements non publiés seront perdus.</p>
-            <div class="ms-confirm-actions">
-              <button class="ms-confirm-cancel" (click)="cancelClose()">Rester</button>
-              <button class="ms-confirm-ok" (click)="confirmCloseStudio()">
-                <i class="bi bi-x-lg"></i> Fermer
-              </button>
-            </div>
-          </div>
-        </div>
+        <app-mobile-studio-confirm-dialog
+          icon="bi-x-circle"
+          title="Fermer le studio ?"
+          body="Vos enregistrements non publiés seront perdus."
+          cancelLabel="Rester"
+          okIcon="bi-x-lg"
+          okLabel="Fermer"
+          (cancel)="cancelClose()"
+          (ok)="confirmCloseStudio()"/>
       }
 
       <!-- ── Upgrade sheet ─────────────────────────────────────────────── -->
       @if (showUpgradeSheet()) {
-        <div class="ms-confirm-overlay" role="dialog" aria-modal="true">
-          <div class="ms-confirm-box">
-            <i class="bi bi-stars ms-confirm-icon ms-confirm-icon--gold"></i>
-            <p class="ms-confirm-title">LaProd Pro</p>
-            <p class="ms-confirm-body">Pistes vocales illimitées, exports HD et bien plus encore.</p>
-            <div class="ms-confirm-actions">
-              <button class="ms-confirm-cancel" (click)="showUpgradeSheet.set(false)">Plus tard</button>
-              <button class="ms-confirm-ok" (click)="goToPremium()">
-                <i class="bi bi-arrow-right"></i> Voir les offres
-              </button>
-            </div>
-          </div>
-        </div>
+        <app-mobile-studio-confirm-dialog
+          icon="bi-stars"
+          [iconGold]="true"
+          title="LaProd Pro"
+          body="Pistes vocales illimitées, exports HD et bien plus encore."
+          cancelLabel="Plus tard"
+          okIcon="bi-arrow-right"
+          okLabel="Voir les offres"
+          (cancel)="showUpgradeSheet.set(false)"
+          (ok)="goToPremium()"/>
       }
 
       <!-- ── Feedback BT play-ahead ──────────────────────────────────────── -->
@@ -112,124 +100,29 @@
            WARM-UP — monitoring sans enregistrement
       ═══════════════════════════════════════════════════════════════════ -->
       @if (studioState() === 'warming-up') {
-        <div class="ms-warmup-zone">
-
-          <div class="ms-warmup-header">
-            <i class="bi bi-mic-fill ms-warmup-icon"></i>
-            <p class="ms-warmup-title">Test micro</p>
-            <p class="ms-warmup-hint">Parlez ou chantez — rien n'est enregistré</p>
-          </div>
-
-          <div class="ms-mic-gain-row">
-            <i class="bi bi-mic-fill"></i>
-            <input type="range" class="ms-beat-vol-slider"
-                   min="0.3" max="2.0" step="0.05"
-                   [value]="micGain()"
-                   (input)="micGain.set(+$any($event.target).value)"
-                   aria-label="Volume du micro">
-            <span class="ms-mic-gain-label">{{ micGainDb() }}</span>
-          </div>
-
-          <div class="ms-warmup-level">
-            <div class="ms-warmup-level__bar">
-              <div class="ms-warmup-level__fill" [style.width.%]="levelPct()"></div>
-            </div>
-          </div>
-
-          @if (detectedNote()) {
-            <div class="ms-pitch-meter">
-              <span class="ms-pitch-meter__note">{{ detectedNote() }}</span>
-              <div class="ms-pitch-meter__bar">
-                <div class="ms-pitch-meter__fill"
-                     [style.width.%]="50 + correctionCents() / 3"
-                     [class.ms-pitch-meter__fill--high]="correctionCents() > 30"
-                     [class.ms-pitch-meter__fill--low]="correctionCents() < -30"></div>
-                <div class="ms-pitch-meter__center"></div>
-              </div>
-              <span class="ms-pitch-meter__cents">
-                {{ correctionCents() > 0 ? '+' : '' }}{{ correctionCents() }}¢
-              </span>
-            </div>
-            @if (monitorAutotune() && track.key) {
-              <p class="ms-autotune-active-hint">
-                @if (correctionCents() !== 0) {
-                  <i class="bi bi-check-circle-fill"></i> Autotune actif — vous chantez juste
-                } @else {
-                  <i class="bi bi-check-circle-fill"></i> Vous êtes pile sur la note !
-                }
-              </p>
-            }
-          } @else if (monitorAutotune()) {
-            <p class="ms-warmup-listening">Chantez ou parlez — détection en cours…</p>
-          }
-
-          <button class="ms-btn-stop" (click)="stopWarmup()">
-            <span class="ms-btn-stop__square"></span>
-            Terminer l'échauffement
-          </button>
-
-        </div>
+        <app-mobile-studio-warmup
+          [micGain]="micGain()"
+          [micGainDb]="micGainDb()"
+          [levelPct]="levelPct()"
+          [detectedNote]="detectedNote()"
+          [correctionCents]="correctionCents()"
+          [monitorAutotune]="monitorAutotune()"
+          [trackKey]="track.key"
+          (micGainChange)="micGain.set($event)"
+          (stop)="stopWarmup()"/>
       }
 
       <!-- ════════════════════════════════════════════════════════════════
            PUNCH-IN — sélecteur de point d'entrée
       ═══════════════════════════════════════════════════════════════════ -->
       @if (studioState() === 'punch-in') {
-        <div class="ms-punchin-zone">
-
-          <div class="ms-punchin-header">
-            <button class="ms-punchin-back" (click)="cancelPunchIn()">
-              <i class="bi bi-arrow-left"></i>
-            </button>
-            <p class="ms-punchin-title">
-              Corriger un passage
-              @if (punchInTrack()) { — <span>{{ punchInTrack()!.name }}</span> }
-            </p>
-          </div>
-
-          @if (punchInTrack()?.waveform?.length) {
-            <div class="ms-punchin-waveform-wrap">
-              <div class="ms-punchin-waveform">
-                @for (bar of punchInTrack()!.waveform; track $index) {
-                  <div class="ms-punchin-bar"
-                       [style.height.%]="bar * 100"
-                       [class.ms-punchin-bar--kept]="$index < (punchInSec() / punchInTrack()!.duration * punchInTrack()!.waveform.length)"
-                       [class.ms-punchin-bar--dropped]="$index >= (punchInSec() / punchInTrack()!.duration * punchInTrack()!.waveform.length)">
-                  </div>
-                }
-              </div>
-              <div class="ms-punchin-cursor"
-                   [style.left.%]="(punchInSec() / (punchInTrack()!.duration || 1)) * 100">
-              </div>
-            </div>
-          }
-
-          <p class="ms-punchin-time">
-            Enregistrement à partir de <strong>{{ formatTimer(punchInSec()) }}</strong>
-            @if (punchInTrack()) { / {{ formatTimer(punchInTrack()!.duration) }} }
-          </p>
-
-          <input type="range" class="ms-punchin-slider"
-                 min="1"
-                 [max]="punchInTrack()?.duration ?? 60"
-                 step="1"
-                 [value]="punchInSec()"
-                 (input)="onPunchInSlider($event)"
-                 aria-label="Point de punch-in">
-
-          <div class="ms-punchin-actions">
-            <button class="ms-punchin-preview-btn" (click)="previewFromPunchIn()">
-              <i class="bi bi-play-fill"></i>
-              Écouter depuis ce point
-            </button>
-            <button class="ms-btn-primary ms-punchin-record-btn" (click)="confirmPunchIn()">
-              <i class="bi bi-record-circle-fill"></i>
-              Enregistrer depuis ici
-            </button>
-            <button class="ms-punchin-cancel-btn" (click)="cancelPunchIn()">Annuler</button>
-          </div>
-
-        </div>
+        <app-mobile-studio-punchin
+          [track]="punchInTrack()"
+          [sec]="punchInSec()"
+          (secChange)="onPunchInSecChange($event)"
+          (preview)="previewFromPunchIn()"
+          (confirm)="confirmPunchIn()"
+          (cancel)="cancelPunchIn()"/>
       }
 
       <!-- ════════════════════════════════════════════════════════════════

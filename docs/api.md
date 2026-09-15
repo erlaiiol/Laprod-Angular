@@ -145,6 +145,15 @@ Forme unique, tous endpoints paginés confondus :
 | Admin | `admin_api` | modération, statistiques, support |
 | SEO | `og_preview` | cartes Open Graph |
 
+- `Track.style` est un champ texte libre (pas d'enum) : `utils/styles.py:resolve_style_casing()`
+  normalise sa casse à chaque écriture (`POST /api/post`, `PUT /api/tracks/put/<id>`,
+  `PUT /api/admin/tracks/<id>`) en réutilisant silencieusement la casse déjà présente en
+  base ("trap" saisi → "Trap" enregistré si "Trap" existe déjà), pour que les filtres
+  (`GET /api/filters/tags/all`) n'affichent jamais deux fois le même style. Côté Angular,
+  `app-style-select` (`src/app/components/style-select/`) contraint la saisie dans
+  add-track/edit-track à choisir un style existant ou à cliquer "ajouter" — voir
+  `docs/conventions.md`. Doublons déjà en base : `scripts/merge_duplicate_styles.py`.
+
 ---
 
 ## 7. Ajouter un endpoint — checklist

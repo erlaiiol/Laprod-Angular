@@ -1,0 +1,49 @@
+<div class="bf-signature-card">
+  @switch (myInviteStatus) {
+    @case ('pending') {
+      <div class="bf-signature-card-head">
+        <i class="bi bi-pen"></i>
+        <span>{{ myParty?.role }} — signature requise</span>
+      </div>
+      <p class="bf-signature-card-desc">
+        Lisez l'intégralité du contrat ci-dessous avant de signer. La signature est électronique
+        simple : elle vaut consentement, horodaté et associé à votre compte, mais n'a pas la valeur
+        probante renforcée d'une signature qualifiée eIDAS.
+      </p>
+      <div class="bf-signature-form">
+        <label class="rsc-field">
+          <span>Votre nom légal complet</span>
+          <input type="text" class="bf-input" [value]="signatureName"
+            (input)="signatureNameChange.emit($any($event.target).value)"
+            placeholder="Prénom NOM" [disabled]="signing || declining" />
+        </label>
+        <label class="bf-signature-consent">
+          <input type="checkbox" [checked]="signatureConsent"
+            (change)="signatureConsentChange.emit($any($event.target).checked)"
+            [disabled]="signing || declining" />
+          <span>Je certifie avoir pris connaissance de l'intégralité du contrat et je consens à le signer électroniquement.</span>
+        </label>
+        <div class="bf-signature-actions">
+          <button class="btn-secondary" (click)="declineSignature.emit()" [disabled]="signing || declining">
+            {{ declining ? 'Envoi...' : 'Décliner' }}
+          </button>
+          <button class="btn-primary" (click)="submitSignature.emit()" [disabled]="signing || declining">
+            <i class="bi bi-pen"></i> {{ signing ? 'Signature...' : 'Signer le contrat' }}
+          </button>
+        </div>
+      </div>
+    }
+    @case ('signed') {
+      <div class="bf-signature-card-head bf-signature-card-head--ok">
+        <i class="bi bi-check-circle-fill"></i>
+        <span>Vous avez signé ce contrat le {{ myParty?.signed_at | date:'dd/MM/yyyy' }}.</span>
+      </div>
+    }
+    @case ('declined') {
+      <div class="bf-signature-card-head bf-signature-card-head--ko">
+        <i class="bi bi-x-circle-fill"></i>
+        <span>Vous avez décliné la signature de ce contrat.</span>
+      </div>
+    }
+  }
+</div>

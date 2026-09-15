@@ -5,14 +5,15 @@ import { AdminService, AdminTrack } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { ModalShellComponent } from '../../../components/modal-shell/modal-shell.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-tracks',
   standalone: true,
-  imports: [CommonModule, FormsModule, FormatDatePipe],
+  imports: [CommonModule, FormsModule, FormatDatePipe, ModalShellComponent],
   templateUrl: './admin-tracks.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-tracks.component.scss'],
 })
 export class AdminTracksComponent implements OnInit {
   @Output() pendingCountChange = new EventEmitter<number>();

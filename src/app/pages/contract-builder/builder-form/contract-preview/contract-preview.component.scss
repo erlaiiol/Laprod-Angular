@@ -1,0 +1,48 @@
+@use 'variables' as v;
+
+// .bf-preview-modal / .bf-preview-header / .bf-preview-close / .bf-preview-body
+// restent dans builder-form.component.scss : partagés avec la modale d'envoi
+// pour signature (.bf-preview-modal.bf-signature-modal), qui vit toujours
+// dans le template parent.
+
+.bf-prev-title {
+  font-size: 1.4rem; font-weight: 800; margin: 0 0 1.5rem;
+  color: v.$text-primary; word-break: break-word;
+}
+
+.bf-prev-section {
+  padding-bottom: 1.25rem; margin-bottom: 1.25rem;
+  border-bottom: 1px solid v.$bg-border;
+  &:last-child { border-bottom: none; margin-bottom: 0; }
+}
+
+.bf-prev-art {
+  font-size: 0.88rem; font-weight: 700; color: v.$tag-blue;
+  margin: 0 0 0.85rem; text-transform: uppercase; letter-spacing: 0.03em;
+}
+
+.bf-prev-party {
+  font-size: 0.92rem; color: v.$text-primary;
+  margin-bottom: 0.6rem; line-height: 1.6;
+  strong { font-weight: 700; }
+}
+
+.bf-prev-addr {
+  font-size: 0.85rem; color: v.$text-secondary; margin-top: 0.2rem;
+}
+
+.bf-prev-clause {
+  margin-bottom: 1rem;
+  &:last-child { margin-bottom: 0; }
+}
+
+.bf-prev-clause-name {
+  font-size: 0.82rem; font-weight: 700; color: v.$text-secondary;
+  display: block; margin-bottom: 0.3rem;
+}
+
+.bf-prev-clause-val {
+  font-size: 0.92rem; color: v.$text-primary; margin: 0;
+  white-space: pre-wrap; line-height: 1.7;
+  max-width: 70ch;
+}

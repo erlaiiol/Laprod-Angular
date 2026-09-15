@@ -1,0 +1,95 @@
+@use 'variables' as v;
+
+// Les keyframes fadeIn/slideUp restent définies dans mobile-studio.component.scss
+// (utilisées ailleurs dans ce fichier) — non dupliquées ici, non scopées par
+// Angular donc visibles depuis ce composant, toujours chargé dans le même
+// chunk que son parent.
+
+.ms-confirm-overlay {
+  position:         absolute;
+  inset:            0;
+  z-index:          10;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  background:       rgba(0, 0, 0, 0.72);
+  border-radius:    22px 22px 0 0;
+  padding:          24px;
+  backdrop-filter:  blur(4px);
+  animation:        fadeIn 0.15s ease;
+}
+
+.ms-confirm-box {
+  background:    #252525;
+  border:        1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding:       28px 24px 22px;
+  width:         100%;
+  max-width:     320px;
+  text-align:    center;
+  display:       flex;
+  flex-direction: column;
+  align-items:   center;
+  gap:           10px;
+  animation:     slideUp 0.18s ease;
+}
+
+.ms-confirm-icon {
+  font-size: 2rem;
+  color:     v.$warning;
+
+  &--gold { color: v.$gold; }
+}
+
+.ms-confirm-title {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  margin:      0;
+}
+
+.ms-confirm-body {
+  font-size: 0.83rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-confirm-actions {
+  display:    flex;
+  gap:        10px;
+  width:      100%;
+  margin-top: 6px;
+}
+
+.ms-confirm-cancel {
+  flex:          1;
+  padding:       12px;
+  border:        1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background:    none;
+  color:         v.$text-secondary;
+  font-size:     0.88rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s;
+  &:active { background: rgba(255, 255, 255, 0.07); }
+}
+
+.ms-confirm-ok {
+  flex:          1;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           6px;
+  padding:       12px;
+  border:        none;
+  border-radius: 12px;
+  background:    v.$primary;
+  color:         #fff;
+  font-size:     0.88rem;
+  font-weight:   700;
+  cursor:        pointer;
+  transition:    opacity 0.15s;
+  &:active { opacity: 0.85; }
+  i { font-size: 0.95rem; }
+}

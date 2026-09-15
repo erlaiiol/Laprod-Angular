@@ -1,0 +1,36 @@
+@use 'variables' as v;
+
+.modal-shell-inner {
+  // Transparent au layout (pas de boîte propre) : le flex-centrage du backdrop
+  // s'applique directement au contenu projeté (la carte de l'appelant), qui
+  // garde exactement le dimensionnement qu'il avait en enfant direct du
+  // backdrop avant l'extraction de cette coquille. display:contents est
+  // fiable pour la délégation de clic (stopPropagation) sur toutes les cibles
+  // de ce projet (WebView Capacitor récentes + navigateurs evergreen) —
+  // le bug historique (Chrome < 89) ne concerne plus aucune cible supportée.
+  display: contents;
+}
+
+.modal-shell-backdrop {
+  position: fixed;
+  inset: 0;
+  background: v.$backdrop-dim;
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: v.$z-modal;
+
+  &--fade-in {
+    animation: modal-shell-fade-in 0.15s ease;
+  }
+
+  &--mobile-flush {
+    @media (max-width: 700px) { padding: 0 !important; }
+  }
+}
+
+@keyframes modal-shell-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

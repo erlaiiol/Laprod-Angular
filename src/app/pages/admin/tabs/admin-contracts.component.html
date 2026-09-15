@@ -39,8 +39,8 @@
 
 <!-- ── Modal création contrat ─────────────────────────────────────────────── -->
 @if (showModal()) {
-  <div class="modal-backdrop" (click)="showModal.set(false)">
-    <div class="modal-box" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="showModal.set(false)">
+    <div class="modal-box">
       <div class="modal-header">
         <h3><i class="bi bi-file-earmark-text"></i> Créer un contrat manuel</h3>
         <button class="modal-close" (click)="showModal.set(false)"><i class="bi bi-x-lg"></i></button>
@@ -132,5 +132,5 @@
         </button>
       </div>
     </div>
-  </div>
+  </app-modal-shell>
 }

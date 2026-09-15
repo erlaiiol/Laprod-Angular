@@ -122,98 +122,14 @@
 
 // ── Confirmation ré-enregistrement ────────────────────────────────────────────
 
-.ms-confirm-overlay {
-  position:         absolute;
-  inset:            0;
-  z-index:          10;
-  display:          flex;
-  align-items:      center;
-  justify-content:  center;
-  background:       rgba(0, 0, 0, 0.72);
-  border-radius:    22px 22px 0 0;
-  padding:          24px;
-  backdrop-filter:  blur(4px);
-  animation:        fadeIn 0.15s ease;
-}
+// .ms-confirm-* → mobile-studio-confirm-dialog/ (extrait, présentation pure).
+// Garde les keyframes fadeIn/slideUp ici : réutilisées ailleurs dans ce fichier.
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.ms-confirm-box {
-  background:    #252525;
-  border:        1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  padding:       28px 24px 22px;
-  width:         100%;
-  max-width:     320px;
-  text-align:    center;
-  display:       flex;
-  flex-direction: column;
-  align-items:   center;
-  gap:           10px;
-  animation:     slideUp 0.18s ease;
-}
 
 @keyframes slideUp {
   from { transform: translateY(16px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
-}
-
-.ms-confirm-icon {
-  font-size: 2rem;
-  color:     v.$warning;
-}
-
-.ms-confirm-title {
-  font-size:   1rem;
-  font-weight: 700;
-  color:       v.$text-primary;
-  margin:      0;
-}
-
-.ms-confirm-body {
-  font-size: 0.83rem;
-  color:     v.$text-secondary;
-  margin:    0;
-}
-
-.ms-confirm-actions {
-  display:    flex;
-  gap:        10px;
-  width:      100%;
-  margin-top: 6px;
-}
-
-.ms-confirm-cancel {
-  flex:          1;
-  padding:       12px;
-  border:        1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  background:    none;
-  color:         v.$text-secondary;
-  font-size:     0.88rem;
-  font-weight:   600;
-  cursor:        pointer;
-  transition:    background 0.15s;
-  &:active { background: rgba(255, 255, 255, 0.07); }
-}
-
-.ms-confirm-ok {
-  flex:          1;
-  display:       flex;
-  align-items:   center;
-  justify-content: center;
-  gap:           6px;
-  padding:       12px;
-  border:        none;
-  border-radius: 12px;
-  background:    v.$primary;
-  color:         #fff;
-  font-size:     0.88rem;
-  font-weight:   700;
-  cursor:        pointer;
-  transition:    opacity 0.15s;
-  &:active { opacity: 0.85; }
-  i { font-size: 0.95rem; }
 }
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -341,23 +257,7 @@
   }
 }
 
-.ms-beat-vol-slider {
-  flex:                 1;
-  -webkit-appearance:   none;
-  height:               3px;
-  border-radius:        2px;
-  background:           rgba(255, 255, 255, 0.15);
-  cursor:               pointer;
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width:              18px;
-    height:             18px;
-    border-radius:      50%;
-    background:         #fff;
-    box-shadow:         0 1px 4px rgba(0, 0, 0, 0.4);
-  }
-}
+// .ms-beat-vol-slider → mobile-studio-shared.scss
 
 .ms-beat-vol-label {
   font-size:   0.75rem;
@@ -405,29 +305,7 @@
 
 // ── Bouton stop ───────────────────────────────────────────────────────────────
 
-.ms-btn-stop {
-  display:         flex;
-  align-items:     center;
-  gap:             10px;
-  padding:         14px 36px;
-  border:          2px solid rgba(255, 255, 255, 0.3);
-  border-radius:   50px;
-  background:      none;
-  color:           v.$text-primary;
-  font-size:       0.95rem;
-  font-weight:     600;
-  cursor:          pointer;
-  transition:      border-color 0.15s;
-  &:active { border-color: rgba(255, 255, 255, 0.6); }
-
-  &__square {
-    width:         12px;
-    height:        12px;
-    background:    v.$text-primary;
-    border-radius: 2px;
-    flex-shrink:   0;
-  }
-}
+// .ms-btn-stop → mobile-studio-shared.scss
 
 // ── Export / Preview (spinner) ────────────────────────────────────────────────
 
@@ -528,133 +406,7 @@
   overflow:       hidden;
 }
 
-// ── Beat row (idle) ───────────────────────────────────────────────────────────
-
-.ms-beat-section {
-  padding: 12px 14px 4px;
-}
-
-.ms-beat-row {
-  display:         flex;
-  align-items:     center;
-  justify-content: space-between;
-  gap:             10px;
-  padding:         10px 12px;
-  background:      rgba(255, 255, 255, 0.04);
-  border:          1px solid rgba(255, 255, 255, 0.08);
-  border-radius:   12px;
-}
-
-.ms-beat-info {
-  display:     flex;
-  align-items: center;
-  gap:         8px;
-  min-width:   0;
-  flex:        1;
-}
-
-.ms-beat-name {
-  font-size:     0.84rem;
-  font-weight:   600;
-  color:         v.$text-primary;
-  overflow:      hidden;
-  text-overflow: ellipsis;
-  white-space:   nowrap;
-}
-
-.ms-beat-badge {
-  display:      flex;
-  align-items:  center;
-  gap:          4px;
-  font-size:    0.7rem;
-  font-weight:  700;
-  color:        #4caf81;
-  background:   rgba(76, 175, 129, 0.12);
-  border-radius: 20px;
-  padding:      2px 7px;
-  flex-shrink:  0;
-
-  i { font-size: 0.7rem; }
-}
-
-.ms-beat-extend-btn {
-  display:         flex;
-  align-items:     center;
-  gap:             5px;
-  padding:         7px 12px;
-  border:          1.5px solid rgba(255, 255, 255, 0.2);
-  border-radius:   10px;
-  background:      none;
-  color:           v.$text-secondary;
-  font-size:       0.8rem;
-  font-weight:     600;
-  cursor:          pointer;
-  flex-shrink:     0;
-  transition:      border-color 0.15s, color 0.15s;
-
-  i { font-size: 0.85rem; }
-
-  &:active {
-    border-color: v.$primary;
-    color:        v.$primary;
-  }
-}
-
 // ── Vue studio (idle) ─────────────────────────────────────────────────────────
-
-.ms-studio {
-  flex:           1;
-  display:        flex;
-  flex-direction: column;
-  min-height:     0;
-}
-
-.ms-tracks-section {
-  padding: 12px 14px 0;
-  flex:    1;
-}
-
-.ms-section-label {
-  display:        flex;
-  align-items:    center;
-  gap:            6px;
-  font-size:      0.72rem;
-  font-weight:    700;
-  color:          v.$text-secondary;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin:         0 0 10px;
-  i { font-size: 0.8rem; }
-}
-
-.ms-tracks-list {
-  display:        flex;
-  flex-direction: column;
-  gap:            8px;
-  margin-bottom:  10px;
-}
-
-.ms-add-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             6px;
-  width:           100%;
-  padding:         13px;
-  border:          1.5px dashed rgba(255, 255, 255, 0.22);
-  border-radius:   14px;
-  background:      none;
-  color:           v.$text-secondary;
-  font-size:       0.88rem;
-  font-weight:     500;
-  cursor:          pointer;
-  transition:      border-color 0.15s, color 0.15s;
-
-  &:active {
-    border-color: v.$primary;
-    color:        v.$primary;
-  }
-}
 
 .ms-upgrade-nudge {
   display:       flex;
@@ -670,8 +422,6 @@
   i { flex-shrink: 0; margin-top: 2px; }
   a { color: v.$primary; text-decoration: none; font-weight: 600; }
 }
-
-.ms-desc-wrap { padding: 10px 14px 0; }
 
 .ms-desc-input {
   width:         100%;
@@ -690,127 +440,7 @@
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-.ms-actions {
-  padding:     12px 14px 20px;
-  flex-shrink: 0;
-
-  &--row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap:     10px;
-  }
-}
-
-.ms-btn-primary {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             8px;
-  width:           100%;
-  padding:         16px;
-  border:          none;
-  border-radius:   14px;
-  background:      rgba(v.$primary, 0.15);
-  color:           v.$primary;
-  font-size:       1rem;
-  font-weight:     700;
-  cursor:          pointer;
-  transition:      background 0.15s;
-
-  &:active { background: rgba(v.$primary, 0.25); }
-  i { font-size: 1.1rem; }
-}
-
-.ms-btn-preview {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             7px;
-  padding:         14px 12px;
-  border:          1.5px solid rgba(255, 255, 255, 0.2);
-  border-radius:   14px;
-  background:      rgba(255, 255, 255, 0.05);
-  color:           v.$text-primary;
-  font-size:       0.88rem;
-  font-weight:     600;
-  cursor:          pointer;
-  transition:      border-color 0.15s, background 0.15s;
-
-  &:active {
-    background:   rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.35);
-  }
-
-  &--playing {
-    border-color: v.$primary;
-    color:        v.$primary;
-    background:   rgba(v.$primary, 0.07);
-  }
-
-  i { font-size: 1rem; }
-}
-
-.ms-btn-export {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             7px;
-  padding:         14px 12px;
-  border:          none;
-  border-radius:   14px;
-  background:      v.$primary;
-  color:           #fff;
-  font-size:       0.88rem;
-  font-weight:     700;
-  cursor:          pointer;
-  transition:      opacity 0.15s;
-
-  &:disabled { opacity: 0.4; cursor: default; }
-  &:not(:disabled):active { opacity: 0.85; }
-  i { font-size: 1rem; }
-}
-
-// ── Beat play button ──────────────────────────────────────────────────────────
-
-.ms-beat-play-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  width:           34px;
-  height:          34px;
-  border:          1.5px solid rgba(255, 255, 255, 0.2);
-  border-radius:   50%;
-  background:      rgba(255, 255, 255, 0.05);
-  color:           v.$text-secondary;
-  font-size:       0.95rem;
-  cursor:          pointer;
-  flex-shrink:     0;
-  transition:      border-color 0.15s, color 0.15s, background 0.15s;
-
-  &:active { background: rgba(255, 255, 255, 0.1); }
-
-  &--playing {
-    border-color: v.$primary;
-    color:        v.$primary;
-    background:   rgba(v.$primary, 0.1);
-  }
-}
-
-// ── Volume beat (idle) ────────────────────────────────────────────────────────
-
-.ms-beat-vol-row--idle {
-  padding:   6px 0 2px;
-  animation: fadeIn 0.2s ease;
-}
-
-// ── Section monitoring ────────────────────────────────────────────────────────
-
-.ms-monitoring-section {
-  padding:        6px 14px 4px;
-  display:        flex;
-  flex-direction: column;
-  gap:            6px;
-}
+// .ms-btn-primary → mobile-studio-shared.scss
 
 // ── Statut écouteurs ──────────────────────────────────────────────────────────
 
@@ -1028,124 +658,11 @@
   &:active { background: rgba(77, 159, 255, 0.1); }
 }
 
-// ── Pitch meter (pendant l'enregistrement) ────────────────────────────────────
+// .ms-pitch-meter* → mobile-studio-shared.scss
 
-.ms-pitch-meter {
-  display:         flex;
-  align-items:     center;
-  gap:             10px;
-  width:           100%;
-  animation:       fadeIn 0.2s ease;
-}
-
-.ms-pitch-meter__note {
-  font-size:   0.88rem;
-  font-weight: 700;
-  color:       v.$text-primary;
-  min-width:   28px;
-  text-align:  center;
-  flex-shrink: 0;
-}
-
-.ms-pitch-meter__bar {
-  position:      relative;
-  flex:          1;
-  height:        8px;
-  background:    rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  overflow:      hidden;
-}
-
-.ms-pitch-meter__fill {
-  position:      absolute;
-  top:           0;
-  left:          0;
-  height:        100%;
-  background:    #4caf81;
-  border-radius: 4px;
-  max-width:     100%;
-  min-width:     4px;
-  transition:    width 0.08s linear, background 0.15s;
-
-  &--high { background: v.$primary; }   // trop aigu → rouge
-  &--low  { background: #f97316; }      // trop grave → orange
-}
-
-.ms-pitch-meter__center {
-  position:      absolute;
-  top:           0;
-  left:          50%;
-  transform:     translateX(-50%);
-  width:         2px;
-  height:        100%;
-  background:    rgba(255, 255, 255, 0.3);
-  pointer-events: none;
-}
-
-.ms-pitch-meter__cents {
-  font-size:   0.75rem;
-  font-weight: 600;
-  color:       v.$text-secondary;
-  min-width:   36px;
-  text-align:  right;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-// ── Warm-up ───────────────────────────────────────────────────────────────────
-
-.ms-warmup-zone {
-  padding:        20px 20px 32px;
-  display:        flex;
-  flex-direction: column;
-  align-items:    center;
-  gap:            16px;
-}
-
-.ms-warmup-header {
-  display:        flex;
-  flex-direction: column;
-  align-items:    center;
-  gap:            6px;
-  text-align:     center;
-}
-
-.ms-warmup-icon {
-  font-size:  2rem;
-  color:      v.$primary;
-  animation:  pulse 1.5s ease-in-out infinite;
-}
-
-.ms-warmup-title {
-  font-size:   1rem;
-  font-weight: 700;
-  color:       v.$text-primary;
-  margin:      0;
-}
-
-.ms-warmup-hint {
-  font-size: 0.78rem;
-  color:     v.$text-secondary;
-  margin:    0;
-}
-
-.ms-warmup-listening {
-  font-size:  0.78rem;
-  color:      v.$text-secondary;
-  margin:     0;
-  font-style: italic;
-}
-
-.ms-autotune-active-hint {
-  font-size:   0.78rem;
-  color:       #4ade80;
-  margin:      4px 0 0;
-  display:     flex;
-  align-items: center;
-  gap:         5px;
-
-  i { font-size: 0.8rem; }
-}
+// ── Warm-up : voir mobile-studio-warmup/ pour .ms-warmup-zone/header/icon/
+// title/hint/listening/level, .ms-autotune-active-hint (extrait, présentation
+// pure) ────────────────────────────────────────────────────────────────────
 
 .ms-autotune-nokey {
   font-size:   0.75rem;
@@ -1157,26 +674,6 @@
   gap:         5px;
 
   i { flex-shrink: 0; }
-}
-
-.ms-warmup-level {
-  width: 100%;
-}
-
-.ms-warmup-level__bar {
-  width:         100%;
-  height:        6px;
-  background:    rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  overflow:      hidden;
-}
-
-.ms-warmup-level__fill {
-  height:        100%;
-  background:    v.$primary;
-  border-radius: 3px;
-  transition:    width 0.05s linear;
-  max-width:     100%;
 }
 
 // Bouton échauffement (idle view)
@@ -1204,165 +701,7 @@
   }
 }
 
-// ── Punch-in ──────────────────────────────────────────────────────────────────
-
-.ms-punchin-zone {
-  padding:        16px 18px 28px;
-  display:        flex;
-  flex-direction: column;
-  gap:            14px;
-}
-
-.ms-punchin-header {
-  display:     flex;
-  align-items: center;
-  gap:         10px;
-}
-
-.ms-punchin-back {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  width:           42px;
-  height:          42px;
-  border:          none;
-  border-radius:   10px;
-  background:      rgba(255, 255, 255, 0.07);
-  color:           v.$text-secondary;
-  font-size:       1rem;
-  cursor:          pointer;
-  flex-shrink:     0;
-  &:active { background: rgba(255, 255, 255, 0.12); }
-}
-
-.ms-punchin-title {
-  font-size:   0.95rem;
-  font-weight: 700;
-  color:       v.$text-primary;
-  margin:      0;
-
-  span { color: v.$primary; }
-}
-
-// Waveform avec partie conservée vs. supprimée
-.ms-punchin-waveform-wrap {
-  position:      relative;
-  width:         100%;
-  height:        52px;
-  border-radius: 8px;
-  background:    rgba(255, 255, 255, 0.03);
-  overflow:      visible;
-}
-
-.ms-punchin-waveform {
-  display:     flex;
-  align-items: center;
-  height:      100%;
-  gap:         1px;
-  padding:     0 2px;
-}
-
-.ms-punchin-bar {
-  flex:          1;
-  border-radius: 1px;
-  min-height:    2px;
-  transition:    background 0.15s;
-
-  &--kept    { background: rgba(255, 255, 255, 0.3); }
-  &--dropped { background: rgba(v.$primary, 0.25); }
-}
-
-.ms-punchin-cursor {
-  position:      absolute;
-  top:           -4px;
-  bottom:        -4px;
-  width:         2px;
-  background:    v.$primary;
-  border-radius: 1px;
-  transform:     translateX(-1px);
-  pointer-events: none;
-
-  &::before {
-    content:       '';
-    position:      absolute;
-    top:           0;
-    left:          50%;
-    transform:     translateX(-50%);
-    width:         8px;
-    height:        8px;
-    border-radius: 50%;
-    background:    v.$primary;
-  }
-}
-
-.ms-punchin-time {
-  font-size:  0.82rem;
-  color:      v.$text-secondary;
-  margin:     0;
-  text-align: center;
-
-  strong { color: v.$text-primary; }
-}
-
-.ms-punchin-slider {
-  width:              100%;
-  -webkit-appearance: none;
-  height:             4px;
-  border-radius:      2px;
-  background:         rgba(255, 255, 255, 0.12);
-  cursor:             pointer;
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width:              22px;
-    height:             22px;
-    border-radius:      50%;
-    background:         v.$primary;
-    box-shadow:         0 2px 6px rgba(0, 0, 0, 0.4);
-  }
-}
-
-.ms-punchin-actions {
-  display:        flex;
-  flex-direction: column;
-  gap:            8px;
-  margin-top:     4px;
-}
-
-.ms-punchin-preview-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             7px;
-  padding:         12px;
-  border:          1.5px solid rgba(255, 255, 255, 0.2);
-  border-radius:   12px;
-  background:      rgba(255, 255, 255, 0.05);
-  color:           v.$text-primary;
-  font-size:       0.88rem;
-  font-weight:     600;
-  cursor:          pointer;
-  transition:      border-color 0.15s;
-
-  &:active { border-color: rgba(255, 255, 255, 0.4); }
-  i { font-size: 0.95rem; }
-}
-
-.ms-punchin-record-btn {
-  width: 100%;
-}
-
-.ms-punchin-cancel-btn {
-  border:          none;
-  background:      none;
-  color:           v.$text-secondary;
-  font-size:       0.82rem;
-  cursor:          pointer;
-  padding:         8px;
-  text-align:      center;
-  width:           100%;
-  &:active { opacity: 0.6; }
-}
+// ── Punch-in : voir mobile-studio-punchin/ (extrait, présentation pure) ───────
 
 // ── Métronome ─────────────────────────────────────────────────────────────────
 
@@ -1484,27 +823,7 @@
 
 // ── Gain microphone ───────────────────────────────────────────────────────────
 
-.ms-mic-gain-row {
-  display:     flex;
-  align-items: center;
-  gap:         10px;
-  width:       100%;
-
-  i {
-    font-size:   1rem;
-    color:       rgba(255, 255, 255, 0.45);
-    flex-shrink: 0;
-  }
-}
-
-.ms-mic-gain-label {
-  font-size:            0.75rem;
-  color:                rgba(255, 255, 255, 0.4);
-  min-width:            44px;
-  text-align:           right;
-  flex-shrink:          0;
-  font-variant-numeric: tabular-nums;
-}
+// .ms-mic-gain-row / .ms-mic-gain-label → mobile-studio-shared.scss
 
 // ── Countdown BT ──────────────────────────────────────────────────────────────
 
@@ -1517,10 +836,6 @@
   font-variant-numeric: tabular-nums;
   margin-left:          auto;
 }
-
-// ── Icône confirm dorée (upgrade sheet) ───────────────────────────────────────
-
-.ms-confirm-icon--gold { color: v.$gold; }
 
 // ── Bannière permission micro ─────────────────────────────────────────────────
 

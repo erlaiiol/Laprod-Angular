@@ -106,6 +106,16 @@ target_compile_options(psola_processor PRIVATE
     -fvisibility=hidden
 )
 
+# Alignement des segments LOAD sur 16 Ko : requis par Google Play depuis fin 2025
+# (appareils qui tournent en pages mémoire 16 Ko, ex. Pixel récents). Sans ce
+# flag, lld aligne par défaut sur 4 Ko — le lien statique de libpsola_ffi.a
+# (produit par cargo/rustc, pas par ce CMakeLists) n'en tient pas compte non
+# plus, donc c'est bien ICI, à l'étape de lien du .so final, qu'il faut le
+# poser. Inoffensif sur les appareils 4 Ko (rétro-compatible).
+target_link_options(psola_processor PRIVATE
+    -Wl,-z,max-page-size=16384
+)
+
 find_library(log-lib log)
 
 # libdl (dlopen/dlsym, aaudio_shim.h) — sur Android moderne dl est déjà dans libc/bionic, mais

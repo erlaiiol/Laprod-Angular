@@ -120,8 +120,8 @@
 
 <!-- ── Edit Group Modal ──────────────────────────────────────────────────────── -->
 @if (editGroup()) {
-  <div class="modal-backdrop" (click)="editGroup.set(null)">
-    <div class="modal" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="editGroup.set(null)">
+    <div class="modal">
       <h3>Modifier le groupe</h3>
       <label>
         Nom *
@@ -146,14 +146,13 @@
         <button class="btn-primary" (click)="saveEditGroup()">Enregistrer</button>
       </div>
     </div>
-  </div>
+  </app-modal-shell>
 }
 
 <!-- ── Edit Clause Modal ─────────────────────────────────────────────────────── -->
 @if (editClause()) {
-  <div class="modal-backdrop" (click)="editClause.set(null)">
-    <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;"
-         (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="editClause.set(null)">
+    <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
       <h3>Modifier la clause</h3>
 
       <div class="form-grid">
@@ -228,5 +227,5 @@
         <button class="btn-primary" (click)="saveEditClause()">Enregistrer</button>
       </div>
     </div>
-  </div>
+  </app-modal-shell>
 }

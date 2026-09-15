@@ -27,55 +27,15 @@
   }
 
   @if (isRecipient()) {
-    <div class="bf-signature-card">
-      @switch (myInviteStatus()) {
-        @case ('pending') {
-          <div class="bf-signature-card-head">
-            <i class="bi bi-pen"></i>
-            <span>{{ myParty()?.role }} — signature requise</span>
-          </div>
-          <p class="bf-signature-card-desc">
-            Lisez l'intégralité du contrat ci-dessous avant de signer. La signature est électronique
-            simple : elle vaut consentement, horodaté et associé à votre compte, mais n'a pas la valeur
-            probante renforcée d'une signature qualifiée eIDAS.
-          </p>
-          <div class="bf-signature-form">
-            <label class="bf-field full">
-              <span>Votre nom légal complet</span>
-              <input type="text" [value]="signatureName()"
-                (input)="signatureName.set($any($event.target).value)"
-                placeholder="Prénom NOM" [disabled]="signing() || declining()" />
-            </label>
-            <label class="bf-signature-consent">
-              <input type="checkbox" [checked]="signatureConsent()"
-                (change)="signatureConsent.set($any($event.target).checked)"
-                [disabled]="signing() || declining()" />
-              <span>Je certifie avoir pris connaissance de l'intégralité du contrat et je consens à le signer électroniquement.</span>
-            </label>
-            <div class="bf-signature-actions">
-              <button class="btn-secondary" (click)="declineSignature()" [disabled]="signing() || declining()">
-                {{ declining() ? 'Envoi...' : 'Décliner' }}
-              </button>
-              <button class="btn-primary" (click)="submitSignature()" [disabled]="signing() || declining()">
-                <i class="bi bi-pen"></i> {{ signing() ? 'Signature...' : 'Signer le contrat' }}
-              </button>
-            </div>
-          </div>
-        }
-        @case ('signed') {
-          <div class="bf-signature-card-head bf-signature-card-head--ok">
-            <i class="bi bi-check-circle-fill"></i>
-            <span>Vous avez signé ce contrat le {{ myParty()?.signed_at | date:'dd/MM/yyyy' }}.</span>
-          </div>
-        }
-        @case ('declined') {
-          <div class="bf-signature-card-head bf-signature-card-head--ko">
-            <i class="bi bi-x-circle-fill"></i>
-            <span>Vous avez décliné la signature de ce contrat.</span>
-          </div>
-        }
-      }
-    </div>
+    <app-recipient-signature-card
+      [myInviteStatus]="myInviteStatus()" [myParty]="myParty()"
+      [signatureName]="signatureName()" [signatureConsent]="signatureConsent()"
+      [signing]="signing()" [declining]="declining()"
+      (signatureNameChange)="signatureName.set($event)"
+      (signatureConsentChange)="signatureConsent.set($event)"
+      (submitSignature)="submitSignature()"
+      (declineSignature)="declineSignature()">
+    </app-recipient-signature-card>
   }
 
   <!-- Header -->
@@ -376,7 +336,14 @@
           @if (!isFinal()) {
             <div class="bf-intro-section bf-intro-guide">
               <h3 class="bf-intro-title"><i class="bi bi-lightning-charge-fill"></i> Démarrage rapide</h3>
-              <ng-container *ngTemplateOutlet="quickStartPanel"></ng-container>
+              <app-quick-start-panel
+                [isFinal]="isFinal()" [hasKeyInfo]="hasKeyInfo()" [autoFieldsDone]="autoFieldsDone()"
+                [locked]="locked()" [keyInfoHint]="config().keyInfoHint" [fillableCount]="fillableCount()"
+                [presets]="presets"
+                (goToPremium)="goToPremium()" (applyQuickStart)="applyQuickStart()"
+                (goToIntro)="goToIntro()" (fillAllExamples)="fillAllExamples()"
+                (applyPreset)="applyPreset($event)">
+              </app-quick-start-panel>
             </div>
           }
 
@@ -426,7 +393,7 @@
                 <!-- Role (common) -->
                 <label class="bf-field full">
                   <span>Rôle dans le contrat <span class="req">*</span></span>
-                  <input type="text" placeholder="ex: Compositeur, Éditeur, Distributeur..."
+                  <input type="text" class="bf-input" placeholder="ex: Compositeur, Éditeur, Distributeur..."
                     [value]="party.role"
                     (input)="updatePartyField($index, 'role', $any($event.target).value)"
                     [disabled]="readOnly()" />
@@ -436,38 +403,38 @@
                   <!-- Physical person fields -->
                   <label class="bf-field">
                     <span>Prénom</span>
-                    <input type="text" [value]="party.first_name ?? ''"
+                    <input type="text" class="bf-input" [value]="party.first_name ?? ''"
                       (input)="updatePartyField($index, 'first_name', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nom</span>
-                    <input type="text" [value]="party.last_name ?? ''"
+                    <input type="text" class="bf-input" [value]="party.last_name ?? ''"
                       (input)="updatePartyField($index, 'last_name', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Date de naissance</span>
-                    <input type="text" placeholder="JJ/MM/AAAA"
+                    <input type="text" class="bf-input" placeholder="JJ/MM/AAAA"
                       [value]="party.date_of_birth ?? ''"
                       (input)="updatePartyField($index, 'date_of_birth', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nationalité</span>
-                    <input type="text" [value]="party.nationality ?? ''"
+                    <input type="text" class="bf-input" [value]="party.nationality ?? ''"
                       (input)="updatePartyField($index, 'nationality', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Nom de scène / Pseudonyme</span>
-                    <input type="text" [value]="party.pseudonym ?? ''"
+                    <input type="text" class="bf-input" [value]="party.pseudonym ?? ''"
                       (input)="updatePartyField($index, 'pseudonym', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Numéro fiscal</span>
-                    <input type="text" [value]="party.tax_id ?? ''"
+                    <input type="text" class="bf-input" [value]="party.tax_id ?? ''"
                       (input)="updatePartyField($index, 'tax_id', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
@@ -475,52 +442,52 @@
                   <!-- Company fields -->
                   <label class="bf-field">
                     <span>Dénomination sociale</span>
-                    <input type="text" [value]="party.company_name ?? ''"
+                    <input type="text" class="bf-input" [value]="party.company_name ?? ''"
                       (input)="updatePartyField($index, 'company_name', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Forme juridique</span>
-                    <input type="text" placeholder="SARL, SAS, SASU..."
+                    <input type="text" class="bf-input" placeholder="SARL, SAS, SASU..."
                       [value]="party.legal_form ?? ''"
                       (input)="updatePartyField($index, 'legal_form', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Capital social</span>
-                    <input type="text" placeholder="ex: 50 000 €"
+                    <input type="text" class="bf-input" placeholder="ex: 50 000 €"
                       [value]="party.capital ?? ''"
                       (input)="updatePartyField($index, 'capital', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>SIREN</span>
-                    <input type="text" [value]="party.siren ?? ''"
+                    <input type="text" class="bf-input" [value]="party.siren ?? ''"
                       (input)="updatePartyField($index, 'siren', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>SIRET</span>
-                    <input type="text" [value]="party.siret ?? ''"
+                    <input type="text" class="bf-input" [value]="party.siret ?? ''"
                       (input)="updatePartyField($index, 'siret', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>RCS</span>
-                    <input type="text" placeholder="ex: RCS Paris B 123 456 789"
+                    <input type="text" class="bf-input" placeholder="ex: RCS Paris B 123 456 789"
                       [value]="party.rcs ?? ''"
                       (input)="updatePartyField($index, 'rcs', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Représentant légal</span>
-                    <input type="text" [value]="party.legal_rep ?? ''"
+                    <input type="text" class="bf-input" [value]="party.legal_rep ?? ''"
                       (input)="updatePartyField($index, 'legal_rep', $any($event.target).value)"
                       [disabled]="readOnly()" />
                   </label>
                   <label class="bf-field">
                     <span>Qualité du signataire</span>
-                    <input type="text" placeholder="Gérant, Directeur général..."
+                    <input type="text" class="bf-input" placeholder="Gérant, Directeur général..."
                       [value]="party.signatory_title ?? ''"
                       (input)="updatePartyField($index, 'signatory_title', $any($event.target).value)"
                       [disabled]="readOnly()" />
@@ -530,13 +497,13 @@
                 <!-- Common fields -->
                 <label class="bf-field full">
                   <span>Adresse</span>
-                  <input type="text" [value]="party.address ?? ''"
+                  <input type="text" class="bf-input" [value]="party.address ?? ''"
                     (input)="updatePartyField($index, 'address', $any($event.target).value)"
                     [disabled]="readOnly()" />
                 </label>
                 <label class="bf-field">
                   <span>E-mail</span>
-                  <input type="email" [value]="party.email ?? ''"
+                  <input type="email" class="bf-input" [value]="party.email ?? ''"
                     (input)="updatePartyField($index, 'email', $any($event.target).value)"
                     [disabled]="readOnly()" />
                 </label>
@@ -562,284 +529,29 @@
 
           @for (clause of activeGroupData()!.clauses; track clause.id) {
             @let lv = getValue(clause.id, clause);
-
-            <div class="bf-clause"
-              [class.disabled]="!lv.is_enabled && !clause.is_required"
-              [class.is-enabled]="lv.is_enabled || clause.is_required"
-              [class.is-filled]="isClauseFilled(clause.id, clause)">
-
-              <!-- Clause header: toggle enable / name / tooltip icon -->
-              <div class="bf-clause-header">
-                @if (!clause.is_required) {
-                  <input type="checkbox"
-                    [checked]="lv.is_enabled"
-                    (change)="setEnabled(clause.id, clause, $any($event.target).checked)"
-                    [disabled]="readOnly()"
-                    class="bf-clause-check" />
-                }
-                @if (clauseNumbers()[clause.id]) {
-                  <span class="bf-clause-num">{{ clauseNumbers()[clause.id] }}</span>
-                }
-                <span class="bf-clause-name" [class.required]="clause.is_required">
-                  {{ clause.name }}
-                  @if (clause.is_required) { <span class="req">*</span> }
-                </span>
-                @if (clause.tooltip_plain || clause.tooltip_long) {
-                  <span class="bf-tooltip-icon"
-                        [class.has-plain-only]="clause.tooltip_plain && !clause.tooltip_long"
-                        [class.has-long-only]="!clause.tooltip_plain && clause.tooltip_long"
-                        [class.has-both]="clause.tooltip_plain && clause.tooltip_long"
-                        [title]="clause.tooltip_short || ''"
-                        (click)="toggleTooltip(clause.id)">?</span>
-                }
-                @if (clause.example_text && !isFinal()) {
-                  <span class="bf-example-icon" title="Voir la rédaction type de cette clause" (click)="toggleExample(clause.id)">
-                    <i class="bi bi-patch-check"></i>
-                  </span>
-                }
-                @if (clause.legal_reference) {
-                  <span class="bf-legal-ref">{{ clause.legal_reference }}</span>
-                }
-              </div>
-
-              <!-- Expanded tooltip panel (plain + legal) -->
-              @if (expandedTooltip() === clause.id && (clause.tooltip_plain || clause.tooltip_long)) {
-                <div class="bf-tooltip-panel">
-                  @if (clause.tooltip_plain) {
-                    <div class="bf-tip-section bf-tip-plain">
-                      <span class="bf-tip-label"><i class="bi bi-lightbulb-fill"></i> En clair</span>
-                      <p>{{ clause.tooltip_plain }}</p>
-                    </div>
-                  }
-                  @if (clause.tooltip_plain && clause.tooltip_long) {
-                    <div class="bf-tip-divider"></div>
-                  }
-                  @if (clause.tooltip_long) {
-                    <div class="bf-tip-section bf-tip-legal">
-                      <span class="bf-tip-label"><i class="bi bi-book-half"></i> Détail juridique</span>
-                      <p>{{ clause.tooltip_long }}</p>
-                    </div>
-                  }
-                </div>
-              }
-
-              <!-- Example panel -->
-              @if (expandedExample() === clause.id && clause.example_text) {
-                <div class="bf-example-panel">
-                  <div class="bf-example-header">
-                    <span><i class="bi bi-patch-check-fill"></i> Rédaction type</span>
-                    @if (['text','textarea','toggle_with_details'].includes(clause.clause_type)) {
-                      <button class="bf-use-example" (click)="useExample(clause.id, clause)" [disabled]="readOnly()">
-                        <i class="bi bi-check2"></i> Utiliser ce texte
-                      </button>
-                    }
-                  </div>
-                  <p class="bf-example-text">{{ clause.example_text }}</p>
-                </div>
-              }
-
-              <!-- Clause input — only when enabled or required -->
-              @if (lv.is_enabled || clause.is_required) {
-                <div class="bf-clause-body">
-
-                  <!-- toggle: no extra input -->
-                  @if (clause.clause_type === 'toggle') { }
-
-                  <!-- toggle_with_details -->
-                  @else if (clause.clause_type === 'toggle_with_details') {
-                    <textarea class="bf-textarea"
-                      placeholder="Précisions..."
-                      [value]="lv.value?.details ?? ''"
-                      (input)="patchField(clause.id, clause, 'details', $any($event.target).value)"
-                      [disabled]="readOnly()"
-                      rows="3"></textarea>
-                  }
-
-                  <!-- text -->
-                  @else if (clause.clause_type === 'text') {
-                    <input class="bf-input" type="text"
-                      [id]="'bf-ta-' + clause.id"
-                      [value]="lv.value?.text ?? ''"
-                      (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
-                      [disabled]="readOnly()" />
-                    @if (!readOnly() && hasBrackets(clause.id, clause)) {
-                      <div class="bf-resolver">
-                        <span class="bf-resolver-head">
-                          <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
-                        </span>
-                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
-                          <div class="bf-resolver-row">
-                            <code class="bf-resolver-bracket">{{ bracket }}</code>
-                            <span class="bf-resolver-arrow">→</span>
-                            @if (resolveVariable(bracket)) {
-                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
-                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Remplir</button>
-                            } @else {
-                              <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
-                            }
-                          </div>
-                        }
-                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
-                          <i class="bi bi-lightning-charge-fill"></i> Tout remplir
-                        </button>
-                      </div>
-                    }
-                    @if (!readOnly() && hasAnyIntroVar()) {
-                      <div class="bf-insert-chips">
-                        <span class="bf-insert-chips-label">Insérer :</span>
-                        @for (entry of definedIntroVars(); track entry.key) {
-                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
-                                  [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
-                        }
-                      </div>
-                    }
-                  }
-
-                  <!-- textarea -->
-                  @else if (clause.clause_type === 'textarea') {
-                    <textarea class="bf-textarea"
-                      [id]="'bf-ta-' + clause.id"
-                      [value]="lv.value?.text ?? ''"
-                      (input)="patchField(clause.id, clause, 'text', $any($event.target).value)"
-                      [disabled]="readOnly()"
-                      rows="5"></textarea>
-                    @if (!readOnly() && hasBrackets(clause.id, clause)) {
-                      <div class="bf-resolver">
-                        <span class="bf-resolver-head">
-                          <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
-                        </span>
-                        @for (bracket of detectBrackets(getValueText(clause.id, clause)); track bracket) {
-                          <div class="bf-resolver-row">
-                            <code class="bf-resolver-bracket">{{ bracket }}</code>
-                            <span class="bf-resolver-arrow">→</span>
-                            @if (resolveVariable(bracket)) {
-                              <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
-                              <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket(clause.id, clause, bracket)">Remplir</button>
-                            } @else {
-                              <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
-                            }
-                          </div>
-                        }
-                        <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets(clause.id, clause)">
-                          <i class="bi bi-lightning-charge-fill"></i> Tout remplir
-                        </button>
-                      </div>
-                    }
-                    @if (!readOnly() && hasAnyIntroVar()) {
-                      <div class="bf-insert-chips">
-                        <span class="bf-insert-chips-label">Insérer :</span>
-                        @for (entry of definedIntroVars(); track entry.key) {
-                          <button type="button" class="bf-insert-chip" (click)="insertValue(clause.id, clause, entry.key)"
-                                  [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
-                        }
-                      </div>
-                    }
-                  }
-
-                  <!-- number -->
-                  @else if (clause.clause_type === 'number') {
-                    <input class="bf-input bf-input-sm" type="number"
-                      [value]="lv.value?.number ?? ''"
-                      (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
-                      [disabled]="readOnly()" />
-                  }
-
-                  <!-- percentage -->
-                  @else if (clause.clause_type === 'percentage') {
-                    <div class="bf-input-group">
-                      <input class="bf-input bf-input-sm" type="number" min="0" max="100"
-                        [value]="lv.value?.number ?? ''"
-                        (input)="patchField(clause.id, clause, 'number', +$any($event.target).value)"
-                        [disabled]="readOnly()" />
-                      <span class="bf-unit">%</span>
-                    </div>
-                  }
-
-                  <!-- select -->
-                  @else if (clause.clause_type === 'select') {
-                    <select class="bf-select"
-                      [value]="lv.value?.selected ?? ''"
-                      (change)="patchField(clause.id, clause, 'selected', $any($event.target).value)"
-                      [disabled]="readOnly()">
-                      <option value="">— Choisir —</option>
-                      @for (opt of (clause.options ?? []); track opt) {
-                        <option [value]="opt">{{ opt }}</option>
-                      }
-                    </select>
-                  }
-
-                  <!-- date -->
-                  @else if (clause.clause_type === 'date') {
-                    <input class="bf-input bf-input-sm" type="date"
-                      [value]="lv.value?.date ?? ''"
-                      (input)="patchField(clause.id, clause, 'date', $any($event.target).value)"
-                      [disabled]="readOnly()" />
-                  }
-
-                  <!-- date_range -->
-                  @else if (clause.clause_type === 'date_range') {
-                    <div class="bf-date-range">
-                      <input class="bf-input bf-input-sm" type="date"
-                        [value]="lv.value?.start ?? ''"
-                        (input)="patchField(clause.id, clause, 'start', $any($event.target).value)"
-                        [disabled]="readOnly()" />
-                      <span class="bf-range-sep">au</span>
-                      <input class="bf-input bf-input-sm" type="date"
-                        [value]="lv.value?.end ?? ''"
-                        (input)="patchField(clause.id, clause, 'end', $any($event.target).value)"
-                        [disabled]="readOnly()" />
-                    </div>
-                  }
-
-                  <!-- territory -->
-                  @else if (clause.clause_type === 'territory') {
-                    <select class="bf-select bf-select-sm"
-                      [value]="lv.value?.territory ?? 'France'"
-                      (change)="patchField(clause.id, clause, 'territory', $any($event.target).value)"
-                      [disabled]="readOnly()">
-                      <option>France</option>
-                      <option>Union européenne</option>
-                      <option>Monde entier</option>
-                      <option>Autre</option>
-                    </select>
-                  }
-
-                  <!-- duration -->
-                  @else if (clause.clause_type === 'duration') {
-                    <div class="bf-input-group">
-                      <input class="bf-input bf-input-sm" type="number" min="1"
-                        [value]="lv.value?.amount ?? ''"
-                        (input)="patchField(clause.id, clause, 'amount', +$any($event.target).value)"
-                        [disabled]="readOnly()" />
-                      <select class="bf-select-inline"
-                        [value]="lv.value?.unit ?? 'ans'"
-                        (change)="patchField(clause.id, clause, 'unit', $any($event.target).value)"
-                        [disabled]="readOnly()">
-                        <option>ans</option>
-                        <option>mois</option>
-                        <option>jours</option>
-                      </select>
-                    </div>
-                  }
-
-                  <!-- multi_toggle -->
-                  @else if (clause.clause_type === 'multi_toggle') {
-                    <div class="bf-multi-toggle">
-                      @for (opt of (clause.options ?? []); track opt) {
-                        <label class="bf-check-label" [class.disabled]="readOnly()">
-                          <input type="checkbox"
-                            [checked]="isMultiSelected(clause.id, clause, opt)"
-                            (change)="toggleMulti(clause.id, clause, opt)"
-                            [disabled]="readOnly()" />
-                          {{ opt }}
-                        </label>
-                      }
-                    </div>
-                  }
-
-                </div>
-              }
-            </div>
+            <app-contract-clause
+              [clause]="clause"
+              [lv]="lv"
+              [isFilled]="isClauseFilled(clause.id, clause)"
+              [clauseNum]="clauseNumbers()[clause.id]"
+              [readOnly]="readOnly()"
+              [isFinal]="isFinal()"
+              [tooltipExpanded]="expandedTooltip() === clause.id"
+              [exampleExpanded]="expandedExample() === clause.id"
+              [brackets]="['text','textarea'].includes(clause.clause_type) ? detectBrackets(getValueText(clause.id, clause)) : []"
+              [introVarMap]="introVarMap()"
+              [hasAnyIntroVar]="hasAnyIntroVar()"
+              [definedIntroVars]="definedIntroVars()"
+              (enabledChange)="setEnabled(clause.id, clause, $event)"
+              (toggleTooltip)="toggleTooltip(clause.id)"
+              (toggleExample)="toggleExample(clause.id)"
+              (useExample)="useExample(clause.id, clause)"
+              (patch)="patchField(clause.id, clause, $event.field, $event.value)"
+              (resolveOneBracket)="resolveOneBracket(clause.id, clause, $event)"
+              (resolveAllBrackets)="resolveAllBrackets(clause.id, clause)"
+              (insertValue)="insertValue(clause.id, clause, $event)"
+              (toggleMulti)="toggleMulti(clause.id, clause, $event)">
+            </app-contract-clause>
           }
         </div>
       }
@@ -857,7 +569,14 @@
         <p class="bf-guide-intro">
           Pré-remplissez les clauses essentielles en un clic, puis affinez manuellement.
         </p>
-        <ng-container *ngTemplateOutlet="quickStartPanel"></ng-container>
+        <app-quick-start-panel
+          [isFinal]="isFinal()" [hasKeyInfo]="hasKeyInfo()" [autoFieldsDone]="autoFieldsDone()"
+          [locked]="locked()" [keyInfoHint]="config().keyInfoHint" [fillableCount]="fillableCount()"
+          [presets]="presets"
+          (goToPremium)="goToPremium()" (applyQuickStart)="applyQuickStart()"
+          (goToIntro)="goToIntro()" (fillAllExamples)="fillAllExamples()"
+          (applyPreset)="applyPreset($event)">
+        </app-quick-start-panel>
         <p class="bf-guide-note">
           <i class="bi bi-info-circle"></i>
           {{ config().guideNote }}
@@ -869,75 +588,20 @@
 
   <!-- ── Prévisualisation — modale plein écran, scrollable ───────────────────── -->
   @if (showPreview()) {
-    <div class="bf-preview-backdrop" (click)="closePreview()"
+    <app-modal-shell (backdropClick)="closePreview()" padding="2.5rem 1.5rem" [fadeIn]="true" [mobileFlush]="true"
          role="dialog" aria-modal="true" aria-label="Prévisualisation du contrat">
-      <div class="bf-preview-modal" (click)="$event.stopPropagation()">
-
-        <div class="bf-preview-header">
-          <span><i class="bi bi-eye"></i> Prévisualisation</span>
-          <button class="bf-preview-close" (click)="closePreview()" aria-label="Fermer la prévisualisation">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <div class="bf-preview-body">
-          <h1 class="bf-prev-title">{{ title() || '(Sans titre)' }}</h1>
-
-          <!-- Parties -->
-          @if (parties().length > 0) {
-            <div class="bf-prev-section">
-              <h2 class="bf-prev-art">Parties au contrat</h2>
-              @for (p of parties(); track $index) {
-                <div class="bf-prev-party">
-                  <strong>{{ p.role || 'Partie ' + ($index + 1) }}</strong>
-                  @if (p.party_type === 'physical') {
-                    <span> — {{ p.first_name }} {{ p.last_name }}</span>
-                    @if (p.pseudonym) { <span> (alias {{ p.pseudonym }})</span> }
-                  } @else {
-                    <span> — {{ p.company_name }}</span>
-                    @if (p.legal_form) { <span>, {{ p.legal_form }}</span> }
-                    @if (p.siren) { <span> · SIREN {{ p.siren }}</span> }
-                  }
-                  @if (p.address) { <div class="bf-prev-addr">{{ p.address }}</div> }
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Clause groups -->
-          @for (group of groups(); track group.id) {
-            @let artNum = articleNumbers()[group.id];
-            @if (artNum) {
-              <div class="bf-prev-section">
-                <h2 class="bf-prev-art">Art. {{ artNum }} — {{ group.name }}</h2>
-                @for (clause of group.clauses; track clause.id) {
-                  @let lv = getValue(clause.id, clause);
-                  @let fv = formatValue(clause, lv);
-                  @if (lv.is_enabled || clause.is_required) {
-                    <div class="bf-prev-clause">
-                      <span class="bf-prev-clause-name">
-                        @if (clauseNumbers()[clause.id]) { {{ clauseNumbers()[clause.id] }} — }{{ clause.name }}
-                      </span>
-                      @if (fv) {
-                        <p class="bf-prev-clause-val">{{ fv }}</p>
-                      }
-                    </div>
-                  }
-                }
-              </div>
-            }
-          }
-        </div>
-
-      </div>
-    </div>
+      <app-contract-preview
+        [title]="title()" [parties]="parties()" [groups]="previewGroups()"
+        (close)="closePreview()">
+      </app-contract-preview>
+    </app-modal-shell>
   }
 
   <!-- ── Envoi pour signature — modale (propriétaire, contrat final) ─────────── -->
   @if (showSignaturePanel()) {
-    <div class="bf-preview-backdrop" (click)="closeSignaturePanel()"
+    <app-modal-shell (backdropClick)="closeSignaturePanel()" padding="2.5rem 1.5rem" [fadeIn]="true" [mobileFlush]="true"
          role="dialog" aria-modal="true" aria-label="Envoyer le contrat pour signature">
-      <div class="bf-preview-modal bf-signature-modal" (click)="$event.stopPropagation()">
+      <div class="bf-preview-modal bf-signature-modal">
 
         <div class="bf-preview-header">
           <span><i class="bi bi-envelope-paper"></i> Envoyer pour signature</span>
@@ -992,7 +656,7 @@
         </div>
 
       </div>
-    </div>
+    </app-modal-shell>
   }
 
   <!-- Bottom actions -->
@@ -1040,88 +704,5 @@
   }
 
 </div>
-
-<!-- ── Démarrage rapide — source unique ────────────────────────────────────────
-     Rendu à deux endroits : dans le rail droit sur desktop, et dans l'onglet
-     Introduction sur mobile/tablette, où ce rail est masqué (<1100px). -->
-<ng-template #quickStartPanel>
-  <div class="bf-guide-cards">
-
-    @if (!isFinal()) {
-      <div class="bf-qs-card" [class.bf-qs-card--warn]="!hasKeyInfo()">
-        <div class="bf-qs-card-head">
-          @if (hasKeyInfo()) {
-            <i class="bi bi-lightning-charge-fill"></i>
-            Pré-remplissage
-            <span class="bf-qs-var-badge">{{ autoFieldsDone() }} champs</span>
-          } @else {
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            Pré-remplissage
-          }
-        </div>
-        @if (hasKeyInfo()) {
-          <p class="bf-qs-card-desc">Remplissage automatique des clauses depuis vos champs automatiques.</p>
-          <button type="button" class="bf-qs-card-btn" [class.bf-qs-card-btn--locked]="locked()"
-            (click)="locked() ? goToPremium() : applyQuickStart()">
-            @if (locked()) {
-              <i class="bi bi-lock-fill"></i> Premium uniquement
-            } @else {
-              <i class="bi bi-lightning-charge-fill"></i> Pré-remplir les clauses
-            }
-          </button>
-        } @else {
-          <p class="bf-qs-card-desc bf-qs-card-desc--warn">
-            {{ config().keyInfoHint }}
-          </p>
-          <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro()">
-            <i class="bi bi-pencil"></i> Compléter l'introduction
-          </button>
-        }
-      </div>
-      <div class="bf-guide-sep"></div>
-
-      @if (fillableCount() > 0) {
-        <div class="bf-fill-card">
-          <div class="bf-fill-card-head">
-            <i class="bi bi-patch-check-fill"></i>
-            Rédaction type
-            <span class="bf-fill-count-badge">{{ fillableCount() }} clause(s)</span>
-          </div>
-          <p class="bf-fill-card-desc">
-            Le texte juridique standard de chaque clause, prêt à l'emploi. Vous n'avez rien à rédiger :
-            appliquez-le, il ne reste qu'à l'ajuster si votre situation le demande.
-          </p>
-          <button type="button" class="bf-fill-card-btn" [class.bf-fill-card-btn--locked]="locked()"
-            (click)="locked() ? goToPremium() : fillAllExamples()">
-            @if (locked()) {
-              <i class="bi bi-lock-fill"></i> Premium uniquement
-            } @else {
-              <i class="bi bi-patch-check-fill"></i> Utiliser la rédaction type
-            }
-          </button>
-        </div>
-        <div class="bf-guide-sep"></div>
-      }
-    }
-
-    @for (preset of presets; track preset.id) {
-      <button class="bf-preset-card" [class.locked]="locked()" [disabled]="isFinal()"
-        (click)="locked() ? goToPremium() : applyPreset(preset.id)">
-        <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
-        <div class="bf-preset-info">
-          <span class="bf-preset-label">{{ preset.label }}</span>
-          <span class="bf-preset-desc">{{ preset.description }}</span>
-          <span class="bf-preset-meta">{{ preset.meta }}</span>
-        </div>
-        @if (locked()) {
-          <span class="bf-preset-badge badge-locked"><i class="bi bi-lock-fill"></i> Premium</span>
-        } @else {
-          <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
-        }
-      </button>
-    }
-
-  </div>
-</ng-template>
 
 }

@@ -13,11 +13,18 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "net.laprod.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Épinglé : sans ça, Gradle résout n'importe quelle NDK installée localement/en CI.
+    // La r27 (encore un défaut fréquent) lie libpsola_processor.so sur des pages 4 Ko par
+    // défaut (vérifié : llvm-readelf -l montre LOAD ... 0x1000) — non conforme à l'exigence
+    // Google Play "16 KB memory page sizes". La r28.2 génère du 0x4000 (16 Ko) nativement ;
+    // le flag linker ajouté dans cpp/CMakeLists.txt (-Wl,-z,max-page-size=16384) le garantit
+    // aussi explicitement, y compris si la NDK par défaut change à nouveau plus tard.
+    ndkVersion "28.2.13676358"
     defaultConfig {
         applicationId "net.laprod.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
+        versionCode 5
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {

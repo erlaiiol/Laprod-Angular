@@ -16,6 +16,7 @@ import { SimilarArtistsService, SimilarArtistScene } from '../../services/simila
 import { environment } from '../../../environments/environment';
 import { TourAnchorDirective } from '../../directives/tour-anchor.directive';
 import { TourService } from '../../services/tour.service';
+import { StyleSelectComponent } from '../../components/style-select/style-select.component';
 
 
 
@@ -29,7 +30,7 @@ interface TagGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector:    'app-upload-track',
   standalone:  true,
-  imports:     [CommonModule, FormsModule, RouterLink, TourAnchorDirective],
+  imports:     [CommonModule, FormsModule, RouterLink, TourAnchorDirective, StyleSelectComponent],
   templateUrl: './upload-track.component.html',
   styleUrl:    './upload-track.component.scss',
 })

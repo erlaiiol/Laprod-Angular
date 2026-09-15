@@ -12,7 +12,7 @@ type TxStatus = 'all' | 'awaiting' | 'in_progress' | 'completed';
   standalone: true,
   imports: [CommonModule, FormatDatePipe],
   templateUrl: './admin-transactions.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss'],
 })
 export class AdminTransactionsComponent implements OnInit {
 

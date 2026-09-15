@@ -1,0 +1,271 @@
+@use 'variables' as v;
+
+// .bf-input / .bf-select / .bf-input-group / .bf-unit sont chargés via
+// ../builder-form-shared.scss (styleUrls) — partagés avec BuilderFormComponent.
+// L'encapsulation de vue Angular ne laisse pas les styles d'un composant
+// parent atteindre le template d'un composant enfant : chaque composant a
+// besoin de sa propre copie compilée, d'où ce fichier partagé plutôt qu'une
+// simple mention "reste dans le parent".
+
+.bf-textarea {
+  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem;
+  font-size: 0.875rem; resize: vertical; font-family: inherit;
+  &:focus { outline: none; border-color: v.$tag-blue; }
+  &:disabled { opacity: 0.65; cursor: default; }
+}
+
+.bf-clause {
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem; margin-bottom: 0.6rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:not(.disabled):hover { border-color: v.$bg-border-subtle; }
+  &.disabled { opacity: 0.55; }
+
+  &.is-enabled:not(.disabled):not(.is-filled) {
+    border-color: rgba(v.$tag-blue, 0.25);
+    box-shadow: inset 3px 0 0 rgba(v.$tag-blue, 0.35);
+  }
+
+  &.is-filled {
+    border-color: rgba(v.$tag-blue, 0.55);
+    box-shadow: inset 3px 0 0 v.$tag-blue;
+    &:hover { border-color: rgba(v.$tag-blue, 0.75); }
+  }
+}
+
+.bf-clause-header {
+  display: flex; align-items: center; gap: 0.55rem;
+}
+
+.bf-clause-check {
+  width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; accent-color: v.$tag-blue;
+}
+
+.bf-clause-num {
+  font-size: 0.63rem; font-weight: 700; color: v.$tag-blue;
+  background: rgba(v.$tag-blue, 0.1); border-radius: 3px;
+  padding: 0.1rem 0.35rem; white-space: nowrap; flex-shrink: 0;
+}
+
+.bf-clause-name {
+  font-size: 0.9rem; font-weight: 600; flex: 1;
+  &.required { color: v.$text-primary; }
+}
+
+.bf-tooltip-icon {
+  position: relative;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border-subtle;
+  color: v.$text-secondary; font-size: 0.7rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+
+  &.has-plain-only {
+    color: v.$tag-orange;
+    border-color: rgba(v.$tag-orange, 0.45);
+    background: rgba(v.$tag-orange, 0.08);
+    &:hover { background: rgba(v.$tag-orange, 0.16); }
+  }
+
+  &.has-long-only {
+    color: v.$tag-blue;
+    border-color: rgba(v.$tag-blue, 0.45);
+    background: rgba(v.$tag-blue, 0.08);
+    &:hover { background: rgba(v.$tag-blue, 0.16); }
+  }
+
+  &.has-both {
+    color: v.$tag-orange;
+    border-color: rgba(v.$tag-orange, 0.45);
+    background: rgba(v.$tag-orange, 0.08);
+    &:hover { background: rgba(v.$tag-orange, 0.16); }
+    &::after {
+      content: '';
+      position: absolute;
+      top: -3px; right: -3px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: v.$tag-blue;
+      border: 1.5px solid v.$bg-surface;
+    }
+  }
+}
+
+.bf-legal-ref {
+  font-size: 0.68rem; color: v.$text-muted; white-space: nowrap;
+}
+
+.bf-tooltip-panel {
+  margin: 0.4rem 0; border-radius: 6px; overflow: hidden;
+  border: 1px solid v.$bg-border; font-size: 0.8rem; line-height: 1.55;
+}
+
+.bf-tip-section {
+  padding: 0.55rem 0.85rem;
+  p { margin: 0.2rem 0 0; }
+}
+
+.bf-tip-label {
+  display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; opacity: 0.85;
+  i { font-size: 0.62rem; }
+}
+
+.bf-tip-plain {
+  background: rgba(v.$tag-orange, 0.07);
+  .bf-tip-label { color: v.$tag-orange; }
+  p { color: v.$tag-orange; }
+}
+
+.bf-tip-legal {
+  background: v.$bg-elevated;
+  .bf-tip-label { color: v.$tag-blue; }
+  p { color: v.$text-secondary; }
+}
+
+.bf-tip-divider {
+  height: 1px; background: v.$bg-border;
+}
+
+.bf-example-icon {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(v.$tag-blue, 0.1); border: 1px solid rgba(v.$tag-blue, 0.3);
+  color: v.$tag-blue; font-size: 0.65rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  &:hover { background: rgba(v.$tag-blue, 0.2); }
+}
+
+.bf-example-panel {
+  margin: 0.5rem 0; padding: 0.65rem 0.85rem;
+  background: rgba(v.$tag-blue, 0.05); border-left: 3px solid v.$tag-blue;
+  border-radius: 0 6px 6px 0;
+}
+
+.bf-example-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.4rem;
+  span { font-size: 0.72rem; font-weight: 700; color: v.$text-secondary; text-transform: uppercase; letter-spacing: 0.04em; }
+}
+
+.bf-use-example {
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  background: rgba(v.$tag-blue, 0.12); border: 1px solid rgba(v.$tag-blue, 0.35);
+  color: v.$tag-blue; border-radius: 6px; padding: 0.2rem 0.6rem;
+  display: flex; align-items: center; gap: 0.3rem;
+  &:hover { background: rgba(v.$tag-blue, 0.22); }
+}
+
+.bf-example-text {
+  font-style: italic; font-size: 0.8rem; color: v.$text-secondary;
+  line-height: 1.55; margin: 0; white-space: pre-wrap;
+}
+
+.bf-clause-body {
+  margin-top: 0.75rem;
+}
+
+.bf-select-inline {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.875rem;
+  cursor: pointer;
+  &:focus { outline: none; border-color: v.$tag-blue; }
+  &:disabled { opacity: 0.65; cursor: default; }
+}
+
+.bf-date-range {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.bf-range-sep {
+  font-size: 0.8rem; color: v.$text-secondary;
+}
+
+.bf-multi-toggle {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem;
+}
+
+.bf-check-label {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.875rem; cursor: pointer;
+  input { accent-color: v.$tag-blue; cursor: pointer; }
+  &.disabled { cursor: default; opacity: 0.65; }
+}
+
+// ── Bracket resolver (text / textarea) ────────────────────────────────────────
+
+.bf-resolver {
+  margin-top: 0.5rem; padding: 0.6rem 0.8rem;
+  background: rgba(v.$tag-orange, 0.06); border: 1px solid rgba(v.$tag-orange, 0.25);
+  border-radius: 6px; display: flex; flex-direction: column; gap: 0.35rem;
+}
+
+.bf-resolver-head {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.72rem; font-weight: 600; color: v.$tag-orange;
+}
+
+.bf-resolver-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.bf-resolver-bracket {
+  font-size: 0.73rem; font-family: monospace;
+  color: v.$tag-orange; background: rgba(v.$tag-orange, 0.12);
+  border-radius: 4px; padding: 0.08rem 0.38rem; white-space: nowrap;
+}
+
+.bf-resolver-arrow {
+  font-size: 0.72rem; color: v.$text-muted; flex-shrink: 0;
+}
+
+.bf-resolver-val {
+  font-size: 0.8rem; color: v.$text-primary; font-weight: 500; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.bf-resolver-empty {
+  font-size: 0.78rem; color: v.$text-muted; font-style: italic; flex: 1;
+}
+
+.bf-resolver-btn {
+  background: rgba(v.$tag-orange, 0.12); border: 1px solid rgba(v.$tag-orange, 0.35);
+  color: v.$tag-orange; border-radius: 5px; padding: 0.15rem 0.55rem;
+  font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  &:hover { background: rgba(v.$tag-orange, 0.22); }
+}
+
+.bf-resolver-all {
+  align-self: flex-start; margin-top: 0.2rem;
+  background: rgba(v.$tag-blue, 0.12); border: 1px solid rgba(v.$tag-blue, 0.35);
+  color: v.$tag-blue; border-radius: 5px; padding: 0.2rem 0.65rem;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  &:hover { background: rgba(v.$tag-blue, 0.22); }
+}
+
+// ── Insert chips (text / textarea) ────────────────────────────────────────────
+
+.bf-insert-chips {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.bf-insert-chips-label {
+  font-size: 0.72rem; color: v.$text-muted; align-self: center;
+}
+
+.bf-insert-chip {
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-secondary; border-radius: 14px;
+  padding: 0.15rem 0.6rem; font-size: 0.73rem; cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap; max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis;
+  &:hover {
+    border-color: v.$tag-blue; color: v.$text-primary;
+    background: rgba(v.$tag-blue, 0.08);
+  }
+}

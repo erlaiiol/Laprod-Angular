@@ -1,0 +1,108 @@
+@use 'variables' as v;
+
+.avatar {
+  width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
+
+.badge-pa      { background: rgba(v.$tag-green, 0.2); color: v.$tag-green; font-size: 0.75rem;
+                 padding: 0.15rem 0.4rem; border-radius: 4px; }
+
+.badge-master  { background: rgba(16,185,129,0.15); color: v.$tag-green; font-size: 0.75rem;
+                 padding: 0.15rem 0.4rem; border-radius: 4px; }
+
+
+// ── Engineer cards ─────────────────────────────────────────────────────────────
+
+.engineer-card {
+  display: flex; align-items: flex-start; gap: 1rem;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;
+}
+
+
+.engineer-info {
+  flex: 1; display: flex; flex-direction: column; gap: 0.2rem;
+  strong { font-size: 0.95rem; }
+  .small { font-size: 0.75rem; color: v.$text-secondary; }
+  .bio   { font-size: 0.8rem; color: v.$text-secondary; margin: 0; }
+}
+
+
+.engineer-actions {
+  display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end;
+  input[type="number"] {
+    width: 70px; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+    color: v.$text-primary; border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.8rem;
+  }
+}
+
+
+.sample-links {
+  display: flex; gap: 0.5rem; margin-top: 0.25rem;
+  a { font-size: 0.75rem; color: v.$tag-blue; }
+}
+
+
+// ── Price requests ─────────────────────────────────────────────────────────────
+
+.price-req-card {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  background: v.$bg-surface; border: 1px solid v.$bg-border;
+  border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  strong { min-width: 120px; }
+  .arrow { color: v.$text-secondary; }
+  .new-price { color: v.$tag-green; font-weight: 600; }
+}
+
+
+// ── Price request actions ──────────────────────────────────────────────────────
+
+.req-actions { display: flex; gap: 0.4rem; margin-left: auto; }
+
+
+// ── Direct certification tab ───────────────────────────────────────────────────
+
+.direct-header {
+  padding: 0.75rem 0; margin-bottom: 0.75rem;
+  p { font-size: 0.82rem; color: v.$text-secondary; margin: 0; }
+}
+
+
+.direct-card { flex-wrap: wrap; align-items: flex-start; }
+
+
+.direct-form {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem; width: 100%;
+
+  .direct-row {
+    display: flex; flex-direction: column; gap: 0.25rem;
+    &.full { grid-column: 1 / -1; }
+
+    label { font-size: 0.75rem; color: v.$text-secondary; font-weight: 600;
+      .req { color: v.$tag-red; } }
+    input[type="number"], input[type="text"] {
+      background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-primary;
+      border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.82rem;
+      &:focus { outline: none; border-color: v.$tag-violet; }
+    }
+    input[type="file"] { font-size: 0.78rem; color: v.$text-secondary; }
+    a.small { font-size: 0.75rem; color: v.$tag-green; }
+  }
+}
+
+
+.badge-certified-sm {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
+  background: rgba(255, 193, 7, 0.15); color: v.$gold;
+}
+
+
+.btn-upload {
+  padding: 0.35rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; border: 1px solid v.$tag-blue; background: rgba(59, 130, 246, 0.1);
+  color: v.$tag-blue; transition: background 0.15s;
+  &:hover { background: rgba(59, 130, 246, 0.2); }
+}

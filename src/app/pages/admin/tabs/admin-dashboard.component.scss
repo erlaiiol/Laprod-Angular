@@ -1,0 +1,33 @@
+@use 'variables' as v;
+
+
+// ── Stats grid ─────────────────────────────────────────────────────────────────
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+  @media (max-width: 900px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 500px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+
+// ── Two-column layout ──────────────────────────────────────────────────────────
+
+.two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+
+
+.panel {
+  background: v.$bg-surface; border: 1px solid v.$bg-border; border-radius: 10px; padding: 1rem;
+  h3 { font-size: 0.9rem; font-weight: 700; margin: 0 0 0.75rem; color: v.$text-secondary; text-transform: uppercase; }
+}
+
+
+.recent-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.recent-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  .item-title { font-size: 0.875rem; font-weight: 600; }
+  .item-sub   { font-size: 0.75rem; color: v.$text-secondary; }
+}

@@ -2,15 +2,16 @@ import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContractBuilderService, ClauseGroupDTO, ClauseDTO, ContractType } from '../../../services/contract-builder.service';
+import { ModalShellComponent } from '../../../components/modal-shell/modal-shell.component';
 
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-contract-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ModalShellComponent],
   templateUrl: './admin-contract-builder.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss'],
 })
 export class AdminContractBuilderComponent implements OnInit {
 

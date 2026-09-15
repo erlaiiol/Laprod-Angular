@@ -40,7 +40,7 @@ export type AdminTab = 'dashboard' | 'tracks' | 'users' | 'engineers' | 'categor
     AdminInvoicesComponent,
   ],
   templateUrl: './admin.component.html',
-  styleUrl: './admin.component.scss',
+  styleUrls: ['./admin-shared.scss', './admin.component.scss'],
 })
 export class AdminComponent implements OnInit {
 
