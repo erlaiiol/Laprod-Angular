@@ -18,7 +18,7 @@ from extensions import db, csrf
 from models import User, Notification, Track, PriceChangeRequest, TokenBlocklist
 from serializers import ok, err, track_card as ser_track_card, capabilities_dict
 from helpers import sanitize_html, revoke_all_refresh_tokens
-from utils import email_service, notification_service
+from utils import email_service, notification_service, apple_signin
 from utils.file_validator import validate_image_file
 from utils.image_variants import generate_variants, delete_variants
 from utils.auth_helpers import require_user
@@ -383,6 +383,17 @@ def delete_own_account(current_user):
         current_password = data.get('current_password', '')
         if not current_user.check_password(current_password):
             return err('Mot de passe incorrect.', status=401)
+
+    # Révocation Apple AVANT le commit du statut : best-effort, ne doit jamais
+    # empêcher la suppression du compte (cf. utils/apple_signin.py). Exigence
+    # Apple : les tokens Sign in with Apple doivent être révoqués quand
+    # l'utilisateur supprime son compte.
+    if current_user.oauth_provider == 'apple' and current_user.apple_refresh_token:
+        apple_signin.revoke_refresh_token(
+            current_user.apple_refresh_token,
+            current_user.apple_refresh_token_client_id or current_app.config['APPLE_BUNDLE_ID'],
+        )
+        current_user.apple_refresh_token = None
 
     current_user.account_status = 'pending_deletion'
     current_user.deleted_at     = datetime.now(timezone.utc)

@@ -2,21 +2,20 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// ObjC wrapper around RubberBand's real-time, formant-preserving pitch shifter.
+/// ObjC wrapper around the in-house real-time, formant-preserving pitch shifter — replaces
+/// Rubber Band Library (GPL-3.0/commercial). See docs/roadmap.md for the full rationale.
 ///
-/// Thread model:
-///   -setPitchCents:   thread-safe (std::atomic internally), call from detection timer
+/// The pitch shifter itself lives in the Rust workspace at the repo root
+/// (native/psola-dsp + native/psola-ffi) — this file is now only an Objective-C++ bridge to
+/// its plain C API (psola_ffi.h). The Rust static library is (re)built for the current
+/// platform/architecture by an Xcode "Run Script" build phase on the App target (see
+/// project.pbxproj) before this file is compiled — no binary is committed to the repo, mirroring
+/// how the Android CMake build invokes `cargo build` on every Gradle build.
+///
+/// Thread model (unchanged from the Rubber Band version):
+///   -setPitchCents:   thread-safe (atomic internally, on the Rust side), call from detection timer
 ///   -feedInput:count: call from the AVAudioEngine tap callback (IO thread)
 ///   -renderInto:frameCount: call from AVAudioSourceNode render block (render thread)
-///
-/// SETUP — Rubber Band Library v3.x source is required:
-///   1. Download from https://breakfastquay.com/rubberband/ (GPL or commercial)
-///   2. Unzip and place so that the following header is accessible:
-///         ios/App/App/rubberband/rubberband/RubberBandStretcher.h
-///   3. In Xcode → App target → Build Settings:
-///         Header Search Paths: $(SRCROOT)/App/App/rubberband  (non-recursive)
-///   4. Add ALL .cpp files from rubberband/src/ to the App target's Compile Sources.
-///      (Run `find rubberband/src -name "*.cpp"` for the full list.)
 @interface RubberBandWrapper : NSObject
 
 - (instancetype)initWithSampleRate:(double)sampleRate;
@@ -35,7 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Reset internal state; call when the engine restarts.
 - (void)reset;
 
-/// RubberBand's startup latency in samples (informational / for tests).
+/// The engine's structural startup latency in samples (informational / for tests).
 @property (nonatomic, readonly) NSInteger latencySamples;
 
 @end

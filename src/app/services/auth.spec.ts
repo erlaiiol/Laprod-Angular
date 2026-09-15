@@ -1,7 +1,8 @@
+import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 
 import { AuthService, User } from './auth.service';
 import { environment } from '../../environments/environment';
@@ -179,5 +180,50 @@ describe('AuthService', () => {
 
     expect(service.isBeatmaker()).toBe(true);
     expect(service.isAdmin()).toBe(false);
+  });
+
+  // -- navigateAfterOauth() — partagée entre OauthCallbackComponent (retour web
+  // Google/Apple) et le flow natif Apple (LoginComponent/RegisterComponent) --
+
+  describe('navigateAfterOauth()', () => {
+    let router: Router;
+    let navigateSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      router = TestBed.inject(Router);
+      navigateSpy = vi.spyOn(router, 'navigate');
+    });
+
+    it("next='complete-profile' navigue avec le nom suggéré en query param", () => {
+      service.navigateAfterOauth('complete-profile', 'Zoé');
+      expect(navigateSpy).toHaveBeenCalledWith(['/complete-profile'], { queryParams: { name: 'Zoé' } });
+    });
+
+    it("next='complete-profile' sans nom suggéré n'ajoute pas de query param", () => {
+      service.navigateAfterOauth('complete-profile', '');
+      expect(navigateSpy).toHaveBeenCalledWith(['/complete-profile'], { queryParams: {} });
+    });
+
+    it("next='select-role' navigue vers /select-role", () => {
+      service.navigateAfterOauth('select-role');
+      expect(navigateSpy).toHaveBeenCalledWith(['/select-role']);
+    });
+
+    it("next='/' navigue vers l'accueil quand le profil est complet", () => {
+      service.login('user@test.com', 'password123', false).subscribe();
+      httpMock.expectOne(`${AUTH_URL}/login`).flush(mockLoginSuccess); // user_type_selected: true
+
+      service.navigateAfterOauth('/');
+      expect(navigateSpy).toHaveBeenCalledWith(['/']);
+    });
+
+    it("next='/' redirige vers /select-role si le profil est incomplet (filet de sécurité)", () => {
+      const incompleteUser = { ...mockUser, user_type_selected: false };
+      service.login('user@test.com', 'password123', false).subscribe();
+      httpMock.expectOne(`${AUTH_URL}/login`).flush({ ...mockLoginSuccess, data: { ...mockLoginSuccess.data, user: incompleteUser } });
+
+      service.navigateAfterOauth('/');
+      expect(navigateSpy).toHaveBeenCalledWith(['/select-role']);
+    });
   });
 });

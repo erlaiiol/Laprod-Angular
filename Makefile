@@ -29,7 +29,8 @@ AVD     ?=
 
 .PHONY: help \
         dev dev-down dev-logs dev-build dev-local dev-local-down \
-        prod-up prod-down prod-logs prod-deploy deploy-frontend certbot-init certbot-renew \
+        prod-up prod-down prod-logs prod-deploy deploy-frontend prod-cleanup certbot-init certbot-renew \
+        doctor doctor-prod \
         install serve build build-mobile test \
         android-emulator android-emulator-live android-keystore android-bundle android-apk android-clean \
         ios-simulator ios-simulator-live ios-open
@@ -84,6 +85,13 @@ prod-deploy: ## git pull + rebuild/redéploiement complet (à lancer sur le serv
 deploy-frontend: ## Rebuild + redémarre UNIQUEMENT le frontend (sans toucher au backend)
 	./scripts/deploy-frontend.sh
 
+prod-cleanup: ## Supprime les images Docker inutilisées + le cache de build (libère de l'espace disque)
+	@echo "⚠️  Supprime aussi les anciennes versions d'images non utilisées par un container actif."
+	@echo "   Ne pas lancer juste après un déploiement si tu veux garder la possibilité d'un rollback rapide."
+	docker image prune -a -f
+	docker builder prune -a -f
+	docker system df
+
 certbot-init: ## Premier certificat Let's Encrypt (laprod.net + www.laprod.net)
 	$(COMPOSE_PROD) run --rm certbot certonly --webroot \
 		--webroot-path=/var/www/certbot \
@@ -93,6 +101,16 @@ certbot-init: ## Premier certificat Let's Encrypt (laprod.net + www.laprod.net)
 certbot-renew: ## Renouvelle le certificat Let's Encrypt + recharge nginx
 	$(COMPOSE_PROD) run --rm certbot renew
 	$(COMPOSE_PROD) exec -T frontend nginx -s reload
+
+# =============================================================================
+# Diagnostic
+# =============================================================================
+
+doctor: ## Vérifie config/connectivité (env, DB, Redis, migrations) — voir doctor.sh --help
+	./doctor.sh
+
+doctor-prod: ## Idem + certificat TLS, cron certbot, cohérence des clés Stripe live (sur le serveur)
+	./doctor.sh --prod
 
 # =============================================================================
 # Web (Angular)
@@ -157,12 +175,18 @@ android-keystore: ## Génère UNE SEULE FOIS le keystore de signature release �
 android-bundle: ## Build .aab signé (versionCode auto-incrémenté), rangé dans builds/android/
 	@test -f android/keystore.properties || { echo "Pas de keystore de release. Lance d'abord : make android-keystore"; exit 1; }
 	@test -n "$(JAVA21)" || { echo "Java 21 introuvable. Installe-le : brew install --cask temurin@21"; exit 1; }
-	@test -f android/app/src/main/cpp/rubberband/rubberband/RubberBandStretcher.h || { \
-		echo "Rubber Band Library introuvable (android/app/src/main/cpp/rubberband/)."; \
-		echo "Licence GPL/commerciale — non vendorée dans le repo, à télécharger manuellement :"; \
-		echo "voir les instructions dans android/app/src/main/cpp/CMakeLists.txt"; \
+	@command -v cargo >/dev/null || { \
+		echo "cargo introuvable. Le moteur audio maison (native/psola-dsp) requiert Rust :"; \
+		echo "installe-le via https://rustup.rs — voir docs/deployment.md."; \
 		exit 1; \
 	}
+	@cd native && for t in aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android; do \
+		rustup target list --installed 2>/dev/null | grep -q "^$$t$$" || { \
+			echo "Cible Rust manquante pour le toolchain épinglé (native/rust-toolchain.toml) : $$t"; \
+			echo "→ cd native && rustup target add $$t — voir docs/deployment.md."; \
+			exit 1; \
+		}; \
+	done
 	@echo "→ versionCode : $$(./scripts/android-bump-version.sh)"
 	@echo "→ Build Angular (configuration=mobile → https://laprod.net)..."
 	npx ng build --configuration=mobile
@@ -181,12 +205,18 @@ android-bundle: ## Build .aab signé (versionCode auto-incrémenté), rangé dan
 android-apk: ## Build .apk signé (sideload direct, hors Play Store), rangé dans builds/android/
 	@test -f android/keystore.properties || { echo "Pas de keystore de release. Lance d'abord : make android-keystore"; exit 1; }
 	@test -n "$(JAVA21)" || { echo "Java 21 introuvable. Installe-le : brew install --cask temurin@21"; exit 1; }
-	@test -f android/app/src/main/cpp/rubberband/rubberband/RubberBandStretcher.h || { \
-		echo "Rubber Band Library introuvable (android/app/src/main/cpp/rubberband/)."; \
-		echo "Licence GPL/commerciale — non vendorée dans le repo, à télécharger manuellement :"; \
-		echo "voir les instructions dans android/app/src/main/cpp/CMakeLists.txt"; \
+	@command -v cargo >/dev/null || { \
+		echo "cargo introuvable. Le moteur audio maison (native/psola-dsp) requiert Rust :"; \
+		echo "installe-le via https://rustup.rs — voir docs/deployment.md."; \
 		exit 1; \
 	}
+	@cd native && for t in aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android; do \
+		rustup target list --installed 2>/dev/null | grep -q "^$$t$$" || { \
+			echo "Cible Rust manquante pour le toolchain épinglé (native/rust-toolchain.toml) : $$t"; \
+			echo "→ cd native && rustup target add $$t — voir docs/deployment.md."; \
+			exit 1; \
+		}; \
+	done
 	@echo "→ versionCode : $$(./scripts/android-bump-version.sh)"
 	@echo "→ Build Angular (configuration=mobile → https://laprod.net)..."
 	npx ng build --configuration=mobile

@@ -50,6 +50,7 @@ Thumbs.db
 .env
 *.key
 *.pem
+*.p8
 
 # ====================================
 # ANDROID - signing release (généré via `make android-keystore`)
@@ -64,10 +65,12 @@ android/app/*.jks
 /builds
 
 # ====================================
-# ANDROID - Rubber Band Library (GPL/commerciale, à télécharger manuellement,
-# voir android/app/src/main/cpp/CMakeLists.txt) - jamais vendorée dans le repo
+# MOTEUR PSOLA MAISON (native/, remplace Rubber Band GPL-3.0 - voir docs/roadmap.md) -
+# artefacts de build Rust jamais committés, reconstruits à chaque build Android (CMake ->
+# cargo) et iOS (phase "Run Script" Xcode -> cargo, voir App.xcodeproj/project.pbxproj)
 # ====================================
-android/app/src/main/cpp/rubberband/
+native/target/
+ios/App/App/rust-build/
 
 # ====================================
 # DOCKER - override local uniquement

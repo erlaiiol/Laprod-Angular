@@ -5,7 +5,9 @@ import { Router, RouterLink } from '@angular/router';
 import { UserService } from '../../../services/user.service';
 import { AuthService } from '../../../services/auth.service';
 import { CampaignService } from '../../../services/campaign.service';
+import { PushService } from '../../../services/push.service';
 import { ToastService } from '../../../services/toast.service';
+import { IS_NATIVE_PLATFORM } from '../../../services/draft-save.service';
 import { BetaBadgeComponent } from '../../../components/beta-badge/beta-badge.component';
 import { environment } from '../../../../environments/environment';
 
@@ -81,6 +83,51 @@ export class EditProfileComponent implements OnInit {
     });
   }
 
+  // ── Consentement notifications push (mobile natif uniquement) ──────────────
+  // Le réglage n'est même pas affiché sur le web (cf. isNativePlatform) : il
+  // n'y a jamais de push web, cf. docs/roadmap.md § Chantier 2 décision 2.1.
+  pushOptIn        = signal(false);
+  readonly isNativePlatform = inject(IS_NATIVE_PLATFORM);
+
+  private pushSvc = inject(PushService);
+
+  setPushOptIn(optIn: boolean): void {
+    const previous = this.pushOptIn();
+    this.pushOptIn.set(optIn);
+
+    // La permission OS n'est demandée QU'À l'activation, jamais au chargement
+    // de la page (décision 2.3) : un refus de permission ne doit pas activer
+    // le consentement produit silencieusement.
+    const applyPreference = optIn
+      ? this.pushSvc.enablePush()
+      : this.pushSvc.disablePush().then(() => true);
+
+    applyPreference.then(permissionGranted => {
+      if (optIn && !permissionGranted) {
+        this.pushOptIn.set(false);
+        this.toastSvc.showToast({
+          level: 'warning',
+          message: 'Autorisez les notifications dans les réglages de votre téléphone pour activer ce service.',
+        });
+        return;
+      }
+
+      this.pushSvc.setPreference(optIn).subscribe({
+        next: res => this.toastSvc.showToast({
+          level: 'success',
+          message: res.feedback?.message ?? 'Préférence enregistrée.',
+        }),
+        error: () => {
+          this.pushOptIn.set(previous);
+          this.toastSvc.showToast({
+            level: 'error',
+            message: 'Impossible d\'enregistrer votre préférence.',
+          });
+        },
+      });
+    });
+  }
+
   // Computed premium helpers (lus depuis le signal auth)
   private authSvc = inject(AuthService);
   readonly subscriptionPlan   = computed(() => this.authSvc.currentUser()?.subscription_plan ?? 'free');
@@ -121,6 +168,13 @@ export class EditProfileComponent implements OnInit {
       },
       error: () => {},
     });
+
+    if (this.isNativePlatform) {
+      this.pushSvc.getPreference().subscribe({
+        next: res => this.pushOptIn.set(res.data?.push_opt_in ?? false),
+        error: () => {},
+      });
+    }
 
     // Fetch fresh data (prices, master certification — not all in User signal)
     this.userSvc.getProfile(user.username).subscribe(res => {

@@ -13,14 +13,6 @@ import android.media.AudioTrack
 import android.media.audiofx.PresetReverb
 import android.os.Build
 import android.util.Base64
-import be.tarsos.dsp.AudioDispatcher
-import be.tarsos.dsp.AudioEvent
-import be.tarsos.dsp.AudioProcessor
-import be.tarsos.dsp.io.android.AudioDispatcherFactory
-import be.tarsos.dsp.pitch.PitchDetectionHandler
-import be.tarsos.dsp.pitch.PitchDetectionResult
-import be.tarsos.dsp.pitch.PitchProcessor
-import be.tarsos.dsp.pitch.PitchProcessor.PitchEstimationAlgorithm.YIN
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -29,9 +21,10 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
-import kotlin.math.pow
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
 
@@ -152,18 +145,26 @@ data class SessionResult(val pcmBytes: ByteArray, val sampleRate: Int)
 //
 // Monitoring autotune :
 //   monitorAutotune=false → volume direct (AudioTrack write sans pitch shift)
-//   monitorAutotune=true  → RubberBandProcessor (formant preservé, ~10 ms latence)
+//   monitorAutotune=true  → PsolaProcessor (formants préservés, moteur PSOLA+LPC maison —
+//                            voir docs/roadmap.md, remplace Rubber Band GPL-3.0 et TarsosDSP)
 //
-// Architecture monitoring avec Rubber Band :
+// Architecture monitoring — DEUX chemins, choisis à chaque [start] :
 //
-//   [TarsosDSP AudioDispatcher]
-//       └── AudioProcessor.process(event):
-//               event.floatBuffer → RubberBandProcessor.process()
-//               retrieve() → convertir float→Int16 → AudioTrack
-//       └── PitchProcessor (YIN):
-//               détecte la hauteur → rubberBand.setPitchCents(correction)
+//   1. Chemin RAPIDE (PsolaAudioEngine, voir ce fichier) : API 26+, MMAP exclusif accepté par
+//      l'appareil. Capture, YIN et PSOLA tournent entièrement dans des callbacks natifs AAudio
+//      (aaudio_engine.c) — cette classe ne fait que sonder le statut (~20ms) et drainer le PCM
+//      enregistré. Latence structurelle la plus basse (voir docs/roadmap.md).
+//   2. Chemin de REPLI [AudioCaptureLoop] (AudioRecord maison, remplace TarsosDSP) — utilisé si
+//      `PsolaAudioEngine.create` retourne `null` (API<26, MMAP refusé, etc.) :
+//       └── onBlock(floats, bytes):
+//               bytes  → enregistrement PCM brut (toujours)
+//               floats → PsolaProcessor.process() → retrieve() → Int16 → AudioTrack
+//               floats → fenêtre glissante YinPitchDetector (2048 échantillons,
+//                         DÉCOUPLÉE de la taille de bloc de capture — voir plus bas)
+//      La correction s'applique AU BLOC SUIVANT (1 frame de délai = 23 ms @ 44.1 kHz).
 //
-// La correction s'applique AU BLOC SUIVANT (1 frame de délai = 23 ms @ 44.1 kHz).
+// Le chemin rapide n'a PAS de reverb câblée (limitation assumée, voir docs/roadmap.md) — le
+// chemin de repli conserve la reverb PresetReverb existante.
 
 class AudioRecordingSession(private val opts: RecordingOptions, private val context: Context) {
 
@@ -173,19 +174,38 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
 
     private val SAMPLE_RATE = 44_100
 
-    // 1024 samples @ 44.1 kHz : half=512, min détectable ≈ 86 Hz → voix masculines OK
+    // 1024 samples @ 44.1 kHz — taille de bloc de capture quand le monitoring tourne (faible
+    // latence). Sans monitoring, on utilise le minimum AudioRecord (throughput, pas latence).
     private val MONITOR_FRAME  = 1024
-    private val STANDARD_FRAME = android.media.AudioRecord.getMinBufferSize(
-        SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+    private val STANDARD_FRAME = AudioCaptureLoop.minBufferSizeSamples(SAMPLE_RATE)
+
+    // Fenêtre de détection YIN — DÉCOUPLÉE de la taille de bloc de capture (contrairement à
+    // l'ancien code TarsosDSP, qui appelait PitchProcessor directement sur le bloc de capture
+    // : avec MONITOR_FRAME=1024, half=512 → plancher réel ~86Hz, pas 80Hz). 2048 échantillons
+    // (comme iOS, YINDetector.swift) retrouve le vrai plancher 80Hz — voix graves incluses.
+    // Maintenue comme buffer circulaire, alimenté à chaque bloc quelle que soit sa taille.
+    private val PITCH_FRAME_SIZE = 2048
+    private val pitchRing = FloatArray(PITCH_FRAME_SIZE)
+    private var pitchRingWritePos = 0L
+
+    private val yinDetector = YinPitchDetector(
+        frameSize = PITCH_FRAME_SIZE, minFrequency = 80f, maxFrequency = 1_200f,
     )
 
     private val scale: FloatArray = ScaleBuilder.buildScaleHz(opts.trackKey)
-    private val pcmBuffer         = ByteArrayOutputStream()
-    private var dispatcher: AudioDispatcher? = null
-    private var outputTrack: AudioTrack?     = null
-    private var rubberBand: RubberBandProcessor? = null
-    private var reverb: PresetReverb?        = null
-    private var job: Job?                    = null
+    private val pcmBuffer          = ByteArrayOutputStream()
+    private var captureLoop: AudioCaptureLoop? = null
+    private var outputTrack: AudioTrack?       = null
+    private var psola: PsolaProcessor?         = null
+    private var reverb: PresetReverb?          = null
+    private var job: Job?                      = null
+
+    // Chemin rapide (voir PsolaAudioEngine.kt) — non-null seulement si `PsolaAudioEngine.create`
+    // a réussi ; dans ce cas captureLoop/outputTrack/psola/reverb restent tous null, le moteur
+    // natif gère capture+monitoring+correction en interne.
+    private var aaudioEngine: PsolaAudioEngine? = null
+    private val drainBuf = FloatArray(4096)
+    private val AAUDIO_POLL_INTERVAL_MS = 20L
 
     private var smoothedSemitones = 0f
     private val MONITOR_CAP       = 2.5f
@@ -202,64 +222,113 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
 
     fun start() {
         pcmBuffer.reset()
-        smoothedSemitones = 0f
+        smoothedSemitones  = 0f
+        pitchRingWritePos  = 0L
 
-        val bufferSize = if (opts.monitorAutotune) MONITOR_FRAME else STANDARD_FRAME
-        dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(SAMPLE_RATE, bufferSize, 0)
+        val engine = PsolaAudioEngine.create(
+            sampleRate      = SAMPLE_RATE,
+            useMonitor      = opts.useMonitor,
+            monitorAutotune = opts.monitorAutotune,
+            voiceGain       = opts.voiceGain,
+        )
+        if (engine != null) {
+            aaudioEngine = engine
+            startFastPath(engine)
+        } else {
+            startFallbackPath()
+        }
 
-        // ── Enregistrement PCM + monitoring ───────────────────────────────────
-        dispatcher!!.addAudioProcessor(object : AudioProcessor {
-            override fun process(event: AudioEvent): Boolean {
-                // Toujours enregistrer les octets bruts (audio non traité → serveur)
-                pcmBuffer.write(event.byteBuffer, 0, event.byteBuffer.size)
-                onLevel?.invoke(event.getRMS().toFloat())
+        // ── AudioFocus / casque (communs aux deux chemins) ─────────────────────
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener(focusListener)
+                .build()
+            am.requestAudioFocus(focusRequest!!)
+        } else {
+            @Suppress("DEPRECATION")
+            am.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+        }
 
-                if (!opts.useMonitor) return true
-
-                if (opts.monitorAutotune) {
-                    // Passer par Rubber Band pour le monitoring avec autotune
-                    rubberBand?.process(event.floatBuffer)
-                    val available = rubberBand?.available() ?: 0
-                    if (available > 0) {
-                        val out = FloatArray(available)
-                        rubberBand?.retrieve(out)
-                        outputTrack?.write(floatsToInt16(out, opts.voiceGain), 0, available * 2)
-                    }
-                } else {
-                    // Monitoring simple : volume direct, pas de pitch shift
-                    outputTrack?.write(applyGain(event.byteBuffer, opts.voiceGain),
-                                       0, event.byteBuffer.size)
+        noisyReceiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                    onInterrupted?.invoke()
                 }
-                return true
-            }
-            override fun processingFinished() {}
-        })
-
-        // ── Détection de hauteur YIN ──────────────────────────────────────────
-        val pdh = PitchDetectionHandler { result: PitchDetectionResult, _: AudioEvent ->
-            val hz = result.pitch
-            if (!result.isPitched || hz < 80f || hz > 1_200f) return@PitchDetectionHandler
-
-            val nearest      = PitchCorrectionEngine.findNearestNote(hz, scale)
-                               ?: return@PitchDetectionHandler
-            val rawSemitones = PitchCorrectionEngine.correctionSemitones(hz, nearest)
-
-            if (opts.monitorAutotune && opts.useMonitor) {
-                smoothedSemitones = opts.smoothK * smoothedSemitones +
-                                    (1 - opts.smoothK) * rawSemitones
-                val clamped = smoothedSemitones.coerceIn(-MONITOR_CAP, MONITOR_CAP)
-
-                // Communiquer la correction au processeur Rubber Band (thread-safe).
-                // Elle sera appliquée au prochain bloc process() (délai 1 frame ≈ 23 ms).
-                rubberBand?.setPitchCents(clamped * 100f)
-                onPitch?.invoke(hz, clamped)
-            } else {
-                onPitch?.invoke(hz, rawSemitones)
             }
         }
-        dispatcher!!.addAudioProcessor(PitchProcessor(YIN, SAMPLE_RATE.toFloat(), bufferSize, pdh))
+        context.registerReceiver(noisyReceiver,
+                                  IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+    }
 
-        // ── AudioTrack ────────────────────────────────────────────────────────
+    // ── Chemin rapide : moteur AAudio natif ───────────────────────────────────
+    //
+    // Capture, détection YIN et correction PSOLA tournent entièrement côté natif
+    // (aaudio_engine.c) — cette coroutine ne fait que sonder le statut (~20ms, hors du chemin
+    // chaud), appliquer la correction musicale existante (PitchCorrectionEngine + smoothing,
+    // inchangée) et drainer le PCM brut capturé pour l'enregistrement. Aucune reverb sur ce
+    // chemin (voir docs/roadmap.md — limitation assumée, n'affecte que l'esthétique du
+    // monitoring, jamais la latence ni la justesse).
+    private fun startFastPath(engine: PsolaAudioEngine) {
+        job = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                val status = engine.pollStatus()
+                onLevel?.invoke(status.level)
+
+                if (!status.pitchHz.isNaN()) {
+                    val hz = status.pitchHz
+                    val nearest = PitchCorrectionEngine.findNearestNote(hz, scale)
+                    if (nearest != null) {
+                        val rawSemitones = PitchCorrectionEngine.correctionSemitones(hz, nearest)
+
+                        if (opts.monitorAutotune && opts.useMonitor) {
+                            smoothedSemitones = opts.smoothK * smoothedSemitones +
+                                                (1 - opts.smoothK) * rawSemitones
+                            val clamped = smoothedSemitones.coerceIn(-MONITOR_CAP, MONITOR_CAP)
+
+                            // Communiquer la correction au moteur natif (atomic côté Rust) —
+                            // appliquée au prochain callback d'entrée.
+                            engine.setPitchCents(clamped * 100f)
+                            onPitch?.invoke(hz, clamped)
+                        } else {
+                            onPitch?.invoke(hz, rawSemitones)
+                        }
+                    }
+                }
+
+                drainInto(engine)
+
+                if (status.interrupted) {
+                    onInterrupted?.invoke()
+                }
+
+                delay(AAUDIO_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Vide le ring natif de PCM enregistré dans [pcmBuffer], en boucle tant que le ring rendait
+     *  un buffer plein (il pourrait en rester plus qu'un [drainBuf] si le polling a du retard). */
+    private fun drainInto(engine: PsolaAudioEngine) {
+        var drained: Int
+        do {
+            drained = engine.drainRecorded(drainBuf)
+            if (drained > 0) pcmBuffer.write(floatsToInt16(drainBuf, drained, 1.0f))
+        } while (drained == drainBuf.size)
+    }
+
+    // ── Chemin de repli : AudioCaptureLoop (AudioRecord/AudioTrack maison) ────────────────────
+    private fun startFallbackPath() {
+        val bufferSize = if (opts.monitorAutotune) MONITOR_FRAME else STANDARD_FRAME
+
+        // ── AudioTrack + PsolaProcessor (avant la boucle de capture : onBlock en a besoin) ─
         if (opts.useMonitor) {
             val minBuf     = AudioTrack.getMinBufferSize(SAMPLE_RATE,
                                 AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -295,9 +364,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 ).also { it.play() }
             }
 
-            // Créer Rubber Band uniquement pour le monitoring autotune
+            // Créer le moteur PSOLA uniquement pour le monitoring avec autotune
             if (opts.monitorAutotune) {
-                rubberBand = RubberBandProcessor(SAMPLE_RATE)
+                psola = PsolaProcessor(SAMPLE_RATE)
             }
 
             // Reverb plate sur le retour monitoring (miroir du chemin iOS).
@@ -312,36 +381,57 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
             }
         }
 
-        // ── AudioFocus ────────────────────────────────────────────────────────
-        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener(focusListener)
-                .build()
-            am.requestAudioFocus(focusRequest!!)
-        } else {
-            @Suppress("DEPRECATION")
-            am.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-        }
+        // ── Boucle de capture ──────────────────────────────────────────────────
+        val loop = AudioCaptureLoop(SAMPLE_RATE, bufferSize) { floats, bytes, byteCount ->
+            // Toujours enregistrer les octets bruts (audio non traité → serveur)
+            pcmBuffer.write(bytes, 0, byteCount)
+            onLevel?.invoke(computeRms(floats))
 
-        noisyReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                    onInterrupted?.invoke()
+            if (opts.useMonitor) {
+                if (opts.monitorAutotune) {
+                    // Passer par le moteur PSOLA pour le monitoring avec autotune
+                    psola?.process(floats)
+                    val available = psola?.available() ?: 0
+                    if (available > 0) {
+                        val out = FloatArray(available)
+                        psola?.retrieve(out)
+                        outputTrack?.write(floatsToInt16(out, available, opts.voiceGain), 0, available * 2)
+                    }
+                } else {
+                    // Monitoring simple : volume direct, pas de pitch shift
+                    outputTrack?.write(applyGain(bytes, byteCount, opts.voiceGain), 0, byteCount)
+                }
+            }
+
+            // ── Détection de hauteur YIN (fenêtre glissante, découplée du bloc) ────
+            appendToPitchRing(floats)
+            if (pitchRingWritePos >= PITCH_FRAME_SIZE) {
+                val hz = yinDetector.detect(extractPitchFrame(), SAMPLE_RATE.toFloat())
+                if (hz != null) {
+                    val nearest = PitchCorrectionEngine.findNearestNote(hz, scale)
+                    if (nearest != null) {
+                        val rawSemitones = PitchCorrectionEngine.correctionSemitones(hz, nearest)
+
+                        if (opts.monitorAutotune && opts.useMonitor) {
+                            smoothedSemitones = opts.smoothK * smoothedSemitones +
+                                                (1 - opts.smoothK) * rawSemitones
+                            val clamped = smoothedSemitones.coerceIn(-MONITOR_CAP, MONITOR_CAP)
+
+                            // Communiquer la correction au moteur PSOLA (thread-safe).
+                            // Elle sera appliquée au prochain bloc process() (délai 1 frame).
+                            psola?.setPitchCents(clamped * 100f)
+                            onPitch?.invoke(hz, clamped)
+                        } else {
+                            onPitch?.invoke(hz, rawSemitones)
+                        }
+                    }
                 }
             }
         }
-        context.registerReceiver(noisyReceiver,
-                                  IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        captureLoop = loop
+        loop.start()
 
-        job = CoroutineScope(Dispatchers.IO).launch { dispatcher!!.run() }
+        job = CoroutineScope(Dispatchers.IO).launch { loop.run() }
     }
 
     fun stop(): SessionResult {
@@ -357,25 +447,57 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         focusRequest = null
 
-        dispatcher?.stop()
         job?.cancel()
-        rubberBand?.close()
-        rubberBand = null
+        captureLoop?.stop()
+        psola?.close()
+        psola = null
         reverb?.release()
         reverb = null
         outputTrack?.stop()
         outputTrack?.release()
         outputTrack = null
-        dispatcher  = null
+        captureLoop = null
+
+        // Chemin rapide : la coroutine de polling vient d'être annulée (job?.cancel() ci-dessus)
+        // mais n'a pas forcément eu le temps de vider le ring natif avant sa dernière itération
+        // — un dernier drain synchrone évite de perdre la fin de l'enregistrement.
+        aaudioEngine?.let { engine ->
+            drainInto(engine)
+            engine.close()
+        }
+        aaudioEngine = null
+
         return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE)
+    }
+
+    // ── Fenêtre glissante YIN (buffer circulaire) ─────────────────────────────
+
+    private fun appendToPitchRing(floats: FloatArray) {
+        for (s in floats) {
+            pitchRing[(pitchRingWritePos % PITCH_FRAME_SIZE).toInt()] = s
+            pitchRingWritePos++
+        }
+    }
+
+    /** Linéarise le buffer circulaire en une trame contiguë (plus ancien → plus récent),
+     *  pour l'API de [YinPitchDetector.detect]. À appeler seulement une fois
+     *  `pitchRingWritePos >= PITCH_FRAME_SIZE`. */
+    private fun extractPitchFrame(): FloatArray {
+        val frame = FloatArray(PITCH_FRAME_SIZE)
+        val oldest = (pitchRingWritePos % PITCH_FRAME_SIZE).toInt()
+        for (i in 0 until PITCH_FRAME_SIZE) {
+            frame[i] = pitchRing[(oldest + i) % PITCH_FRAME_SIZE]
+        }
+        return frame
     }
 
     // ── PCM conversions ───────────────────────────────────────────────────────
 
-    // Float32 [-1,1] → Int16 little-endian bytes, with gain
-    private fun floatsToInt16(samples: FloatArray, gain: Float): ByteArray {
-        val out = ByteArray(samples.size * 2)
-        for (i in samples.indices) {
+    // Float32 [-1,1] → Int16 little-endian bytes, with gain. `count` <= samples.size — permet
+    // d'appeler avec un buffer réutilisé (drainBuf) partiellement rempli, sans réallocation.
+    private fun floatsToInt16(samples: FloatArray, count: Int, gain: Float): ByteArray {
+        val out = ByteArray(count * 2)
+        for (i in 0 until count) {
             val s  = (samples[i] * gain * 32767f).toInt().coerceIn(-32_768, 32_767).toShort()
             out[i * 2]     = (s.toInt() and 0xFF).toByte()
             out[i * 2 + 1] = ((s.toInt() shr 8) and 0xFF).toByte()
@@ -384,10 +506,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     }
 
     // Int16 little-endian bytes → gain applied in-place
-    private fun applyGain(bytes: ByteArray, gain: Float): ByteArray {
-        val out = ByteArray(bytes.size)
+    private fun applyGain(bytes: ByteArray, byteCount: Int, gain: Float): ByteArray {
+        val out = ByteArray(byteCount)
         var i = 0
-        while (i < bytes.size - 1) {
+        while (i < byteCount - 1) {
             val sample = ((bytes[i + 1].toInt() shl 8) or (bytes[i].toInt() and 0xFF)).toShort()
             val scaled = (sample * gain).toInt().coerceIn(-32_768, 32_767).toShort()
             out[i]     = (scaled.toInt() and 0xFF).toByte()
@@ -397,5 +519,3 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         return out
     }
 }
-
-private typealias Void = Unit

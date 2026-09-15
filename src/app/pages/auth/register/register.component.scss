@@ -160,6 +160,38 @@
   padding: 0.6rem;
 }
 
+// Exception documentée à R12 : noir/blanc imposés par les Human Interface
+// Guidelines Apple pour ce bouton précis, pas une couleur produit LaProd —
+// voir le même commentaire dans login.component.scss.
+.btn-apple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.6rem;
+  border-radius: 5px;
+  border: 1px solid #000;
+  background: #000;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover    { opacity: 0.85; }
+  &:disabled { opacity: 0.6; cursor: default; }
+
+  i { font-size: 1rem; }
+}
+
+:root[data-theme="light"] .btn-apple {
+  border-color: #000;
+  background: #fff;
+  color: #000;
+}
+
 /* ── Spinner ──────────────────────────────────────────────────────────────── */
 
 .spinner {

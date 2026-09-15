@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "140769404834",
+    "project_id": "laprod-e1e4c",
+    "storage_bucket": "laprod-e1e4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:140769404834:android:46c8d55eb988759b7db4fb",
+        "android_client_info": {
+          "package_name": "net.laprod.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBakgmYBbMhmrvJliz3qWAFTJPBQHVc-ss"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

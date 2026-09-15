@@ -55,7 +55,7 @@ from extensions import db, csrf
 from utils.search import LIKE_ESCAPE, escape_like
 from serializers import ok, err as ser_err, track_admin, user_admin, user_ref
 from helpers import generate_track_image
-from utils import email_service, notification_service, plans
+from utils import email_service, notification_service, plans, apple_signin
 from utils.music_stats import catalog_music_stats
 from utils.behavior_stats import behavior_stats
 from utils.auth_helpers import require_admin
@@ -719,6 +719,15 @@ def delete_user(user_id, current_user):
 
     if user.account_status == 'pending_deletion':
         return ser_err('Ce compte est déjà en attente de suppression.')
+
+    # Même révocation Apple best-effort que la suppression self-service
+    # (routes/main_api.py::delete_own_account).
+    if user.oauth_provider == 'apple' and user.apple_refresh_token:
+        apple_signin.revoke_refresh_token(
+            user.apple_refresh_token,
+            user.apple_refresh_token_client_id or current_app.config['APPLE_BUNDLE_ID'],
+        )
+        user.apple_refresh_token = None
 
     user.account_status = 'pending_deletion'
     user.deleted_at     = datetime.now(timezone.utc)

@@ -92,6 +92,23 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 
+# ── Sign in with Apple ────────────────────────────────────────────────────────
+# Team ID + Key ID + clé privée .p8 : Apple Developer > Certificates, Identifiers
+# & Profiles > Keys (une seule clé "Sign in with Apple" pour tout le compte dev).
+# APPLE_PRIVATE_KEY contient le .p8 tel quel ; les retours à la ligne peuvent être
+# encodés en "\n" littéral dans la variable d'environnement (déséchappés dans
+# utils/apple_signin.py). Voir docs/roadmap.md § Sign in with Apple pour la
+# procédure complète (Services ID, App ID, clé).
+APPLE_TEAM_ID = os.environ.get('APPLE_TEAM_ID')
+APPLE_KEY_ID = os.environ.get('APPLE_KEY_ID')
+APPLE_PRIVATE_KEY = os.environ.get('APPLE_PRIVATE_KEY')
+# Services ID (ex: net.laprod.app.web) — client_id du flow web/redirect, utilisé
+# par le navigateur ET par Android (Custom Tab), à l'identique du flow Google.
+APPLE_SERVICES_ID = os.environ.get('APPLE_SERVICES_ID')
+# Bundle ID de l'app iOS — client_id du flow natif (AuthenticationServices via
+# @capawesome/capacitor-apple-sign-in), jamais utilisé pour le web.
+APPLE_BUNDLE_ID = os.environ.get('APPLE_BUNDLE_ID', 'net.laprod.app')
+
 
 # ============================================
 # CONFIGURATION STRIPE

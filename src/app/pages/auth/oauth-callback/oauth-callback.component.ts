@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
-import { take } from 'rxjs/internal/operators/take';
 
 /**
  * Page intermédiaire transparente : reçoit ?code=XXX depuis le callback Flask,
@@ -46,9 +45,8 @@ export class OauthCallbackComponent implements OnInit {
   error = signal<string | null>(null);
 
   constructor(
-    private route:  ActivatedRoute,
-    private router: Router,
-    private auth:   AuthService,
+    private route: ActivatedRoute,
+    private auth:  AuthService,
   ) {}
 
 
@@ -58,8 +56,8 @@ export class OauthCallbackComponent implements OnInit {
     if (urlError) {
       const messages: Record<string, string> = {
         account_deleted: 'Ce compte a été supprimé.',
-        oauth_conflict:  'Cet email est déjà lié à un autre fournisseur.',
-        oauth_failed:    'Échec de la connexion Google. Réessayez.',
+        oauth_conflict:  'Cet email est déjà lié à un autre mode de connexion.',
+        oauth_failed:    'Échec de la connexion. Réessayez.',
       };
       this.error.set(messages[urlError] ?? 'Erreur de connexion.');
       return;
@@ -84,7 +82,7 @@ export class OauthCallbackComponent implements OnInit {
           return;
         }
         this.auth.storeOauthAuth(res.data);
-        this.navigate(res.data.next, res.data.suggested_name);
+        this.auth.navigateAfterOauth(res.data.next, res.data.suggested_name);
       },
       error: (err) => {
         sessionStorage.removeItem('oauth_done');
@@ -96,31 +94,5 @@ export class OauthCallbackComponent implements OnInit {
         }
       },
     });
-  }
-
-  private navigate(next: string, suggestedName: string): void {
-    // Filet de sécurité : le backend peut renvoyer '/' même si le profil est incomplet
-    // (ex. compte dont l'email n'était pas vérifié au moment de la création).
-    // On vérifie user_type_selected directement sur le user stocké.
-    if (next === '/') {
-      const user = this.auth.currentUser();
-      if (user && !user.user_type_selected) {
-        this.router.navigate(['/select-role']);
-        return;
-      }
-    }
-
-    switch (next) {
-      case 'complete-profile':
-        this.router.navigate(['/complete-profile'], {
-          queryParams: suggestedName ? { name: suggestedName } : {},
-        });
-        break;
-      case 'select-role':
-        this.router.navigate(['/select-role']);
-        break;
-      default:
-        this.router.navigate(['/']);
-    }
   }
 }

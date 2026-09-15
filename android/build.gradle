@@ -26,17 +26,6 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
-        // TarsosDSP pour Android (be.tarsos.dsp.io.android.AudioDispatcherFactory) n'est plus publié
-        // en artefact Maven depuis la 2.5 (voir CHANGELOG TarsosDSP) : seul le jar "fat" historique
-        // TarsosDSP-Android-2.4 (qui embarque core + pitch + io.android) reste distribué, sur le
-        // dépôt de releases de l'auteur. Déclaré en ivy pour éviter de committer un binaire.
-        ivy {
-            url = 'https://0110.be/releases/TarsosDSP/'
-            patternLayout {
-                artifact '[organisation]-[revision]/[module]-[revision].[ext]'
-            }
-            metadataSources { artifact() }
-        }
     }
 }
 

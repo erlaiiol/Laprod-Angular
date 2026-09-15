@@ -139,6 +139,22 @@
           Vérifiez d'abord votre adresse email pour pouvoir recevoir ces offres.
         </p>
       }
+
+      <!-- Push mobile uniquement : jamais affiché sur le web, cf. push.service.ts -->
+      @if (isNativePlatform) {
+        <label class="marketing-optin">
+          <input type="checkbox"
+                 [ngModel]="pushOptIn()" [ngModelOptions]="{ standalone: true }"
+                 (ngModelChange)="setPushOptIn($event)">
+          <span>
+            Je souhaite recevoir des notifications push
+            <em>
+              Un rappel occasionnel si vous ne repassez plus sur LaProd — jamais plus
+              d'une fois par mois. Désactivable à tout moment.
+            </em>
+          </span>
+        </label>
+      }
     </div>
 
     <!-- ── Abonnement LaProd+ ────────────────────────────────────────────────── -->

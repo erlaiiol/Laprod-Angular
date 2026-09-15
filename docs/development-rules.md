@@ -131,3 +131,6 @@ soit sa mise en conformité est livrée avec elle.
 - [ ] Responsive vérifié ≤ 600 px, thème clair **et** sombre
 - [ ] Entrée `updates.json` si l'utilisateur le remarque
 - [ ] Pages légales relues si la fonctionnalité touche données / classement / paiement
+- [ ] Nouvelle variable d'environnement ⇒ ajoutée à `doctor.sh` (+ `README.md` §
+      Variables d'environnement, `docs/deployment.md` § 6) — sinon son absence en prod
+      casse silencieusement la fonctionnalité au lieu d'être détectée avant l'utilisateur

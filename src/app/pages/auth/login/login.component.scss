@@ -155,6 +155,39 @@
   padding: 0.6rem;
 }
 
+// Exception documentée à R12 (pas de hex en dur dans un .scss) : le noir/blanc
+// du bouton Apple n'est pas une couleur produit LaProd, c'est une exigence des
+// Human Interface Guidelines Apple — noir sur fond clair, blanc sur fond sombre,
+// aucune autre combinaison n'est autorisée pour ce bouton précis.
+.btn-apple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.6rem;
+  border-radius: 5px;
+  border: 1px solid #000;
+  background: #000;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover   { opacity: 0.85; }
+  &:disabled { opacity: 0.6; cursor: default; }
+
+  i { font-size: 1rem; }
+}
+
+:root[data-theme="light"] .btn-apple {
+  border-color: #000;
+  background: #fff;
+  color: #000;
+}
+
 /* ── Spinner ──────────────────────────────────────────────────────────────── */
 
 .spinner {

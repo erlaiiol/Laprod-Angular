@@ -39,6 +39,7 @@ from .roster_api import roster_api_bp
 from .planning_api import planning_api_bp
 from .royalties_api import royalties_api_bp
 from .structure_api import structure_api_bp
+from .push_api import push_api_bp
 
 __all__ = [
     'premium_api_bp',
@@ -74,4 +75,5 @@ __all__ = [
     'planning_api_bp',
     'royalties_api_bp',
     'structure_api_bp',
+    'push_api_bp',
 ]

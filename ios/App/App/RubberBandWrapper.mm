@@ -1,22 +1,26 @@
 #import "RubberBandWrapper.h"
 
-// ── Rubber Band ───────────────────────────────────────────────────────────────
-// See RubberBandWrapper.h for SETUP instructions before compiling.
-#include "rubberband/rubberband/RubberBandStretcher.h"
+// ── Moteur PSOLA maison (Rust) — remplace Rubber Band (GPL-3.0/commercial) ──────────────────
+//
+// Voir docs/roadmap.md pour le rationale complet. Le pitch-shifter lui-même vit dans le
+// workspace Rust à la racine du repo (native/psola-dsp + native/psola-ffi) ; ce fichier n'est
+// plus qu'un pont Objective-C++ vers son API C plate (psola_ffi.h — en-tête écrit à la main,
+// jamais copié ici, trouvé via HEADER_SEARCH_PATHS pointant directement sur
+// native/psola-ffi/include, voir project.pbxproj). Le `.a` statique correspondant est
+// recompilé par une phase "Run Script" du target Xcode à chaque build (jamais committé),
+// exactement comme le CMake Android invoque `cargo build` à chaque build Gradle.
+#include "psola_ffi.h"
 
 #include <atomic>
 #include <vector>
 #include <algorithm>
 #include <cstring>
-#include <cmath>
-
-using namespace RubberBand;
 
 // ── Lock-free SPSC ring buffer ────────────────────────────────────────────────
 //
-// Single-producer (tap IO thread) / single-consumer (render thread).
-// Capacity is a power of 2 so index wrapping is a bitmask (no modulo).
-// Uses acquire/release semantics to ensure cross-thread visibility.
+// INCHANGÉ par rapport à la version Rubber Band — un seul producteur (tap IO thread), un seul
+// consommateur (render thread), capacité puissance de 2. Ce pont entre threads temps réel n'a
+// aucune raison de changer avec le moteur qu'il alimente.
 
 namespace {
 
@@ -67,15 +71,13 @@ private:
 // ── RubberBandWrapper ─────────────────────────────────────────────────────────
 
 @implementation RubberBandWrapper {
-    RubberBandStretcher        *_rb;
-    std::atomic<float>          _pitchCents;
-    float                       _lastCents;     // render-thread-local
+    PsolaHandle                *_psola;
 
-    // 8 192 samples ≈ 170 ms @ 48 kHz — accommodates tap/render jitter
+    // 8 192 samples ≈ 170 ms @ 48 kHz — accommodates tap/render jitter. Inchangé par rapport à
+    // la version Rubber Band.
     SPSCRing<8192>              _ring;
 
     // Pre-allocated scratch buffer avoids heap allocation in the render thread.
-    // Sized to 8 192 (well above any realistic getSamplesRequired() response).
     std::vector<float>          _inBuf;
 }
 
@@ -83,42 +85,35 @@ private:
     self = [super init];
     if (!self) return nil;
 
-    // Options rationale:
-    //   OptionProcessRealTime    — disables look-ahead; mandatory for live monitoring
-    //   OptionFormantPreserved   — shifts glottal pulses without touching vocal-tract
-    //                              resonances → no chipmunk / barrel artifacts
-    //   OptionPitchHighConsistency — smooth scale transitions (vs HighSpeed which snaps)
-    //   OptionWindowShort        — 512-sample processing window → ~10 ms startup latency
-    //   OptionThreadingNever     — we handle threading via the ring buffer
-    const int options = RubberBandStretcher::OptionProcessRealTime
-                      | RubberBandStretcher::OptionFormantPreserved
-                      | RubberBandStretcher::OptionPitchHighConsistency
-                      | RubberBandStretcher::OptionWindowShort
-                      | RubberBandStretcher::OptionThreadingNever;
+    // Formants toujours activés en production — miroir du comportement historique
+    // (OptionFormantPreserved) et du shim Android (jni_shim.c). `psola_create` ne peut
+    // retourner NULL qu'en cas de panic Rust intercepté par `catch_unwind` (ne devrait jamais
+    // arriver en usage normal, voir psola-ffi/src/lib.rs) — on ne fait PAS échouer
+    // l'initialisation ObjC dans ce cas : chaque fonction psola_* est elle-même sûre à appeler
+    // avec un handle NULL (revalidé à chaque appel côté Rust, voir ffi_contract.rs), donc un
+    // handle NULL dégrade proprement en silence plutôt que de complexifier le contrat
+    // `NS_ASSUME_NONNULL` de cet initializer pour un cas qui ne se produit essentiellement
+    // jamais.
+    _psola = psola_create(sampleRate, 1);
 
-    _rb = new RubberBandStretcher(
-        static_cast<size_t>(sampleRate),
-        1,      // mono
-        options,
-        1.0,    // timeRatio = 1 (pitch-only, no time stretch)
-        1.0     // initial pitch scale = unity
-    );
-
-    _pitchCents.store(0.0f, std::memory_order_relaxed);
-    _lastCents = 0.0f;
     _inBuf.reserve(8192);
 
     return self;
 }
 
 - (void)dealloc {
-    delete _rb;
+    psola_destroy(_psola);
 }
 
 // ── Pitch update (any thread) ─────────────────────────────────────────────────
 
 - (void)setPitchCents:(float)cents {
-    _pitchCents.store(cents, std::memory_order_relaxed);
+    // Thread-safe côté Rust (AtomicU32 interne, voir PitchTarget::set dans psola-dsp) —
+    // appelable directement depuis n'importe quel thread, comme côté Android
+    // (jni_shim.c::nativeSetPitchCents). Contrairement à RubberBandStretcher::setPitchScale
+    // (non thread-safe, imposait un différé au thread de rendu via un atomic + comparaison
+    // locale), plus besoin de cette indirection : elle disparaît avec elle.
+    psola_set_pitch_cents(_psola, cents);
 }
 
 // ── Feed input (tap IO thread) ────────────────────────────────────────────────
@@ -132,41 +127,24 @@ private:
 // ── Render (AVAudioSourceNode render block — audio render thread) ─────────────
 
 - (NSInteger)renderInto:(float *)output frameCount:(NSInteger)frameCount {
-    // Apply any pending pitch change (compare to render-thread-local _lastCents;
-    // no lock needed since this method is always called from the same render thread)
-    float cents = _pitchCents.load(std::memory_order_relaxed);
-    if (cents != _lastCents) {
-        _lastCents = cents;
-        _rb->setPitchScale(std::pow(2.0, static_cast<double>(cents) / 1200.0));
+    // Le moteur maison n'a pas de contrainte de bloc minimal/maximal comme
+    // RubberBandStretcher::getSamplesRequired() (voir PsolaShifter::samples_required, qui
+    // existe pour compatibilité mais ne borne plus rien de fonctionnel) — on draine simplement
+    // tout ce que le ring a de disponible, dans la limite du scratch buffer. Prouvé sûr quel
+    // que soit le découpage par `variable_block_size_feeding_is_bit_identical_to_fixed_block_
+    // size_feeding` côté Rust (native/psola-dsp/tests/sample_rate_and_latency_sweep.rs).
+    size_t ringAvail = _ring.available();
+    size_t toRead    = std::min(ringAvail, static_cast<size_t>(8192));
+    if (toRead > 0) {
+        _inBuf.resize(toRead);
+        _ring.read(_inBuf.data(), toRead);
+        psola_process(_psola, _inBuf.data(), toRead);
     }
 
-    // Feed as much as RubberBand currently requests from the ring buffer.
-    // Feeding only what RubberBand needs keeps its internal state balanced
-    // and prevents accumulating excess latency.
-    size_t needed = _rb->getSamplesRequired();
-    if (needed > 0) {
-        size_t ringAvail = _ring.available();
-        size_t toRead    = std::min({needed, ringAvail, static_cast<size_t>(8192)});
-        if (toRead > 0) {
-            _inBuf.resize(toRead);
-            _ring.read(_inBuf.data(), toRead);
-            const float *ch[1] = { _inBuf.data() };
-            _rb->process(ch, toRead, false);
-        }
-        // If ring is insufficient we simply process fewer samples; RubberBand
-        // will produce less output, resulting in brief silence — preferable
-        // to injecting zero-padding artifacts.
-    }
-
-    // Retrieve available output; zero-fill the rest (startup latency / underrun)
-    std::memset(output, 0, static_cast<size_t>(frameCount) * sizeof(float));
-    int avail = _rb->available();
-    if (avail > 0) {
-        size_t toGet = std::min(static_cast<size_t>(avail),
-                                static_cast<size_t>(frameCount));
-        float *ch[1] = { output };
-        _rb->retrieve(ch, toGet);
-    }
+    // psola_retrieve complète déjà de silence si moins de frameCount échantillons sont prêts
+    // (voir PsolaShifter::retrieve côté Rust) — pas de memset préalable ni de vérification
+    // d'available() à faire nous-mêmes, contrairement à la version Rubber Band.
+    psola_retrieve(_psola, output, static_cast<size_t>(frameCount));
     return frameCount;
 }
 
@@ -174,14 +152,13 @@ private:
 
 - (void)reset {
     _ring.reset();
-    _rb->reset();
-    _lastCents = 0.0f;
+    psola_reset(_psola);
 }
 
 // ── Latency ───────────────────────────────────────────────────────────────────
 
 - (NSInteger)latencySamples {
-    return static_cast<NSInteger>(_rb->getLatency());
+    return static_cast<NSInteger>(psola_get_latency(_psola));
 }
 
 @end

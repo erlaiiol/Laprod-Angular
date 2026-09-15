@@ -424,6 +424,20 @@ def init_scheduler(app):
             replace_existing=True,
             args=[app]
         )
+        # Chaque vendredi à 11h : push de réactivation des utilisateurs sans
+        # connexion 14j+ (décalé du job email pour ne jamais superposer les
+        # deux canaux le même jour, cf. docs/roadmap.md § Chantier 2)
+        from utils.scheduled_tasks import run_reengagement_push
+        scheduler.add_job(
+            func=run_reengagement_push,
+            trigger='cron',
+            day_of_week='fri',
+            hour=11,
+            minute=0,
+            id='reengagement_push',
+            replace_existing=True,
+            args=[app]
+        )
         # Toutes les heures : purge des toplines guest expirées (TTL 24h, non réclamées)
         from utils.scheduled_tasks import run_guest_topline_cleanup
         scheduler.add_job(

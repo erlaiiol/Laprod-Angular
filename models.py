@@ -25,9 +25,21 @@ class User(UserMixin, db.Model):
 
 
     #oauth fields
-    oauth_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
+    oauth_provider = db.Column(db.String(50), nullable=True)  # 'google', 'apple', etc.
     google_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
     profile_picture_url = db.Column(db.String(500), nullable=True)  # URL de l'image de profil OAuth
+
+    # Sign in with Apple — `sub` est l'identifiant stable et unique de l'utilisateur
+    # pour CE client Apple (Services ID web ou bundle ID natif), jamais l'email
+    # (Apple peut fournir un email de relais privé, et ne renvoie le nom/email en
+    # clair qu'à la toute première autorisation).
+    apple_sub = db.Column(db.String(255), unique=True, nullable=True, index=True)
+    # Refresh token Apple + client_id qui l'a émis (Services ID web ou bundle ID
+    # natif — le client_secret régénéré pour la révocation doit cibler le même
+    # client_id, sinon Apple refuse la révocation). Conservés uniquement pour
+    # pouvoir révoquer à la suppression du compte (cf. utils/apple_signin.py).
+    apple_refresh_token = db.Column(db.String(500), nullable=True)
+    apple_refresh_token_client_id = db.Column(db.String(255), nullable=True)
 
     #account enabling status REMPLACE IS_ACTIVE VOIR AUTH.PY, ADMIN.PY, CONTRACTS.PY
     account_status=db.Column(
@@ -47,6 +59,14 @@ class User(UserMixin, db.Model):
     # can_receive_marketing.
     marketing_opt_in    = db.Column(db.Boolean, default=False, nullable=False)
     marketing_opt_in_at = db.Column(db.DateTime, nullable=True)  # preuve horodatée du consentement
+
+    # ── Consentement notifications push ──────────────────────────────────────
+    # Même principe que marketing_opt_in : FAUX par défaut, non rétroactif. La
+    # permission OS (accordée via PushNotifications.requestPermissions() côté
+    # app) ne vaut pas consentement produit — les deux sont vérifiés avant tout
+    # envoi (cf. utils/push_service.py::send_push).
+    push_opt_in    = db.Column(db.Boolean, default=False, nullable=False)
+    push_opt_in_at = db.Column(db.DateTime, nullable=True)  # preuve horodatée du consentement
 
     #TIMESTAMPS
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -130,6 +150,7 @@ class User(UserMixin, db.Model):
     toplines = db.relationship('Topline', backref='artist_user', lazy=True, cascade='all, delete-orphan')
     purchases = db.relationship('Purchase', backref='buyer_user', lazy=True)
     notifications = db.relationship('Notification', back_populates='recipient_user', lazy=True, cascade='all, delete-orphan')
+    device_tokens = db.relationship('DeviceToken', backref='user', lazy=True, cascade='all, delete-orphan')
 
     __table_args__ = (
         CheckConstraint('upload_track_tokens >= 0', name='ck_upload_tokens_non_negative'),
@@ -2113,6 +2134,33 @@ class UserNotificationLog(db.Model):
 
     def __repr__(self):
         return f"<UserNotificationLog user={self.user_id} type={self.notification_type} period={self.period_key}>"
+
+
+class DeviceToken(db.Model):
+    """Un jeton de notification push (FCM) par appareil enregistré.
+
+    Un utilisateur peut avoir plusieurs appareils actifs (téléphone + tablette).
+    Un jeton invalide (app désinstallée, jeton renouvelé par l'OS) est désactivé
+    (is_active=False), jamais supprimé immédiatement : Firebase ne garantit pas
+    l'immédiateté de l'erreur UNREGISTERED, une suppression prématurée reperdrait
+    un appareil encore valide.
+    """
+    __tablename__ = 'device_token'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    token         = db.Column(db.String(255), nullable=False, unique=True)
+    platform      = db.Column(db.String(10), nullable=False)  # 'android' | 'ios'
+    is_active     = db.Column(db.Boolean, default=True, nullable=False)
+    created_at    = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    last_seen_at  = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    __table_args__ = (
+        db.Index('idx_device_token_user_active', 'user_id', 'is_active'),
+    )
+
+    def __repr__(self):
+        return f"<DeviceToken user={self.user_id} platform={self.platform} active={self.is_active}>"
 
 
 class TestimonialRequest(db.Model):

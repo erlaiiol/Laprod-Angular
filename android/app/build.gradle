@@ -17,7 +17,7 @@ android {
         applicationId "net.laprod.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode 3
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
@@ -89,10 +89,6 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
-    // Jar "fat" TarsosDSP-Android (core + pitch + be.tarsos.dsp.io.android), résolu via le
-    // dépôt ivy déclaré dans le build.gradle racine. Ne pas ajouter "be.tarsos.dsp:core" en
-    // plus : ce jar l'embarque déjà et provoquerait des classes dupliquées.
-    implementation "TarsosDSP:TarsosDSP-Android:2.4"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion"
 }
 

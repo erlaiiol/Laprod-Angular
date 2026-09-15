@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Requis par @capacitor-firebase/messaging (docs/roadmap.md § Chantier 2) :
+        // sans FirebaseApp.configure(), le plugin ne peut pas obtenir de jeton FCM.
+        // Ne fait rien de bloquant si GoogleService-Info.plist est absent du bundle
+        // (dev local avant la mise en place du projet Firebase, cf. § 2.11).
+        FirebaseApp.configure()
         return true
     }
 

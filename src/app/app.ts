@@ -12,6 +12,7 @@ import { UploadProgressToastComponent } from './components/ui/upload-progress-to
 import { ToplineProgressToastComponent } from './components/ui/topline-progress-toast/topline-progress-toast.component';
 import { UserflowComponent } from './components/userflow/userflow.component';
 import { NativeShellService } from './services/native-shell.service';
+import { PushService } from './services/push.service';
 import { YoutubeBubbleComponent } from './components/ui/youtube-bubble/youtube-bubble.component';
 import { SidebarFabsComponent } from './components/ui/sidebar-fabs/sidebar-fabs.component';
 import { MixSampleBannerComponent } from './components/mix-sample-banner/mix-sample-banner.component';
@@ -31,6 +32,7 @@ export class App implements OnInit {
   private notifSvc = inject(NotificationService);
   private router   = inject(Router);
   private shell    = inject(NativeShellService);
+  private pushSvc  = inject(PushService);
 
   constructor() {
     // Compteur de notifications : rechargé à CHAQUE transition anonyme → connecté
@@ -59,6 +61,8 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.shell.init();
+    // Ne fait rien sur le web — cf. docs/roadmap.md § Chantier 2 décision 2.1.
+    this.pushSvc.init();
 
     if (this.auth.isLoggedIn()) {
       // Vérifie que le user localStorage est toujours valide en DB.

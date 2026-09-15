@@ -18,6 +18,20 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Retour OAuth Google : le flow s'ouvre dans un onglet Chrome
+                 Custom Tabs (@capacitor/browser, PAS la WebView de l'app —
+                 Google bloque l'auth dans un user-agent WebView embarqué).
+                 net.laprod.app:// est un schéma custom, pas un App Link
+                 https:// : aucune vérification Digital Asset Links / empreinte
+                 SHA n'est nécessaire pour ce mécanisme. Voir routes/auth_api.py
+                 (_MOBILE_OAUTH_SCHEME) et docs/roadmap.md § Chantier 2. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="net.laprod.app" />
+            </intent-filter>
         </activity>
 
         <provider

@@ -244,7 +244,7 @@ final class AudioSession {
                 guard let rb else { return noErr }
                 let abl = UnsafeMutableAudioBufferListPointer(outputData)
                 if let ptr = abl[0].mData?.assumingMemoryBound(to: Float.self) {
-                    rb.renderInto(ptr, frameCount: Int(frameCount))
+                    rb.render(into: ptr, frameCount: Int(frameCount))
                 }
                 silence.pointee = false
                 return noErr
