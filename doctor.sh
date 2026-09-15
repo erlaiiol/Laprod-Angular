@@ -362,27 +362,102 @@ esac
 
 section "Migrations"
 
-if command -v uv >/dev/null 2>&1; then
-  MIG_OUT=$(FLASK_APP=app.py uv run --no-sync flask db current 2>&1)
-  MIG_HEADS=$(FLASK_APP=app.py uv run --no-sync flask db heads 2>&1)
-  if echo "$MIG_OUT" | grep -qi "error\|traceback"; then
-    MIG_ERR_LINE=$(echo "$MIG_OUT" | grep -iE "error" | grep -v "sqlalche.me" | tail -1)
-    warn "Impossible de lire l'état des migrations (DB injoignable ou venv non synchronisé) : ${MIG_ERR_LINE:-$(echo "$MIG_OUT" | tail -1)}$(hint_suffix)"
-  else
-    CURRENT_REV=$(echo "$MIG_OUT" | grep -oE '^[0-9a-f]+' | head -1)
-    HEAD_REV=$(echo "$MIG_HEADS" | grep -oE '^[0-9a-f]+' | head -1)
+# Volontairement SANS passer par `flask db current`/`flask db heads` : ces
+# commandes chargent app.py::create_app() en entier — y compris
+# init_scheduler() (APScheduler), démarré dès que FLASK_ENV=production, sans
+# distinction entre "le vrai worker gunicorn" et "une invocation CLI ponctuelle"
+# (is_main_process ne fait pas la différence). Le thread pool interne
+# d'APScheduler n'est pas daemon : le process `flask` ne se termine alors
+# jamais, et `doctor.sh` reste bloqué indéfiniment à attendre sa sortie —
+# rencontré en prod (cf. docs/roadmap.md § Sign in with Apple).
+#
+# À la place : lecture directe de `alembic_version` en base (déjà la même
+# connexion que le check §6) + calcul du head en lisant migrations/versions/
+# sur disque (aucune dépendance à Flask/l'app).
+MIG_OUT=$(run_py "
+import os, re, ast, glob
+
+try:
+    import psycopg2
+except Exception as e:
+    print('SKIP:' + str(e)); raise SystemExit
+
+url = os.environ.get('DATABASE_URL')
+if not url:
+    u, p, h, port, n = (os.environ.get(k) for k in ('DB_USER','DB_PASSWORD','DB_HOST','DB_PORT','DB_NAME'))
+    if not all([u, p, h, n]):
+        print('SKIP:pas assez de variables DB pour construire une URL'); raise SystemExit
+    url = f'postgresql://{u}:{p}@{h}:{port or 5432}/{n}'
+if url.startswith('postgres://'):
+    url = url.replace('postgres://', 'postgresql://', 1)
+
+try:
+    conn = psycopg2.connect(url, connect_timeout=4)
+    cur = conn.cursor()
+    cur.execute('SELECT version_num FROM alembic_version')
+    row = cur.fetchone()
+    conn.close()
+    current = row[0] if row else None
+except Exception as e:
+    print('FAIL:' + str(e).splitlines()[0]); raise SystemExit
+
+revs, downs = {}, {}
+for path in glob.glob('migrations/versions/*.py'):
+    text = open(path, encoding='utf-8').read()
+    m = re.search(r\"^revision = '([^']+)'\", text, re.M)
+    d = re.search(r'^down_revision = (.+)\$', text, re.M)
+    if not m:
+        continue
+    rev = m.group(1)
+    revs[rev] = path
+    if not d:
+        downs[rev] = []
+        continue
+    raw = d.group(1).strip()
+    try:
+        parsed = ast.literal_eval(raw)
+    except Exception:
+        parsed = raw
+    if isinstance(parsed, tuple):
+        downs[rev] = list(parsed)
+    elif parsed is None:
+        downs[rev] = []
+    else:
+        downs[rev] = [parsed]
+
+children = {d for lst in downs.values() for d in lst}
+heads = [r for r in revs if r not in children]
+
+print(f'CURRENT:{current or \"\"}')
+print('HEADS:' + ','.join(heads))
+")
+
+case "$MIG_OUT" in
+  SKIP:*)
+    info "Migrations non vérifiées (${MIG_OUT#SKIP:})$(hint_suffix)"
+    ;;
+  FAIL:*)
+    if $IN_CONTAINER; then warn "Migrations non vérifiées — DB injoignable : ${MIG_OUT#FAIL:}"
+    else warn "Migrations non vérifiées depuis l'hôte — ${MIG_OUT#FAIL:}$(hint_suffix)"; fi
+    ;;
+  "")
+    info "Migrations non vérifiées (uv/python3 introuvable, ou migrations/versions/ absent)$(hint_suffix)"
+    ;;
+  *)
+    CURRENT_REV=$(echo "$MIG_OUT" | sed -n 's/^CURRENT://p')
+    HEAD_LIST=$(echo "$MIG_OUT" | sed -n 's/^HEADS://p')
     if [ -z "$CURRENT_REV" ]; then
-      warn "Aucune révision appliquée détectée (base vide ou jamais migrée ?)"
-    elif [ "$CURRENT_REV" = "$HEAD_REV" ]; then
+      warn "Aucune révision appliquée détectée en base (jamais migrée, ou table alembic_version absente)"
+    elif [ "$(echo "$HEAD_LIST" | tr ',' '\n' | wc -l | tr -d ' ')" -gt 1 ]; then
+      warn "Plusieurs heads Alembic détectées dans migrations/versions/ ($HEAD_LIST) — historique de migrations à nettoyer (migration de merge manquante ?)"
+    elif [ "$CURRENT_REV" = "$HEAD_LIST" ]; then
       pass "Migrations à jour (révision $CURRENT_REV)"
     else
-      if [ "$PROD" = true ]; then crit "Migration(s) en attente : DB à $CURRENT_REV, head à $HEAD_REV — 'flask db upgrade head' requis"
-      else warn "Migration(s) en attente : DB à $CURRENT_REV, head à $HEAD_REV"; fi
+      if [ "$PROD" = true ]; then crit "Migration(s) en attente : DB à $CURRENT_REV, head à $HEAD_LIST — 'flask db upgrade head' requis"
+      else warn "Migration(s) en attente : DB à $CURRENT_REV, head à $HEAD_LIST"; fi
     fi
-  fi
-else
-  info "Migrations non vérifiées (uv introuvable)$(hint_suffix)"
-fi
+    ;;
+esac
 
 # ══════════════════════════════════════════════════════════════════════════
 # 8. Docker Compose — santé des services (si la stack tourne)
