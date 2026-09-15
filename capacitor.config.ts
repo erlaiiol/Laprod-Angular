@@ -20,7 +20,11 @@ const config: CapacitorConfig = {
     hostname: 'app.laprod.net',
   },
   plugins: {
-    PushNotifications: {
+    // iOS uniquement : comment afficher un push reçu quand l'app est au premier
+    // plan. @capacitor-firebase/messaging (pas @capacitor/push-notifications :
+    // le plugin core ne renvoie qu'un jeton APNs brut sur iOS, celui-ci renvoie
+    // un vrai jeton FCM sur les deux plateformes — cf. docs/roadmap.md § Chantier 2).
+    FirebaseMessaging: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
     SplashScreen: {

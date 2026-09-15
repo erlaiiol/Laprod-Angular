@@ -1,0 +1,12 @@
+[package]
+name = "psola-ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Frontière FFI (JNI Android / C ObjC++ iOS) vers psola-dsp — tout le code unsafe du workspace vit ici, nulle part ailleurs."
+
+[lib]
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+psola-dsp = { path = "../psola-dsp" }

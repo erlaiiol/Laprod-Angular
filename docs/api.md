@@ -120,7 +120,7 @@ Forme unique, tous endpoints paginés confondus :
 | Filtres | `tags_filters_api` | tags, styles, gammes, artistes similaires |
 | Recommandation | `recommendation_api` | recommandations personnalisées |
 | Streaming | `streaming_service` | `/api/stream/tracks/<id>/preview` (watermarquée 1:30, publique — download & topline), `/full` (titre entier, écoute publique), `/download/<format>` (attachment, achat requis) |
-| Auth | `auth_api` | login, register, refresh, OAuth Google, vérification email |
+| Auth | `auth_api` | login, register, refresh, OAuth Google, Sign in with Apple (`/apple/login`+`/apple/callback` web, `/apple/native` iOS), vérification email |
 | Profils | `main_api` | profil public, édition, sécurité |
 | Paiement beat | `payment_track_api` | checkout Stripe, succès |
 | Paiement mix | `payment_mixmaster_api` | acompte, solde, révisions |
@@ -141,6 +141,7 @@ Forme unique, tous endpoints paginés confondus :
 | Structures | `structure_api` | structures Pro |
 | Témoignages | `testimonials_api` | demandes et publication |
 | Jobs | `job_status_api` | suivi des tâches RQ |
+| Push | `push_api` | `POST /api/push/register`, `POST /api/push/unregister`, `GET/PUT /api/push/preference` |
 | Admin | `admin_api` | modération, statistiques, support |
 | SEO | `og_preview` | cartes Open Graph |
 

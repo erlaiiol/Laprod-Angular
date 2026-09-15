@@ -71,11 +71,16 @@
           ou données CVV. Nous conservons uniquement l'identifiant de transaction Stripe
           (<em>payment_intent_id</em>) à des fins de facturation et de traçabilité.
         </p>
-        <h3>2.4 Données de connexion via Google OAuth</h3>
+        <h3>2.4 Données de connexion via Google ou Apple (OAuth)</h3>
         <p>
           Si l'Utilisateur choisit de se connecter via Google, nous recevons de Google son adresse
-          e-mail, son nom d'affichage et son identifiant Google. Ces données sont utilisées
-          exclusivement pour créer et gérer son compte LaProd.
+          e-mail, son nom d'affichage et son identifiant Google. S'il choisit de se connecter via
+          Apple (« Sign in with Apple »), nous recevons d'Apple son adresse e-mail (potentiellement
+          une adresse de relais privé si l'Utilisateur a choisi de masquer son adresse réelle —
+          les e-mails transactionnels lui parviennent alors normalement via ce relais), son nom
+          (uniquement lors de la toute première connexion, Apple ne le retransmet pas ensuite) et
+          un identifiant Apple propre à LaProd. Ces données sont utilisées exclusivement pour créer
+          et gérer le compte LaProd de l'Utilisateur.
         </p>
         <h3>2.5 Données d'écoute et de recommandation</h3>
         <p>
@@ -142,6 +147,10 @@
           <li>
             <strong>Google LLC</strong> — authentification via OAuth (si l'Utilisateur choisit
             cette option) et envoi d'e-mails via Gmail API.
+          </li>
+          <li>
+            <strong>Apple Inc.</strong> — authentification via « Sign in with Apple » (si
+            l'Utilisateur choisit cette option).
           </li>
           <li>
             <strong>Prestataires d'hébergement</strong> — les serveurs de LaProd sont hébergés chez
@@ -314,6 +323,10 @@
           </li>
           <li>
             <strong>Google LLC</strong> (États-Unis) — encadré par les CCT et la certification Google
+            au EU-U.S. Data Privacy Framework.
+          </li>
+          <li>
+            <strong>Apple Inc.</strong> (États-Unis) — encadré par les CCT et la certification Apple
             au EU-U.S. Data Privacy Framework.
           </li>
         </ul>

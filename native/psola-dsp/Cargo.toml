@@ -1,0 +1,18 @@
+[package]
+name = "psola-dsp"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Correction de hauteur temps réel maison (TD-PSOLA + LPC) — remplace Rubber Band (GPL-3.0)."
+
+[lib]
+# "lib" (rlib) : consommé par psola-ffi. Pas de crate-type FFI ici — cette crate ne connaît
+# ni JNI ni ObjC, voir docs/roadmap.md (workspace à deux crates).
+crate-type = ["lib"]
+
+[dependencies]
+# Intentionnellement vide — voir la philosophie "zéro dépendance" du chantier.
+
+[[bin]]
+name = "dump-wav"
+path = "src/bin/dump_wav.rs"

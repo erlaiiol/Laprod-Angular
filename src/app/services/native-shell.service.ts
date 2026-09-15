@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -21,6 +22,7 @@ export class NativeShellService {
 
   private readonly _handlers: BackHandler[] = [];
   private _listening = false;
+  private router = inject(Router);
 
   /** À appeler une seule fois au démarrage de l'app (App.ngOnInit). */
   async init(): Promise<void> {
@@ -41,6 +43,26 @@ export class NativeShellService {
         } else {
           App.exitApp();
         }
+      });
+
+      // Retour du flow Google OAuth ouvert en Chrome Custom Tab
+      // (cf. AuthService.startGoogleLogin, routes/auth_api.py) : Android livre
+      // ce schéma custom à l'app via l'intent-filter posé dans
+      // AndroidManifest.xml. On referme l'onglet devenu orphelin et on
+      // reprend le code là où OauthCallbackComponent sait déjà quoi en faire.
+      App.addListener('appUrlOpen', ({ url }) => {
+        if (!url.startsWith('net.laprod.app://oauth-callback')) return;
+
+        import('@capacitor/browser').then(({ Browser }) => Browser.close().catch(() => {}));
+
+        // Succès (?code=) et échec (?error=, cf. routes/auth_api.py::_oauth_error_redirect)
+        // atterrissent tous les deux sur /oauth-callback — OauthCallbackComponent
+        // gère déjà les deux cas indifféremment de la plateforme.
+        const params = new URL(url).searchParams;
+        const code   = params.get('code');
+        const error  = params.get('error');
+        if (code)       this.router.navigateByUrl(`/oauth-callback?code=${code}`);
+        else if (error) this.router.navigateByUrl(`/oauth-callback?error=${error}`);
       });
     }
   }

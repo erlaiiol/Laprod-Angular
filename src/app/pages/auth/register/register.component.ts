@@ -6,6 +6,7 @@ import { AuthService } from '../../../services/auth.service';
 import { TurnstileComponent } from '../../../components/turnstile/turnstile.component';
 import { finalize } from 'rxjs';
 import { environment } from '../../../../environments/environment';
+import { Capacitor } from '@capacitor/core';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -18,6 +19,9 @@ import { environment } from '../../../../environments/environment';
 export class RegisterComponent implements OnInit {
 
   readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
+  readonly appleLoginUrl  = `${environment.apiUrl}/api/auth/apple/login`;
+  readonly isIosNative    = Capacitor.getPlatform() === 'ios';
+  appleLoading = signal(false);
 
   // CAPTCHA requis (web + site key configurée) ; toujours faux en natif.
   readonly captchaEnabled = TurnstileComponent.isEnabled;
@@ -86,6 +90,45 @@ export class RegisterComponent implements OnInit {
             );
           }
           this.resetCaptcha();
+        },
+      });
+  }
+
+  /** Sur Android natif : Chrome Custom Tabs plutôt que la WebView de l'app
+   *  (cf. AuthService.startGoogleLogin). Sur web : ne fait rien, le <a href>
+   *  navigue normalement. */
+  onGoogleLogin(event: Event): void {
+    this.authService.startGoogleLogin(event);
+  }
+
+  /** Android/web : voir LoginComponent.onAppleWebLogin (même mécanique). */
+  onAppleWebLogin(event: Event): void {
+    this.authService.startAppleWebLogin(event);
+  }
+
+  /** iOS uniquement : voir LoginComponent.onAppleNativeLogin (même flow —
+   *  Sign in with Apple crée ou connecte le compte indifféremment, il n'y a
+   *  pas de distinction inscription/connexion côté Apple). */
+  onAppleNativeLogin(): void {
+    if (this.appleLoading()) return;
+    this.appleLoading.set(true);
+    this.error.set(null);
+
+    this.authService.appleNativeSignIn()
+      .pipe(finalize(() => this.appleLoading.set(false)))
+      .subscribe({
+        next: (res) => {
+          if (!res.success || !res.data) {
+            this.error.set(res.feedback?.message ?? 'Échec de la connexion Apple.');
+            return;
+          }
+          this.authService.storeOauthAuth(res.data);
+          this.authService.navigateAfterOauth(res.data.next, res.data.suggested_name);
+        },
+        error: (err) => {
+          // cf. LoginComponent.onAppleNativeLogin pour le détail du code d'annulation.
+          if (err?.code === '1001' || err?.code === 'SIGN_IN_CANCELED') return;
+          this.error.set(err?.error?.feedback?.message ?? 'Échec de la connexion Apple. Réessayez.');
         },
       });
   }

@@ -677,9 +677,12 @@
                   <div class="ms-bt-nudge">
                     <i class="bi bi-bluetooth"></i>
                     <div class="ms-bt-nudge__text">
-                      @if (calibration.hasCalibration()) {
+                      @if (monitorAutotune()) {
+                        <span>Monitoring Bluetooth actif</span>
+                        <small>Vous vous entendrez avec un léger délai ({{ calibration.latencyMs }} ms) — c'est normal, pas un bug. Pour un ressenti instantané, préférez un casque filaire.</small>
+                      } @else if (calibration.hasCalibration()) {
                         <span>Latence calibrée</span>
-                        <small>{{ calibration.latencyMs }} ms · Export et monitoring alignés</small>
+                        <small>{{ calibration.latencyMs }} ms · Export synchronisé</small>
                       } @else {
                         <span>Latence non calibrée</span>
                         <small>Calibrez pour synchroniser beat et vocal</small>

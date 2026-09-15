@@ -8,6 +8,7 @@ import { TurnstileComponent } from '../../../components/turnstile/turnstile.comp
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { environment } from '../../../../environments/environment';
+import { Capacitor } from '@capacitor/core';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,6 +21,10 @@ import { environment } from '../../../../environments/environment';
 export class LoginComponent {
 
   readonly googleLoginUrl = `${environment.apiUrl}/api/auth/google/login`;
+  readonly appleLoginUrl  = `${environment.apiUrl}/api/auth/apple/login`;
+  /** iOS natif : bouton Apple → AuthenticationServices (voir onAppleNativeLogin).
+   *  Partout ailleurs (web, Android) : lien classique vers appleLoginUrl. */
+  readonly isIosNative = Capacitor.getPlatform() === 'ios';
 
   identifier : string = '';
   password : string = '';
@@ -27,11 +32,13 @@ export class LoginComponent {
 
   loading              = signal(false);
   resendLoading        = signal(false);
+  appleLoading          = signal(false);
   error                = signal<string | null>(null);
   pendingEmail         = signal<string | null>(null);  // email non vérifié → renvoi lien
   resendSuccess        = signal(false);
   showPasswordSetLink  = signal(false);                // compte OAuth sans mot de passe
   passwordEmail        = signal<string | null>(null);
+  passwordEmailProvider = signal<string>('Google');
 
   // CAPTCHA : n'apparaît qu'après un refus CAPTCHA_REQUIRED (throttle progressif),
   // et seulement sur le web avec une site key configurée.
@@ -114,6 +121,8 @@ export class LoginComponent {
           } else if (code === 'SHOW_PASSWORD_SET_LINK') {
             this.showPasswordSetLink.set(true);
             this.passwordEmail.set(err.error.data?.password_email ?? null);
+            const provider = err.error.data?.provider === 'apple' ? 'Apple' : 'Google';
+            this.passwordEmailProvider.set(provider);
           } else if (code === 'CAPTCHA_REQUIRED') {
             // Trop d'échecs : on affiche le CAPTCHA et on demande de rejouer.
             this.showCaptcha.set(true);
@@ -126,6 +135,50 @@ export class LoginComponent {
           // Un token à usage unique ne se rejoue pas : on le réinitialise.
           this.captchaToken.set(null);
           this.turnstile()?.reset();
+        },
+      });
+  }
+
+  /** Sur Android natif : Chrome Custom Tabs plutôt que la WebView de l'app
+   *  (cf. AuthService.startGoogleLogin). Sur web : ne fait rien, le <a href>
+   *  navigue normalement. */
+  onGoogleLogin(event: Event): void {
+    this.authService.startGoogleLogin(event);
+  }
+
+  /** Android/web : même mécanique que onGoogleLogin. iOS n'appelle jamais ceci
+   *  (bouton natif séparé, voir onAppleNativeLogin) — le template n'affiche
+   *  d'ailleurs pas ce lien sur iOS. */
+  onAppleWebLogin(event: Event): void {
+    this.authService.startAppleWebLogin(event);
+  }
+
+  /** iOS uniquement : AuthenticationServices natif, pas de redirection. */
+  onAppleNativeLogin(): void {
+    if (this.appleLoading()) return;
+    this.appleLoading.set(true);
+    this.error.set(null);
+
+    this.authService.appleNativeSignIn()
+      .pipe(finalize(() => this.appleLoading.set(false)))
+      .subscribe({
+        next: (res) => {
+          if (!res.success || !res.data) {
+            this.error.set(res.feedback?.message ?? 'Échec de la connexion Apple.');
+            return;
+          }
+          this.authService.storeOauthAuth(res.data);
+          if (!this.redirectToPendingDestination()) {
+            this.authService.navigateAfterOauth(res.data.next, res.data.suggested_name);
+          }
+        },
+        error: (err) => {
+          // Annulation volontaire (utilisateur ferme la feuille native) : pas
+          // d'erreur affichée, comportement attendu du bouton Apple. Rejet du
+          // plugin natif (@capawesome/capacitor-apple-sign-in), code = rawValue
+          // de ASAuthorizationError.Code.canceled côté iOS ('1001').
+          if (err?.code === '1001' || err?.code === 'SIGN_IN_CANCELED') return;
+          this.error.set(err?.error?.feedback?.message ?? 'Échec de la connexion Apple. Réessayez.');
         },
       });
   }

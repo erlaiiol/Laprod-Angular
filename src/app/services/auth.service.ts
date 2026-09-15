@@ -1,8 +1,9 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, finalize, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
+import { catchError, finalize, from, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * Paliers d'abonnement — miroir de utils/plans.py (PLAN_ORDER).
@@ -128,6 +129,13 @@ export interface CompleteOauthProfileData {
   tokens: { access_token: string; refresh_token: string };
   user:   User;
   next:   string;
+}
+
+export interface AppleNativeResult {
+  success: boolean;
+  data?:   OauthExchangeData;
+  feedback?: { message: string };
+  code?:   string;
 }
 
 
@@ -457,6 +465,110 @@ export class AuthService {
   // ── USED IN JWT INTERCEPTOR ──────────────────────────────────────────────────
 
   getAuthUrl(): string { return this.authUrl; }
+
+  // ── Connexion Google ──────────────────────────────────────────────────────
+
+  readonly googleLoginUrl = `${this.authUrl}/google/login`;
+
+  /**
+   * Démarre le flow Google. Sur Android natif, ouvre un Chrome Custom Tab
+   * (@capacitor/browser) au lieu de naviguer dans la WebView de l'app : Google
+   * bloque l'authentification dans un user-agent WebView embarqué (erreur
+   * disallowed_useragent). Le retour dans l'app se fait via le schéma custom
+   * net.laprod.app:// (cf. routes/auth_api.py, NativeShellService.init()).
+   *
+   * Sur web (et sur iOS tant que le schéma n'y est pas câblé — chantier à
+   * venir), ne fait rien : l'appelant garde un <a [href]="googleLoginUrl">
+   * classique, qui navigue normalement.
+   *
+   * import() dynamique pour ne jamais charger @capacitor/browser dans le
+   * bundle web initial (même discipline que push.service.ts).
+   */
+  async startGoogleLogin(event: Event): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android') return;
+
+    event.preventDefault();
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: `${this.googleLoginUrl}?platform=mobile` });
+  }
+
+  // ── Connexion Apple ──────────────────────────────────────────────────────
+  //
+  // Deux chemins bien distincts (cf. routes/auth_api.py) :
+  // - iOS natif : AuthenticationServices (via appleNativeSignIn ci-dessous),
+  //   aucune redirection, réponse directe.
+  // - Android + web : même flow que Google (Custom Tab sur Android, navigation
+  //   normale sur web), le bouton garde un <a [href]="appleLoginUrl">.
+
+  readonly appleLoginUrl = `${this.authUrl}/apple/login`;
+
+  /** Sur Android natif : Chrome Custom Tabs, comme startGoogleLogin. Sur web et
+   *  iOS (qui utilise le flow natif, cf. appleNativeSignIn), ne fait rien. */
+  async startAppleWebLogin(event: Event): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android') return;
+
+    event.preventDefault();
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: `${this.appleLoginUrl}?platform=mobile` });
+  }
+
+  /**
+   * Sign in with Apple natif iOS (AuthenticationServices via
+   * @capawesome/capacitor-apple-sign-in). import() dynamique pour ne jamais
+   * charger ce plugin dans le bundle web/Android (même discipline que
+   * @capacitor/browser — cf. startGoogleLogin).
+   *
+   * Ne stocke PAS l'auth elle-même : l'appelant décide (storeOauthAuth +
+   * navigateAfterOauth), comme pour le retour du flow web via OauthCallbackComponent.
+   */
+  appleNativeSignIn(): Observable<AppleNativeResult> {
+    return from(this._performAppleNativeSignIn());
+  }
+
+  private async _performAppleNativeSignIn(): Promise<AppleNativeResult> {
+    const { AppleSignIn, SignInScope } = await import('@capawesome/capacitor-apple-sign-in');
+    const result = await AppleSignIn.signIn({
+      scopes: [SignInScope.Email, SignInScope.FullName],
+    });
+
+    const { firstValueFrom } = await import('rxjs');
+    return firstValueFrom(this.http.post<AppleNativeResult>(`${this.authUrl}/apple/native`, {
+      identity_token:      result.idToken,
+      authorization_code:  result.authorizationCode,
+      given_name:          result.givenName ?? '',
+    }));
+  }
+
+  /**
+   * Destination post-connexion OAuth commune aux deux entrées (redirection web
+   * via OauthCallbackComponent, et réponse directe du flow natif Apple) — logique
+   * déplacée ici depuis OauthCallbackComponent pour être partagée sans dupliquer
+   * le switch sur `next`.
+   */
+  navigateAfterOauth(next: string, suggestedName: string = ''): void {
+    // Filet de sécurité : le backend peut renvoyer '/' même si le profil est
+    // incomplet (ex. compte dont l'email n'était pas vérifié à la création).
+    if (next === '/') {
+      const user = this._currentUser();
+      if (user && !user.user_type_selected) {
+        this.router.navigate(['/select-role']);
+        return;
+      }
+    }
+
+    switch (next) {
+      case 'complete-profile':
+        this.router.navigate(['/complete-profile'], {
+          queryParams: suggestedName ? { name: suggestedName } : {},
+        });
+        break;
+      case 'select-role':
+        this.router.navigate(['/select-role']);
+        break;
+      default:
+        this.router.navigate(['/']);
+    }
+  }
 
   /**
    * Rafraîchit l'access_token en utilisant le refresh_token stocké.

@@ -34,7 +34,15 @@ Vérifications après déploiement :
 docker compose -f docker-compose.yml ps                       # tous les services "Up"/"healthy"
 docker compose -f docker-compose.yml logs -f web --tail=100
 docker compose -f docker-compose.yml logs -f worker --tail=50
+./doctor.sh --prod                                             # ou : make doctor-prod
 ```
+
+`doctor.sh --prod` (voir aussi § 8) couvre en une commande ce que les trois précédentes ne
+couvrent qu'en partie : variables d'environnement manquantes/placeholder, cohérence des clés
+Stripe (test vs live), connectivité DB/Redis réelle, migrations à jour, santé de chaque service
+Docker, expiration du certificat TLS et présence du cron de renouvellement. Sort en code 1 s'il
+trouve un problème critique — vaut la peine de le lancer avant de considérer un déploiement
+terminé.
 
 ---
 
@@ -125,6 +133,12 @@ Conséquences pratiques :
 `DATABASE_URL`, `REDIS_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
 `GOOGLE_CLIENT_ID/SECRET`, `MAIL_*`, `CORS_ORIGINS`.
 
+Sign in with Apple (cf. `docs/roadmap.md` § Sign in with Apple pour la procédure complète
+côté Apple Developer Portal) : `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`
+(contenu du `.p8`, retours à la ligne encodés en `\n` littéral), `APPLE_SERVICES_ID`
+(Services ID du flow web/Android), `APPLE_BUNDLE_ID` (flow natif iOS, défaut
+`net.laprod.app`, à ne changer que si le bundle ID change).
+
 `CORS_ORIGINS` doit inclure les origines du WebView Capacitor en plus du web :
 `https://app.laprod.net` (Android), `capacitor://app.laprod.net` (iOS),
 `http://localhost:4200` (dev).
@@ -159,3 +173,38 @@ non testée met le site hors ligne.
 2. Vérifier les pages légales si la fonctionnalité touche aux données, au classement du
    catalogue ou au paiement (`/cgu`, `/privacy`, `/cookies`).
 3. Contrôler `docker compose -f docker-compose.yml logs web | grep -i error` dans les minutes qui suivent.
+4. `./doctor.sh --prod` — une nouvelle variable d'environnement oubliée dans `.env` (Apple,
+   Firebase, un nouveau provider…) ne fait pas planter le déploiement, elle casse juste la
+   fonctionnalité en silence. `doctor.sh` la lève avant qu'un utilisateur ne la découvre.
+
+---
+
+## 9. Prérequis de build mobile — moteur audio Rust (`native/`)
+
+Le monitoring vocal temps réel avec autotune (Android + iOS) repose sur un moteur PSOLA+LPC
+maison écrit en Rust (`native/psola-dsp` + `native/psola-ffi`, remplace Rubber Band Library
+GPL-3.0/commerciale et TarsosDSP GPL-3.0 — voir `docs/roadmap.md` pour le détail complet).
+Compilé à chaque build mobile (jamais de binaire committé), donc **requis pour `make
+android-bundle`/`android-apk` et pour tout build Xcode (simulateur ou archive)** — un poste de
+build sans Rust échoue avec un message explicite (`cargo introuvable...`), pas une erreur de
+link cryptique.
+
+1. Installer Rust via [rustup.rs](https://rustup.rs) — la version exacte du toolchain est
+   épinglée dans `native/rust-toolchain.toml` (`rustup` la télécharge automatiquement à la
+   première commande lancée depuis `native/`, aucune action manuelle supplémentaire).
+2. Installer les cibles croisées, depuis `native/` :
+   ```bash
+   cd native
+   # Android (les 4 ABI supportées par android/variables.gradle)
+   rustup target add aarch64-linux-android armv7-linux-androideabi \
+       i686-linux-android x86_64-linux-android
+   # iOS (device + simulateur Apple Silicon + simulateur Intel)
+   rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+   ```
+3. Android : le NDK (déjà requis indépendamment de ce chantier, voir Android Studio) doit être
+   installé — `android/app/src/main/cpp/CMakeLists.txt` le localise automatiquement.
+4. iOS : rien d'autre à installer — le linker Apple des command line tools Xcode suffit.
+
+Rien à faire de plus : `cargo build` est ensuite invoqué automatiquement à chaque build (CMake
+côté Android, phase "Run Script" du target `App` côté Xcode) — comme pour n'importe quelle
+dépendance native déjà présente dans le projet.

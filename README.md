@@ -72,6 +72,7 @@ Angular, et le mobile (émulateur/simulateur + release Android signée) — voir
 ```bash
 make dev              # db+redis+web+worker en Docker, ports exposés (puis 'make serve')
 make prod-up           # stack prod complète (serveur)
+make doctor            # diagnostic config/connectivité/certificats — voir § Diagnostic
 make android-emulator  # build + déploiement sur l'émulateur Android ("fake install")
 make android-bundle    # .aab signé pour le Play Store, versionCode auto-incrémenté
 ```
@@ -120,17 +121,18 @@ Le proxy Angular (`proxy.conf.json`) redirige `/api` → `http://localhost:5000`
 
 L'app est packagée en natif via [Capacitor](https://capacitorjs.com) (`android/`, `ios/`). Le shell (WebView) charge le même build Angular que le web (`ng build --configuration=mobile`) ; deux plugins natifs (un par plateforme) exposent au JS un accès bas niveau au micro pour la fonctionnalité **topline** (détection de hauteur temps réel + monitoring autotune pendant l'enregistrement) :
 
-| Plateforme | Plugin natif | Détection de hauteur |
-|---|---|---|
-| Android | `android/app/src/main/java/net/laprod/app/PitchMonitorPlugin.kt` | YIN via [TarsosDSP](https://github.com/JorenSix/TarsosDSP) |
-| iOS | `ios/App/App/PitchMonitorPlugin.swift` | YIN maison (`YINDetector.swift`, accéléré vDSP/Accelerate) |
+| Plateforme | Plugin natif | Détection de hauteur | Pitch-shift monitoring |
+|---|---|---|---|
+| Android | `android/app/src/main/java/net/laprod/app/PitchMonitorPlugin.kt` | YIN maison (`YinPitchDetector.kt` ; chemin rapide AAudio : détection native, voir `aaudio_engine.c`) | Moteur PSOLA+LPC maison (Rust, `native/psola-dsp`) |
+| iOS | `ios/App/App/PitchMonitorPlugin.swift` | YIN maison (`YINDetector.swift`, accéléré vDSP/Accelerate) | Moteur PSOLA+LPC maison (Rust, `native/psola-dsp`) |
 
 Le reste du pipeline audio (mix, EQ, de-esser, reverb, export MP3…) est en TypeScript côté client dans `MobileAudioProcessorService` (`src/app/services/mobile-audio-processor.service.ts`), commun aux deux plateformes.
 
-**Particularité Android — dépendance TarsosDSP** : `be.tarsos.dsp:core` (Maven, dépôt `mvn.0110.be`) ne contient plus le module `io.android` depuis la 2.5. Le plugin a donc besoin du jar historique **TarsosDSP-Android-2.4** (qui embarque core + pitch + I/O Android), résolu au build via un dépôt `ivy` déclaré dans `android/build.gradle` (pas de binaire committé). Voir les commentaires dans `android/build.gradle` / `android/app/build.gradle` avant de faire évoluer cette dépendance.
+**Moteur de pitch-shift — 100% maison, zéro dépendance copyleft** : le monitoring vocal temps réel avec autotune reposait auparavant sur Rubber Band Library (GPL-3.0/commerciale) et TarsosDSP (GPL-3.0, Android uniquement) ; les deux ont été remplacés par un moteur PSOLA+LPC écrit à la main en Rust (workspace `native/` — `psola-dsp` + `psola-ffi` — à la racine du repo, partagé par les deux plateformes). Compilé à chaque build, jamais de binaire committé : CMake invoque `cargo build` côté Android (`android/app/src/main/cpp/CMakeLists.txt`), une phase "Run Script" Xcode fait de même côté iOS (`ios/App/App.xcodeproj/project.pbxproj`). Voir `docs/roadmap.md` pour le détail complet (décisions actées, tests, limites connues).
 
 ### Prérequis mobile
 
+- **Rust** : [rustup.rs](https://rustup.rs) + les cibles croisées Android/iOS (`cd native && rustup target add ...` — voir `docs/deployment.md`), requis pour compiler le moteur audio maison sur les deux plateformes
 - **Android** : Android Studio (fournit `adb` + l'émulateur), un AVD créé (Device Manager), **Java 21** (`brew install --cask temurin@21` — les scripts le sélectionnent automatiquement via `JAVA_HOME`, indépendamment du JDK par défaut du système)
 - **iOS** : Xcode + au moins un simulateur iOS installé (Xcode > Settings > Platforms)
 
@@ -240,6 +242,14 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 
+# Sign in with Apple (voir docs/roadmap.md § Sign in with Apple pour la procédure
+# Apple Developer Portal — Services ID, App ID, clé .p8)
+APPLE_TEAM_ID=...
+APPLE_KEY_ID=...
+APPLE_PRIVATE_KEY=...
+APPLE_SERVICES_ID=...
+APPLE_BUNDLE_ID=net.laprod.app
+
 # Email (SMTP)
 MAIL_SERVER=smtp.example.com
 MAIL_USERNAME=...
@@ -249,6 +259,15 @@ MAIL_PASSWORD=...
 ADMIN_PASSWORD=...
 TEST_ACCOUNT_PASSWORD=...
 ```
+
+### Diagnostic (`doctor.sh`)
+
+`./doctor.sh` (ou `make doctor`) vérifie que tout ce qui précède est réellement en place :
+variables d'environnement (présentes, non placeholder, cohérentes entre elles), connectivité
+DB/Redis, migrations Alembic à jour, santé des containers Docker, expiration du certificat TLS
+et présence du cron de renouvellement. Chaque ligne est classée `OK` / `WARN` / `CRIT` ; le
+script sort en erreur (code 1) s'il trouve au moins un `CRIT` — utilisable tel quel dans un
+cron de supervision. Détail des checks et de leurs niveaux : en tête de `doctor.sh`.
 
 ---
 

@@ -49,5 +49,18 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>LaProd utilise votre microphone pour enregistrer des toplines vocales sur des beats.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>net.laprod.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>net.laprod.app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -2,6 +2,16 @@
   "_doc": "Mises à jour LaProd destinées aux emails utilisateurs. Ce fichier est la source de vérité du module Support dans l'admin. Mettre à jour à chaque déploiement affectant l'expérience utilisateur. Chaque entrée doit être compréhensible par un utilisateur non technique. `sent_at` est null tant que la communication n'a pas été envoyée.",
   "updates": [
     {
+      "id": "2026-09-15-connexion-apple",
+      "date": "2026-09-15",
+      "category": "feature",
+      "title": "Connexion avec Apple",
+      "short": "Tu peux maintenant te connecter ou t'inscrire avec ton compte Apple.",
+      "detail": "En plus de Google et de l'inscription classique par email, LaProd propose désormais « Se connecter avec Apple ». Sur iPhone/iPad, ça se fait en un geste avec Face ID ou Touch ID, sans ressaisir de mot de passe. Comme pour Google, tu peux à tout moment choisir de masquer ton adresse email réelle : Apple nous transmet alors une adresse de relais, et tout continue de fonctionner normalement (confirmations, notifications par email).",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
       "id": "2026-07-15-stats-vues",
       "date": "2026-07-15",
       "category": "feature",

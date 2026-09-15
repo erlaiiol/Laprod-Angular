@@ -2,6 +2,7 @@
 Blueprint Authentication - Login, Register, Logout, Google OAuth
 """
 import re
+import secrets
 import time
 from flask import Blueprint, request, redirect, url_for, current_app, jsonify
 # NOTE: jsonify kept for /ping healthcheck (non-standard shape)
@@ -24,7 +25,7 @@ from helpers import (
 )
 from utils.turnstile import verify_turnstile_token
 from utils.disposable_emails import is_disposable_email
-from utils import email_service, notification_service
+from utils import email_service, notification_service, apple_signin
 from serializers import ok, err, user_auth
 from utils.auth_helpers import require_user
 from utils.crud_helpers import commit_or_rollback
@@ -189,8 +190,10 @@ def login():
         # Cas OAuth sans password
         if user and user.oauth_provider and not user.password_hash:
             current_app.logger.debug('Utilisateur OAuth sans mot de passe')
-            return err('Cet email utilise Google. Ajouter un mot de passe ?', level='info',
-                       code='SHOW_PASSWORD_SET_LINK', data={'password_email': user.email})
+            provider_label = {'google': 'Google', 'apple': 'Apple'}.get(user.oauth_provider, user.oauth_provider)
+            return err(f'Cet email utilise {provider_label}. Ajouter un mot de passe ?', level='info',
+                       code='SHOW_PASSWORD_SET_LINK',
+                       data={'password_email': user.email, 'provider': user.oauth_provider})
 
         # Mauvais identifiants → on incrémente le compteur d'échecs (déclenche le
         # CAPTCHA au-delà du seuil). Sans effet si Turnstile est désactivé.
@@ -699,6 +702,30 @@ def submit_master_sample(current_user):
     return ok(message='Candidature mastering soumise ! Notre équipe évaluera votre travail.', level='info')
 
 
+# Schéma custom de l'app Android/iOS — cible du retour OAuth quand la connexion
+# est initiée depuis l'app (Custom Tabs), pas depuis le navigateur.
+# Voir docs/roadmap.md § Chantier 2 : la WebView Capacitor ne peut pas faire
+# l'aller-retour OAuth elle-même (Google bloque l'auth dans un user-agent
+# WebView embarqué, erreur disallowed_useragent) — le bouton Google ouvre donc
+# le flow dans un onglet système (Chrome Custom Tabs / SFSafariViewController),
+# et c'est ce schéma qui ramène l'utilisateur dans l'app une fois le login fait.
+_MOBILE_OAUTH_SCHEME = 'net.laprod.app:/'
+
+
+def _oauth_error_redirect(angular_base: str, is_mobile: bool, error_code: str):
+    """Redirige vers la page d'erreur adaptée à la plateforme.
+
+    Web : /login?error=... (comportement historique, inchangé).
+    Mobile : /oauth-callback?error=... — le listener natif
+    (NativeShellService.init()) n'intercepte que net.laprod.app://oauth-callback ;
+    renvoyer vers /login laisserait l'utilisateur coincé dans l'onglet Chrome
+    Custom Tab, sans jamais revenir dans l'app. OauthCallbackComponent affiche
+    déjà ces codes d'erreur (?error=) tel quel, aucun changement front requis.
+    """
+    path = '/oauth-callback' if is_mobile else '/login'
+    return redirect(f'{angular_base}{path}?error={error_code}')
+
+
 @auth_api_bp.route('/google/login')
 @csrf.exempt
 def google_login():
@@ -706,9 +733,19 @@ def google_login():
     Démarre le flux OAuth Google.
     Authlib stocke le state CSRF dans Redis (via oauth.init_app(cache=redis))
     — multi-workers safe, pas de dépendance au cookie de session Flask.
+
+    ?platform=mobile : suffixe le state (":mobile") pour que google_callback()
+    sache renvoyer vers le schéma natif plutôt que vers le site web. Le state
+    garde son entropie complète (le suffixe est fixe, non secret) — Authlib le
+    valide toujours comme un jeton opaque, la protection CSRF est intacte.
     """
     redirect_uri = url_for('auth_api.google_callback', _external=True)
     current_app.logger.info('[OAuth] google_login() → authorize_redirect')
+
+    if request.args.get('platform') == 'mobile':
+        state = f'{secrets.token_urlsafe(24)}:mobile'
+        return oauth.google.authorize_redirect(redirect_uri, state=state)
+
     return oauth.google.authorize_redirect(redirect_uri)
 
 
@@ -719,11 +756,19 @@ def google_callback():
     Callback Google OAuth.
     Authlib vérifie le state CSRF depuis Redis automatiquement.
     """
-    angular_base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
-    if not angular_base.startswith('http'):
-        angular_base = f'https://{angular_base}'
+    # Lu AVANT toute validation : ne sert qu'à choisir la destination du
+    # redirect final (UX), jamais à décider d'une autorisation — la sécurité
+    # CSRF réelle est entièrement portée par authorize_access_token() plus bas.
+    is_mobile = request.args.get('state', '').endswith(':mobile')
 
-    current_app.logger.info("[OAuth] google_callback() called")
+    if is_mobile:
+        angular_base = _MOBILE_OAUTH_SCHEME
+    else:
+        angular_base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
+        if not angular_base.startswith('http'):
+            angular_base = f'https://{angular_base}'
+
+    current_app.logger.info(f"[OAuth] google_callback() called | mobile={is_mobile}")
 
     try:
         token      = oauth.google.authorize_access_token()
@@ -756,7 +801,7 @@ def google_callback():
                 db.session.commit()
 
             if user.account_status == 'deleted':
-                return redirect(f'{angular_base}/login?error=account_deleted')
+                return _oauth_error_redirect(angular_base, is_mobile, 'account_deleted')
 
             # Stat admin (régularité des connexions) — utilisateur GOOGLE_ID connu,
             # donc un retour, pas une inscription.
@@ -828,7 +873,7 @@ def google_callback():
                 return redirect(f'{angular_base}/oauth-callback?code={code}')
 
             # Déjà lié à un autre OAuth
-            return redirect(f'{angular_base}/login?error=oauth_conflict')
+            return _oauth_error_redirect(angular_base, is_mobile, 'oauth_conflict')
 
         # ── CAS 3 : nouvel utilisateur ───────────────────────────────────────
         new_user = User(
@@ -863,7 +908,7 @@ def google_callback():
 
     except Exception as e:
         current_app.logger.error(f'Erreur OAuth Google: {type(e).__name__}: {e}', exc_info=True)
-        return redirect(f'{angular_base}/login?error=oauth_failed')
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
 
 
 @auth_api_bp.route('/token-exchange', methods=['GET'])
@@ -901,6 +946,315 @@ def token_exchange():
         'user':           entry['user'],
         'next':           entry.get('next', '/'),
         'suggested_name': entry.get('suggested_name', ''),
+    })
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SIGN IN WITH APPLE
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Deux entrées, comme pour Google mais réparties différemment selon la plateforme
+# (exigence Apple : une app qui propose une connexion sociale tierce doit offrir
+# Sign in with Apple comme option équivalente — guideline App Store 4.8) :
+#
+# - iOS natif : AuthenticationServices via @capawesome/capacitor-apple-sign-in.
+#   Le plugin renvoie directement identity_token + authorization_code au JS, sans
+#   aller-retour navigateur → POST /apple/native, réponse JSON directe (pas de
+#   redirection, contrairement au flow web).
+# - Android (Custom Tab, même raison que Google : pas de SDK natif Apple sur
+#   Android) et navigateur web : /apple/login → /apple/callback, exactement le
+#   même schéma de redirection que google_login()/google_callback() ci-dessus.
+#
+# Apple ne renvoie le nom (et parfois l'email en clair plutôt que le relais privé)
+# qu'à la TOUTE PREMIÈRE autorisation — jamais aux suivantes. C'est pourquoi
+# given_name/refresh_token sont toujours optionnels ici, y compris pour un
+# utilisateur déjà connu.
+
+def _apple_login_or_create_user(claims: dict, refresh_token: str | None, client_id: str) -> dict:
+    """
+    3 cas, miroir de google_callback() : apple_sub connu → connexion ; email connu
+    sans lien Apple → rattachement ; sinon → création. Partagé entre le flow web
+    et le flow natif, qui ne diffèrent qu'en amont (obtention des claims).
+
+    Retourne {'ok': True, 'user': User, 'is_new': bool}
+          ou {'ok': False, 'error_code': 'account_deleted' | 'oauth_conflict' | 'oauth_failed'}.
+    """
+    apple_sub      = claims.get('sub')
+    email          = claims.get('email')
+    email_verified = str(claims.get('email_verified', 'false')).lower() == 'true'
+
+    def _store_refresh_token(target_user):
+        # Ne jamais écraser un token existant par None : Apple n'en renvoie un
+        # nouveau qu'après un authorization_code frais (pas à chaque connexion
+        # silencieuse), et l'ancien reste valide pour la révocation.
+        if refresh_token:
+            target_user.apple_refresh_token            = refresh_token
+            target_user.apple_refresh_token_client_id  = client_id
+
+    # ── CAS 1 : apple_sub connu (exclut les comptes soft-deleted) ────────────
+    user = (db.session.query(User)
+            .filter_by(apple_sub=apple_sub)
+            .filter(User.deleted_at.is_(None))
+            .first())
+
+    if user:
+        if user.account_status == 'deleted':
+            return {'ok': False, 'error_code': 'account_deleted'}
+        _store_refresh_token(user)
+        db.session.commit()
+        return {'ok': True, 'user': user, 'is_new': False}
+
+    # ── CAS 2 : email connu, pas encore lié à un provider OAuth ──────────────
+    if email:
+        user_by_email = (db.session.query(User)
+                         .filter_by(email=email)
+                         .filter(User.deleted_at.is_(None))
+                         .first())
+        if user_by_email:
+            if user_by_email.oauth_provider is not None:
+                return {'ok': False, 'error_code': 'oauth_conflict'}
+
+            user_by_email.apple_sub      = apple_sub
+            user_by_email.oauth_provider = 'apple'
+            _store_refresh_token(user_by_email)
+            user_by_email.email_verified = user_by_email.email_verified or email_verified
+            if user_by_email.email_verified:
+                user_by_email.account_status = 'active'
+            db.session.commit()
+            return {'ok': True, 'user': user_by_email, 'is_new': False}
+
+    # ── CAS 3 : nouvel utilisateur ────────────────────────────────────────────
+    # Apple exige l'email tant que le scope 'email' est demandé (ce qui est
+    # toujours le cas ici) — ce garde-fou ne devrait donc jamais se déclencher
+    # en pratique.
+    if not email:
+        return {'ok': False, 'error_code': 'oauth_failed'}
+
+    new_user = User(
+        email           = email,
+        username        = None,
+        apple_sub       = apple_sub,
+        oauth_provider  = 'apple',
+        email_verified  = email_verified,
+        account_status  = 'pending_completion',
+    )
+    _store_refresh_token(new_user)
+    db.session.add(new_user)
+    db.session.commit()
+    db.session.refresh(new_user)
+    return {'ok': True, 'user': new_user, 'is_new': True}
+
+
+def _sign_apple_state(payload: dict) -> str:
+    """Anti-CSRF du flow web Apple. Contrairement à Google (state géré par
+    Authlib + cache Redis), ce flow est piloté à la main (client_secret Apple
+    régénéré à chaque appel, incompatible avec le client OAuth2 générique
+    d'Authlib) — le state est donc signé/horodaté nous-mêmes, sans dépendance à
+    Redis (avantage : fonctionne même si Redis est indisponible, cf. R4)."""
+    from itsdangerous import URLSafeTimedSerializer
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return s.dumps(payload, salt='apple-oauth-state-2026')
+
+
+def _verify_apple_state(state: str) -> dict | None:
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        return s.loads(state, salt='apple-oauth-state-2026', max_age=600)
+    except (SignatureExpired, BadSignature):
+        return None
+
+
+def _apple_given_name(form_or_json: dict) -> str:
+    """Extrait le prénom du champ `user` (JSON, fourni par Apple UNIQUEMENT à la
+    première autorisation du flow web). Le flow natif fournit directement
+    given_name dans le body — voir apple_native()."""
+    import json
+    user_json = form_or_json.get('user')
+    if not user_json:
+        return ''
+    try:
+        parsed = json.loads(user_json)
+        return (parsed.get('name', {}).get('firstName') or '').strip()
+    except (ValueError, TypeError, AttributeError):
+        return ''
+
+
+@auth_api_bp.route('/apple/login')
+@csrf.exempt
+def apple_login():
+    """Démarre le flow web Sign in with Apple (Android via Custom Tab + navigateur).
+    ?platform=mobile : même convention que google_login(), mais encodée dans le
+    state signé plutôt qu'en suffixe (le state est déjà signé ici, autant y
+    mettre la plateforme proprement)."""
+    from urllib.parse import urlencode
+
+    redirect_uri = url_for('auth_api.apple_callback', _external=True)
+    platform = 'mobile' if request.args.get('platform') == 'mobile' else 'web'
+    state = _sign_apple_state({'platform': platform})
+
+    params = {
+        'client_id':     current_app.config['APPLE_SERVICES_ID'],
+        'redirect_uri':  redirect_uri,
+        # 'code id_token' : Apple inclut l'id_token directement dans le POST de
+        # retour, on évite un aller-retour réseau supplémentaire rien que pour
+        # l'obtenir (le `code` sert uniquement à récupérer le refresh_token).
+        'response_type': 'code id_token',
+        'response_mode': 'form_post',
+        'scope':         'name email',
+        'state':         state,
+    }
+    current_app.logger.info('[Apple OAuth] apple_login() → redirect vers appleid.apple.com')
+    return redirect(f'https://appleid.apple.com/auth/authorize?{urlencode(params)}')
+
+
+@auth_api_bp.route('/apple/callback', methods=['POST'])
+@csrf.exempt
+def apple_callback():
+    """
+    Callback Sign in with Apple. Apple POST ici en `response_mode=form_post`
+    (jamais en GET, contrairement à Google) — `code`, `state`, `id_token`, et
+    `user` (JSON, première autorisation uniquement).
+    """
+    state_payload = _verify_apple_state(request.form.get('state', ''))
+    is_mobile = bool(state_payload and state_payload.get('platform') == 'mobile')
+
+    if is_mobile:
+        angular_base = _MOBILE_OAUTH_SCHEME
+    else:
+        angular_base = current_app.config.get('FRONTEND_URL', 'https://laprod.net')
+        if not angular_base.startswith('http'):
+            angular_base = f'https://{angular_base}'
+
+    if not state_payload:
+        current_app.logger.warning('[Apple OAuth] state invalide ou expiré')
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
+
+    if request.form.get('error'):
+        current_app.logger.warning(f"[Apple OAuth] erreur Apple : {request.form.get('error')}")
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
+
+    id_token = request.form.get('id_token')
+    code     = request.form.get('code')
+    if not id_token or not code:
+        current_app.logger.warning('[Apple OAuth] code ou id_token manquant')
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
+
+    try:
+        client_id = current_app.config['APPLE_SERVICES_ID']
+        claims = apple_signin.verify_identity_token(id_token, client_id)
+
+        refresh_token = None
+        try:
+            token_resp = apple_signin.exchange_authorization_code(
+                code, client_id, redirect_uri=url_for('auth_api.apple_callback', _external=True))
+            refresh_token = token_resp.get('refresh_token')
+        except apple_signin.AppleSignInError as exc:
+            # Non bloquant : on a déjà l'identité vérifiée via id_token, le
+            # refresh_token ne sert qu'à la révocation future.
+            current_app.logger.warning(f'[Apple OAuth] échange de code échoué (non bloquant) : {exc}')
+
+        result = _apple_login_or_create_user(claims, refresh_token, client_id)
+
+        if not result['ok']:
+            return _oauth_error_redirect(angular_base, is_mobile, result['error_code'])
+
+        user   = result['user']
+        is_new = result['is_new']
+
+        LoginEvent.record(user.id, 'oauth')
+
+        claims_extra = {'oauth_incomplete': True} if is_new else {}
+        access_token  = create_access_token(identity=str(user.id), additional_claims=claims_extra)
+        refresh_jwt   = create_refresh_token(identity=str(user.id))
+        decoded = decode_token(refresh_jwt)
+        store_refresh_token(user.id, decoded['jti'], int(decoded['exp'] - time.time()))
+
+        given_name = _apple_given_name(request.form)
+        safe_name  = re.sub(r"[^\w\s\-']", '', given_name)[:100] if given_name else ''
+        next_page  = 'complete-profile' if is_new else ('select-role' if not user.user_type_selected else '/')
+
+        oauth_code = _store_oauth_code({
+            'tokens':         {'access_token': access_token, 'refresh_token': refresh_jwt},
+            'user':           _user_payload(user),
+            'next':           next_page,
+            'suggested_name': safe_name,
+        })
+        return redirect(f'{angular_base}/oauth-callback?code={oauth_code}')
+
+    except apple_signin.AppleSignInError as exc:
+        current_app.logger.warning(f'[Apple OAuth] identity token invalide : {exc}')
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
+    except Exception as exc:
+        current_app.logger.error(f'Erreur OAuth Apple : {type(exc).__name__}: {exc}', exc_info=True)
+        return _oauth_error_redirect(angular_base, is_mobile, 'oauth_failed')
+
+
+@auth_api_bp.route('/apple/native', methods=['POST'])
+@csrf.exempt
+@limiter.limit('30 per hour')
+def apple_native():
+    """
+    Connexion Sign in with Apple native iOS (AuthenticationServices via
+    @capawesome/capacitor-apple-sign-in). Pas de redirection : le plugin natif
+    renvoie directement identity_token + authorization_code au JS, qui les POST
+    ici. Réponse directe (mêmes clés que /token-exchange), pas de code
+    intermédiaire — il n'y a pas de traversée de navigateur à sécuriser ici.
+    """
+    data = request.get_json() or {}
+    identity_token      = data.get('identity_token')
+    authorization_code  = data.get('authorization_code')
+
+    if not identity_token or not authorization_code:
+        return err('Jeton Apple manquant.', level='warning')
+
+    client_id = current_app.config['APPLE_BUNDLE_ID']
+
+    try:
+        claims = apple_signin.verify_identity_token(identity_token, client_id)
+    except apple_signin.AppleSignInError as exc:
+        current_app.logger.warning(f'[Apple native] identity token invalide : {exc}')
+        return err('Connexion Apple invalide. Réessayez.', level='warning', status=401)
+
+    refresh_token = None
+    try:
+        token_resp = apple_signin.exchange_authorization_code(authorization_code, client_id)
+        refresh_token = token_resp.get('refresh_token')
+    except apple_signin.AppleSignInError as exc:
+        current_app.logger.warning(f'[Apple native] échange de code échoué (non bloquant) : {exc}')
+
+    result = _apple_login_or_create_user(claims, refresh_token, client_id)
+
+    if not result['ok']:
+        messages = {
+            'account_deleted': 'Ce compte a été supprimé.',
+            'oauth_conflict':  'Cet email est déjà lié à un autre mode de connexion.',
+            'oauth_failed':    'Échec de la connexion Apple. Réessayez.',
+        }
+        return err(messages.get(result['error_code'], 'Erreur de connexion Apple.'),
+                   level='warning', code=result['error_code'].upper(), status=409)
+
+    user   = result['user']
+    is_new = result['is_new']
+
+    LoginEvent.record(user.id, 'oauth')
+
+    claims_extra = {'oauth_incomplete': True} if is_new else {}
+    access_token  = create_access_token(identity=str(user.id), additional_claims=claims_extra)
+    refresh_jwt   = create_refresh_token(identity=str(user.id))
+    decoded = decode_token(refresh_jwt)
+    store_refresh_token(user.id, decoded['jti'], int(decoded['exp'] - time.time()))
+
+    given_name = (data.get('given_name') or '').strip()
+    safe_name  = re.sub(r"[^\w\s\-']", '', given_name)[:100] if given_name else ''
+    next_page  = 'complete-profile' if is_new else ('select-role' if not user.user_type_selected else '/')
+
+    return ok({
+        'tokens':         {'access_token': access_token, 'refresh_token': refresh_jwt},
+        'user':           _user_payload(user),
+        'next':           next_page,
+        'suggested_name': safe_name,
     })
 
 

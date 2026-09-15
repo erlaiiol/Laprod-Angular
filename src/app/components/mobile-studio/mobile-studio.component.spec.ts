@@ -286,4 +286,138 @@ describe('MobileStudioComponent', () => {
       expect(component.detectedNote()).toBeNull();
     });
   });
+
+  // ── toggleMonitorAutotune — pipeline de messages d'erreur casque ──────────────
+  //
+  // Zéro couverture avant cette passe alors que c'est la logique qui décide, pour de vrai,
+  // ce que l'utilisateur voit s'afficher selon son casque — voir docs/roadmap.md, chantier 3
+  // (§3.6.4 : le monitoring Bluetooth n'était en réalité jamais activé avant la correction de
+  // cette passe, un bug qu'un test ici aurait détecté immédiatement).
+
+  describe('toggleMonitorAutotune', () => {
+
+    it('filaire : active le monitoring directement, sans message', async () => {
+      const pm = makePmMock();
+      (pm.checkHeadphones as any).mockResolvedValue({ type: 'wired' });
+      const { component } = await createComponent(pm);
+
+      await component.toggleMonitorAutotune();
+
+      expect(component.monitorAutotune()).toBe(true);
+      expect(component.errorMsg()).toBeNull();
+      expect(component.showCalibration()).toBe(false);
+    });
+
+    it('aucun casque : message invitant à en brancher un, monitoring reste éteint', async () => {
+      const pm = makePmMock();
+      (pm.checkHeadphones as any).mockResolvedValue({ type: 'none' });
+      const { component } = await createComponent(pm);
+
+      await component.toggleMonitorAutotune();
+
+      expect(component.monitorAutotune()).toBe(false);
+      expect(component.errorMsg()).toContain('filaires');
+    });
+
+    it('casque Bluetooth A2DP : message explicite (pas une erreur générique), monitoring reste éteint', async () => {
+      const pm = makePmMock();
+      (pm.checkHeadphones as any).mockResolvedValue({ type: 'bluetooth-a2dp' });
+      const { component } = await createComponent(pm);
+
+      await component.toggleMonitorAutotune();
+
+      expect(component.monitorAutotune()).toBe(false);
+      expect(component.errorMsg()).toContain('A2DP');
+    });
+
+    it('casque Bluetooth (HFP/SCO) : ouvre la calibration, n\'active PAS encore le monitoring', async () => {
+      const pm = makePmMock();
+      (pm.checkHeadphones as any).mockResolvedValue({ type: 'bluetooth' });
+      const { component } = await createComponent(pm);
+
+      await component.toggleMonitorAutotune();
+
+      expect(component.showCalibration()).toBe(true);
+      // Le monitoring ne doit s'activer qu'après calibration explicite (onCalibrationDone) —
+      // jamais silencieusement à l'ouverture de la sheet.
+      expect(component.monitorAutotune()).toBe(false);
+    });
+
+    it('bascule à false sans re-vérifier le casque quand déjà actif', async () => {
+      const pm = makePmMock();
+      const { component } = await createComponent(pm);
+      component.monitorAutotune.set(true);
+      // ngOnInit appelle déjà checkHeadphones() une fois (détection initiale, § plus haut) —
+      // on isole l'appel (éventuel) déclenché spécifiquement par le toggle lui-même.
+      const callsBeforeToggle = (pm.checkHeadphones as any).mock.calls.length;
+
+      await component.toggleMonitorAutotune();
+
+      expect(component.monitorAutotune()).toBe(false);
+      expect((pm.checkHeadphones as any).mock.calls.length).toBe(callsBeforeToggle);
+    });
+  });
+
+  // ── onCalibrationDone — active réellement le monitoring Bluetooth ─────────────
+  //
+  // Avant la correction de cette passe, calibrer un casque Bluetooth sauvegardait la latence
+  // mais n'activait jamais le monitoring live — l'utilisateur ne s'entendait jamais malgré un
+  // texte ("Export et monitoring alignés") qui laissait croire le contraire.
+
+  describe('onCalibrationDone', () => {
+
+    it('active le monitoring, efface le message d\'erreur, ferme la sheet', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth');
+      component.errorMsg.set('un message précédent');
+      component.showCalibration.set(true);
+
+      component.onCalibrationDone(120);
+
+      expect(component.monitorAutotune()).toBe(true);
+      expect(component.errorMsg()).toBeNull();
+      expect(component.showCalibration()).toBe(false);
+    });
+
+    it('sauvegarde la latence mesurée avec le type de casque courant', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth');
+
+      component.onCalibrationDone(85);
+
+      expect(component.calibration.save).toHaveBeenCalledWith(85, 'bluetooth');
+    });
+  });
+
+  // ── _btAheadMs — compensation de sync (à ne pas confondre avec la latence de monitoring
+  //     live, voir docs/roadmap.md §3.8.7) ────────────────────────────────────────────────────
+
+  describe('_btAheadMs', () => {
+
+    it('nulle sur casque filaire, même si une calibration existe', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('wired');
+      component.calibration.hasCalibration = () => true;
+      (component.calibration as any).latencyMs = 150;
+
+      expect((component as any)._btAheadMs()).toBe(0);
+    });
+
+    it('nulle sur Bluetooth non calibré', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth');
+      component.calibration.hasCalibration = () => false;
+
+      expect((component as any)._btAheadMs()).toBe(0);
+    });
+
+    it('égale à la latence mesurée sur Bluetooth calibré', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth');
+      component.calibration.hasCalibration = () => true;
+      (component.calibration as any).latencyMs = 130;
+
+      expect((component as any)._btAheadMs()).toBe(130);
+    });
+  });
 });

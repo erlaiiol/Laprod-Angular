@@ -330,13 +330,16 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   async startWarmup(): Promise<void> {
     if (!await this._ensurePermission()) return;
 
-    const wired = this.headphoneType() === 'wired';
+    // useMonitor/monitorAutotune suivent directement le signal monitorAutotune() : celui-ci
+    // n'est mis à `true` que pour un casque filaire (toggleMonitorAutotune) ou après
+    // calibration Bluetooth explicite (onCalibrationDone) — jamais pour A2DP/aucun casque,
+    // où l'utilisateur ne peut pas l'activer. Cohérent avec _startRecording ci-dessous.
     await this.pm.startSession({
-      useMonitor:      wired,
+      useMonitor:      this.monitorAutotune(),
       voiceGain:       this.micGain(),
       reverbWet:       0.0,
       trackKey:        this.track.key,
-      monitorAutotune: wired && this.monitorAutotune(),
+      monitorAutotune: this.monitorAutotune(),
       retuneSpeed:     this.retuneSpeed(),
     });
 
@@ -709,6 +712,12 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.calibration.save(latencyMs, this.headphoneType() ?? 'none');
     this.showCalibration.set(false);
     this.errorMsg.set(null);
+    // La calibration aligne seulement l'export (_btAheadMs) — elle ne réduit pas la latence
+    // perçue en monitoring live (délai Bluetooth typique ~100-200ms en A2DP/SBC, voir
+    // docs/roadmap.md chantier latence). On active quand même le monitoring plutôt que de le
+    // bloquer (décision produit : avertir, pas empêcher) ; l'avertissement reste visible en
+    // continu via le nudge BT tant que le monitoring tourne sur ce chemin (voir template).
+    this.monitorAutotune.set(true);
     this.cdr.markForCheck();
   }
 

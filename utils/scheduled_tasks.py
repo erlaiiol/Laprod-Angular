@@ -6,6 +6,7 @@ run_expiry_notifications(app)        → Quotidien à 8h : rappels 90/30/7/1 jou
 run_sole_licensee_notifications(app) → 1er du mois à 9h : "vous êtes le seul licencié"
 run_stripe_reminder_job(app)         → Chaque lundi à 9h : rappel Stripe Connect aux non-configurés
 run_reengagement_emails(app)         → Chaque mercredi à 10h : re-engagement des utilisateurs inactifs 7j+
+run_reengagement_push(app)           → Chaque vendredi à 11h : push de réactivation des utilisateurs sans connexion 14j+
 run_mix_sample_reminder_job(app)     → Chaque jeudi à 9h : rappel preview de mix non soumise
 run_premium_expiry_downgrade(app)    → Quotidien à 5h : repasse en Free les abonnements premium expirés
 """
@@ -345,6 +346,93 @@ def run_reengagement_emails(app):
             f"[scheduler] run_reengagement_emails : "
             f"{sent_bm} beatmaker(s) / {sent_ar} artiste(s) / {sent_me} engineer(s)"
         )
+
+
+def run_reengagement_push(app):
+    """
+    Chaque vendredi à 11h.
+    Envoie un push de réactivation aux utilisateurs qui ont push_opt_in=True,
+    au moins un appareil actif, et ne se sont pas connectés depuis 14+ jours
+    (MAX(LoginEvent.login_date), cf. docs/roadmap.md § Chantier 2 décision 2.2).
+
+    Distinct de run_reengagement_emails : seuil (14j vs 7j), signal (connexion
+    vs activité de contenu par rôle) et cadence de dédup (mensuelle vs
+    hebdomadaire) sont volontairement différents — les deux canaux mesurent des
+    choses différentes et ne doivent pas être fusionnés.
+
+    Un utilisateur sans aucune ligne LoginEvent (jamais connecté depuis
+    l'instrumentation) est traité comme inactif — sinon un vieux compte
+    n'est jamais relancé (piège #3 de la passe).
+    """
+    with app.app_context():
+        from sqlalchemy import func
+
+        from extensions import db
+        from models import User, LoginEvent, UserNotificationLog
+        from utils.push_service import send_push, REENGAGEMENT_INACTIVITY_DAYS
+
+        cutoff     = (datetime.utcnow() - timedelta(days=REENGAGEMENT_INACTIVITY_DAYS)).date()
+        period_key = datetime.utcnow().strftime('%Y-%m')  # dédup mensuelle
+        sent = 0
+
+        # Pré-calcul en un seul aller-retour plutôt qu'une requête par utilisateur
+        # dans la boucle (LoginEvent est unique, pas de table par rôle ici).
+        last_logins = dict(
+            db.session.query(LoginEvent.user_id, func.max(LoginEvent.login_date))
+            .group_by(LoginEvent.user_id)
+            .all()
+        )
+
+        candidates = User.query.filter(
+            User.push_opt_in == True,
+            User.account_status == 'active',
+        ).all()
+
+        for user in candidates:
+            already_sent = db.session.query(UserNotificationLog).filter_by(
+                user_id=user.id,
+                notification_type='push_reengagement',
+                period_key=period_key,
+            ).first() is not None
+            if already_sent:
+                continue
+
+            last_login = last_logins.get(user.id)
+            if last_login and last_login > cutoff:
+                continue
+
+            if user.is_beatmaker:
+                title = 'Vos auditeurs attendent votre prochain son'
+                body  = "Ça fait un moment — un nouvel upload, et ils reviennent. On vous a gardé une place sur LaProd."
+                link  = '/upload-track'
+            elif user.is_artist:
+                title = 'De nouveaux beats sont arrivés sur LaProd'
+                body  = 'Le catalogue a bougé depuis votre dernière visite. Venez découvrir ce qui vous attend.'
+                link  = '/'
+            elif user.is_mix_engineer:
+                title = 'Des artistes cherchent un ingénieur du son'
+                body  = 'De nouvelles demandes de mix arrivent en ce moment. Revenez jeter un œil à votre dashboard.'
+                link  = '/dashboard'
+            else:
+                title = 'On ne vous a pas vu depuis un moment'
+                body  = 'Repassez sur LaProd : de nouveaux outils et beats vous attendent.'
+                link  = '/'
+
+            try:
+                if send_push(user.id, title, body, link=link):
+                    db.session.add(UserNotificationLog(
+                        user_id=user.id,
+                        notification_type='push_reengagement',
+                        period_key=period_key,
+                        sent_at=datetime.utcnow(),
+                    ))
+                    db.session.commit()
+                    sent += 1
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[scheduler] reengagement_push user #{user.id}: {exc}")
+
+        app.logger.info(f"[scheduler] run_reengagement_push : {sent} push(es) envoyé(s)")
 
 
 def run_guest_topline_cleanup(app):

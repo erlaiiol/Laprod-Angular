@@ -7,6 +7,7 @@ Couvre :
   - run_sole_licensee_notifications() : envoie si 1 seul acheteur sur le track
   - run_sole_licensee_notifications() : n'envoie pas si 2 acheteurs
   - run_contract_expiry_update() : passe license_status='expired', libère exclusivité
+  - run_reengagement_push() : push aux utilisateurs opt-in sans connexion 14j+, dédup mensuelle
 """
 import uuid
 import pytest
@@ -306,3 +307,88 @@ class TestRunPremiumExpiryDowngrade:
         # aucune notification supplémentaire au second run.
         assert first_run_count == 1
         assert second_run_count == first_run_count
+
+
+# ── run_reengagement_push ───────────────────────────────────────────────────
+
+class TestRunReengagementPush:
+
+    def _make_opted_in_user(self, db, bound_factories, **kwargs):
+        from tests.factories.user_factory import UserFactory
+        from models import DeviceToken
+        u = UserFactory(**kwargs)
+        u.push_opt_in = True
+        db.session.add(DeviceToken(user_id=u.id, token=f'tok-{u.id}', platform='android'))
+        db.session.commit()
+        return u
+
+    def _set_last_login(self, db, user, days_ago):
+        from models import LoginEvent
+        db.session.add(LoginEvent(
+            user_id=user.id,
+            login_date=(datetime.now() - timedelta(days=days_ago)).date(),
+            source='password',
+        ))
+        db.session.commit()
+
+    def test_sends_push_to_inactive_opted_in_beatmaker(self, app, db, bound_factories):
+        u = self._make_opted_in_user(db, bound_factories, is_beatmaker=True)
+        self._set_last_login(db, u, days_ago=20)
+
+        with patch('utils.push_service.send_push', return_value=True) as mock_send:
+            from utils.scheduled_tasks import run_reengagement_push
+            run_reengagement_push(app)
+
+        mock_send.assert_called_once()
+        assert mock_send.call_args.args[0] == u.id
+
+        from models import UserNotificationLog
+        assert UserNotificationLog.query.filter_by(
+            user_id=u.id, notification_type='push_reengagement',
+        ).count() == 1
+
+    def test_does_not_send_to_recently_active_user(self, app, db, bound_factories):
+        u = self._make_opted_in_user(db, bound_factories, is_beatmaker=True)
+        self._set_last_login(db, u, days_ago=5)   # sous le seuil de 14j
+
+        with patch('utils.push_service.send_push') as mock_send:
+            from utils.scheduled_tasks import run_reengagement_push
+            run_reengagement_push(app)
+            mock_send.assert_not_called()
+
+    def test_treats_user_without_any_login_event_as_inactive(self, app, db, bound_factories):
+        """Piège #3 de la passe : un compte sans aucune ligne LoginEvent (jamais
+        connecté depuis l'instrumentation) doit être relancé, pas ignoré."""
+        u = self._make_opted_in_user(db, bound_factories, is_artist=True)
+
+        with patch('utils.push_service.send_push', return_value=True) as mock_send:
+            from utils.scheduled_tasks import run_reengagement_push
+            run_reengagement_push(app)
+
+        mock_send.assert_called_once()
+
+    def test_does_not_send_without_push_opt_in(self, app, db, bound_factories):
+        from tests.factories.user_factory import UserFactory
+        u = UserFactory(is_beatmaker=True)
+        u.push_opt_in = False
+        db.session.commit()
+        self._set_last_login(db, u, days_ago=30)
+
+        with patch('utils.push_service.send_push') as mock_send:
+            from utils.scheduled_tasks import run_reengagement_push
+            run_reengagement_push(app)
+            mock_send.assert_not_called()
+
+    def test_is_deduplicated_within_the_same_month(self, app, db, bound_factories):
+        u = self._make_opted_in_user(db, bound_factories, is_beatmaker=True)
+        self._set_last_login(db, u, days_ago=20)
+
+        with patch('utils.push_service.send_push', return_value=True) as mock_send:
+            from utils.scheduled_tasks import run_reengagement_push
+            run_reengagement_push(app)
+            first_run_calls = mock_send.call_count
+            run_reengagement_push(app)
+            second_run_calls = mock_send.call_count
+
+        assert first_run_calls == 1
+        assert second_run_calls == first_run_calls

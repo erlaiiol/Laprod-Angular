@@ -219,20 +219,21 @@ class TestPerformWithdrawal:
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = locked
         return locked
 
-    def test_rejects_amount_below_minimum(self, mocker):
+    def test_rejects_amount_below_minimum(self, mocker, app):
         """Retrait < 10€ doit être refusé avant tout accès DB."""
         mock_db = mocker.patch('utils.wallet_service.db')
         user = _make_user()
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('5.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('5.00'))
 
         assert result['success'] is False
         assert '10' in result['error']
         # La DB ne doit pas être consultée pour un montant sous le minimum
         mock_db.session.execute.assert_not_called()
 
-    def test_rejects_insufficient_balance(self, mocker):
+    def test_rejects_insufficient_balance(self, mocker, app):
         """Retrait supérieur au solde disponible doit être refusé."""
         mock_db = mocker.patch('utils.wallet_service.db')
         self._setup_locked_wallet(mock_db, Decimal('20.00'))
@@ -240,12 +241,13 @@ class TestPerformWithdrawal:
         user.id = 1
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('50.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('50.00'))
 
         assert result['success'] is False
         assert 'insuffisant' in result['error'].lower()
 
-    def test_rejects_no_stripe_connect(self, mocker):
+    def test_rejects_no_stripe_connect(self, mocker, app):
         """Retrait sans compte Stripe Connect doit retourner 'connect_required'."""
         mock_db = mocker.patch('utils.wallet_service.db')
         self._setup_locked_wallet(mock_db, Decimal('100.00'))
@@ -253,12 +255,13 @@ class TestPerformWithdrawal:
         user.id = 1
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('50.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('50.00'))
 
         assert result['success'] is False
         assert result['error'] == 'connect_required'
 
-    def test_rejects_incomplete_onboarding(self, mocker):
+    def test_rejects_incomplete_onboarding(self, mocker, app):
         """Retrait sans onboarding Stripe complet doit retourner 'connect_incomplete'."""
         mock_db = mocker.patch('utils.wallet_service.db')
         self._setup_locked_wallet(mock_db, Decimal('100.00'))
@@ -270,12 +273,13 @@ class TestPerformWithdrawal:
         user.id = 1
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('50.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('50.00'))
 
         assert result['success'] is False
         assert result['error'] == 'connect_incomplete'
 
-    def test_successful_withdrawal(self, mocker):
+    def test_successful_withdrawal(self, mocker, app):
         """Retrait valide doit créer un Transfer Stripe et retourner success=True."""
         mock_db = mocker.patch('utils.wallet_service.db')
         locked_wallet = self._setup_locked_wallet(mock_db, Decimal('80.00'))
@@ -299,7 +303,8 @@ class TestPerformWithdrawal:
         user.username = 'test'
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('50.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('50.00'))
 
         assert result['success'] is True
         assert result['transfer_id'] == 'tr_test_abc123'
@@ -307,8 +312,12 @@ class TestPerformWithdrawal:
         # Le wallet locké doit avoir été débité
         assert locked_wallet.balance_available == Decimal('30.00')
 
-    def test_stripe_error_returns_failure(self, mocker):
-        """Une erreur Stripe ne doit pas modifier le wallet et retourner success=False."""
+    def test_stripe_error_returns_failure(self, mocker, app):
+        """Une erreur Stripe ne doit pas modifier le wallet et retourner success=False.
+
+        Le message d'erreur brut de Stripe ('Stripe down') va au logger serveur
+        (R14), jamais dans la réponse : le message utilisateur reste générique.
+        """
         mock_db = mocker.patch('utils.wallet_service.db')
         locked_wallet = self._setup_locked_wallet(mock_db, Decimal('100.00'))
 
@@ -324,10 +333,12 @@ class TestPerformWithdrawal:
         user.username = 'test'
 
         from utils.wallet_service import perform_withdrawal
-        result = perform_withdrawal(user, Decimal('50.00'))
+        with app.app_context():
+            result = perform_withdrawal(user, Decimal('50.00'))
 
         assert result['success'] is False
-        assert 'Stripe down' in result['error']
+        assert result['error'] == 'Retrait momentanément indisponible, réessayez plus tard.'
+        assert 'Stripe down' not in result['error']
         # Le wallet ne doit PAS avoir été modifié
         assert locked_wallet.balance_available == Decimal('100.00')
 

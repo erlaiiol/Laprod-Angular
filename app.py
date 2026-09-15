@@ -94,7 +94,14 @@ def create_app(test_config=None):
     app.config['GOOGLE_CLIENT_ID'] = config.GOOGLE_CLIENT_ID
     app.config['GOOGLE_CLIENT_SECRET'] = config.GOOGLE_CLIENT_SECRET
     app.config['GOOGLE_DISCOVERY_URL'] = config.GOOGLE_DISCOVERY_URL
-    
+
+    # Sign in with Apple
+    app.config['APPLE_TEAM_ID'] = config.APPLE_TEAM_ID
+    app.config['APPLE_KEY_ID'] = config.APPLE_KEY_ID
+    app.config['APPLE_PRIVATE_KEY'] = config.APPLE_PRIVATE_KEY
+    app.config['APPLE_SERVICES_ID'] = config.APPLE_SERVICES_ID
+    app.config['APPLE_BUNDLE_ID'] = config.APPLE_BUNDLE_ID
+
     # Contrats (prix)
     app.config['CONTRACT_EXCLUSIVE_PRICE'] = config.CONTRACT_EXCLUSIVE_PRICE
     app.config['CONTRACT_DURATIONS'] = config.CONTRACT_DURATIONS
@@ -455,6 +462,7 @@ def create_app(test_config=None):
         planning_api_bp,
         royalties_api_bp,
         structure_api_bp,
+        push_api_bp,
     )
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
@@ -496,6 +504,7 @@ def create_app(test_config=None):
     app.register_blueprint(planning_api_bp)
     app.register_blueprint(royalties_api_bp)
     app.register_blueprint(structure_api_bp)
+    app.register_blueprint(push_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

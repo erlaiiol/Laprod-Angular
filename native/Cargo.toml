@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["psola-dsp", "psola-ffi"]
+
+# Réglages de release partagés par tout le workspace — pensés pour du DSP temps réel,
+# pas les valeurs par défaut de Cargo (voir docs/roadmap.md, chantier PSOLA).
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# panic = "unwind" (valeur par défaut, gardée explicite) : psola-ffi intercepte tout panic à
+# la frontière FFI via catch_unwind — "abort" romprait cette garantie et planterait tout le
+# process hôte (JVM/WebView) au moindre bug interne au lieu d'un repli silencieux.
+panic = "unwind"
