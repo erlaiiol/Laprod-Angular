@@ -116,6 +116,16 @@ fi
 FLASK_ENV="${FLASK_ENV:-development}"
 [ "$FLASK_ENV" = "production" ] && PROD=true
 
+# En prod, `db` et `redis` ne publient délibérément aucun port sur l'hôte
+# (docker-compose.yml — accessibles uniquement depuis le réseau Docker `laprod`) :
+# lancé depuis l'hôte plutôt que depuis le conteneur `web`, ce script ne peut
+# structurellement pas les joindre, quoi qu'on fasse. Pas une panne — juste le
+# mauvais endroit pour ce check précis. Voir CONTAINER_HINT plus bas.
+IN_CONTAINER=false
+[ -f /.dockerenv ] && IN_CONTAINER=true
+CONTAINER_HINT="lance depuis le conteneur pour un vrai check : docker compose -f docker-compose.yml exec web ./doctor.sh --prod"
+hint_suffix() { $IN_CONTAINER && echo "" || echo " — $CONTAINER_HINT"; }
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 is_set() { [ -n "${!1:-}" ]; }
@@ -311,10 +321,13 @@ except Exception as e:
     print('FAIL:' + str(e).splitlines()[0])
 ")
 case "$DB_CHECK_OUT" in
-  OK)        pass "PostgreSQL joignable (connexion réussie)" ;;
-  SKIP:*)    info "Connectivité PostgreSQL non vérifiée (${DB_CHECK_OUT#SKIP:})" ;;
-  FAIL:*)    crit "PostgreSQL injoignable — ${DB_CHECK_OUT#FAIL:}" ;;
-  *)         info "Connectivité PostgreSQL non vérifiée (uv/python3 introuvable)" ;;
+  OK)     pass "PostgreSQL joignable (connexion réussie)" ;;
+  SKIP:*) info "Connectivité PostgreSQL non vérifiée (${DB_CHECK_OUT#SKIP:})$(hint_suffix)" ;;
+  FAIL:*)
+    if $IN_CONTAINER; then crit "PostgreSQL injoignable — ${DB_CHECK_OUT#FAIL:}"
+    else warn "PostgreSQL injoignable depuis l'hôte — ${DB_CHECK_OUT#FAIL:} — normal si le port n'est pas publié en prod ($CONTAINER_HINT)"; fi
+    ;;
+  *) info "Connectivité PostgreSQL non vérifiée (uv/python3 introuvable)$(hint_suffix)" ;;
 esac
 
 REDIS_CHECK_OUT=$(run_py "
@@ -335,9 +348,12 @@ except Exception as e:
 ")
 case "$REDIS_CHECK_OUT" in
   OK)     pass "Redis joignable (PING réussi)" ;;
-  SKIP:*) info "Connectivité Redis non vérifiée (${REDIS_CHECK_OUT#SKIP:})" ;;
-  FAIL:*) crit "Redis injoignable — ${REDIS_CHECK_OUT#FAIL:} (R4 : dégradation partielle, pas un crash — mais à corriger)" ;;
-  *)      info "Connectivité Redis non vérifiée (uv/python3 introuvable)" ;;
+  SKIP:*) info "Connectivité Redis non vérifiée (${REDIS_CHECK_OUT#SKIP:})$(hint_suffix)" ;;
+  FAIL:*)
+    if $IN_CONTAINER; then crit "Redis injoignable — ${REDIS_CHECK_OUT#FAIL:} (R4 : dégradation partielle, pas un crash — mais à corriger)"
+    else warn "Redis injoignable depuis l'hôte — ${REDIS_CHECK_OUT#FAIL:} — normal si le port n'est pas publié en prod ($CONTAINER_HINT)"; fi
+    ;;
+  *) info "Connectivité Redis non vérifiée (uv/python3 introuvable)$(hint_suffix)" ;;
 esac
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -351,7 +367,7 @@ if command -v uv >/dev/null 2>&1; then
   MIG_HEADS=$(FLASK_APP=app.py uv run --no-sync flask db heads 2>&1)
   if echo "$MIG_OUT" | grep -qi "error\|traceback"; then
     MIG_ERR_LINE=$(echo "$MIG_OUT" | grep -iE "error" | grep -v "sqlalche.me" | tail -1)
-    warn "Impossible de lire l'état des migrations (DB injoignable ou venv non synchronisé) : ${MIG_ERR_LINE:-$(echo "$MIG_OUT" | tail -1)}"
+    warn "Impossible de lire l'état des migrations (DB injoignable ou venv non synchronisé) : ${MIG_ERR_LINE:-$(echo "$MIG_OUT" | tail -1)}$(hint_suffix)"
   else
     CURRENT_REV=$(echo "$MIG_OUT" | grep -oE '^[0-9a-f]+' | head -1)
     HEAD_REV=$(echo "$MIG_HEADS" | grep -oE '^[0-9a-f]+' | head -1)
@@ -365,7 +381,7 @@ if command -v uv >/dev/null 2>&1; then
     fi
   fi
 else
-  info "Migrations non vérifiées (uv introuvable)"
+  info "Migrations non vérifiées (uv introuvable)$(hint_suffix)"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
