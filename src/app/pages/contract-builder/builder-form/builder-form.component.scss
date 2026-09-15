@@ -43,22 +43,8 @@
 }
 
 // ── Boutons transformés en CTA premium ─────────────────────────────────────────
-
-.bf-qs-banner-btn--locked,
-.bf-qs-card-btn--locked,
-.bf-fill-card-btn--locked {
-  background: v.$tag-orange-dark !important; border-color: v.$tag-orange !important;
-  color: #fff !important;
-  &:hover { background: v.$tag-orange !important; }
-}
-
-.bf-preset-card.locked {
-  border-style: dashed;
-  .bf-preset-badge.badge-locked {
-    background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; border: 1px solid rgba(v.$tag-orange, 0.4);
-    display: inline-flex; align-items: center; gap: 0.25rem;
-  }
-}
+// .bf-qs-card-btn--locked / .bf-fill-card-btn--locked / .bf-preset-card.locked
+// → quick-start-panel/ (extrait, seul consommateur de ces classes désormais).
 
 .btn-secondary--locked,
 .btn-primary--locked {
@@ -139,23 +125,8 @@
   display: flex; gap: 0.5rem; align-items: center;
 }
 
-.btn-primary {
-  background: v.$tag-green-dark; border: 1px solid v.$tag-green; color: v.$tag-green;
-  border-radius: 8px; padding: 0.5rem 1.1rem; font-size: 0.875rem;
-  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
-  transition: background 0.15s, color 0.15s;
-  &:hover:not(:disabled) { background: rgba(v.$tag-green, 0.25); color: #fff; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
-
-.btn-secondary {
-  background: v.$tag-violet-dark; border: 1px solid v.$tag-violet; color: v.$tag-violet-light;
-  border-radius: 8px; padding: 0.5rem 1.1rem; font-size: 0.875rem;
-  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
-  transition: background 0.15s, color 0.15s;
-  &:hover:not(:disabled) { background: rgba(v.$tag-violet, 0.2); color: #fff; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
+// .btn-primary / .btn-secondary → builder-form-shared.scss (partagés avec
+// recipient-signature-card/).
 
 .btn-download {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -331,226 +302,23 @@
   display: flex; flex-direction: column; gap: 0.25rem;
   font-size: 0.8rem; color: v.$text-secondary;
   &.full { grid-column: 1 / -1; }
-
-  input, select, textarea {
-    background: v.$bg-elevated; border: 1px solid v.$bg-border;
-    color: v.$text-primary; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.875rem;
-    &:focus { outline: none; border-color: v.$tag-blue; }
-    &:disabled { opacity: 0.65; cursor: default; }
-  }
+  // Les input/select/textarea prennent .bf-input/.bf-select/.bf-textarea (plus
+  // bas) — display:flex + flex-direction:column ci-dessus les étire déjà en
+  // pleine largeur par défaut (align-items:stretch), donc leur width:100%
+  // explicite ne change rien ici, juste plus de règles à maintenir en double.
 }
 
 .req { color: v.$tag-red; margin-left: 2px; }
 
-// ── Clause card ────────────────────────────────────────────────────────────────
+// .bf-clause* / .bf-tooltip-*/.bf-tip-*/.bf-example-* → contract-clause/
+// (extrait, présentation pure de la carte de clause).
 
-.bf-clause {
-  background: v.$bg-surface; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 1rem; margin-bottom: 0.6rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  &:not(.disabled):hover { border-color: v.$bg-border-subtle; }
-  &.disabled { opacity: 0.55; }
-
-  &.is-enabled:not(.disabled):not(.is-filled) {
-    border-color: rgba(v.$tag-blue, 0.25);
-    box-shadow: inset 3px 0 0 rgba(v.$tag-blue, 0.35);
-  }
-
-  &.is-filled {
-    border-color: rgba(v.$tag-blue, 0.55);
-    box-shadow: inset 3px 0 0 v.$tag-blue;
-    &:hover { border-color: rgba(v.$tag-blue, 0.75); }
-  }
-}
-
-.bf-clause-header {
-  display: flex; align-items: center; gap: 0.55rem;
-}
-
-.bf-clause-check {
-  width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; accent-color: v.$tag-blue;
-}
-
-.bf-clause-name {
-  font-size: 0.9rem; font-weight: 600; flex: 1;
-  &.required { color: v.$text-primary; }
-}
-
-.bf-tooltip-icon {
-  position: relative;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: v.$bg-elevated; border: 1px solid v.$bg-border-subtle;
-  color: v.$text-secondary; font-size: 0.7rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; flex-shrink: 0;
-  transition: border-color 0.12s, color 0.12s, background 0.12s;
-
-  &.has-plain-only {
-    color: v.$tag-orange;
-    border-color: rgba(v.$tag-orange, 0.45);
-    background: rgba(v.$tag-orange, 0.08);
-    &:hover { background: rgba(v.$tag-orange, 0.16); }
-  }
-
-  &.has-long-only {
-    color: v.$tag-blue;
-    border-color: rgba(v.$tag-blue, 0.45);
-    background: rgba(v.$tag-blue, 0.08);
-    &:hover { background: rgba(v.$tag-blue, 0.16); }
-  }
-
-  &.has-both {
-    color: v.$tag-orange;
-    border-color: rgba(v.$tag-orange, 0.45);
-    background: rgba(v.$tag-orange, 0.08);
-    &:hover { background: rgba(v.$tag-orange, 0.16); }
-    &::after {
-      content: '';
-      position: absolute;
-      top: -3px; right: -3px;
-      width: 7px; height: 7px; border-radius: 50%;
-      background: v.$tag-blue;
-      border: 1.5px solid v.$bg-surface;
-    }
-  }
-}
-
-.bf-legal-ref {
-  font-size: 0.68rem; color: v.$text-muted; white-space: nowrap;
-}
-
-.bf-tooltip-panel {
-  margin: 0.4rem 0; border-radius: 6px; overflow: hidden;
-  border: 1px solid v.$bg-border; font-size: 0.8rem; line-height: 1.55;
-}
-
-.bf-tip-section {
-  padding: 0.55rem 0.85rem;
-  p { margin: 0.2rem 0 0; }
-}
-
-.bf-tip-label {
-  display: flex; align-items: center; gap: 0.3rem;
-  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.05em; opacity: 0.85;
-  i { font-size: 0.62rem; }
-}
-
-.bf-tip-plain {
-  background: rgba(v.$tag-orange, 0.07);
-  .bf-tip-label { color: v.$tag-orange; }
-  p { color: v.$tag-orange; }
-}
-
-.bf-tip-legal {
-  background: v.$bg-elevated;
-  .bf-tip-label { color: v.$tag-blue; }
-  p { color: v.$text-secondary; }
-}
-
-.bf-tip-divider {
-  height: 1px; background: v.$bg-border;
-}
-
-.bf-example-icon {
-  width: 18px; height: 18px; border-radius: 50%;
-  background: rgba(v.$tag-blue, 0.1); border: 1px solid rgba(v.$tag-blue, 0.3);
-  color: v.$tag-blue; font-size: 0.65rem;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; flex-shrink: 0;
-  &:hover { background: rgba(v.$tag-blue, 0.2); }
-}
-
-.bf-example-panel {
-  margin: 0.5rem 0; padding: 0.65rem 0.85rem;
-  background: rgba(v.$tag-blue, 0.05); border-left: 3px solid v.$tag-blue;
-  border-radius: 0 6px 6px 0;
-}
-
-.bf-example-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 0.4rem;
-  span { font-size: 0.72rem; font-weight: 700; color: v.$text-secondary; text-transform: uppercase; letter-spacing: 0.04em; }
-}
-
-.bf-use-example {
-  font-size: 0.75rem; font-weight: 600; cursor: pointer;
-  background: rgba(v.$tag-blue, 0.12); border: 1px solid rgba(v.$tag-blue, 0.35);
-  color: v.$tag-blue; border-radius: 6px; padding: 0.2rem 0.6rem;
-  display: flex; align-items: center; gap: 0.3rem;
-  &:hover { background: rgba(v.$tag-blue, 0.22); }
-}
-
-.bf-example-text {
-  font-style: italic; font-size: 0.8rem; color: v.$text-secondary;
-  line-height: 1.55; margin: 0; white-space: pre-wrap;
-}
-
-.bf-clause-body {
-  margin-top: 0.75rem;
-}
-
-// ── Inputs shared ─────────────────────────────────────────────────────────────
-
-.bf-input {
-  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem; font-size: 0.875rem;
-  &:focus { outline: none; border-color: v.$tag-blue; }
-  &:disabled { opacity: 0.65; cursor: default; }
-  &.bf-input-sm { max-width: 220px; }
-}
-
-.bf-textarea {
-  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem;
-  font-size: 0.875rem; resize: vertical; font-family: inherit;
-  &:focus { outline: none; border-color: v.$tag-blue; }
-  &:disabled { opacity: 0.65; cursor: default; }
-}
-
-.bf-select {
-  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem; font-size: 0.875rem;
-  cursor: pointer;
-  &:focus { outline: none; border-color: v.$tag-blue; }
-  &:disabled { opacity: 0.65; cursor: default; }
-  &.bf-select-sm { max-width: 220px; }
-}
-
-.bf-input-group {
-  display: flex; align-items: center; gap: 0.4rem;
-}
-
-.bf-unit {
-  font-size: 0.85rem; color: v.$text-secondary;
-}
-
-.bf-select-inline {
-  background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.875rem;
-  cursor: pointer;
-  &:focus { outline: none; border-color: v.$tag-blue; }
-  &:disabled { opacity: 0.65; cursor: default; }
-}
-
-.bf-date-range {
-  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-}
-
-.bf-range-sep {
-  font-size: 0.8rem; color: v.$text-secondary;
-}
-
-.bf-multi-toggle {
-  display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem;
-}
-
-.bf-check-label {
-  display: flex; align-items: center; gap: 0.35rem;
-  font-size: 0.875rem; cursor: pointer;
-  input { accent-color: v.$tag-blue; cursor: pointer; }
-  &.disabled { cursor: default; opacity: 0.65; }
-}
+// .bf-input / .bf-select / .bf-input-group / .bf-unit → builder-form-shared.scss
+// (chargé aussi par contract-clause/, cf. son commentaire de tête).
+// .bf-textarea n'est plus utilisé que par contract-clause/ (extrait).
+// .bf-select-inline / .bf-date-range / .bf-range-sep / .bf-multi-toggle /
+// .bf-check-label → contract-clause/ (extrait, spécifiques aux types
+// duration/date_range/multi_toggle).
 
 // ── Footer ─────────────────────────────────────────────────────────────────────
 
@@ -563,13 +331,7 @@
 .bf-footer-left { display: flex; align-items: center; }
 .bf-footer-right { display: flex; align-items: center; gap: 0.5rem; }
 
-// ── Clause sub-paragraph number badge ─────────────────────────────────────────
-
-.bf-clause-num {
-  font-size: 0.63rem; font-weight: 700; color: v.$tag-blue;
-  background: rgba(v.$tag-blue, 0.1); border-radius: 3px;
-  padding: 0.1rem 0.35rem; white-space: nowrap; flex-shrink: 0;
-}
+// .bf-clause-num → contract-clause/ (extrait).
 
 // ── Right panel (guide rapide + prévisualisation) ──────────────────────────────
 
@@ -598,45 +360,7 @@
   font-size: 0.78rem; color: v.$text-secondary; margin: 0; line-height: 1.5;
 }
 
-.bf-preset-card {
-  display: flex; align-items: flex-start; gap: 0.65rem;
-  background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  border-radius: 10px; padding: 0.75rem 0.85rem;
-  cursor: pointer; text-align: left; width: 100%;
-  transition: border-color 0.15s, background 0.15s;
-  &:hover:not(:disabled) { border-color: v.$tag-blue; background: rgba(v.$tag-blue, 0.04); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
-
-.bf-preset-icon {
-  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
-  background: rgba(v.$tag-blue, 0.12); color: v.$tag-blue;
-  display: flex; align-items: center; justify-content: center; font-size: 1rem;
-}
-
-.bf-preset-info {
-  flex: 1; display: flex; flex-direction: column; gap: 0.12rem; min-width: 0;
-}
-
-.bf-preset-label {
-  font-size: 0.85rem; font-weight: 700; color: v.$text-primary;
-}
-
-.bf-preset-desc {
-  font-size: 0.74rem; color: v.$text-secondary; line-height: 1.35;
-}
-
-.bf-preset-meta {
-  font-size: 0.68rem; color: v.$text-muted; margin-top: 0.1rem;
-}
-
-.bf-preset-badge {
-  font-size: 0.63rem; font-weight: 700; padding: 0.15rem 0.45rem;
-  border-radius: 8px; white-space: nowrap; align-self: flex-start; flex-shrink: 0;
-  &.badge-easy   { background: rgba(v.$tag-green,  0.15); color: v.$tag-green;  border: 1px solid rgba(v.$tag-green,  0.35); }
-  &.badge-medium { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; border: 1px solid rgba(v.$tag-orange, 0.35); }
-  &.badge-expert { background: rgba(v.$tag-red,    0.12); color: v.$tag-red;    border: 1px solid rgba(v.$tag-red,    0.30); }
-}
+// .bf-preset-* → quick-start-panel/ (extrait).
 
 .bf-guide-note {
   font-size: 0.72rem; color: v.$text-muted; line-height: 1.5;
@@ -646,16 +370,8 @@
 }
 
 // ── Prévisualisation — modale plein écran ─────────────────────────────────────
-
-.bf-preview-backdrop {
-  position: fixed; inset: 0; z-index: 1050;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(3px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 2.5rem 1.5rem;
-  animation: bf-fade-in 0.15s ease;
-  @media (max-width: 700px) { padding: 0; }
-}
+// .bf-preview-backdrop → src/app/components/modal-shell/ (extrait, partagé avec
+// les modales admin — cf. son commentaire de tête).
 
 .bf-preview-modal {
   display: flex; flex-direction: column;
@@ -667,11 +383,6 @@
   @media (max-width: 700px) {
     max-width: none; height: 100%; border-radius: 0; border: none;
   }
-}
-
-@keyframes bf-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
 }
 
 @keyframes bf-modal-in {
@@ -706,47 +417,7 @@
   @media (max-width: 700px) { padding: 1.25rem 1rem 2rem; }
 }
 
-.bf-prev-title {
-  font-size: 1.4rem; font-weight: 800; margin: 0 0 1.5rem;
-  color: v.$text-primary; word-break: break-word;
-}
-
-.bf-prev-section {
-  padding-bottom: 1.25rem; margin-bottom: 1.25rem;
-  border-bottom: 1px solid v.$bg-border;
-  &:last-child { border-bottom: none; margin-bottom: 0; }
-}
-
-.bf-prev-art {
-  font-size: 0.88rem; font-weight: 700; color: v.$tag-blue;
-  margin: 0 0 0.85rem; text-transform: uppercase; letter-spacing: 0.03em;
-}
-
-.bf-prev-party {
-  font-size: 0.92rem; color: v.$text-primary;
-  margin-bottom: 0.6rem; line-height: 1.6;
-  strong { font-weight: 700; }
-}
-
-.bf-prev-addr {
-  font-size: 0.85rem; color: v.$text-secondary; margin-top: 0.2rem;
-}
-
-.bf-prev-clause {
-  margin-bottom: 1rem;
-  &:last-child { margin-bottom: 0; }
-}
-
-.bf-prev-clause-name {
-  font-size: 0.82rem; font-weight: 700; color: v.$text-secondary;
-  display: block; margin-bottom: 0.3rem;
-}
-
-.bf-prev-clause-val {
-  font-size: 0.92rem; color: v.$text-primary; margin: 0;
-  white-space: pre-wrap; line-height: 1.7;
-  max-width: 70ch;
-}
+// .bf-prev-* → contract-preview/ (extrait, rendu de la modale de prévisualisation).
 
 // ── Intro tab ──────────────────────────────────────────────────────────────────
 
@@ -801,20 +472,6 @@
   font-size: 0.8rem; cursor: pointer; text-decoration: underline;
   &:hover { opacity: 0.8; }
 }
-
-.bf-intro-parties {
-  display: flex; flex-wrap: wrap; gap: 0.5rem;
-}
-
-// ancien résumé (conservé au cas où)
-.bf-intro-party-card {
-  background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  border-radius: 8px; padding: 0.55rem 0.85rem;
-  display: flex; flex-direction: column; gap: 0.1rem;
-  min-width: 140px;
-}
-.bf-intro-party-role { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: v.$tag-blue; }
-.bf-intro-party-name { font-size: 0.88rem; color: v.$text-primary; font-weight: 500; }
 
 // ── Éditeur compact de parties dans l'intro ────────────────────────────────────
 
@@ -872,34 +529,6 @@
   }
 }
 
-.bf-intro-summary {
-  display: flex; flex-direction: column; gap: 0.4rem;
-}
-
-.bf-intro-summary-item {
-  display: flex; align-items: flex-start; gap: 0.65rem;
-  padding: 0.5rem 0.65rem; background: v.$bg-elevated;
-  border-radius: 6px; border: 1px solid v.$bg-border;
-}
-
-.bf-intro-summary-num {
-  font-size: 0.68rem; font-weight: 700; color: v.$tag-blue;
-  background: rgba(v.$tag-blue, 0.12); border-radius: 4px;
-  padding: 0.1rem 0.45rem; white-space: nowrap; flex-shrink: 0;
-}
-
-.bf-intro-summary-info {
-  display: flex; flex-direction: column; gap: 0.1rem; min-width: 0;
-}
-
-.bf-intro-summary-name {
-  font-size: 0.85rem; font-weight: 600; color: v.$text-primary;
-}
-
-.bf-intro-summary-desc {
-  font-size: 0.75rem; color: v.$text-secondary; line-height: 1.4;
-}
-
 .bf-intro-vars {
   display: flex; flex-direction: column; gap: 0.3rem;
 }
@@ -931,153 +560,10 @@
   font-size: 0.78rem; color: v.$text-muted; font-style: italic;
 }
 
-// ── Bracket resolver ───────────────────────────────────────────────────────────
+// .bf-resolver* / .bf-insert-chip* → contract-clause/ (extrait, spécifiques
+// aux types text/textarea de la clause).
 
-.bf-resolver {
-  margin-top: 0.5rem; padding: 0.6rem 0.8rem;
-  background: rgba(v.$tag-orange, 0.06); border: 1px solid rgba(v.$tag-orange, 0.25);
-  border-radius: 6px; display: flex; flex-direction: column; gap: 0.35rem;
-}
-
-.bf-resolver-row {
-  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-}
-
-.bf-resolver-bracket {
-  font-size: 0.73rem; font-family: monospace;
-  color: v.$tag-orange; background: rgba(v.$tag-orange, 0.12);
-  border-radius: 4px; padding: 0.08rem 0.38rem; white-space: nowrap;
-}
-
-.bf-resolver-arrow {
-  font-size: 0.72rem; color: v.$text-muted; flex-shrink: 0;
-}
-
-.bf-resolver-val {
-  font-size: 0.8rem; color: v.$text-primary; font-weight: 500; flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.bf-resolver-empty {
-  font-size: 0.78rem; color: v.$text-muted; font-style: italic; flex: 1;
-}
-
-.bf-resolver-btn {
-  background: rgba(v.$tag-orange, 0.12); border: 1px solid rgba(v.$tag-orange, 0.35);
-  color: v.$tag-orange; border-radius: 5px; padding: 0.15rem 0.55rem;
-  font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
-  &:hover { background: rgba(v.$tag-orange, 0.22); }
-}
-
-.bf-resolver-all {
-  align-self: flex-start; margin-top: 0.2rem;
-  background: rgba(v.$tag-blue, 0.12); border: 1px solid rgba(v.$tag-blue, 0.35);
-  color: v.$tag-blue; border-radius: 5px; padding: 0.2rem 0.65rem;
-  font-size: 0.75rem; font-weight: 600; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  &:hover { background: rgba(v.$tag-blue, 0.22); }
-}
-
-// ── Insert chips ───────────────────────────────────────────────────────────────
-
-.bf-insert-chips {
-  display: flex; flex-wrap: wrap; gap: 0.3rem;
-  margin-top: 0.4rem;
-}
-
-.bf-insert-chip {
-  background: v.$bg-elevated; border: 1px solid v.$bg-border;
-  color: v.$text-secondary; border-radius: 14px;
-  padding: 0.15rem 0.6rem; font-size: 0.73rem; cursor: pointer;
-  transition: border-color 0.12s, color 0.12s, background 0.12s;
-  white-space: nowrap; max-width: 160px;
-  overflow: hidden; text-overflow: ellipsis;
-  &:hover {
-    border-color: v.$tag-blue; color: v.$text-primary;
-    background: rgba(v.$tag-blue, 0.08);
-  }
-}
-
-// ── Quick Start card (rail droit + repli mobile dans l'intro) ─────────────────
-
-.bf-qs-card {
-  background: color-mix(in srgb, v.$tag-blue 6%, transparent);
-  border: 1px solid color-mix(in srgb, v.$tag-blue 25%, transparent);
-  border-radius: 10px; padding: 0.85rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
-  transition: background 0.2s, border-color 0.2s;
-
-  &--warn {
-    background: color-mix(in srgb, v.$tag-orange 6%, transparent);
-    border-color: color-mix(in srgb, v.$tag-orange 25%, transparent);
-    .bf-qs-card-head { color: v.$tag-orange; }
-  }
-}
-
-.bf-qs-card-head {
-  display: flex; align-items: center; gap: 0.4rem;
-  font-size: 0.78rem; font-weight: 700; color: v.$tag-blue;
-}
-
-.bf-qs-var-badge {
-  margin-left: auto; font-size: 0.63rem; font-weight: 700;
-  background: color-mix(in srgb, v.$tag-blue 20%, transparent);
-  border-radius: 8px; padding: 0.1rem 0.45rem; color: v.$tag-blue;
-}
-
-.bf-qs-card-desc {
-  font-size: 0.75rem; color: v.$text-secondary; margin: 0; line-height: 1.4;
-  &--warn { color: v.$tag-orange; font-style: italic; }
-}
-
-.bf-qs-card-btn {
-  background: v.$tag-blue-dark; border: 1px solid v.$tag-blue; color: v.$tag-blue-light;
-  border-radius: 7px; padding: 0.42rem 0.8rem; font-size: 0.78rem;
-  font-weight: 600; cursor: pointer; align-self: flex-start;
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  transition: background 0.15s, color 0.15s;
-  &:hover:not(:disabled) { background: rgba(v.$tag-blue, 0.2); color: #fff; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
-  &--warn {
-    background: v.$tag-blue-dark; border-color: v.$tag-orange; color: v.$tag-orange-light;
-    &:hover:not(:disabled) { background: v.$tag-orange-dark; }
-  }
-}
-
-.bf-guide-sep {
-  height: 1px; background: v.$bg-border; margin: 0.25rem 0;
-}
-
-.bf-fill-card {
-  background: color-mix(in srgb, v.$tag-violet 6%, transparent);
-  border: 1px solid color-mix(in srgb, v.$tag-violet 25%, transparent);
-  border-radius: 10px; padding: 0.85rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
-}
-
-.bf-fill-card-head {
-  display: flex; align-items: center; gap: 0.4rem;
-  font-size: 0.78rem; font-weight: 700; color: v.$tag-violet;
-}
-
-.bf-fill-count-badge {
-  margin-left: auto; font-size: 0.63rem; font-weight: 700;
-  background: color-mix(in srgb, v.$tag-violet 20%, transparent);
-  border-radius: 8px; padding: 0.1rem 0.45rem; color: v.$tag-violet;
-}
-
-.bf-fill-card-desc {
-  font-size: 0.75rem; color: v.$text-secondary; margin: 0; line-height: 1.4;
-}
-
-.bf-fill-card-btn {
-  background: transparent; border: 1px solid v.$tag-violet; color: v.$tag-violet;
-  border-radius: 7px; padding: 0.42rem 0.8rem; font-size: 0.78rem;
-  font-weight: 600; cursor: pointer; align-self: flex-start;
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  transition: background 0.15s, color 0.15s;
-  &:hover { background: v.$tag-violet; color: #fff; }
-}
+// .bf-qs-card* / .bf-fill-card* / .bf-guide-sep → quick-start-panel/ (extrait).
 
 // ── Anneau de progression (haut de la sidebar) ────────────────────────────────
 
@@ -1196,20 +682,9 @@
   @media (min-width: 1101px) { display: none; }
 }
 
-.bf-guide-cards {
-  display: flex; flex-direction: column; gap: 0.55rem;
-}
+// .bf-guide-cards → quick-start-panel/ (extrait).
 
 // ── Divers ────────────────────────────────────────────────────────────────────
-
-.bf-resolver-head {
-  display: flex; align-items: center; gap: 0.35rem;
-  font-size: 0.72rem; font-weight: 600; color: v.$tag-orange;
-}
-
-.bf-insert-chips-label {
-  font-size: 0.72rem; color: v.$text-muted; align-self: center;
-}
 
 .bf-footer-center {
   display: flex; align-items: center; justify-content: center; flex: 1;
@@ -1227,43 +702,7 @@
   &:hover { border-color: v.$tag-blue; color: v.$text-primary; background: rgba(v.$tag-blue, 0.06); }
 }
 
-// ── Signature en ligne — bloc destinataire ──────────────────────────────────────
-
-.bf-signature-card {
-  flex-shrink: 0;
-  margin: 0.85rem 1.5rem 0;
-  padding: 1rem 1.25rem;
-  background: color-mix(in srgb, v.$tag-blue 8%, v.$bg-surface);
-  border: 1px solid rgba(v.$tag-blue, 0.3);
-  border-radius: 10px;
-}
-
-.bf-signature-card-head {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-size: 0.9rem; font-weight: 700; color: v.$text-primary;
-  i { color: v.$tag-blue; }
-
-  &--ok i { color: v.$tag-green; }
-  &--ko  i { color: v.$tag-red; }
-}
-
-.bf-signature-card-desc {
-  margin: 0.5rem 0 0.85rem; font-size: 0.8rem; color: v.$text-secondary; line-height: 1.5;
-}
-
-.bf-signature-form {
-  display: flex; flex-direction: column; gap: 0.7rem;
-}
-
-.bf-signature-consent {
-  display: flex; align-items: flex-start; gap: 0.5rem;
-  font-size: 0.8rem; color: v.$text-secondary; cursor: pointer;
-  input { margin-top: 0.2rem; accent-color: v.$tag-blue; flex-shrink: 0; }
-}
-
-.bf-signature-actions {
-  display: flex; justify-content: flex-end; gap: 0.6rem;
-}
+// .bf-signature-card* → recipient-signature-card/ (extrait).
 
 // ── Signature en ligne — modale d'envoi (propriétaire) ──────────────────────────
 

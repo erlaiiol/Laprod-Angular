@@ -1,0 +1,53 @@
+@use 'variables' as v;
+
+
+.btn-primary-sm {
+  background: v.$tag-green; border: none; color: #fff; cursor: pointer;
+  font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 5px;
+  &:hover { opacity: 0.85; }
+}
+
+
+.btn-secondary-sm {
+  background: none; border: 1px solid v.$bg-border; color: v.$text-secondary; cursor: pointer;
+  font-size: 0.78rem; padding: 0.2rem 0.5rem; border-radius: 5px;
+  &:hover { border-color: v.$text-secondary; }
+}
+
+
+.cat-edit-name {
+  flex: 1; background: v.$bg-elevated; border: 1px solid v.$tag-blue;
+  border-radius: 5px; padding: 0.2rem 0.5rem; font-size: 0.88rem;
+  color: v.$text-primary; outline: none;
+}
+
+
+.tag-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+
+.tag-chip {
+  display: flex; align-items: center; gap: 0.3rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 14px; padding: 0.2rem 0.6rem; font-size: 0.78rem;
+  button {
+    background: none; border: none; color: v.$text-secondary; cursor: pointer;
+    font-size: 0.7rem; padding: 0; line-height: 1;
+    &:hover { color: v.$tag-red; }
+  }
+}
+
+
+.tag-add {
+  display: flex; gap: 0.3rem; align-items: center;
+  input {
+    background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-primary;
+    border-radius: 14px; padding: 0.2rem 0.6rem; font-size: 0.78rem; width: 130px;
+    &:focus { outline: none; border-color: v.$tag-violet; }
+  }
+  button {
+    background: v.$bg-elevated; border: 1px solid v.$bg-border; color: v.$text-secondary;
+    border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    &:hover { border-color: v.$tag-violet; color: v.$text-primary; }
+  }
+}

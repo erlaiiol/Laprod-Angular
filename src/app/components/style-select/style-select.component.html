@@ -1,0 +1,42 @@
+<div class="style-select">
+  <input
+    type="text"
+    [id]="inputId()"
+    [name]="inputName()"
+    [placeholder]="placeholder()"
+    [value]="draft()"
+    autocomplete="off"
+    (input)="onInput($any($event.target).value)"
+    (focus)="onFocus()"
+    (keydown)="onKeydown($event)" />
+
+  @if (isOpen()) {
+    <ul class="style-select__dropdown">
+      @for (opt of filteredOptions(); track opt) {
+        <li>
+          <button type="button"
+                  class="style-select__option"
+                  [class.style-select__option--active]="opt === exactMatch()"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="selectExisting(opt)">
+            {{ opt }}
+          </button>
+        </li>
+      }
+      @if (showAddOption()) {
+        <li>
+          <button type="button"
+                  class="style-select__option style-select__option--add"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="selectNew()">
+            <i class="bi bi-plus-circle"></i>
+            Ajouter le style « {{ draft().trim() }} »
+          </button>
+        </li>
+      }
+      @if (filteredOptions().length === 0 && !showAddOption()) {
+        <li class="style-select__empty">Aucun style</li>
+      }
+    </ul>
+  }
+</div>

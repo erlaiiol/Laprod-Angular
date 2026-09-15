@@ -12,7 +12,7 @@ import { FormatAmountPipe } from '../../../pipes/format-amount.pipe';
   standalone: true,
   imports: [CommonModule, FormatDatePipe, FormatAmountPipe],
   templateUrl: './admin-invoices.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-invoices.component.scss'],
 })
 export class AdminInvoicesComponent implements OnInit {
 

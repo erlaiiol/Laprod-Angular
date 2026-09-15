@@ -1,0 +1,45 @@
+@use 'variables' as v;
+
+// .bf-input / .btn-primary / .btn-secondary sont chargés via
+// ../builder-form-shared.scss (styleUrls) — partagés avec BuilderFormComponent.
+
+.bf-signature-card {
+  flex-shrink: 0;
+  margin: 0.85rem 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, v.$tag-blue 8%, v.$bg-surface);
+  border: 1px solid rgba(v.$tag-blue, 0.3);
+  border-radius: 10px;
+}
+
+.bf-signature-card-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.9rem; font-weight: 700; color: v.$text-primary;
+  i { color: v.$tag-blue; }
+
+  &--ok i { color: v.$tag-green; }
+  &--ko  i { color: v.$tag-red; }
+}
+
+.bf-signature-card-desc {
+  margin: 0.5rem 0 0.85rem; font-size: 0.8rem; color: v.$text-secondary; line-height: 1.5;
+}
+
+.bf-signature-form {
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+
+.rsc-field {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  font-size: 0.8rem; color: v.$text-secondary;
+}
+
+.bf-signature-consent {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8rem; color: v.$text-secondary; cursor: pointer;
+  input { margin-top: 0.2rem; accent-color: v.$tag-blue; flex-shrink: 0; }
+}
+
+.bf-signature-actions {
+  display: flex; justify-content: flex-end; gap: 0.6rem;
+}

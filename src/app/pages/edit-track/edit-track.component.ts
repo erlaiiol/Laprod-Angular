@@ -11,6 +11,7 @@ import { forkJoin } from 'rxjs';
 import { SimilarArtistsService, SimilarArtistScene } from '../../services/similar-artists.service';
 import { TrackQualityScoreComponent } from '../../components/track-quality-score/track-quality-score.component';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
+import { StyleSelectComponent } from '../../components/style-select/style-select.component';
 
 interface TagGroup {
   name:  string;
@@ -21,7 +22,7 @@ interface TagGroup {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-edit-track',
-  imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent, ImgFallbackDirective],
+  imports: [ CommonModule, RouterModule, FormsModule, TrackQualityScoreComponent, ImgFallbackDirective, StyleSelectComponent],
   templateUrl: './edit-track.component.html',
   styleUrl: './edit-track.component.scss',
 })
@@ -174,7 +175,8 @@ export class EditTrackComponent implements OnInit {
 
   readonly availableKeys = MUSICAL_KEYS;
 
-  availableTags = this.tagsService.tags;
+  availableTags   = this.tagsService.tags;
+  availableStyles = this.tagsService.styles;
 
   tagGroups = computed<TagGroup[]>(() => {
     const map    = new Map<string, TagGroup>();

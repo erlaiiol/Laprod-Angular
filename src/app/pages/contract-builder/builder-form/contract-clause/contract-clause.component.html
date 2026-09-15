@@ -1,0 +1,277 @@
+<div class="bf-clause"
+  [class.disabled]="!lv.is_enabled && !clause.is_required"
+  [class.is-enabled]="lv.is_enabled || clause.is_required"
+  [class.is-filled]="isFilled">
+
+  <!-- Clause header: toggle enable / name / tooltip icon -->
+  <div class="bf-clause-header">
+    @if (!clause.is_required) {
+      <input type="checkbox"
+        [checked]="lv.is_enabled"
+        (change)="onEnabledChange($event)"
+        [disabled]="readOnly"
+        class="bf-clause-check" />
+    }
+    @if (clauseNum) {
+      <span class="bf-clause-num">{{ clauseNum }}</span>
+    }
+    <span class="bf-clause-name" [class.required]="clause.is_required">
+      {{ clause.name }}
+      @if (clause.is_required) { <span class="req">*</span> }
+    </span>
+    @if (clause.tooltip_plain || clause.tooltip_long) {
+      <span class="bf-tooltip-icon"
+            [class.has-plain-only]="clause.tooltip_plain && !clause.tooltip_long"
+            [class.has-long-only]="!clause.tooltip_plain && clause.tooltip_long"
+            [class.has-both]="clause.tooltip_plain && clause.tooltip_long"
+            [title]="clause.tooltip_short || ''"
+            (click)="toggleTooltip.emit()">?</span>
+    }
+    @if (clause.example_text && !isFinal) {
+      <span class="bf-example-icon" title="Voir la rédaction type de cette clause" (click)="toggleExample.emit()">
+        <i class="bi bi-patch-check"></i>
+      </span>
+    }
+    @if (clause.legal_reference) {
+      <span class="bf-legal-ref">{{ clause.legal_reference }}</span>
+    }
+  </div>
+
+  <!-- Expanded tooltip panel (plain + legal) -->
+  @if (tooltipExpanded && (clause.tooltip_plain || clause.tooltip_long)) {
+    <div class="bf-tooltip-panel">
+      @if (clause.tooltip_plain) {
+        <div class="bf-tip-section bf-tip-plain">
+          <span class="bf-tip-label"><i class="bi bi-lightbulb-fill"></i> En clair</span>
+          <p>{{ clause.tooltip_plain }}</p>
+        </div>
+      }
+      @if (clause.tooltip_plain && clause.tooltip_long) {
+        <div class="bf-tip-divider"></div>
+      }
+      @if (clause.tooltip_long) {
+        <div class="bf-tip-section bf-tip-legal">
+          <span class="bf-tip-label"><i class="bi bi-book-half"></i> Détail juridique</span>
+          <p>{{ clause.tooltip_long }}</p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Example panel -->
+  @if (exampleExpanded && clause.example_text) {
+    <div class="bf-example-panel">
+      <div class="bf-example-header">
+        <span><i class="bi bi-patch-check-fill"></i> Rédaction type</span>
+        @if (['text','textarea','toggle_with_details'].includes(clause.clause_type)) {
+          <button class="bf-use-example" (click)="useExample.emit()" [disabled]="readOnly">
+            <i class="bi bi-check2"></i> Utiliser ce texte
+          </button>
+        }
+      </div>
+      <p class="bf-example-text">{{ clause.example_text }}</p>
+    </div>
+  }
+
+  <!-- Clause input — only when enabled or required -->
+  @if (lv.is_enabled || clause.is_required) {
+    <div class="bf-clause-body">
+
+      <!-- toggle: no extra input -->
+      @if (clause.clause_type === 'toggle') { }
+
+      <!-- toggle_with_details -->
+      @else if (clause.clause_type === 'toggle_with_details') {
+        <textarea class="bf-textarea"
+          placeholder="Précisions..."
+          [value]="lv.value?.details ?? ''"
+          (input)="onPatch('details', $any($event.target).value)"
+          [disabled]="readOnly"
+          rows="3"></textarea>
+      }
+
+      <!-- text -->
+      @else if (clause.clause_type === 'text') {
+        <input class="bf-input" type="text"
+          [id]="'bf-ta-' + clause.id"
+          [value]="lv.value?.text ?? ''"
+          (input)="onPatch('text', $any($event.target).value)"
+          [disabled]="readOnly" />
+        @if (!readOnly && brackets.length > 0) {
+          <div class="bf-resolver">
+            <span class="bf-resolver-head">
+              <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
+            </span>
+            @for (bracket of brackets; track bracket) {
+              <div class="bf-resolver-row">
+                <code class="bf-resolver-bracket">{{ bracket }}</code>
+                <span class="bf-resolver-arrow">→</span>
+                @if (resolveVariable(bracket)) {
+                  <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                  <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket.emit(bracket)">Remplir</button>
+                } @else {
+                  <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
+                }
+              </div>
+            }
+            <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets.emit()">
+              <i class="bi bi-lightning-charge-fill"></i> Tout remplir
+            </button>
+          </div>
+        }
+        @if (!readOnly && hasAnyIntroVar) {
+          <div class="bf-insert-chips">
+            <span class="bf-insert-chips-label">Insérer :</span>
+            @for (entry of definedIntroVars; track entry.key) {
+              <button type="button" class="bf-insert-chip" (click)="insertValue.emit(entry.key)"
+                      [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
+            }
+          </div>
+        }
+      }
+
+      <!-- textarea -->
+      @else if (clause.clause_type === 'textarea') {
+        <textarea class="bf-textarea"
+          [id]="'bf-ta-' + clause.id"
+          [value]="lv.value?.text ?? ''"
+          (input)="onPatch('text', $any($event.target).value)"
+          [disabled]="readOnly"
+          rows="5"></textarea>
+        @if (!readOnly && brackets.length > 0) {
+          <div class="bf-resolver">
+            <span class="bf-resolver-head">
+              <i class="bi bi-magic"></i> Champs automatiques détectés dans ce texte
+            </span>
+            @for (bracket of brackets; track bracket) {
+              <div class="bf-resolver-row">
+                <code class="bf-resolver-bracket">{{ bracket }}</code>
+                <span class="bf-resolver-arrow">→</span>
+                @if (resolveVariable(bracket)) {
+                  <span class="bf-resolver-val">{{ resolveVariable(bracket) }}</span>
+                  <button type="button" class="bf-resolver-btn" (click)="resolveOneBracket.emit(bracket)">Remplir</button>
+                } @else {
+                  <span class="bf-resolver-empty">à renseigner dans l'introduction</span>
+                }
+              </div>
+            }
+            <button type="button" class="bf-resolver-all" (click)="resolveAllBrackets.emit()">
+              <i class="bi bi-lightning-charge-fill"></i> Tout remplir
+            </button>
+          </div>
+        }
+        @if (!readOnly && hasAnyIntroVar) {
+          <div class="bf-insert-chips">
+            <span class="bf-insert-chips-label">Insérer :</span>
+            @for (entry of definedIntroVars; track entry.key) {
+              <button type="button" class="bf-insert-chip" (click)="insertValue.emit(entry.key)"
+                      [title]="'Insérer ' + entry.key">{{ entry.value }}</button>
+            }
+          </div>
+        }
+      }
+
+      <!-- number -->
+      @else if (clause.clause_type === 'number') {
+        <input class="bf-input bf-input-sm" type="number"
+          [value]="lv.value?.number ?? ''"
+          (input)="onPatch('number', +$any($event.target).value)"
+          [disabled]="readOnly" />
+      }
+
+      <!-- percentage -->
+      @else if (clause.clause_type === 'percentage') {
+        <div class="bf-input-group">
+          <input class="bf-input bf-input-sm" type="number" min="0" max="100"
+            [value]="lv.value?.number ?? ''"
+            (input)="onPatch('number', +$any($event.target).value)"
+            [disabled]="readOnly" />
+          <span class="bf-unit">%</span>
+        </div>
+      }
+
+      <!-- select -->
+      @else if (clause.clause_type === 'select') {
+        <select class="bf-select"
+          [value]="lv.value?.selected ?? ''"
+          (change)="onPatch('selected', $any($event.target).value)"
+          [disabled]="readOnly">
+          <option value="">— Choisir —</option>
+          @for (opt of (clause.options ?? []); track opt) {
+            <option [value]="opt">{{ opt }}</option>
+          }
+        </select>
+      }
+
+      <!-- date -->
+      @else if (clause.clause_type === 'date') {
+        <input class="bf-input bf-input-sm" type="date"
+          [value]="lv.value?.date ?? ''"
+          (input)="onPatch('date', $any($event.target).value)"
+          [disabled]="readOnly" />
+      }
+
+      <!-- date_range -->
+      @else if (clause.clause_type === 'date_range') {
+        <div class="bf-date-range">
+          <input class="bf-input bf-input-sm" type="date"
+            [value]="lv.value?.start ?? ''"
+            (input)="onPatch('start', $any($event.target).value)"
+            [disabled]="readOnly" />
+          <span class="bf-range-sep">au</span>
+          <input class="bf-input bf-input-sm" type="date"
+            [value]="lv.value?.end ?? ''"
+            (input)="onPatch('end', $any($event.target).value)"
+            [disabled]="readOnly" />
+        </div>
+      }
+
+      <!-- territory -->
+      @else if (clause.clause_type === 'territory') {
+        <select class="bf-select bf-select-sm"
+          [value]="lv.value?.territory ?? 'France'"
+          (change)="onPatch('territory', $any($event.target).value)"
+          [disabled]="readOnly">
+          <option>France</option>
+          <option>Union européenne</option>
+          <option>Monde entier</option>
+          <option>Autre</option>
+        </select>
+      }
+
+      <!-- duration -->
+      @else if (clause.clause_type === 'duration') {
+        <div class="bf-input-group">
+          <input class="bf-input bf-input-sm" type="number" min="1"
+            [value]="lv.value?.amount ?? ''"
+            (input)="onPatch('amount', +$any($event.target).value)"
+            [disabled]="readOnly" />
+          <select class="bf-select-inline"
+            [value]="lv.value?.unit ?? 'ans'"
+            (change)="onPatch('unit', $any($event.target).value)"
+            [disabled]="readOnly">
+            <option>ans</option>
+            <option>mois</option>
+            <option>jours</option>
+          </select>
+        </div>
+      }
+
+      <!-- multi_toggle -->
+      @else if (clause.clause_type === 'multi_toggle') {
+        <div class="bf-multi-toggle">
+          @for (opt of (clause.options ?? []); track opt) {
+            <label class="bf-check-label" [class.disabled]="readOnly">
+              <input type="checkbox"
+                [checked]="isSelected(opt)"
+                (change)="toggleMulti.emit(opt)"
+                [disabled]="readOnly" />
+              {{ opt }}
+            </label>
+          }
+        </div>
+      }
+
+    </div>
+  }
+</div>

@@ -116,7 +116,7 @@ https://laprod.net`,
   selector: 'app-admin-support',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-support.component.scss'],
   template: `
 <div class="support-wrap">
 
@@ -211,7 +211,7 @@ https://laprod.net`,
               (ngModelChange)="onSearch($event)" />
 
             @if (searchResults().length > 0) {
-              <div class="search-dropdown">
+              <div class="recipient-search-dropdown">
                 @for (u of searchResults(); track u.id) {
                   <button class="search-result-item" (click)="selectUser(u)">
                     <i class="bi bi-person"></i>

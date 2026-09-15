@@ -64,15 +64,17 @@ révoquer la clé et en régénérer une.
 ## 2. Firebase — upload de la clé APNs + clé de service backend
 
 Projet déjà créé (`laprod-e1e4c`), apps Android + iOS déjà enregistrées,
-`google-services.json` déjà dans le repo. Reste :
+`google-services.json` déjà dans le repo.
 
-- [ ] [console.firebase.google.com](https://console.firebase.google.com/project/laprod-e1e4c/settings/cloudmessaging)
-      → Cloud Messaging → Apple app configuration → **Upload** le `.p8` obtenu à l'étape 1,
-      avec son Key ID et le Team ID.
-- [ ] Project Settings → **Service accounts** → « Generate new private key » → télécharge
-      le JSON (clé du compte de service `firebase-adminsdk-fbsvc@laprod-e1e4c...`, utilisée
-      par le backend pour *envoyer* les push, différente de la clé APNs qui sert à Firebase
-      pour les *transmettre* à Apple).
+- [x] [console.firebase.google.com](https://console.firebase.google.com/project/laprod-e1e4c/settings/cloudmessaging)
+      → Cloud Messaging → Apple app configuration → **Upload** le `.p8`. **Vérifié en
+      direct** : Development ET Production APNs auth key toutes les deux présentes, Key ID
+      `Y9H96D467V`, Team ID `A899CGSWX8` — cohérent avec l'étape 1.
+- [x] Project Settings → **Service accounts** → clé de service backend générée —
+      **vérifié** : `FIREBASE_CREDENTIALS_JSON` est défini dans le `.env` local et
+      `make doctor` le confirme `OK`.
+
+Étape 2 entièrement terminée. ✅
 
 ---
 
@@ -93,10 +95,10 @@ APPLE_BUNDLE_ID=net.laprod.app   # déjà la valeur par défaut dans config.py
 FIREBASE_CREDENTIALS_JSON='{"type":"service_account",...}'   # contenu entier du JSON, étape 2, sur une seule ligne
 ```
 
-- [ ] Ajouter ces variables au `.env` local → `make dev` pour relancer la stack (rebuild
+- [x] Ajouter ces variables au `.env` local → `make dev` pour relancer la stack (rebuild
       les images, donc prend en compte la nouvelle dépendance `firebase-admin`).
-- [ ] `make doctor` en local : vérifier que les checks Apple/Firebase passent en `OK`
-      (pas de `WARN`/`CRIT`).
+- [x] `make doctor` en local : **vérifié en direct** — tous les checks Apple/Firebase/Google
+      sont `OK`, y compris la validation PEM de `APPLE_PRIVATE_KEY`. Aucun `WARN`/`CRIT`.
 - [ ] Sur le serveur (`ssh deploy@51.77.192.230`) : ajouter les mêmes variables à `.env`, puis :
   ```bash
   make prod-up
@@ -148,11 +150,35 @@ ce qui manque encore côté `.env`, local comme prod.
 
 ---
 
-## 5. Piste Android — la plus rapide à finaliser (indépendante d'Apple)
+## 5. Piste Android — TERMINÉE, en prod ✅
 
-- [ ] Uploader manuellement les visuels sur la fiche Play Store (bloqué côté automatisation
-      navigateur, à faire toi-même) : icône 512×512, feature graphic 1024×500, 2 à 8
-      screenshots téléphone. Fichiers déjà préparés et présentés précédemment.
+- [x] Uploader les visuels sur la fiche Play Store : icône 512×512, feature graphic
+      1024×500, 4 screenshots téléphone — fiche store passée à 11/11 (upload via le
+      panneau de gestion d'assets Play Console, déclaration IA « Don't label assets »).
+- [x] Bundle `.aab` buildé, release envoyée et **live en production sur le Play Store**.
+
+⚠️ **Action de suivi immédiate, hors périmètre Apple** : des corrections ont été ajoutées
+après cette release → il faut refaire `make android-bundle` et uploader le nouveau `.aab`
+(nouvelle release Play Console, `versionCode` auto-incrémenté). Le reste de cette section
+(CORS, compte `playstore_review`, etc.) reste vrai pour cette prochaine release.
+- [ ] **Avant tout test Internal testing sur device réel** : vérifier que `CORS_ORIGINS`
+      sur le **serveur de prod** (`ssh deploy@51.77.192.230`, dans `.env`) inclut bien
+      l'origine réelle de la WebView Android release, **différente de FactureLe** :
+  ```env
+  CORS_ORIGINS=https://laprod.net,https://www.laprod.net,https://app.laprod.net,capacitor://app.laprod.net
+  ```
+  Contrairement à FactureLe, LaProd ne tourne **pas** sous le schéma `capacitor://`
+  générique par défaut — `capacitor.config.ts` fixe `hostname: 'app.laprod.net'` et
+  `androidScheme: 'https'` en prod. L'origine envoyée par le WebView Android en release
+  est donc **`https://app.laprod.net`** (pas `capacitor://app.laprod.net`, qui lui ne sert
+  que sur iOS — schéma par défaut `capacitor` non surchargé). Sans cette origine exacte
+  dans `CORS_ORIGINS` côté serveur, l'app s'installe et s'ouvre normalement mais **tout
+  appel API échoue silencieusement** (login, register, etc. — bloqué par le navigateur,
+  pas une erreur serveur visible dans les logs Flask). Cette valeur est déjà correcte
+  dans le `.env` **local** (confirmé) — reste à confirmer qu'elle est bien déployée en
+  prod, puis relancer `make prod-up` si elle a été modifiée.
+  `make doctor-prod` confirme seulement que `CORS_ORIGINS` est *définie*, pas qu'elle
+  contient la bonne origine — la valeur ci-dessus doit être vérifiée manuellement.
 - [ ] `make android-bundle` (nécessite l'étape 0 — Rust) :
   ```bash
   make android-bundle
@@ -163,37 +189,55 @@ ce qui manque encore côté `.env`, local comme prod.
       les notes de version.
 - [ ] Vérifier que le compte de test `playstore_review` (créé automatiquement par
       `entrypoint.sh` en prod) est bien listé dans **App content > App access**.
+- [ ] Une fois l'app installée sur le device de test : si le login échoue silencieusement
+      (bouton qui ne réagit pas, spinner infini), inspecter la console Chrome distante
+      (`chrome://inspect` sur le poste de dev, device connecté en USB avec le debugging
+      activé) pour confirmer/écarter une erreur CORS avant de chercher ailleurs.
 - [ ] Envoyer pour review depuis **Publishing overview**.
 
 ---
 
-## 6. Piste iOS — après l'étape 1 (Apple Developer)
+## 6. Piste iOS — vérifiée en détail le 15/09, prête pour Xcode
 
-- [ ] **Corriger un bug préexistant, indépendant de ce chantier**, qui bloque tout build
-      Xcode local : `SWIFT_OBJC_BRIDGING_HEADER` dans `project.pbxproj` pointe vers
-      `App/App/App-Bridging-Header.h` (chemin doublé) alors que le fichier réel est à
-      `App/App-Bridging-Header.h` relatif à `$(SRCROOT)`. À corriger avant de pouvoir
-      builder iOS en local (Debug ou Release).
-- [ ] `make install` — installe/mets à jour les dépendances npm (matérialise
-      `@capawesome/capacitor-apple-sign-in` et `@capacitor-firebase/messaging` dans
-      `node_modules`).
-- [ ] `make ios-open` — build mobile + `cap sync ios` (régénère `Package.swift`,
-      matérialise les plugins côté Xcode) + ouvre `ios/App/App.xcodeproj` automatiquement
-      (pas de `.xcworkspace`, SPM pas CocoaPods — rien à faire de plus ici).
-- [ ] Glisser `GoogleService-Info.plist` (déjà présent dans `ios/App/App/`, reconstruit
-      depuis la console Firebase) **dans Xcode** — cible `App`, groupe `App`, cocher
-      « Copy items if needed » + membership sur la target `App`. Sans ce glisser-déposer
-      explicite dans Xcode (juste poser le fichier dans le dossier ne suffit pas), il n'est
-      pas embarqué dans le bundle et `FirebaseApp.configure()` échoue silencieusement.
-- [ ] Cible `App` → **Signing & Capabilities** :
-  - Vérifier que **Sign in with Apple** apparaît déjà (câblé via `App.entitlements`) sans
-    conflit selon le compte développeur utilisé pour signer.
-  - `+ Capability` → **Push Notifications**.
-  - `+ Capability` → **Background Modes** → cocher « Remote notifications ».
-- [ ] Si du code a changé depuis l'ouverture de Xcode : relancer `make ios-open` pour
-      resynchroniser, puis **Product > Archive** dans Xcode pour produire le build de
-      release (pas d'automatisation Makefile pour l'archive elle-même — manuel via Xcode
-      par design).
+État réel du repo vérifié fichier par fichier (pas de suppositions) :
+
+- [x] **Bug bridging header : déjà corrigé.** `SWIFT_OBJC_BRIDGING_HEADER` dans
+      `project.pbxproj` vaut `App/App-Bridging-Header.h`, et le fichier existe bien à ce
+      chemin relatif à `$(SRCROOT)` (`ios/App/App/App-Bridging-Header.h`). Plus de chemin
+      doublé — build Xcode local non bloqué de ce côté.
+- [x] `npm install` + `npx cap sync ios` : **déjà fait.** `Package.swift` référence bien
+      `CapawesomeCapacitorAppleSignIn` et `CapacitorFirebaseMessaging` comme dépendances
+      locales, et `Package.resolved` a résolu `firebase-ios-sdk` et ses dépendances
+      transitives. Rien à relancer ici sauf si tu ajoutes une nouvelle dépendance npm.
+- [x] `CFBundleURLTypes` (retour du flow Google OAuth via Custom Tab/Safari) : présent dans
+      `Info.plist`, schéma `net.laprod.app` déclaré. *(ajouté lors d'une session précédente)*
+- [x] **`UIBackgroundModes` (remote-notification) et `aps-environment` (entitlements) :
+      je viens de les ajouter directement** dans `Info.plist` / `App.entitlements` — ce
+      sont des clés déclaratives pures (pas de logique métier), validées avec
+      `plutil`/`plistlib` (XML bien formé). Ça correspond à ce que les cases à cocher
+      « Push Notifications » et « Background Modes → Remote notifications » auraient écrit
+      dans Xcode — tu n'auras donc **pas besoin de cocher ces deux cases**, juste de
+      vérifier qu'elles apparaissent bien cochées à l'ouverture (Xcode les détecte depuis
+      les fichiers). Comme l'App ID a déjà la capacité Push Notifications activée côté
+      Apple Developer Portal (étape 1), la resignature automatique devrait se faire sans
+      accroc à l'ouverture du projet.
+- [ ] **La seule chose qui reste réellement à faire à la main dans Xcode** — impossible à
+      automatiser depuis ici (nécessite le glisser-déposer natif de l'IDE, pas un simple
+      ajout de fichier dans le dossier) : glisser `GoogleService-Info.plist` (déjà présent
+      dans `ios/App/App/`, reconstruit depuis la console Firebase) **dans le navigateur de
+      projet Xcode** — cible `App`, groupe `App`, cocher « Copy items if needed » +
+      membership sur la target `App`. Sans ce glisser-déposer, le fichier n'est pas
+      embarqué dans le bundle et `FirebaseApp.configure()` échoue silencieusement au
+      lancement (aucun crash, juste aucun push qui n'arrive jamais).
+- [ ] `make ios-open` — build mobile + ouvre `ios/App/App.xcodeproj` (pas de
+      `.xcworkspace`, SPM pas CocoaPods).
+- [ ] Cible `App` → **Signing & Capabilities** : vérifier que **Sign in with Apple**,
+      **Push Notifications** et **Background Modes (Remote notifications)** apparaissent
+      toutes les trois sans conflit ni bandeau d'erreur de signature (elles devraient être
+      déjà cochées, cf. ci-dessus — sinon les rajouter manuellement ici seulement).
+- [ ] Une fois `GoogleService-Info.plist` glissé et les capacités vérifiées :
+      **Product > Archive** dans Xcode pour produire le build de release (pas
+      d'automatisation Makefile pour l'archive elle-même — manuel via Xcode par design).
 - [ ] Xcode Organizer → **Distribute App** → App Store Connect → upload.
 
 ---
@@ -242,13 +286,23 @@ comportent différemment) :
 
 ---
 
-## Résumé — ordre d'exécution recommandé
+## Résumé — état au 15/09/2026
 
-1. **Rust** (§0) — débloque tous les builds mobiles.
-2. **Apple Developer** (§1) — débloque Firebase APNs, les variables backend, et Xcode.
-3. **Firebase** (§2) + **Backend .env** (§3) — push notifications opérationnelles de bout en
-   bout.
-4. **Android/Play Store** (§5) — piste la plus rapide, ne dépend d'aucune étape Apple.
-5. **iOS** (§6 puis §7) — la plus longue (bug bridging header, capacités Xcode, TestFlight,
-   review Apple généralement plus lente que Google).
-6. **Tests manuels** (§8) — avant toute communication publique de lancement.
+- ✅ **Rust, Apple Developer (§1), Firebase (§2), Backend .env local (§3), Google Cloud
+  Console (§4), Android/Play Store (§5)** : terminés et vérifiés en direct (console, `.env`
+  local, `doctor.sh`). Android est **en production**.
+- ⚠️ **Reste avant de considérer le backend « prêt » pour iOS en conditions réelles** :
+  répliquer `.env` (Apple + Firebase + CORS) sur le serveur de prod (§3 dernières puces) —
+  pas encore vérifié à distance.
+- ⚠️ **Reste côté Android** : rebuild + reupload du `.aab` suite aux dernières corrections
+  (§5).
+- 🔜 **Reste côté iOS (§6)** : une seule action manuelle réelle — glisser
+  `GoogleService-Info.plist` dans Xcode — puis vérifier les capacités, archiver, distribuer.
+  Tout le reste (bridging header, cap sync, entitlements Push/Background Modes, schéma
+  d'URL Google) est déjà en place.
+- 🔜 **App Store Connect (§7)** et **tests manuels device physique (§8)** restent à faire
+  une fois le build iOS archivé.
+
+Ordre recommandé à partir de maintenant : §3 (répliquer `.env` en prod, si pas déjà fait) →
+§5 (rebuild Android) en parallèle de → §6 (Xcode : glisser le plist, vérifier les
+capacités, archiver, uploader) → §7 (App Store Connect) → §8 (tests manuels).

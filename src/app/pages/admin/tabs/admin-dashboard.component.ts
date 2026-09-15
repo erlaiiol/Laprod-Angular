@@ -52,7 +52,7 @@ import { environment } from '../../../../environments/environment';
       </div>
     }
   `,
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-dashboard.component.scss'],
 })
 export class AdminDashboardComponent implements OnInit {
   @Input() onStatsLoaded?: (stats: AdminStats) => void;

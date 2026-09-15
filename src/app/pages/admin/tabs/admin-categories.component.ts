@@ -13,7 +13,7 @@ interface ArtistScene { name: string; artists: { id: number; name: string }[] }
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './admin-categories.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-categories.component.scss'],
 })
 export class AdminCategoriesComponent implements OnInit {
 

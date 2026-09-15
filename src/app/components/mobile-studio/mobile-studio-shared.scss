@@ -1,0 +1,158 @@
+@use 'variables' as v;
+
+// Partagé entre mobile-studio.component (recording, idle DAW settings,
+// published) et ses enfants extraits (mobile-studio-warmup,
+// mobile-studio-punchin) — chacun doit inclure ce fichier dans ses
+// `styleUrls` : Angular scope le CSS par composant (ViewEncapsulation
+// émulée), un enfant ne voit JAMAIS le CSS du parent même s'il réutilise les
+// mêmes noms de classe.
+
+.ms-beat-vol-slider {
+  flex:                 1;
+  -webkit-appearance:   none;
+  height:               3px;
+  border-radius:        2px;
+  background:           rgba(255, 255, 255, 0.15);
+  cursor:               pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width:              18px;
+    height:             18px;
+    border-radius:      50%;
+    background:         #fff;
+    box-shadow:         0 1px 4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.ms-btn-stop {
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  padding:         14px 36px;
+  border:          2px solid rgba(255, 255, 255, 0.3);
+  border-radius:   50px;
+  background:      none;
+  color:           v.$text-primary;
+  font-size:       0.95rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s;
+  &:active { border-color: rgba(255, 255, 255, 0.6); }
+
+  &__square {
+    width:         12px;
+    height:        12px;
+    background:    v.$text-primary;
+    border-radius: 2px;
+    flex-shrink:   0;
+  }
+}
+
+.ms-btn-primary {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  width:           100%;
+  padding:         16px;
+  border:          none;
+  border-radius:   14px;
+  background:      rgba(v.$primary, 0.15);
+  color:           v.$primary;
+  font-size:       1rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      background 0.15s;
+
+  &:active { background: rgba(v.$primary, 0.25); }
+  i { font-size: 1.1rem; }
+}
+
+// ── Pitch meter (warm-up + recording) ─────────────────────────────────────────
+
+.ms-pitch-meter {
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  width:           100%;
+  animation:       fadeIn 0.2s ease;
+}
+
+.ms-pitch-meter__note {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  min-width:   28px;
+  text-align:  center;
+  flex-shrink: 0;
+}
+
+.ms-pitch-meter__bar {
+  position:      relative;
+  flex:          1;
+  height:        8px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow:      hidden;
+}
+
+.ms-pitch-meter__fill {
+  position:      absolute;
+  top:           0;
+  left:          0;
+  height:        100%;
+  background:    #4caf81;
+  border-radius: 4px;
+  max-width:     100%;
+  min-width:     4px;
+  transition:    width 0.08s linear, background 0.15s;
+
+  &--high { background: v.$primary; }   // trop aigu → rouge
+  &--low  { background: #f97316; }      // trop grave → orange
+}
+
+.ms-pitch-meter__center {
+  position:      absolute;
+  top:           0;
+  left:          50%;
+  transform:     translateX(-50%);
+  width:         2px;
+  height:        100%;
+  background:    rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.ms-pitch-meter__cents {
+  font-size:   0.75rem;
+  font-weight: 600;
+  color:       v.$text-secondary;
+  min-width:   36px;
+  text-align:  right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Gain microphone (warm-up + recording + idle settings) ────────────────────
+
+.ms-mic-gain-row {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  width:       100%;
+
+  i {
+    font-size:   1rem;
+    color:       rgba(255, 255, 255, 0.45);
+    flex-shrink: 0;
+  }
+}
+
+.ms-mic-gain-label {
+  font-size:            0.75rem;
+  color:                rgba(255, 255, 255, 0.4);
+  min-width:            44px;
+  text-align:           right;
+  flex-shrink:          0;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,55 @@
+<div class="ms-punchin-zone">
+
+  <div class="ms-punchin-header">
+    <button class="ms-punchin-back" (click)="cancel.emit()">
+      <i class="bi bi-arrow-left"></i>
+    </button>
+    <p class="ms-punchin-title">
+      Corriger un passage
+      @if (track) { — <span>{{ track.name }}</span> }
+    </p>
+  </div>
+
+  @if (track?.waveform?.length) {
+    <div class="ms-punchin-waveform-wrap">
+      <div class="ms-punchin-waveform">
+        @for (bar of track!.waveform; track $index) {
+          <div class="ms-punchin-bar"
+               [style.height.%]="bar * 100"
+               [class.ms-punchin-bar--kept]="$index < (sec / track!.duration * track!.waveform.length)"
+               [class.ms-punchin-bar--dropped]="$index >= (sec / track!.duration * track!.waveform.length)">
+          </div>
+        }
+      </div>
+      <div class="ms-punchin-cursor"
+           [style.left.%]="(sec / (track!.duration || 1)) * 100">
+      </div>
+    </div>
+  }
+
+  <p class="ms-punchin-time">
+    Enregistrement à partir de <strong>{{ formatTimer(sec) }}</strong>
+    @if (track) { / {{ formatTimer(track.duration) }} }
+  </p>
+
+  <input type="range" class="ms-punchin-slider"
+         min="1"
+         [max]="track?.duration ?? 60"
+         step="1"
+         [value]="sec"
+         (input)="onSliderInput($event)"
+         aria-label="Point de punch-in">
+
+  <div class="ms-punchin-actions">
+    <button class="ms-punchin-preview-btn" (click)="preview.emit()">
+      <i class="bi bi-play-fill"></i>
+      Écouter depuis ce point
+    </button>
+    <button class="ms-btn-primary ms-punchin-record-btn" (click)="confirm.emit()">
+      <i class="bi bi-record-circle-fill"></i>
+      Enregistrer depuis ici
+    </button>
+    <button class="ms-punchin-cancel-btn" (click)="cancel.emit()">Annuler</button>
+  </div>
+
+</div>

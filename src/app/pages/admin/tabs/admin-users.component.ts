@@ -7,14 +7,15 @@ import { AdminService, AdminUser } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { environment } from '../../../../environments/environment';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { ModalShellComponent } from '../../../components/modal-shell/modal-shell.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, FormatDatePipe],
+  imports: [CommonModule, FormsModule, FormatDatePipe, ModalShellComponent],
   templateUrl: './admin-users.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-users.component.scss'],
 })
 export class AdminUsersComponent implements OnInit {
 

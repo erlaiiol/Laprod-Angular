@@ -26,8 +26,11 @@ import { MobileTrackItemComponent }      from './mobile-track-item/mobile-track-
 import { BeatSectionPickerComponent }    from '../beat-section-picker/beat-section-picker.component';
 import { ExtendedBeatResult }           from '../../services/beat-extender.service';
 import { BluetoothCalibrationComponent } from '../bluetooth-calibration/bluetooth-calibration.component';
+import { MobileStudioWarmupComponent }   from './mobile-studio-warmup/mobile-studio-warmup.component';
+import { MobileStudioPunchinComponent }  from './mobile-studio-punchin/mobile-studio-punchin.component';
+import { MobileStudioConfirmDialogComponent } from './mobile-studio-confirm-dialog/mobile-studio-confirm-dialog.component';
 import { MobileMetronomeService }        from '../../services/mobile-metronome.service';
-import { computeWaveform, spliceWaveform } from '../../utils/waveform.utils';
+import { computeWaveform, spliceWaveform, formatTimer } from '../../utils/waveform.utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,9 +74,11 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
     CommonModule, FormsModule,
     MobileTrackItemComponent, BeatSectionPickerComponent,
     BluetoothCalibrationComponent,
+    MobileStudioWarmupComponent, MobileStudioPunchinComponent,
+    MobileStudioConfirmDialogComponent,
   ],
   templateUrl: './mobile-studio.component.html',
-  styleUrls: ['./mobile-studio.component.scss'],
+  styleUrls: ['./mobile-studio-shared.scss', './mobile-studio.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MobileMetronomeService],
 })
@@ -321,8 +326,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   formatTimer(s: number): string {
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, '0')}`;
+    return formatTimer(s);
   }
 
   // ── Warm-up ───────────────────────────────────────────────────────────────────
@@ -405,9 +409,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onPunchInSlider(event: Event): void {
+  onPunchInSecChange(sec: number): void {
     this._stopPunchPreview();
-    this.punchInSec.set(+( event.target as HTMLInputElement).value);
+    this.punchInSec.set(sec);
   }
 
   /** Joue la piste à partir du point de punch-in pour que l'utilisateur s'y repère. */

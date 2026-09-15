@@ -1,0 +1,77 @@
+<div class="bf-guide-cards">
+
+  @if (!isFinal) {
+    <div class="bf-qs-card" [class.bf-qs-card--warn]="!hasKeyInfo">
+      <div class="bf-qs-card-head">
+        @if (hasKeyInfo) {
+          <i class="bi bi-lightning-charge-fill"></i>
+          Pré-remplissage
+          <span class="bf-qs-var-badge">{{ autoFieldsDone }} champs</span>
+        } @else {
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Pré-remplissage
+        }
+      </div>
+      @if (hasKeyInfo) {
+        <p class="bf-qs-card-desc">Remplissage automatique des clauses depuis vos champs automatiques.</p>
+        <button type="button" class="bf-qs-card-btn" [class.bf-qs-card-btn--locked]="locked"
+          (click)="locked ? goToPremium.emit() : applyQuickStart.emit()">
+          @if (locked) {
+            <i class="bi bi-lock-fill"></i> Premium uniquement
+          } @else {
+            <i class="bi bi-lightning-charge-fill"></i> Pré-remplir les clauses
+          }
+        </button>
+      } @else {
+        <p class="bf-qs-card-desc bf-qs-card-desc--warn">
+          {{ keyInfoHint }}
+        </p>
+        <button type="button" class="bf-qs-card-btn bf-qs-card-btn--warn" (click)="goToIntro.emit()">
+          <i class="bi bi-pencil"></i> Compléter l'introduction
+        </button>
+      }
+    </div>
+    <div class="bf-guide-sep"></div>
+
+    @if (fillableCount > 0) {
+      <div class="bf-fill-card">
+        <div class="bf-fill-card-head">
+          <i class="bi bi-patch-check-fill"></i>
+          Rédaction type
+          <span class="bf-fill-count-badge">{{ fillableCount }} clause(s)</span>
+        </div>
+        <p class="bf-fill-card-desc">
+          Le texte juridique standard de chaque clause, prêt à l'emploi. Vous n'avez rien à rédiger :
+          appliquez-le, il ne reste qu'à l'ajuster si votre situation le demande.
+        </p>
+        <button type="button" class="bf-fill-card-btn" [class.bf-fill-card-btn--locked]="locked"
+          (click)="locked ? goToPremium.emit() : fillAllExamples.emit()">
+          @if (locked) {
+            <i class="bi bi-lock-fill"></i> Premium uniquement
+          } @else {
+            <i class="bi bi-patch-check-fill"></i> Utiliser la rédaction type
+          }
+        </button>
+      </div>
+      <div class="bf-guide-sep"></div>
+    }
+  }
+
+  @for (preset of presets; track preset.id) {
+    <button class="bf-preset-card" [class.locked]="locked" [disabled]="isFinal"
+      (click)="locked ? goToPremium.emit() : applyPreset.emit(preset.id)">
+      <div class="bf-preset-icon"><i class="bi {{ preset.icon }}"></i></div>
+      <div class="bf-preset-info">
+        <span class="bf-preset-label">{{ preset.label }}</span>
+        <span class="bf-preset-desc">{{ preset.description }}</span>
+        <span class="bf-preset-meta">{{ preset.meta }}</span>
+      </div>
+      @if (locked) {
+        <span class="bf-preset-badge badge-locked"><i class="bi bi-lock-fill"></i> Premium</span>
+      } @else {
+        <span class="bf-preset-badge badge-{{ preset.level }}">{{ preset.badge }}</span>
+      }
+    </button>
+  }
+
+</div>

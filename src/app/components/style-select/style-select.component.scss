@@ -1,0 +1,80 @@
+@use 'variables' as v;
+
+// Encapsulation Angular : les règles `.field input` du parent n'atteignent pas
+// l'input de ce composant, on reproduit donc ici le même style de champ.
+.style-select {
+  position: relative;
+
+  input {
+    background:  v.$bg-elevated;
+    border:      1px solid rgba(255, 255, 255, 0.1);
+    border-radius: v.$radius-sm;
+    color:       v.$off-white;
+    font-size:   0.9rem;
+    padding:     0.55rem 0.75rem;
+    width:       100%;
+    font-family: inherit;
+    transition:  border-color v.$dur-base, box-shadow v.$dur-base;
+
+    &::placeholder { color: rgba(255, 255, 255, 0.28); }
+    &:focus {
+      outline:      none;
+      border-color: v.$primary;
+      box-shadow:   0 0 0 3px v.$primary-soft;
+    }
+  }
+
+  &__dropdown {
+    position:      absolute;
+    top:           calc(100% + 0.3rem);
+    left:          0;
+    right:         0;
+    z-index:       v.$z-dropdown;
+    margin:        0;
+    padding:       0.3rem;
+    list-style:    none;
+    background:    v.$bg-surface;
+    border:        1px solid v.$bg-border;
+    border-radius: v.$radius-sm;
+    box-shadow:    v.$shadow-md;
+    max-height:    14rem;
+    overflow-y:    auto;
+  }
+
+  &__option {
+    display:       block;
+    width:         100%;
+    text-align:    left;
+    background:    none;
+    border:        none;
+    border-radius: v.$radius-xs;
+    color:         v.$text-primary;
+    font-size:     0.88rem;
+    padding:       0.5rem 0.6rem;
+    cursor:        pointer;
+    transition:    background v.$dur-fast;
+
+    &:hover, &:focus-visible { background: v.$bg-elevated; }
+
+    &--active {
+      color:       v.$primary;
+      font-weight: 600;
+    }
+
+    &--add {
+      color: v.$text-secondary;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+
+      i { color: v.$primary; }
+      &:hover, &:focus-visible { background: v.$primary-soft; color: v.$text-primary; }
+    }
+  }
+
+  &__empty {
+    padding:   0.5rem 0.6rem;
+    font-size: 0.85rem;
+    color:     v.$text-muted;
+  }
+}

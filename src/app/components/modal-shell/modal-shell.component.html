@@ -1,0 +1,9 @@
+<div class="modal-shell-backdrop"
+     [class.modal-shell-backdrop--fade-in]="fadeIn"
+     [class.modal-shell-backdrop--mobile-flush]="mobileFlush"
+     [style.padding]="padding"
+     (click)="backdropClick.emit()">
+  <div class="modal-shell-inner" (click)="$event.stopPropagation()">
+    <ng-content></ng-content>
+  </div>
+</div>

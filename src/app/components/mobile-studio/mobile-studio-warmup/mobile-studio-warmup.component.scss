@@ -1,0 +1,80 @@
+@use 'variables' as v;
+
+// Classes partagées avec le parent (mobile-studio.component.scss) et
+// éventuellement d'autres écrans (recording) : .ms-mic-gain-row,
+// .ms-beat-vol-slider, .ms-mic-gain-label, .ms-pitch-meter*, .ms-btn-stop* —
+// restent définies côté parent, pas dupliquées ici (voir son commentaire
+// "Warm-up" pour le renvoi).
+
+.ms-warmup-zone {
+  padding:        20px 20px 32px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            16px;
+}
+
+.ms-warmup-header {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            6px;
+  text-align:     center;
+}
+
+.ms-warmup-icon {
+  font-size:  2rem;
+  color:      v.$primary;
+  animation:  pulse 1.5s ease-in-out infinite;
+}
+
+.ms-warmup-title {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       v.$text-primary;
+  margin:      0;
+}
+
+.ms-warmup-hint {
+  font-size: 0.78rem;
+  color:     v.$text-secondary;
+  margin:    0;
+}
+
+.ms-warmup-listening {
+  font-size:  0.78rem;
+  color:      v.$text-secondary;
+  margin:     0;
+  font-style: italic;
+}
+
+.ms-autotune-active-hint {
+  font-size:   0.78rem;
+  color:       #4ade80;
+  margin:      4px 0 0;
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+
+  i { font-size: 0.8rem; }
+}
+
+.ms-warmup-level {
+  width: 100%;
+}
+
+.ms-warmup-level__bar {
+  width:         100%;
+  height:        6px;
+  background:    rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow:      hidden;
+}
+
+.ms-warmup-level__fill {
+  height:        100%;
+  background:    v.$primary;
+  border-radius: 3px;
+  transition:    width 0.05s linear;
+  max-width:     100%;
+}

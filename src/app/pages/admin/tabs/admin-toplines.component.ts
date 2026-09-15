@@ -11,7 +11,7 @@ import { environment } from '../../../../environments/environment';
   selector: 'app-admin-toplines',
   standalone: true,
   imports: [CommonModule],
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-toplines.component.scss'],
   template: `
 <div class="sub-tabs">
   <button [class.active]="filter() === 'all'"     (click)="setFilter('all')">

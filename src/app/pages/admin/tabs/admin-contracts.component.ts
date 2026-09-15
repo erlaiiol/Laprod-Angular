@@ -4,14 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { AdminService, AdminContract, UserSearchResult, TrackSearchResult } from '../../../services/admin.service';
 import { ToastService } from '../../../services/toast.service';
 import { FormatDatePipe } from '../../../pipes/format-date.pipe';
+import { ModalShellComponent } from '../../../components/modal-shell/modal-shell.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-contracts',
   standalone: true,
-  imports: [CommonModule, FormsModule, FormatDatePipe],
+  imports: [CommonModule, FormsModule, FormatDatePipe, ModalShellComponent],
   templateUrl: './admin-contracts.component.html',
-  styleUrl: '../admin.component.scss',
+  styleUrls: ['../admin-shared.scss', './admin-contracts.component.scss'],
 })
 export class AdminContractsComponent implements OnInit {
 

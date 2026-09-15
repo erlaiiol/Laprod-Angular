@@ -1,0 +1,52 @@
+@use 'variables' as v;
+
+// Classes utilisées à la fois par BuilderFormComponent (parties, intro,
+// signature) et par ContractClauseComponent (bloc de saisie de chaque
+// clause). L'encapsulation de vue Angular scope le CSS par composant : un
+// style défini dans builder-form.component.scss ne s'applique pas aux
+// éléments rendus par le template d'un composant enfant, même imbriqué dans
+// le DOM — ce fichier est donc chargé via styleUrls par les deux composants
+// (chacun compile sa propre copie scopée).
+
+.bf-input {
+  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem; font-size: 0.875rem;
+  &:focus { outline: none; border-color: v.$tag-blue; }
+  &:disabled { opacity: 0.65; cursor: default; }
+  &.bf-input-sm { max-width: 220px; }
+}
+
+.bf-select {
+  width: 100%; background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  color: v.$text-primary; border-radius: 6px; padding: 0.45rem 0.7rem; font-size: 0.875rem;
+  cursor: pointer;
+  &:focus { outline: none; border-color: v.$tag-blue; }
+  &:disabled { opacity: 0.65; cursor: default; }
+  &.bf-select-sm { max-width: 220px; }
+}
+
+.bf-input-group {
+  display: flex; align-items: center; gap: 0.4rem;
+}
+
+.bf-unit {
+  font-size: 0.85rem; color: v.$text-secondary;
+}
+
+.btn-primary {
+  background: v.$tag-green-dark; border: 1px solid v.$tag-green; color: v.$tag-green;
+  border-radius: 8px; padding: 0.5rem 1.1rem; font-size: 0.875rem;
+  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+  transition: background 0.15s, color 0.15s;
+  &:hover:not(:disabled) { background: rgba(v.$tag-green, 0.25); color: #fff; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-secondary {
+  background: v.$tag-violet-dark; border: 1px solid v.$tag-violet; color: v.$tag-violet-light;
+  border-radius: 8px; padding: 0.5rem 1.1rem; font-size: 0.875rem;
+  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+  transition: background 0.15s, color 0.15s;
+  &:hover:not(:disabled) { background: rgba(v.$tag-violet, 0.2); color: #fff; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}

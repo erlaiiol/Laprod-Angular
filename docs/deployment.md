@@ -201,10 +201,44 @@ link cryptique.
    # iOS (device + simulateur Apple Silicon + simulateur Intel)
    rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
    ```
-3. Android : le NDK (déjà requis indépendamment de ce chantier, voir Android Studio) doit être
-   installé — `android/app/src/main/cpp/CMakeLists.txt` le localise automatiquement.
+3. Android : la NDK **28.2.13676358** (épinglée dans `android/app/build.gradle::ndkVersion`,
+   voir § 10) doit être installée via le SDK Manager d'Android Studio —
+   `android/app/src/main/cpp/CMakeLists.txt` la localise automatiquement une fois installée.
 4. iOS : rien d'autre à installer — le linker Apple des command line tools Xcode suffit.
 
 Rien à faire de plus : `cargo build` est ensuite invoqué automatiquement à chaque build (CMake
 côté Android, phase "Run Script" du target `App` côté Xcode) — comme pour n'importe quelle
 dépendance native déjà présente dans le projet.
+
+---
+
+## 10. Alignement 16 Ko (pages mémoire) — Android
+
+Depuis fin 2025, Google Play exige que les bibliothèques natives (`.so`) soient alignées sur
+des segments LOAD de 16 Ko (au lieu de 4 Ko historiquement) — nécessaire pour les appareils qui
+tournent nativement en pages mémoire 16 Ko (Pixel récents notamment). `libpsola_processor.so`
+(le seul `.so` que ce projet compile lui-même) est concerné.
+
+**Root cause vérifiée** (pas supposée) : la NDK r27 lie par défaut sur 4 Ko, la r28.2 sur 16 Ko.
+Aucune `ndkVersion` n'étant épinglée avant ce correctif, Gradle pouvait résoudre l'une ou l'autre
+selon le poste de build/CI — d'où un correctif à deux niveaux, redondant par sécurité :
+
+1. `android/app/build.gradle::ndkVersion "28.2.13676358"` — NDK connue-bonne épinglée.
+2. `android/app/src/main/cpp/CMakeLists.txt` — `target_link_options(psola_processor PRIVATE
+   -Wl,-z,max-page-size=16384)`, qui garantit le bon alignement **même si la NDK par défaut
+   change à nouveau** (comme elle vient de le faire entre r27 et r28).
+
+**Vérifier après un build** (APK/AAB généré par `make android-bundle`/`android-apk`, ou
+directement sur le `.so` produit par Gradle sous
+`android/app/build/intermediates/cxx/.../libpsola_processor.so`) :
+
+```bash
+$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf -l libpsola_processor.so | grep LOAD
+# Conforme : la dernière colonne doit afficher 0x4000 (16 Ko) sur chaque ligne LOAD.
+# Non conforme (à corriger) : 0x1000 (4 Ko).
+```
+
+Limite connue : ce correctif ne couvre que `libpsola_processor.so`. Si l'avertissement Play
+Console persiste après un build avec ces deux changements, la cause est un `.so` tiers
+(dépendance Capacitor/Firebase/AAR) non aligné — hors de notre contrôle direct, à signaler au
+mainteneur de la dépendance concernée plutôt qu'à corriger ici.

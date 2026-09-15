@@ -1,0 +1,168 @@
+@use 'variables' as v;
+
+// ── Boutons transformés en CTA premium ─────────────────────────────────────────
+
+.bf-qs-card-btn--locked,
+.bf-fill-card-btn--locked {
+  background: v.$tag-orange-dark !important; border-color: v.$tag-orange !important;
+  color: #fff !important;
+  &:hover { background: v.$tag-orange !important; }
+}
+
+.bf-preset-card.locked {
+  border-style: dashed;
+  .bf-preset-badge.badge-locked {
+    background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; border: 1px solid rgba(v.$tag-orange, 0.4);
+    display: inline-flex; align-items: center; gap: 0.25rem;
+  }
+}
+
+// ── Quick Start card (rail droit + repli mobile dans l'intro) ─────────────────
+
+// %bf-side-card / %bf-side-card-head / %bf-side-card-badge / %bf-side-card-desc /
+// %bf-side-card-btn : forme commune à .bf-qs-card (bleu) et .bf-fill-card (violet) —
+// seule la couleur diffère entre les deux familles, factorisée via @extend
+// (partage réel en CSS compilé, pas juste en source, contrairement à un mixin).
+
+%bf-side-card {
+  border-radius: 10px; padding: 0.85rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+%bf-side-card-head {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; font-weight: 700;
+}
+
+%bf-side-card-badge {
+  margin-left: auto; font-size: 0.63rem; font-weight: 700;
+  border-radius: 8px; padding: 0.1rem 0.45rem;
+}
+
+%bf-side-card-desc {
+  font-size: 0.75rem; color: v.$text-secondary; margin: 0; line-height: 1.4;
+}
+
+%bf-side-card-btn {
+  border-radius: 7px; padding: 0.42rem 0.8rem; font-size: 0.78rem;
+  font-weight: 600; cursor: pointer; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bf-qs-card {
+  @extend %bf-side-card;
+  background: color-mix(in srgb, v.$tag-blue 6%, transparent);
+  border: 1px solid color-mix(in srgb, v.$tag-blue 25%, transparent);
+
+  &--warn {
+    background: color-mix(in srgb, v.$tag-orange 6%, transparent);
+    border-color: color-mix(in srgb, v.$tag-orange 25%, transparent);
+    .bf-qs-card-head { color: v.$tag-orange; }
+  }
+}
+
+.bf-qs-card-head {
+  @extend %bf-side-card-head;
+  color: v.$tag-blue;
+}
+
+.bf-qs-var-badge {
+  @extend %bf-side-card-badge;
+  background: color-mix(in srgb, v.$tag-blue 20%, transparent);
+  color: v.$tag-blue;
+}
+
+.bf-qs-card-desc {
+  @extend %bf-side-card-desc;
+  &--warn { color: v.$tag-orange; font-style: italic; }
+}
+
+.bf-qs-card-btn {
+  @extend %bf-side-card-btn;
+  background: v.$tag-blue-dark; border: 1px solid v.$tag-blue; color: v.$tag-blue-light;
+  &:hover:not(:disabled) { background: rgba(v.$tag-blue, 0.2); color: #fff; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &--warn {
+    background: v.$tag-blue-dark; border-color: v.$tag-orange; color: v.$tag-orange-light;
+    &:hover:not(:disabled) { background: v.$tag-orange-dark; }
+  }
+}
+
+.bf-guide-sep {
+  height: 1px; background: v.$bg-border; margin: 0.25rem 0;
+}
+
+.bf-fill-card {
+  @extend %bf-side-card;
+  background: color-mix(in srgb, v.$tag-violet 6%, transparent);
+  border: 1px solid color-mix(in srgb, v.$tag-violet 25%, transparent);
+}
+
+.bf-fill-card-head {
+  @extend %bf-side-card-head;
+  color: v.$tag-violet;
+}
+
+.bf-fill-count-badge {
+  @extend %bf-side-card-badge;
+  background: color-mix(in srgb, v.$tag-violet 20%, transparent);
+  color: v.$tag-violet;
+}
+
+.bf-fill-card-desc {
+  @extend %bf-side-card-desc;
+}
+
+.bf-fill-card-btn {
+  @extend %bf-side-card-btn;
+  background: transparent; border: 1px solid v.$tag-violet; color: v.$tag-violet;
+  &:hover { background: v.$tag-violet; color: #fff; }
+}
+
+.bf-guide-cards {
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+
+// ── Presets ────────────────────────────────────────────────────────────────────
+
+.bf-preset-card {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  background: v.$bg-elevated; border: 1px solid v.$bg-border;
+  border-radius: 10px; padding: 0.75rem 0.85rem;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+  &:hover:not(:disabled) { border-color: v.$tag-blue; background: rgba(v.$tag-blue, 0.04); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.bf-preset-icon {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(v.$tag-blue, 0.12); color: v.$tag-blue;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+
+.bf-preset-info {
+  flex: 1; display: flex; flex-direction: column; gap: 0.12rem; min-width: 0;
+}
+
+.bf-preset-label {
+  font-size: 0.85rem; font-weight: 700; color: v.$text-primary;
+}
+
+.bf-preset-desc {
+  font-size: 0.74rem; color: v.$text-secondary; line-height: 1.35;
+}
+
+.bf-preset-meta {
+  font-size: 0.68rem; color: v.$text-muted; margin-top: 0.1rem;
+}
+
+.bf-preset-badge {
+  font-size: 0.63rem; font-weight: 700; padding: 0.15rem 0.45rem;
+  border-radius: 8px; white-space: nowrap; align-self: flex-start; flex-shrink: 0;
+  &.badge-easy   { background: rgba(v.$tag-green,  0.15); color: v.$tag-green;  border: 1px solid rgba(v.$tag-green,  0.35); }
+  &.badge-medium { background: rgba(v.$tag-orange, 0.15); color: v.$tag-orange; border: 1px solid rgba(v.$tag-orange, 0.35); }
+  &.badge-expert { background: rgba(v.$tag-red,    0.12); color: v.$tag-red;    border: 1px solid rgba(v.$tag-red,    0.30); }
+}

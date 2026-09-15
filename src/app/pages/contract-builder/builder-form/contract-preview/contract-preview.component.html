@@ -1,0 +1,54 @@
+<div class="bf-preview-modal">
+
+  <div class="bf-preview-header">
+    <span><i class="bi bi-eye"></i> Prévisualisation</span>
+    <button class="bf-preview-close" (click)="close.emit()" aria-label="Fermer la prévisualisation">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <div class="bf-preview-body">
+    <h1 class="bf-prev-title">{{ title || '(Sans titre)' }}</h1>
+
+    <!-- Parties -->
+    @if (parties.length > 0) {
+      <div class="bf-prev-section">
+        <h2 class="bf-prev-art">Parties au contrat</h2>
+        @for (p of parties; track $index) {
+          <div class="bf-prev-party">
+            <strong>{{ p.role || 'Partie ' + ($index + 1) }}</strong>
+            @if (p.party_type === 'physical') {
+              <span> — {{ p.first_name }} {{ p.last_name }}</span>
+              @if (p.pseudonym) { <span> (alias {{ p.pseudonym }})</span> }
+            } @else {
+              <span> — {{ p.company_name }}</span>
+              @if (p.legal_form) { <span>, {{ p.legal_form }}</span> }
+              @if (p.siren) { <span> · SIREN {{ p.siren }}</span> }
+            }
+            @if (p.address) { <div class="bf-prev-addr">{{ p.address }}</div> }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Clause groups -->
+    @for (group of groups; track group.id) {
+      @if (group.artNum) {
+        <div class="bf-prev-section">
+          <h2 class="bf-prev-art">Art. {{ group.artNum }} — {{ group.name }}</h2>
+          @for (clause of group.clauses; track clause.id) {
+            <div class="bf-prev-clause">
+              <span class="bf-prev-clause-name">
+                @if (clause.numLabel) { {{ clause.numLabel }} — }{{ clause.name }}
+              </span>
+              @if (clause.value) {
+                <p class="bf-prev-clause-val">{{ clause.value }}</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+
+</div>

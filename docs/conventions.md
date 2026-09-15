@@ -120,6 +120,11 @@ son `invalidate_*_cache(...)`, et les routes qui modifient les données sources 
 - Un service par domaine d'API, URLs construites depuis `environment.apiUrl`.
 - Erreurs HTTP traitées au niveau du composant (toast ou signal `error`).
 - Partage de lien → `ShareButtonComponent` / `ShareService`, jamais réimplémenté.
+- Saisie du style d'un track (add-track / edit-track) → `StyleSelectComponent`
+  (`app-style-select`), jamais un `<input>` texte libre : oblige à choisir un style
+  déjà existant ou à cliquer explicitement "ajouter" pour en créer un nouveau — la casse
+  reste ensuite normalisée côté serveur (`utils/styles.py:resolve_style_casing`), voir
+  `docs/api.md` § 6.
 - Images de liste → `loading="lazy"` ; image hero above-the-fold → sans lazy.
 - Aucun `onerror=` / `onload=` inline dans un template : la CSP les bloque en production.
   Utiliser `ImgFallbackDirective`.

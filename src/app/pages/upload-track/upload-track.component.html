@@ -108,17 +108,11 @@
           @if (autoStyle()) {
             <div class="auto-pending-badge"><i class="bi bi-cpu"></i> Suggéré depuis votre catalogue après upload</div>
           } @else {
-            <input id="style"
-                   type="text"
-                   list="style-suggestions"
-                   placeholder="Ex: Trap, R&B, Afrobeats…"
-                   [ngModel]="style()"
-                   (ngModelChange)="style.set($event)">
-            <datalist id="style-suggestions">
-              @for (s of availableStyles(); track s) {
-                <option [value]="s"></option>
-              }
-            </datalist>
+            <app-style-select
+              inputId="style"
+              [value]="style()"
+              (valueChange)="style.set($event)"
+              [options]="availableStyles()" />
           }
         </div>
 

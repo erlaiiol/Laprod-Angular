@@ -95,8 +95,8 @@
 
 <!-- Edit modal -->
 @if (editingTrack()) {
-  <div class="modal-backdrop" (click)="editingTrack.set(null)">
-    <div class="modal" (click)="$event.stopPropagation()">
+  <app-modal-shell (backdropClick)="editingTrack.set(null)">
+    <div class="modal">
       <h3>Modifier le track</h3>
       <div class="form-grid">
         <label>Titre<input [ngModel]="editingTrack()!.title"       (ngModelChange)="patch('title', $event)"></label>
@@ -112,5 +112,5 @@
         <button class="btn-primary"   (click)="saveEdit()">Sauvegarder</button>
       </div>
     </div>
-  </div>
+  </app-modal-shell>
 }

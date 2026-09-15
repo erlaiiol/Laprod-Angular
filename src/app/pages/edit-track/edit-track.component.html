@@ -84,9 +84,11 @@
 
             <div class="field">
               <label for="style">Style</label>
-              <input type="text" id="style" name="style"
-                     placeholder="Ex: Trap, R&B, Afrobeats…"
-                     [ngModel]="style()" (ngModelChange)="style.set($event)" />
+              <app-style-select
+                inputId="style"
+                [value]="style()"
+                (valueChange)="style.set($event)"
+                [options]="availableStyles()" />
             </div>
           </div>
         </div>
