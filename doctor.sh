@@ -423,22 +423,28 @@ fi
 if [ "$PROD" = true ]; then
   section "TLS — certificat et renouvellement"
 
+  # `certbot certificates` plutôt qu'un openssl manuel sur le conteneur frontend :
+  # l'image nginx:alpine de frontend n'embarque pas le binaire openssl (seulement
+  # la lib), alors que l'image certbot/certbot sait lister ses certificats nativement
+  # — même mécanisme que `make certbot-renew`, donc garanti disponible sur ce serveur.
   if command -v docker >/dev/null 2>&1 && docker compose -f docker-compose.yml version >/dev/null 2>&1; then
-    CERT_OUT=$(docker compose -f docker-compose.yml exec -T frontend sh -c \
-      "openssl x509 -enddate -noout -in /etc/letsencrypt/live/laprod.net/fullchain.pem 2>/dev/null" 2>/dev/null)
-    if [ -z "$CERT_OUT" ]; then
-      warn "Certificat non vérifiable (conteneur frontend arrêté, openssl absent, ou certificat introuvable au chemin attendu)"
+    CERT_OUT=$(docker compose -f docker-compose.yml run --rm certbot certificates 2>/dev/null)
+    CERT_BLOCK=$(echo "$CERT_OUT" | grep -A5 "Certificate Name: laprod.net")
+    if [ -z "$CERT_BLOCK" ]; then
+      warn "Certificat non vérifiable (certbot injoignable, ou aucun certificat nommé 'laprod.net')"
     else
-      END_DATE=$(echo "$CERT_OUT" | sed -n 's/notAfter=//p')
-      END_EPOCH=$(date -d "$END_DATE" +%s 2>/dev/null || date -j -f "%b %e %T %Y %Z" "$END_DATE" +%s 2>/dev/null)
-      NOW_EPOCH=$(date +%s)
-      if [ -n "$END_EPOCH" ]; then
-        DAYS_LEFT=$(( (END_EPOCH - NOW_EPOCH) / 86400 ))
-        if   [ "$DAYS_LEFT" -lt 14 ]; then crit "Certificat TLS expire dans $DAYS_LEFT jour(s) ($END_DATE)"
-        elif [ "$DAYS_LEFT" -lt 30 ]; then warn "Certificat TLS expire dans $DAYS_LEFT jours ($END_DATE)"
-        else pass "Certificat TLS valide $DAYS_LEFT jours ($END_DATE)"; fi
+      EXPIRY_LINE=$(echo "$CERT_BLOCK" | grep "Expiry Date:")
+      DAYS_LEFT=$(echo "$EXPIRY_LINE" | grep -oE 'VALID: [0-9]+ days' | grep -oE '[0-9]+')
+      if echo "$EXPIRY_LINE" | grep -qi "INVALID: EXPIRED"; then
+        crit "Certificat TLS déjà expiré ! ($EXPIRY_LINE)"
+      elif [ -z "$DAYS_LEFT" ]; then
+        warn "Date d'expiration du certificat illisible : $EXPIRY_LINE"
+      elif [ "$DAYS_LEFT" -lt 14 ]; then
+        crit "Certificat TLS expire dans $DAYS_LEFT jour(s)"
+      elif [ "$DAYS_LEFT" -lt 30 ]; then
+        warn "Certificat TLS expire dans $DAYS_LEFT jours"
       else
-        warn "Date d'expiration du certificat illisible : $END_DATE"
+        pass "Certificat TLS valide $DAYS_LEFT jours"
       fi
     fi
   else
