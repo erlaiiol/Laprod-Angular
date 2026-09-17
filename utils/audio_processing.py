@@ -114,6 +114,85 @@ def apply_watermark_and_trim(input_path, output_path, watermark_path=None,
             return False
 
 
+def apply_dense_watermark(input_path, output_path, watermark_path=None, interval_s=20):
+    """
+    Watermark répété toutes les `interval_s` secondes sur la durée COMPLÈTE du
+    titre — pas de troncature, contrairement à apply_watermark_and_trim().
+
+    Utilisé pour la référence audio jouée pendant l'enregistrement topline (web) :
+    la densité du watermark protège le beat quelle que soit sa longueur, donc
+    plus besoin de tronquer la référence à 90s.
+
+    Le dernier watermark n'est inséré que si `position + durée_watermark` reste
+    dans les bornes du titre, pour ne jamais le couper en plein milieu ni
+    déborder après la fin du morceau.
+
+    Args:
+        input_path: Fichier audio source (MP3, WAV, etc.)
+        output_path: Fichier de sortie (MP3)
+        watermark_path: Fichier watermark à insérer (défaut: config.WATERMARK_AUDIO_PATH)
+        interval_s: Intervalle entre deux watermarks, en secondes
+
+    Returns:
+        bool: True si succès, False si erreur
+    """
+    try:
+        if watermark_path is None:
+            watermark_path = config.WATERMARK_AUDIO_PATH
+
+        current_app.logger.info(f"Watermark dense: {Path(input_path).name}")
+
+        if not Path(input_path).exists():
+            current_app.logger.error(f"Fichier source introuvable: {input_path}")
+            return False
+
+        audio = AudioSegment.from_file(input_path)
+
+        if not Path(watermark_path).exists():
+            current_app.logger.warning(f"Watermark introuvable: {watermark_path}, copie sans watermark")
+            audio.export(output_path, format="mp3", bitrate="192k", parameters=["-q:a", "2"])
+            return False
+
+        watermark = AudioSegment.from_file(watermark_path) + 5  # même gain que apply_watermark_and_trim
+
+        duration_ms = len(audio)
+        wm_len_ms   = len(watermark)
+        interval_ms = interval_s * 1000
+
+        pos = interval_ms
+        count = 0
+        while pos + wm_len_ms <= duration_ms:
+            audio = audio.overlay(watermark, position=pos)
+            pos  += interval_ms
+            count += 1
+        current_app.logger.debug(f"{count} watermarks insérés (tous les {interval_s}s)")
+
+        output_dir = Path(output_path).parent
+        if output_dir and not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+        audio.export(output_path, format="mp3", bitrate="192k", parameters=["-q:a", "2"])
+
+        if Path(output_path).exists():
+            file_size = Path(output_path).stat().st_size
+            current_app.logger.info(f"Référence dense créée: {file_size/1024:.1f} KB")
+            return True
+        else:
+            current_app.logger.error("Le fichier de référence n'a pas été créé")
+            return False
+
+    except Exception as e:
+        current_app.logger.error(f"Erreur watermark dense: {e}", exc_info=True)
+        try:
+            import shutil
+            shutil.copy(input_path, output_path)
+            current_app.logger.warning("Référence créée sans watermark (erreur de traitement)")
+            return False
+        except Exception as copy_error:
+            current_app.logger.error(f"Impossible de copier le fichier: {copy_error}", exc_info=True)
+            return False
+
+
 def convert_to_mp3(input_path, output_path, bitrate="192k"):
     """
     Convertit un fichier audio en MP3

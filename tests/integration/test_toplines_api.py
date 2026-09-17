@@ -513,19 +513,63 @@ class TestUploadTopline:
 # is_mobile_processed=True. Contrairement à /upload, un JWT est obligatoire (pas
 # de guest) et le fichier est validé comme MP3/WAV/MP4 déjà traité, pas une voix brute.
 
-def _fake_processed_mp3():
-    """Blob MP3 stub 1KB — dépasse la validation de taille minimale (512 octets)."""
-    return (io.BytesIO(b'ID3\x03\x00\x00\x00' + b'\x00' * 1016), 'maquette.mp3', 'audio/mpeg')
+def _fake_processed_mp3(duration_s=30.0, sr=22050, freq=440):
+    """
+    Audio MP3 réel généré en mémoire (sinus) — nécessaire depuis que
+    upload_processed_topline() sniffe le MIME réel (validate_topline_file) et
+    décode la durée (get_audio_duration) : un stub d'octets ne passe plus ces
+    validations. MP3 (pas WAV) pour rester réaliste face à MAX_TOPLINE_SIZE
+    (5MB) — un WAV non compressé de 2:30+ dépasserait ce plafond pour de
+    mauvaises raisons (taille, pas durée) ; le mobile studio exporte toujours
+    en MP3 (_encodeToMp3 côté client).
+    """
+    import numpy as np
+    from pydub import AudioSegment
+    t = np.linspace(0, duration_s, int(sr * duration_s), endpoint=False)
+    y = (0.3 * np.sin(2 * np.pi * freq * t)).astype(np.float32)
+    pcm16 = (y * 32767).astype('int16')
+    seg = AudioSegment(pcm16.tobytes(), frame_rate=sr, sample_width=2, channels=1)
+    buf = io.BytesIO()
+    seg.export(buf, format='mp3', bitrate='192k')
+    buf.seek(0)
+    return (buf, 'maquette.mp3', 'audio/mpeg')
 
 
 def _fake_processed_empty():
     return (io.BytesIO(b'ID3' + b'\x00' * 10), 'maquette.mp3', 'audio/mpeg')
 
 
-def _upload_processed(client, track_id, headers, *, processed=None, description=None):
+def _start_session(client, track_id, headers):
+    """Appel brut à /mobile-session/start — ne fait AUCUNE assertion, pour que
+    les appelants puissent tester un échec (quota, track invalide...)."""
+    return client.post(
+        '/api/toplines/mobile-session/start',
+        data={'track_id': str(track_id)},
+        content_type='multipart/form-data',
+        headers=headers,
+    )
+
+
+def _upload_processed(client, track_id, headers, *, processed=None, description=None, session_id=None):
+    """
+    Politique "1 session ouverte = 1 token" : upload-processed exige désormais
+    un session_id valide (cf. start_mobile_session). Si non fourni, on en ouvre
+    une automatiquement — et si CETTE ouverture échoue (quota épuisé, track
+    invalide...), on propage sa réponse telle quelle, pour que les tests déjà
+    écrits contre l'ancien comportement (quota/track vérifiés à l'upload)
+    continuent de passer sans modification : le code et le statut HTTP observés
+    sont identiques, seule l'origine de la vérification a changé.
+    """
+    if session_id is None:
+        start_resp = _start_session(client, track_id, headers)
+        if not start_resp.json.get('success'):
+            return start_resp
+        session_id = start_resp.json['data']['session_id']
+
     data = {
         'processed_file': processed if processed is not None else _fake_processed_mp3(),
         'track_id': str(track_id),
+        'session_id': str(session_id),
     }
     if description is not None:
         data['description'] = description
@@ -613,6 +657,37 @@ class TestUploadProcessedTopline:
         assert resp.status_code == 400
         assert resp.json['code'] == 'INVALID_AUDIO'
 
+    def test_audio_too_long_returns_400_and_deletes_file(
+        self, client, artist_headers, track_default_prices
+    ):
+        import config
+        pattern = f'topline_mobile_{track_default_prices.id}_*'
+        # Diff avant/après plutôt qu'une liste vide : ce dossier n'est pas isolé
+        # par tmp_path (comme les autres tests de cette classe) et peut déjà
+        # contenir des artefacts d'exécutions précédentes.
+        before = set((config.UPLOAD_FOLDER / 'toplines').glob(pattern))
+        too_long = _fake_processed_mp3(duration_s=config.TOPLINE_MAX_DURATION + 10)
+        resp = _upload_processed(client, track_default_prices.id, artist_headers, processed=too_long)
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'AUDIO_TOO_LONG'
+        after = set((config.UPLOAD_FOLDER / 'toplines').glob(pattern))
+        assert after == before
+
+    def test_audio_too_short_returns_400(self, client, artist_headers, track_default_prices):
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers,
+            processed=_fake_processed_mp3(duration_s=1.0),
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'AUDIO_TOO_SHORT'
+
+    def test_audio_within_bounds_accepted(self, client, artist_headers, track_default_prices):
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers,
+            processed=_fake_processed_mp3(duration_s=30.0),
+        )
+        assert resp.status_code == 200, resp.json
+
     def test_unknown_track_returns_404(self, client, artist_headers):
         resp = _upload_processed(client, 999999, artist_headers)
         assert resp.status_code == 404
@@ -646,6 +721,162 @@ class TestUploadProcessedTopline:
             resp = _upload_processed(client, track_default_prices.id, artist_headers)
         assert resp.status_code == 200
         mock_queue.enqueue.assert_not_called()
+
+    def test_missing_session_id_returns_session_invalid(
+        self, client, artist_headers, track_default_prices
+    ):
+        resp = client.post(
+            '/api/toplines/upload-processed',
+            data={
+                'processed_file': _fake_processed_mp3(),
+                'track_id': str(track_default_prices.id),
+            },
+            content_type='multipart/form-data',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 409
+        assert resp.json['code'] == 'SESSION_INVALID'
+
+    def test_session_from_other_user_rejected(
+        self, client, artist_headers, other_user_headers, track_default_prices
+    ):
+        other_hdrs, _ = other_user_headers
+        other_session = _start_session(client, track_default_prices.id, other_hdrs)
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers,
+            session_id=other_session.json['data']['session_id'],
+        )
+        assert resp.status_code == 409
+        assert resp.json['code'] == 'SESSION_INVALID'
+
+    def test_session_for_different_track_reused_elsewhere_rejected(
+        self, client, db, artist_headers, track_default_prices
+    ):
+        from tests.factories.track_factory import TrackFactory
+        other_track = TrackFactory(composer_id=track_default_prices.composer_id)
+        session_for_other_track = _start_session(client, other_track.id, artist_headers)
+        resp = _upload_processed(
+            client, track_default_prices.id, artist_headers,
+            session_id=session_for_other_track.json['data']['session_id'],
+        )
+        assert resp.status_code == 409
+        assert resp.json['code'] == 'SESSION_INVALID'
+
+    def test_already_published_session_rejected_on_reuse(
+        self, client, artist_headers, track_default_prices
+    ):
+        session_id = _start_session(client, track_default_prices.id, artist_headers).json['data']['session_id']
+        first = _upload_processed(client, track_default_prices.id, artist_headers, session_id=session_id)
+        assert first.status_code == 200, first.json
+
+        second = _upload_processed(client, track_default_prices.id, artist_headers, session_id=session_id)
+        assert second.status_code == 409
+        assert second.json['code'] == 'SESSION_INVALID'
+
+
+# ── POST /api/toplines/mobile-session/start ────────────────────────────────────
+
+class TestStartMobileSession:
+
+    def test_requires_authentication(self, client, track_default_prices):
+        resp = client.post(
+            '/api/toplines/mobile-session/start',
+            data={'track_id': str(track_default_prices.id)},
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 401
+
+    def test_success_returns_session_id_and_decrements_token(
+        self, client, db, artist_headers, user_artist, track_default_prices
+    ):
+        before = user_artist.topline_tokens
+        resp = _start_session(client, track_default_prices.id, artist_headers)
+        assert resp.status_code == 200, resp.json
+        assert isinstance(resp.json['data']['session_id'], int)
+        db.session.refresh(user_artist)
+        assert user_artist.topline_tokens == before - 1
+        assert resp.json['data']['topline_tokens'] == before - 1
+
+    def test_quota_exceeded_returns_403(
+        self, client, db, artist_headers, user_artist, track_default_prices
+    ):
+        user_artist.topline_tokens = 0
+        db.session.commit()
+        resp = _start_session(client, track_default_prices.id, artist_headers)
+        assert resp.status_code == 403
+        assert resp.json['code'] == 'QUOTA_EXCEEDED'
+
+    def test_missing_track_id_returns_400(self, client, artist_headers):
+        resp = client.post(
+            '/api/toplines/mobile-session/start',
+            data={},
+            content_type='multipart/form-data',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 400
+        assert resp.json['code'] == 'VALIDATION_ERROR'
+
+    def test_unknown_track_returns_404(self, client, artist_headers):
+        resp = _start_session(client, 999999, artist_headers)
+        assert resp.status_code == 404
+        assert resp.json['code'] == 'TRACK_NOT_FOUND'
+
+    def test_unapproved_track_returns_403(
+        self, client, db, artist_headers, track_default_prices
+    ):
+        track_default_prices.is_approved = False
+        db.session.commit()
+        try:
+            resp = _start_session(client, track_default_prices.id, artist_headers)
+            assert resp.status_code == 403
+            assert resp.json['code'] == 'TRACK_UNAVAILABLE'
+        finally:
+            track_default_prices.is_approved = True
+            db.session.commit()
+
+
+# ── GET /api/toplines/mobile-session/open ──────────────────────────────────────
+
+class TestGetOpenMobileSession:
+
+    def test_requires_authentication(self, client, track_default_prices):
+        resp = client.get(
+            f'/api/toplines/mobile-session/open?track_id={track_default_prices.id}',
+        )
+        assert resp.status_code == 401
+
+    def test_returns_open_session_id(self, client, artist_headers, track_default_prices):
+        opened = _start_session(client, track_default_prices.id, artist_headers)
+        session_id = opened.json['data']['session_id']
+
+        resp = client.get(
+            f'/api/toplines/mobile-session/open?track_id={track_default_prices.id}',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 200, resp.json
+        assert resp.json['data']['session_id'] == session_id
+
+    def test_no_open_session_returns_404(self, client, artist_headers, track_default_prices):
+        resp = client.get(
+            f'/api/toplines/mobile-session/open?track_id={track_default_prices.id}',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 404
+        assert resp.json['code'] == 'SESSION_NOT_FOUND'
+
+    def test_published_session_not_returned(self, client, artist_headers, track_default_prices):
+        session_id = _start_session(client, track_default_prices.id, artist_headers).json['data']['session_id']
+        published = _upload_processed(
+            client, track_default_prices.id, artist_headers, session_id=session_id,
+        )
+        assert published.status_code == 200, published.json
+
+        resp = client.get(
+            f'/api/toplines/mobile-session/open?track_id={track_default_prices.id}',
+            headers=artist_headers,
+        )
+        assert resp.status_code == 404
+        assert resp.json['code'] == 'SESSION_NOT_FOUND'
 
 
 # ── POST /api/toplines/<id>/publish ───────────────────────────────────────────

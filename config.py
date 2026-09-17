@@ -142,7 +142,23 @@ MAX_ARCHIVE_SIZE = 800 * 1024 * 1024 # 800 MB pour les archives (mixmasterreques
 # ============================================
 WATERMARK_AUDIO_PATH = BASE_DIR / 'db_assets' / 'audio' / 'watermark.mp3'
 PREVIEW_DURATION = 90  # 1:30 en secondes
-WATERMARK_INTERVALS = [20, 45]  # Positions en secondes où insérer le watermark
+WATERMARK_INTERVALS = [20, 45]  # Positions en secondes où insérer le watermark (preview 90s uniquement)
+
+# ============================================
+# TOPLINE — plafond unifié web + mobile
+# ============================================
+# Durée max d'une topline (voix + beat mixés), quelle que soit la plateforme.
+# Source de vérité pour : topline-recorder.component.ts (MAX_SECONDS),
+# mobile-studio.component.ts (MAX_REC_SECONDS), mobile-audio-processor.service.ts
+# (cap export), beat-extender.service.ts (MAX_BEAT_DURATION_S).
+TOPLINE_MAX_DURATION = 150  # 2:30
+
+# Intervalle de watermark "dense" (pas de troncature, répété jusqu'à la fin du
+# titre) — utilisé pour la référence web (apply_dense_watermark) ET repris côté
+# mobile (mixAndExport, watermark injecté à l'export). WATERMARK_INTERVALS
+# (2 positions fixes, ci-dessus) reste inchangé, protège uniquement la preview
+# de téléchargement 90s.
+WATERMARK_DENSE_INTERVAL = 20  # secondes
 
 DEFAULT_PRICE_MP3 = 9.99
 DEFAULT_PRICE_WAV = 19.99

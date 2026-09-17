@@ -2,10 +2,14 @@
 Blueprint Streaming Service — Sert les fichiers audio/PDF de façon sécurisée.
 
 GET  /api/stream/tracks/<track_id>/preview           → Preview watermarquée (public, rate-limité)
+GET  /api/stream/tracks/<track_id>/reference          → Référence watermarquée dense, sans troncature,
+                                                         pour l'enregistrement topline web (public, rate-limité)
 GET  /api/stream/tracks/<track_id>/full               → MP3 complet, écoute libre (public, rate-limité)
 GET  /api/stream/tracks/<track_id>/download/<format> → Fichier acheté MP3/WAV/Stems (JWT + achat vérifié)
 GET  /api/stream/toplines/<topline_id>               → Audio topline (publié = public, non publié = propriétaire)
 GET  /api/stream/contracts/<purchase_id>             → PDF contrat (JWT + acheteur ou compositeur)
+GET  /api/stream/watermark                            → Clip watermark brut (public) — utilisé par le mobile
+                                                         studio pour l'injecter lui-même à l'export
 """
 from flask import Blueprint, current_app, send_file, abort, make_response, request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, jwt_required
@@ -113,6 +117,34 @@ def stream_track_preview(track_id):
         abort(404)
 
 
+# ── 1bis. Référence watermarquée dense pour l'enregistrement topline (web) ──────
+
+@streaming_bp.route('/tracks/<int:track_id>/reference', methods=['GET'])
+@limiter.limit('120 per minute')
+def stream_track_reference(track_id):
+    """
+    Référence watermarquée en entier (pas de troncature), utilisée pendant
+    l'enregistrement topline WEB uniquement — le mobile studio utilise /full et
+    injecte le watermark lui-même à l'export (cf. mixAndExport côté client).
+
+    Fallback sur l'ancienne preview 90s si le track n'a pas encore été
+    régénéré avec le nouveau format (catalogue existant, migration séparée).
+    """
+    track = db.session.get(Track, track_id)
+    if not track or not track.is_approved:
+        abort(404)
+
+    audio_ref = track.reference_audio_file or track.audio_file
+    if not audio_ref:
+        abort(404)
+
+    try:
+        return _send(f'db_assets/audio/{audio_ref}', 'audio/mpeg')
+    except FileNotFoundError:
+        current_app.logger.error(f"Fichier de référence introuvable pour track {track_id}", exc_info=True)
+        abort(404)
+
+
 # ── 2. Stream MP3 complet (public, rate-limité, pas d'attachment) ───────────────
 
 @streaming_bp.route('/tracks/<int:track_id>/full', methods=['GET'])
@@ -132,6 +164,22 @@ def stream_track_full(track_id):
         abort(404)
 
     return _send(f'db_assets/audio/{track.file_mp3}', 'audio/mpeg')
+
+
+# ── 2bis. Clip watermark brut (public) ───────────────────────────────────────
+
+@streaming_bp.route('/watermark', methods=['GET'])
+@limiter.limit('30 per minute')
+def stream_watermark_clip():
+    """
+    Clip watermark brut — utilisé par le mobile studio pour l'injecter lui-même
+    dans le mix à l'export (cf. mixAndExport côté client). Fichier statique,
+    quasi jamais modifié : un fetch unique par session suffit côté client.
+    """
+    try:
+        return _send('db_assets/audio/watermark.mp3', 'audio/mpeg')
+    except FileNotFoundError:
+        abort(404)
 
 
 # ── 3. Download fichier acheté (MP3 / WAV / Stems) ────────────────────────────

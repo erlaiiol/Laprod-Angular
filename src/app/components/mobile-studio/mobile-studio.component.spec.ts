@@ -96,10 +96,19 @@ class PlayerStub {
   pause = vi.fn();
 }
 
-class AuthStub   { isPremium = () => false; getToken = () => 'tok'; }
+class AuthStub   { isPremium = () => false; getToken = () => 'tok'; isLoggedIn = () => false; }
 class CalibStub  { hasCalibration = () => false; latencyMs = 0; save = vi.fn(); }
-class DraftStub  { saveMp3 = vi.fn().mockResolvedValue(undefined); pruneOld = vi.fn().mockResolvedValue(undefined); }
-class ToplineStub { uploadProcessed = vi.fn().mockReturnValue({ subscribe: vi.fn() }); }
+class DraftStub  {
+  saveMp3 = vi.fn().mockResolvedValue(undefined);
+  pruneOld = vi.fn().mockResolvedValue(undefined);
+  listDraftsForTrack = vi.fn().mockResolvedValue([]);
+  readDraft = vi.fn().mockResolvedValue(new Blob());
+}
+class ToplineStub {
+  uploadProcessed = vi.fn().mockReturnValue({ subscribe: vi.fn() });
+  startMobileSession = vi.fn().mockReturnValue({ subscribe: vi.fn() });
+  getOpenMobileSession = vi.fn().mockReturnValue({ subscribe: vi.fn() });
+}
 class StatusStub { openForUpload = vi.fn(); setDoneWithId = vi.fn(); stopPolling = vi.fn(); }
 
 // ── Track de test ─────────────────────────────────────────────────────────────

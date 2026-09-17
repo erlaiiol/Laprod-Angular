@@ -85,6 +85,32 @@
           (ok)="goToPremium()"/>
       }
 
+      <!-- ── Reprise de brouillon non publié ──────────────────────────────── -->
+      @if (showResumeDraftDialog()) {
+        <app-mobile-studio-confirm-dialog
+          icon="bi-folder2-open"
+          title="Brouillon trouvé"
+          body="Vous avez un brouillon non publié sur ce beat. Voulez-vous le reprendre ?"
+          cancelLabel="Nouvelle session"
+          okIcon="bi-cloud-upload"
+          okLabel="Reprendre"
+          (cancel)="startFreshSession()"
+          (ok)="resumeDraft()"/>
+      }
+
+      <!-- ── Quota de tokens épuisé (politique "1 session = 1 token") ────── -->
+      @if (showQuotaBlocked()) {
+        <app-mobile-studio-confirm-dialog
+          icon="bi-coin"
+          title="Plus de tokens disponibles"
+          [body]="quotaBlockedMessage()"
+          cancelLabel="Fermer"
+          okIcon="bi-arrow-right"
+          okLabel="Voir les offres"
+          (cancel)="closed.emit()"
+          (ok)="goToPremium()"/>
+      }
+
       <!-- ── Feedback BT play-ahead ──────────────────────────────────────── -->
       @if (btPreparing()) {
         <div class="ms-bt-preparing" aria-live="polite">
@@ -274,33 +300,11 @@
         <div class="daw-studio">
 
           <!-- Barre d'état de la chanson -->
-          <div class="daw-statusbar">
-            <div class="daw-songstate">
-              <span class="daw-songstate-dot"
-                    [class.daw-songstate-dot--live]="hasTrack()"></span>
-              <span class="daw-songstate-text">
-                @if (hasTrack()) {
-                  Brouillon&nbsp;·&nbsp;{{ tracks().filter(t => t.rawBlob !== null).length }} piste{{ tracks().filter(t => t.rawBlob !== null).length > 1 ? 's' : '' }}
-                } @else {
-                  Studio prêt
-                }
-              </span>
-              @if (service.extendedBeatBlob()) {
-                <span class="daw-badge-extended">
-                  <i class="bi bi-check-circle-fill"></i> Beat étendu
-                </span>
-              }
-            </div>
-            @if (hasTrack()) {
-              <button class="daw-btn-mix"
-                      [class.daw-btn-mix--playing]="isPlayingPreview()"
-                      (click)="isPlayingPreview() ? stopPreview() : previewMix()"
-                      [attr.aria-label]="isPlayingPreview() ? 'Arrêter' : 'Écouter le mix'">
-                <i class="bi" [class.bi-stop-fill]="isPlayingPreview()" [class.bi-headphones]="!isPlayingPreview()"></i>
-                <span>{{ isPlayingPreview() ? 'Stop' : 'Mix' }}</span>
-              </button>
-            }
-          </div>
+          <app-daw-status-bar
+            [hasTrack]="hasTrack()" [trackCount]="filledTrackCount()"
+            [hasExtendedBeat]="!!service.extendedBeatBlob()" [isPlayingPreview]="isPlayingPreview()"
+            (togglePreview)="isPlayingPreview() ? stopPreview() : previewMix()">
+          </app-daw-status-bar>
 
           <!-- ── Piste instrumentale ──────────────────────────────────── -->
           <div class="daw-section">
@@ -648,26 +652,11 @@
 
       <!-- ── Guest gate — connexion requise pour publier ──────────────── -->
       @if (showGuestGate()) {
-        <div class="daw-guest-gate" role="dialog" aria-modal="true" aria-label="Connexion requise">
-          <div class="daw-guest-gate__card">
-            <i class="bi bi-lock-fill daw-guest-gate__icon"></i>
-            <h3 class="daw-guest-gate__title">Connexion requise</h3>
-            <p class="daw-guest-gate__body">
-              Créez un compte gratuit pour publier votre maquette et la partager avec des beatmakers.
-            </p>
-            <button class="daw-guest-gate__cta" (click)="goToLogin()">
-              <i class="bi bi-person-fill"></i>
-              Se connecter / S'inscrire
-            </button>
-            <button class="daw-btn-save-local daw-guest-gate__dl" (click)="showGuestGate.set(false); exportLocal()">
-              <i class="bi bi-download"></i>
-              Télécharger sans compte
-            </button>
-            <button class="daw-guest-gate__cancel" (click)="showGuestGate.set(false)">
-              Annuler
-            </button>
-          </div>
-        </div>
+        <app-daw-guest-gate-overlay
+          (login)="goToLogin()"
+          (downloadLocal)="showGuestGate.set(false); exportLocal()"
+          (cancel)="showGuestGate.set(false)">
+        </app-daw-guest-gate-overlay>
       }
 
       <!-- ── Toast undo — 6 s après un re-enregistrement ──────────────── -->

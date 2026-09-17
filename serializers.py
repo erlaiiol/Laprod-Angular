@@ -405,6 +405,7 @@ def track_detail(t) -> dict:
     return {
         **track_card(t),
         'audio_file':  t.audio_file,
+        'reference_stream_url': f'/api/stream/tracks/{t.id}/reference',
         'file_mp3':    t.file_mp3,
         'file_wav':    t.file_wav,
         'file_stems':  t.file_stems,

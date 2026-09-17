@@ -4,6 +4,8 @@ Blueprint TOPLINES API — GET + CUD endpoints
 GET    /api/toplines/track/<track_id>   → toplines publiées d'une track (public)
 GET    /api/toplines/my/<track_id>      → toplines de l'utilisateur courant (jwt_required)
 POST   /api/toplines/upload             → Upload voix + traitement async (jwt_required)
+POST   /api/toplines/mobile-session/start → Ouvre une session studio mobile, consomme 1 token (jwt_required)
+GET    /api/toplines/mobile-session/open  → Session 'open' la plus récente pour (user, track) (jwt_required)
 POST   /api/toplines/upload-processed   → Upload topline pré-traitée côté client (mobile natif)
 POST   /api/toplines/<id>/publish       → Publier une topline (propriétaire)
 POST   /api/toplines/<id>/unpublish     → Repasser en privée (propriétaire)
@@ -20,13 +22,15 @@ import config
 
 from rq import Queue
 from extensions import db, limiter, csrf, redis_client
-from models import Track, Topline
+from models import Track, Topline, MobileStudioSession
 from serializers import ok, err, topline as ser_topline
 from utils.auth_helpers import require_user
 from utils.crud_helpers import (
     get_or_404, require_ownership,
     handle_route_exceptions, commit_or_rollback,
 )
+from utils.file_validator import validate_topline_file
+from utils.audio_processing import get_audio_duration
 
 GUEST_LIMIT_UUID = 3   # max essais visibles côté UI
 GUEST_LIMIT_IP   = 5   # max côté serveur (tolérance CG-NAT)
@@ -218,7 +222,7 @@ def upload_topline():
             'raw_filename':     raw_filename,
             'use_autotune':     use_autotune,
             'description':      description,
-            'beat_audio_file':  track.audio_file,
+            'beat_audio_file':  track.reference_audio_file or track.audio_file,
             'track_key':        track.key,
             'timestamp':        timestamp,
             'latency_hint_ms':  latency_hint_ms,
@@ -254,6 +258,81 @@ def upload_topline():
         )
 
 
+# ── POST /toplines/mobile-session/start ────────────────────────────────────────
+
+@toplines_api_bp.route('/mobile-session/start', methods=['POST'])
+@csrf.exempt
+@jwt_required()
+@limiter.limit("30 per hour")
+@require_user
+def start_mobile_session(current_user):
+    """
+    Ouvre une session studio mobile = consomme 1 token topline immédiatement,
+    avant même le premier enregistrement (politique "1 session ouverte = 1
+    token"). Appelée par MobileStudioComponent.ngOnInit() pour un utilisateur
+    connecté sans brouillon local à reprendre (cf. DraftSaveService).
+
+    FormData :
+      - track_id : int
+    """
+    track_id_raw = request.form.get('track_id')
+    if not track_id_raw:
+        return err('Le champ track_id est requis.', level='warning', code='VALIDATION_ERROR')
+
+    track = db.session.get(Track, int(track_id_raw))
+    if not track:
+        return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
+    if not track.is_approved:
+        return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
+
+    can_submit, quota_message = current_user.can_submit_topline()
+    if not can_submit:
+        return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
+
+    current_user.consume_topline_token()
+    session_row = MobileStudioSession(user_id=current_user.id, track_id=track.id)
+    db.session.add(session_row)
+    db.session.commit()
+
+    current_app.logger.info(
+        f"Session studio mobile #{session_row.id} ouverte par user #{current_user.id} "
+        f"sur track #{track.id} ({current_user.topline_tokens} token(s) restant(s))"
+    )
+
+    return ok({
+        'session_id':     session_row.id,
+        'topline_tokens': current_user.topline_tokens,
+    })
+
+
+# ── GET /toplines/mobile-session/open ──────────────────────────────────────────
+
+@toplines_api_bp.route('/mobile-session/open', methods=['GET'])
+@jwt_required()
+@require_user
+def get_open_mobile_session(current_user):
+    """
+    Session studio mobile encore 'open' la plus récente pour (utilisateur, track) —
+    utilisée quand le client reprend un brouillon local exporté mais jamais
+    publié, pour republier sans reconsommer de token si la session d'origine
+    est toujours valide. Query string : track_id.
+    """
+    track_id_raw = request.args.get('track_id')
+    if not track_id_raw:
+        return err('Le paramètre track_id est requis.', level='warning', code='VALIDATION_ERROR')
+
+    session_row = (
+        db.session.query(MobileStudioSession)
+        .filter_by(user_id=current_user.id, track_id=int(track_id_raw), status='open')
+        .order_by(MobileStudioSession.created_at.desc())
+        .first()
+    )
+    if not session_row:
+        return err('Aucune session ouverte pour cette track.', code='SESSION_NOT_FOUND', status=404)
+
+    return ok({'session_id': session_row.id})
+
+
 # ── POST /toplines/upload-processed ───────────────────────────────────────────
 
 @toplines_api_bp.route('/upload-processed', methods=['POST'])
@@ -269,12 +348,10 @@ def upload_processed_topline(current_user):
     FormData :
       - processed_file : Blob MP3 (audio/mpeg)
       - track_id       : int
+      - session_id     : int (session studio mobile ouverte via /mobile-session/start —
+                          c'est elle qui a déjà consommé le token, pas cette route)
       - description    : str (optionnel, max 500 car.)
     """
-    can_submit, quota_message = current_user.can_submit_topline()
-    if not can_submit:
-        return err(quota_message, level='warning', code='QUOTA_EXCEEDED', status=403)
-
     try:
         processed_file = request.files.get('processed_file')
         track_id_raw   = request.form.get('track_id')
@@ -291,11 +368,28 @@ def upload_processed_topline(current_user):
         if not any(t in content_type for t in ('mpeg', 'mp3', 'mp4', 'wav')):
             return err('Format de fichier invalide. MP3 attendu.', code='INVALID_FORMAT', status=400)
 
+        is_valid, validation_msg = validate_topline_file(processed_file)
+        if not is_valid:
+            return err(validation_msg, level='warning', code='INVALID_AUDIO', status=400)
+
         track = db.session.get(Track, int(track_id_raw))
         if not track:
             return err('Track introuvable.', code='TRACK_NOT_FOUND', status=404)
         if not track.is_approved:
             return err('Cette track n\'est pas disponible.', code='TRACK_UNAVAILABLE', status=403)
+
+        # Le token a déjà été consommé à l'ouverture de la session (cf.
+        # start_mobile_session ci-dessus) — cette route vérifie seulement
+        # qu'une session valide et non déjà utilisée existe pour ce couple
+        # (utilisateur, track), elle ne consomme plus rien elle-même.
+        session_id_raw = request.form.get('session_id')
+        session_row = db.session.get(MobileStudioSession, int(session_id_raw)) if session_id_raw else None
+        if (not session_row or session_row.user_id != current_user.id
+                or session_row.track_id != track.id or session_row.status != 'open'):
+            return err(
+                "Session studio introuvable ou déjà utilisée. Merci de rouvrir le studio.",
+                level='warning', code='SESSION_INVALID', status=409,
+            )
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         toplines_dir = config.UPLOAD_FOLDER / 'toplines'
@@ -313,6 +407,29 @@ def upload_processed_topline(current_user):
                 level='warning', code='INVALID_AUDIO', status=400,
             )
 
+        # Garde-fou durée : aucun job RQ ne retraite ce fichier, c'est le seul
+        # verrou serveur contre un client qui bypasserait les plafonds JS
+        # (MAX_REC_SECONDS, cap dans mixAndExport).
+        duration_s = get_audio_duration(abs_path)
+        if duration_s is None:
+            abs_path.unlink(missing_ok=True)
+            return err(
+                'Fichier audio corrompu ou illisible.',
+                level='warning', code='INVALID_AUDIO', status=400,
+            )
+        if duration_s > config.TOPLINE_MAX_DURATION + 5:
+            abs_path.unlink(missing_ok=True)
+            return err(
+                f"Maquette trop longue ({duration_s:.0f}s). Maximum {config.TOPLINE_MAX_DURATION}s.",
+                level='warning', code='AUDIO_TOO_LONG', status=400,
+            )
+        if duration_s < 5:
+            abs_path.unlink(missing_ok=True)
+            return err(
+                'Maquette trop courte.',
+                level='warning', code='AUDIO_TOO_SHORT', status=400,
+            )
+
         rel_path = f"audio/toplines/{filename}"
 
         topline = Topline(
@@ -324,9 +441,11 @@ def upload_processed_topline(current_user):
             is_mobile_processed=True,
         )
         db.session.add(topline)
-        current_user.consume_topline_token()
 
         try:
+            db.session.flush()  # peuple topline.id sans encore committer
+            session_row.status     = 'published'
+            session_row.topline_id = topline.id
             db.session.commit()
         except Exception as e:
             db.session.rollback()

@@ -94,7 +94,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private micStream: MediaStream | null = null;
   private monitorAudio: HTMLAudioElement | null = null;
 
-  readonly MAX_SECONDS = 70;
+  // Plafond unifié web/mobile (config.TOPLINE_MAX_DURATION, backend). La
+  // référence n'est plus tronquée à 90s (cf. reference_stream_url), donc plus
+  // besoin de marge de sécurité sous cette ancienne limite.
+  readonly MAX_SECONDS = 150;
   readonly MIN_SECONDS = 10;
 
   private recordingStartTime = 0;
@@ -224,8 +227,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     // après activation du micro (évite le renvoi vers l'écouteur interne)
     await new Promise<void>(resolve => setTimeout(resolve, 150));
 
-    // Beat playback — toujours la preview watermarquée 1:30 : c'est cette version
-    // (durée + watermark) qui est mixée avec la voix dans la topline exportée.
+    // Beat playback — la référence watermarquée dense (pas de troncature à
+    // 90s) : c'est cette version qui est mixée avec la voix côté serveur
+    // dans la topline exportée (cf. merge_voice_and_beat, routes/toplines_api.py).
     //
     // player.play() ne fait que poser un signal ; le son réel ne démarre
     // qu'après le chargement WaveSurfer (fetch + décodage), délai variable
@@ -254,7 +258,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       const t = this.timer() + 1;
       this.timer.set(t);
       this.cdr.markForCheck();
-      if (t >= this.MAX_SECONDS) this.stopRecording();
+      if (t >= this.MAX_SECONDS) this.stopRecording(true);
     }, 1000);
 
     this.state.set('recording');
@@ -281,16 +285,21 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       audioEl.addEventListener('playing', onPlaying);
       setTimeout(finish, 2000);
 
-      this.player.play(this.track as any, 'home', { forcePreview: true });
+      this.player.play(this.track as any, 'home', { referenceSource: true });
     });
   }
 
-  stopRecording(): void {
+  stopRecording(auto = false): void {
     const elapsed = (Date.now() - this.recordingStartTime) / 1000;
     if (elapsed < this.MIN_SECONDS) {
       this.recordingTooShort = true;
       this.errorMsg.set(
         `Enregistrement trop court (${Math.floor(elapsed)}s). Minimum requis : ${this.MIN_SECONDS} secondes.`
+      );
+      this.cdr.markForCheck();
+    } else if (auto) {
+      this.errorMsg.set(
+        `Durée max atteinte (${this.formatTimer(this.MAX_SECONDS)}) — enregistrement arrêté automatiquement.`
       );
       this.cdr.markForCheck();
     }
