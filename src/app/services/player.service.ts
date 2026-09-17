@@ -25,6 +25,11 @@ export class PlayerService {
    *  rather than the full title (mp3 complet). Set by play()/playMixAudio(),
    *  consumed by buildAudioUrl() and by PlayerComponent for the "Aperçu" tag. */
   isPreviewSource = signal(true);
+  /** True when the audio currently loaded is the dense-watermarked reference
+   *  (reference_stream_url, pas de troncature) — utilisé par le topline
+   *  recorder web pendant l'enregistrement. Prioritaire sur isPreviewSource
+   *  dans buildAudioUrl(), ce n'est pas la même chose que la preview 1:30. */
+  isReferenceSource = signal(false);
 
   // ── Context signals ───────────────────────────────────────────────────────
   /** Track dont la page détail est ouverte — active les boutons Download/REC. */
@@ -110,11 +115,16 @@ export class PlayerService {
    *
    * By default, plays the full title (mp3 complet) when available, falling
    * back to the watermarked preview otherwise. Pass `forcePreview: true` to
-   * always use the watermarked preview regardless of full_stream_url — used
-   * by the topline recorder, which must record over the same 1:30 watermarked
-   * version that ends up in the exported topline mix.
+   * always use the watermarked preview regardless of full_stream_url.
+   * Pass `referenceSource: true` to use the dense-watermarked reference
+   * (reference_stream_url, pas de troncature) — utilisé par le topline
+   * recorder web pendant l'enregistrement, qui mixe désormais contre cette
+   * référence plutôt que contre la preview 1:30 (cf. merge_voice_and_beat).
    */
-  play(track: Track, source: string = 'home', opts: { forcePreview?: boolean } = {}): void {
+  play(
+    track: Track, source: string = 'home',
+    opts: { forcePreview?: boolean; referenceSource?: boolean } = {},
+  ): void {
     // Envoyer l'event du track en cours avant de changer (switch de track)
     const current = this.currentTrack();
     if (current && current.id > 0 && this._listenStartTime > 0) {
@@ -128,6 +138,7 @@ export class PlayerService {
     this._secondsListened = 0;
     this._startListenTimer();
     this.isPreviewSource.set(!!opts.forcePreview || !track.full_stream_url);
+    this.isReferenceSource.set(!!opts.referenceSource);
 
     // Do NOT call audioEl.play() here with no src set — it corrupts the
     // HTMLMediaElement state (MEDIA_ERR_SRC_NOT_SUPPORTED) and prevents
@@ -206,6 +217,7 @@ export class PlayerService {
     };
     this.playOnReady = true;
     this.isPreviewSource.set(true);
+    this.isReferenceSource.set(false);
     this.currentTrack.set(track);
     this._updateMediaSession(track);
     this.viewingTrack.set(null);
@@ -251,11 +263,17 @@ export class PlayerService {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   buildAudioUrl(track: Track): string {
-    // Écoute = titre entier (full_stream_url, public) quand disponible, sauf
-    // si forcePreview a été demandé par play() (ex: enregistrement topline).
+    // Priorité : référence dense (topline recorder web, referenceSource) >
+    // preview 1:30 forcée (forcePreview) > titre entier (défaut, public) >
+    // preview 1:30 (fallback si pas de full_stream_url).
     // Le bouton télécharger du player, lui, reste câblé sur stream_url (preview)
     // indépendamment de ce choix — voir PlayerComponent.doDownload().
-    const url = (!this.isPreviewSource() && track.full_stream_url) ? track.full_stream_url : track.stream_url;
+    let url: string | null;
+    if (this.isReferenceSource() && track.reference_stream_url) {
+      url = track.reference_stream_url;
+    } else {
+      url = (!this.isPreviewSource() && track.full_stream_url) ? track.full_stream_url : track.stream_url;
+    }
     if (!url) return '';
     if (url.startsWith('blob:') || url.startsWith('http')) return url;
     return `${environment.apiUrl}${url}`;

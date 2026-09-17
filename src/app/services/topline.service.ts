@@ -30,6 +30,11 @@ export interface UploadProcessedData {
   topline_id: number;
 }
 
+export interface StartMobileSessionData {
+  session_id:      number;
+  topline_tokens:  number;
+}
+
 export interface PublishToplineData {
   topline: PublishedTopline;
 }
@@ -70,6 +75,30 @@ export class ToplineService {
   uploadProcessed(formData: FormData): Observable<ApiResponse<UploadProcessedData>> {
     return this.http.post<ApiResponse<UploadProcessedData>>(
       `${this.apiUrl}/upload-processed`, formData,
+    );
+  }
+
+  /**
+   * Ouvre une session studio mobile — consomme 1 token immédiatement (politique
+   * "1 session ouverte = 1 token"). À appeler depuis MobileStudioComponent.ngOnInit()
+   * pour un utilisateur connecté sans brouillon local à reprendre.
+   */
+  startMobileSession(trackId: number): Observable<ApiResponse<StartMobileSessionData>> {
+    const formData = new FormData();
+    formData.append('track_id', String(trackId));
+    return this.http.post<ApiResponse<StartMobileSessionData>>(
+      `${this.apiUrl}/mobile-session/start`, formData,
+    );
+  }
+
+  /**
+   * Session studio mobile encore ouverte pour cette track (si elle existe) —
+   * utilisé à la reprise d'un brouillon local pour éviter de reconsommer un
+   * token si la session d'origine est toujours valide.
+   */
+  getOpenMobileSession(trackId: number): Observable<ApiResponse<{ session_id: number }>> {
+    return this.http.get<ApiResponse<{ session_id: number }>>(
+      `${this.apiUrl}/mobile-session/open`, { params: { track_id: trackId } },
     );
   }
 

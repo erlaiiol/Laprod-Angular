@@ -948,89 +948,8 @@
   min-height:     0;
 }
 
-// ── Barre d'état de la chanson ────────────────────────────────────────────────
-
-.daw-statusbar {
-  display:         flex;
-  align-items:     center;
-  justify-content: space-between;
-  padding:         8px 14px 10px;
-  border-bottom:   1px solid rgba(255, 255, 255, 0.07);
-  flex-shrink:     0;
-}
-
-.daw-songstate {
-  display:     flex;
-  align-items: center;
-  gap:         8px;
-  min-width:   0;
-}
-
-.daw-songstate-dot {
-  width:         7px;
-  height:        7px;
-  border-radius: 50%;
-  background:    rgba(255, 255, 255, 0.2);
-  flex-shrink:   0;
-  transition:    background 0.3s;
-
-  &--live {
-    background: #4caf81;
-    animation:  dawDotPulse 2.4s ease-in-out infinite;
-  }
-}
-
-@keyframes dawDotPulse {
-  0%, 100% { opacity: 1;   }
-  50%       { opacity: 0.3; }
-}
-
-.daw-songstate-text {
-  font-size:   0.78rem;
-  font-weight: 600;
-  color:       v.$text-secondary;
-}
-
-.daw-badge-extended {
-  display:       flex;
-  align-items:   center;
-  gap:           4px;
-  font-size:     0.72rem;
-  font-weight:   700;
-  color:         #4caf81;
-  background:    rgba(76, 175, 129, 0.12);
-  border-radius: 20px;
-  padding:       2px 7px;
-  flex-shrink:   0;
-
-  i { font-size: 0.72rem; }
-}
-
-.daw-btn-mix {
-  display:       flex;
-  align-items:   center;
-  gap:           5px;
-  padding:       6px 12px;
-  border:        1.5px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  background:    rgba(255, 255, 255, 0.05);
-  color:         v.$text-primary;
-  font-size:     0.78rem;
-  font-weight:   600;
-  cursor:        pointer;
-  flex-shrink:   0;
-  transition:    border-color 0.15s, background 0.15s;
-
-  i { font-size: 0.85rem; }
-
-  &:active { background: rgba(255, 255, 255, 0.09); }
-
-  &--playing {
-    border-color: v.$primary;
-    color:        v.$primary;
-    background:   rgba(v.$primary, 0.08);
-  }
-}
+// .daw-statusbar / .daw-songstate* / .daw-badge-extended / .daw-btn-mix →
+// daw-status-bar/ (extrait).
 
 // ── Sections ─────────────────────────────────────────────────────────────────
 
@@ -1465,29 +1384,8 @@
   &:active { opacity: 0.85; }
 }
 
-.daw-btn-save-local {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             8px;
-  width:           100%;
-  padding:         13px 16px;
-  border:          1px solid rgba(255, 255, 255, 0.18);
-  border-radius:   14px;
-  background:      transparent;
-  color:           rgba(255, 255, 255, 0.75);
-  font-size:       0.9rem;
-  font-weight:     600;
-  cursor:          pointer;
-  transition:      border-color 0.15s, color 0.15s;
-
-  i { font-size: 0.95rem; }
-
-  &:active {
-    border-color: rgba(255, 255, 255, 0.35);
-    color:        #fff;
-  }
-}
+// .daw-btn-save-local → mobile-studio-shared.scss (partagé avec
+// daw-guest-gate-overlay/).
 
 .daw-local-saved {
   display:     flex;
@@ -1500,80 +1398,4 @@
   i { font-size: 0.85rem; }
 }
 
-// ── Guest gate overlay ────────────────────────────────────────────────────────
-
-.daw-guest-gate {
-  position:   absolute;
-  inset:      0;
-  z-index:    200;
-  background: rgba(0, 0, 0, 0.72);
-  display:    flex;
-  align-items: flex-end;
-  padding:    0 0 env(safe-area-inset-bottom, 0px);
-
-  &__card {
-    width:         100%;
-    background:    #1c2028;
-    border-radius: 20px 20px 0 0;
-    padding:       28px 20px 32px;
-    display:       flex;
-    flex-direction: column;
-    align-items:   center;
-    gap:           14px;
-    text-align:    center;
-  }
-
-  &__icon {
-    font-size: 2rem;
-    color:     rgba(255, 255, 255, 0.4);
-  }
-
-  &__title {
-    font-size:   1.1rem;
-    font-weight: 700;
-    color:       #fff;
-    margin:      0;
-  }
-
-  &__body {
-    font-size:   0.88rem;
-    color:       rgba(255, 255, 255, 0.55);
-    margin:      0;
-    max-width:   280px;
-    line-height: 1.5;
-  }
-
-  &__cta {
-    display:         flex;
-    align-items:     center;
-    justify-content: center;
-    gap:             8px;
-    width:           100%;
-    padding:         15px 16px;
-    border:          none;
-    border-radius:   14px;
-    background:      v.$primary;
-    color:           #fff;
-    font-size:       0.95rem;
-    font-weight:     700;
-    cursor:          pointer;
-    box-shadow:      0 4px 16px rgba(v.$primary, 0.35);
-    transition:      opacity 0.15s;
-
-    &:active { opacity: 0.85; }
-  }
-
-  &__dl {
-    width: 100%;
-  }
-
-  &__cancel {
-    background:  transparent;
-    border:      none;
-    color:       rgba(255, 255, 255, 0.4);
-    font-size:   0.85rem;
-    cursor:      pointer;
-    padding:     4px 0;
-    margin-top:  -4px;
-  }
-}
+// .daw-guest-gate* → daw-guest-gate-overlay/ (extrait).

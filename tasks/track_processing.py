@@ -23,7 +23,7 @@ from helpers import generate_track_image
 from utils.image_variants import generate_variants
 
 try:
-    from utils.audio_processing import apply_watermark_and_trim, convert_to_mp3
+    from utils.audio_processing import apply_watermark_and_trim, apply_dense_watermark, convert_to_mp3
     WATERMARK_AVAILABLE = True
     logging.info('\'WATERMARK_AVAILABLE\': utils.audio_processing imported successfully in track_processing.py.')
 except ImportError as e:
@@ -157,6 +157,27 @@ def process_track_data(job_payload : dict):
                     })
                     raise TrackProcessingError(f"Job {job_id} failed during audio processing: {e}")
 
+            # ── Étape 3bis : génération référence watermarquée dense (topline) ────
+            # Pas de troncature — protège le beat pendant l'enregistrement topline
+            # web quelle que soit sa durée. Best-effort : une erreur ici ne bloque
+            # pas la publication du track (fallback sur la preview 90s via
+            # /api/stream/tracks/<id>/reference, cf. streaming_service.py).
+            reference_disk_path = job_payload.get('reference_disk_path')
+            reference_filename  = job_payload.get('reference_filename')
+
+            if WATERMARK_AVAILABLE and reference_disk_path:
+                try:
+                    apply_dense_watermark(
+                        input_path=primary_audio_path,
+                        output_path=reference_disk_path,
+                        watermark_path=config.WATERMARK_AUDIO_PATH,
+                        interval_s=config.WATERMARK_DENSE_INTERVAL)
+                except Exception as e:
+                    logging.error(f"Job {job_id}: génération référence dense échouée: {e}", exc_info=True)
+
+            if not Path(reference_disk_path or '').exists():
+                reference_filename = None
+
             # ── Génération ou copie de l'image ────────────────────────────────────
             image_filename = None
 
@@ -206,6 +227,7 @@ def process_track_data(job_payload : dict):
                 sample_clearance_details=job_payload.get('sample_clearance_details') or None,
                 composer_user=user,
                 audio_file=job_payload['preview_filename'],
+                reference_audio_file=reference_filename,
                 file_mp3=mp3_filename,
                 file_wav=wav_filename,
                 file_stems=job_payload.get('stems_filename'),
@@ -330,3 +352,51 @@ def regenerate_preview(track_id: int, primary_audio_path: str, new_preview_path:
                 old_preview.unlink()
             except Exception as e:
                 logging.warning(f"Impossible de supprimer l'ancien preview (track {track_id}): {e}")
+
+
+def regenerate_reference(track_id: int, primary_audio_path: str, new_reference_path: str, new_reference_filename: str) -> None:
+    """
+    Régénère la référence watermarquée dense (topline) d'un track existant.
+    Exécutée par RQ — permet à un compositeur de faire profiter un beat déjà
+    publié du nouveau format sans le re-uploader entièrement.
+
+    Réutilise apply_dense_watermark(). Met à jour track.reference_audio_file
+    en DB et supprime l'ancienne référence.
+    """
+    flask_app = create_app()
+
+    with flask_app.app_context():
+        try:
+            if WATERMARK_AVAILABLE:
+                apply_dense_watermark(
+                    input_path=primary_audio_path,
+                    output_path=new_reference_path,
+                    watermark_path=config.WATERMARK_AUDIO_PATH,
+                    interval_s=config.WATERMARK_DENSE_INTERVAL,
+                )
+            if not Path(new_reference_path).exists():
+                logging.warning(f'Référence absente après watermark (track {track_id}). Copie du fichier source.')
+                shutil.copy(primary_audio_path, new_reference_path)
+
+        except Exception as e:
+            logging.error(f"Erreur génération référence (track {track_id}): {e}", exc_info=True)
+            try:
+                shutil.copy(primary_audio_path, new_reference_path)
+            except Exception as copy_err:
+                logging.error(f"Fallback référence échoué (track {track_id}): {copy_err}")
+                return
+
+        track = db.session.get(Track, track_id)
+        if not track:
+            logging.error(f"Track {track_id} introuvable lors de la mise à jour de la référence.")
+            return
+
+        old_reference = config.UPLOAD_FOLDER / track.reference_audio_file if track.reference_audio_file else None
+        track.reference_audio_file = new_reference_filename
+        db.session.commit()
+
+        if old_reference and old_reference.exists() and old_reference.name != new_reference_filename:
+            try:
+                old_reference.unlink()
+            except Exception as e:
+                logging.warning(f"Impossible de supprimer l'ancienne référence (track {track_id}): {e}")

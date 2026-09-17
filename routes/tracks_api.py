@@ -756,6 +756,9 @@ def post_track(current_user):
         preview_filename  = f"{safe_title}_{unique_id}_preview.mp3"
         preview_disk_path = config.UPLOAD_FOLDER / preview_filename
 
+        reference_filename  = f"{safe_title}_{unique_id}_reference.mp3"
+        reference_disk_path = config.UPLOAD_FOLDER / reference_filename
+
         # ── Sauvegarde MP3 ────────────────────────────────────────────────────
         mp3_filename = None
         mp3_disk_path = None
@@ -855,6 +858,8 @@ def post_track(current_user):
             'stems_filename':   stems_filename,
             'preview_disk_path': str(preview_disk_path),
             'preview_filename':  preview_filename,
+            'reference_disk_path': str(reference_disk_path),
+            'reference_filename':  reference_filename,
             'image_filename':   image_filename if (file_image and file_image.filename != '') else None,
             'image_disk_path':  str(image_disk_path)  if (file_image and file_image.filename != '') else None,
             'tag_ids':          tag_ids,
@@ -1110,6 +1115,23 @@ def put_track(track_id, current_user):
             )
         except Exception as e:
             current_app.logger.error(f'Erreur enqueue regenerate_preview (track {track.id}): {e}')
+
+    # ── Régénération référence dense topline (async via RQ) ────────────────────
+    if request.form.get('regenerate_reference') == '1' and primary_audio_for_preview:
+        try:
+            new_reference_name = f"reference_{safe_title}_{uid}.mp3"
+            new_reference_path = config.UPLOAD_FOLDER / new_reference_name
+            q = Queue(connection=redis_client)
+            q.enqueue(
+                'tasks.track_processing.regenerate_reference',
+                track.id,
+                primary_audio_for_preview,
+                str(new_reference_path),
+                new_reference_name,
+                job_timeout=300,
+            )
+        except Exception as e:
+            current_app.logger.error(f'Erreur enqueue regenerate_reference (track {track.id}): {e}')
 
     return ok({
         'track': {

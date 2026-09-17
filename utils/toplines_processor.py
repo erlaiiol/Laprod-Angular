@@ -476,11 +476,20 @@ def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, la
     beat_adjusted  = beat  - 9   # -9 dB
     voice_adjusted = voice + 0   # 0 dB (inchangé)
 
-    duration      = min(len(voice_adjusted), len(beat_adjusted))
+    # Plafond unifié web/mobile (config.TOPLINE_MAX_DURATION, 2:30) — le beat de
+    # référence n'est plus tronqué à 90s (cf. reference_audio_file), donc ce
+    # plafond explicite est désormais le seul verrou de durée du mix serveur.
+    cap_ms   = config.TOPLINE_MAX_DURATION * 1000
+    duration = min(len(voice_adjusted), len(beat_adjusted), cap_ms)
     beat_trimmed  = beat_adjusted[:duration]
     voice_trimmed = voice_adjusted[:duration]
 
     merged = beat_trimmed.overlay(voice_trimmed)
+
+    # Fade-out uniquement si la troncature vient du plafond ("topline complète") —
+    # pas si la voix était naturellement plus courte que le beat.
+    if len(voice_adjusted) >= cap_ms or len(beat_adjusted) >= cap_ms:
+        merged = merged.fade_out(500)
 
     peak = merged.max_dBFS
     if peak > -1:

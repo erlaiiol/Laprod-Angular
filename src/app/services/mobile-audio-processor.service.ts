@@ -21,6 +21,7 @@ import { Injectable, InjectionToken, inject } from '@angular/core';
 import { SoundTouch, SimpleFilter } from 'soundtouchjs';
 import { PitchDetector } from 'pitchy';
 import { Mp3Encoder } from '@breezystack/lamejs';
+import { environment } from '../../environments/environment';
 
 /**
  * Constructeur d'OfflineAudioContext, injecté plutôt que référencé en dur.
@@ -49,6 +50,17 @@ export const OFFLINE_AUDIO_CONTEXT = new InjectionToken<typeof OfflineAudioConte
 // Regroupés ici pour faciliter le tuning sans chercher dans le code.
 
 const SR = 48_000;
+
+// ── Watermark à l'export (protection anti-vol) ──────────────────────────────
+// Le beat de référence (beatStreamUrl) est le fichier complet et propre — la
+// protection se fait ici, en injectant le watermark dans le mix final, avant
+// toute sortie possible (téléchargement local ou envoi serveur). Miroir de
+// config.WATERMARK_DENSE_INTERVAL / apply_dense_watermark (backend).
+const WATERMARK_INTERVAL_S   = 20;
+const WATERMARK_GAIN_LINEAR  = Math.pow(10, 5 / 20); // +5dB, miroir du gain serveur
+
+// Plafond unifié web/mobile — miroir de config.TOPLINE_MAX_DURATION (backend).
+const TOPLINE_MAX_DURATION_S = 150;
 
 // Noise gate — élimine le souffle et le silence entre les phrases
 const GATE_THRESHOLD_DB =  -50;  // dBFS, seuil d'ouverture
@@ -206,6 +218,18 @@ export class MobileAudioProcessorService {
   /** Cache de l'IR plate — généré une seule fois par session. */
   private _plateIRCache: Promise<AudioBuffer> | null = null;
 
+  /** Cache du clip watermark — fetché une seule fois par session, réutilisé
+   *  pour tous les exports (mixAndExport est le seul point de sortie audio
+   *  de l'app, cf. exportAndPublish/exportLocal dans mobile-studio.component.ts). */
+  private _watermarkBufferPromise: Promise<AudioBuffer> | null = null;
+
+  private _getWatermarkBuffer(): Promise<AudioBuffer> {
+    this._watermarkBufferPromise ??= this._fetchAndDecode(
+      `${environment.apiUrl}/api/stream/watermark`, '',
+    );
+    return this._watermarkBufferPromise;
+  }
+
   // ── Entrée principale ────────────────────────────────────────────────────────
 
   async processTopline(opts: ProcessToplineOptions): Promise<Blob> {
@@ -303,24 +327,40 @@ export class MobileAudioProcessorService {
     const { vocals, beatStreamUrl, beatGain, accessToken } = opts;
 
     prog('Chargement du beat…', 5);
-    const beatRaw = opts.beatBlob
-      ? await this.decodeBlob(opts.beatBlob)
-      : await this._fetchAndDecode(beatStreamUrl, accessToken);
+    const [beatRaw, watermarkBuf] = await Promise.all([
+      opts.beatBlob ? this.decodeBlob(opts.beatBlob) : this._fetchAndDecode(beatStreamUrl, accessToken),
+      this._getWatermarkBuffer(),
+    ]);
 
-    // Durée du mix : minimum(toutes pistes vocales, beat)
+    // Durée du mix : minimum(toutes pistes vocales, beat, plafond topline) —
+    // le beat n'est plus tronqué (fichier complet, cf. beatStreamUrl), donc ce
+    // plafond explicite est désormais le seul verrou de durée côté client.
     const vocalLen = vocals.length > 0
       ? Math.max(...vocals.map(v => v.samples.length))
       : beatRaw.length;
-    const totalFrames = Math.min(vocalLen, beatRaw.length);
+    const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
+    const totalFrames   = Math.min(vocalLen, beatRaw.length, hardCapFrames);
+    const isCapped      = vocalLen >= hardCapFrames || beatRaw.length >= hardCapFrames;
 
     prog('Mixage…', 30);
     const ctx = new this.offlineCtx(2, totalFrames, SR);
+
+    // Bus de sortie commun — permet de fader l'ensemble (beat + voix +
+    // watermark) d'un coup si la topline est tronquée au plafond ("topline complète").
+    const masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    if (isCapped) {
+      const fadeMs    = 500;
+      const fadeStart = Math.max(0, (totalFrames / SR) - fadeMs / 1000);
+      masterGain.gain.setValueAtTime(1, fadeStart);
+      masterGain.gain.linearRampToValueAtTime(0, totalFrames / SR);
+    }
 
     // Beat
     const beatSrc = ctx.createBufferSource();
     beatSrc.buffer = beatRaw;
     const beatG = ctx.createGain(); beatG.gain.value = beatGain;
-    beatSrc.connect(beatG).connect(ctx.destination);
+    beatSrc.connect(beatG).connect(masterGain);
     beatSrc.start(0);
 
     // Pistes vocales
@@ -331,8 +371,24 @@ export class MobileAudioProcessorService {
       const vSrc = ctx.createBufferSource();
       vSrc.buffer = vBuf;
       const vGain = ctx.createGain(); vGain.gain.value = settings.volume;
-      vSrc.connect(vGain).connect(ctx.destination);
+      vSrc.connect(vGain).connect(masterGain);
       vSrc.start(0);
+    }
+
+    // Watermark — obligatoire, quel que soit le point de sortie (téléchargement
+    // local ou envoi serveur, cf. exportAndPublish/exportLocal) : seul verrou
+    // contre un utilisateur qui enregistrerait peu/pas de voix pour récupérer
+    // le beat en qualité "achetée" sans jamais l'avoir acheté. Même algorithme
+    // de positionnement que apply_dense_watermark() côté serveur (web).
+    const wmLen          = watermarkBuf.length;
+    const intervalFrames = WATERMARK_INTERVAL_S * SR;
+    for (let pos = intervalFrames; pos + wmLen <= totalFrames; pos += intervalFrames) {
+      const wmSrc  = ctx.createBufferSource();
+      wmSrc.buffer = watermarkBuf;
+      const wmGain = ctx.createGain();
+      wmGain.gain.value = WATERMARK_GAIN_LINEAR;
+      wmSrc.connect(wmGain).connect(masterGain);
+      wmSrc.start(pos / SR);
     }
 
     const mixed = await ctx.startRendering();

@@ -1,0 +1,20 @@
+<div class="daw-guest-gate" role="dialog" aria-modal="true" aria-label="Connexion requise">
+  <div class="daw-guest-gate__card">
+    <i class="bi bi-lock-fill daw-guest-gate__icon"></i>
+    <h3 class="daw-guest-gate__title">Connexion requise</h3>
+    <p class="daw-guest-gate__body">
+      Créez un compte gratuit pour publier votre maquette et la partager avec des beatmakers.
+    </p>
+    <button class="daw-guest-gate__cta" (click)="login.emit()">
+      <i class="bi bi-person-fill"></i>
+      Se connecter / S'inscrire
+    </button>
+    <button class="daw-btn-save-local daw-guest-gate__dl" (click)="downloadLocal.emit()">
+      <i class="bi bi-download"></i>
+      Télécharger sans compte
+    </button>
+    <button class="daw-guest-gate__cancel" (click)="cancel.emit()">
+      Annuler
+    </button>
+  </div>
+</div>

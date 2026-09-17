@@ -648,6 +648,10 @@ class Track(db.Model):
     file_mp3 = db.Column(db.String(200), nullable=True)     # MP3 complet pour vente
     file_wav = db.Column(db.String(200), nullable=True)     # WAV complet
     file_stems = db.Column(db.String(200), nullable=True)   # ZIP stems
+    # Référence complète watermarquée en dense (pas de troncature) — utilisée
+    # pendant l'enregistrement topline web + le mix serveur. Nullable : fallback
+    # sur audio_file (preview 90s) tant que le beat n'a pas été régénéré.
+    reference_audio_file = db.Column(db.String(200), nullable=True)
     
     image_file = db.Column(db.String(200), nullable=True)
     
@@ -800,6 +804,29 @@ class Topline(db.Model):
     def __repr__(self):
         name = self.artist_user.username if self.artist_id else f"guest:{self.guest_session_id}"
         return f"<Topline by {name} on Track#{self.track_id}>"
+
+
+class MobileStudioSession(db.Model):
+    """
+    Session studio mobile (app native) — 1 session ouverte = 1 token topline
+    consommé (cf. MobileStudioComponent.ngOnInit(), routes/toplines_api.py).
+    Une session 'open' jamais publiée reste une ligne inerte (le token est déjà
+    perdu, pas de nettoyage nécessaire).
+    """
+    __tablename__ = 'mobile_studio_session'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    track_id   = db.Column(db.Integer, db.ForeignKey('track.id', ondelete='CASCADE'), nullable=False)
+    status     = db.Column(db.String(20), default='open', nullable=False)  # open | published
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    topline_id = db.Column(db.Integer, db.ForeignKey('topline.id'), nullable=True)
+
+    user  = db.relationship('User', backref=db.backref('mobile_studio_sessions', cascade='all, delete-orphan'))
+    track = db.relationship('Track')
+
+    def __repr__(self):
+        return f"<MobileStudioSession#{self.id} user={self.user_id} track={self.track_id} {self.status}>"
 
 
 class Purchase(db.Model):

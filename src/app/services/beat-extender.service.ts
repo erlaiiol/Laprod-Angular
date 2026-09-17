@@ -53,7 +53,12 @@ export interface ExtendedBeatResult {
 
 const MEASURES_PER_SECTION  = 8;
 const WAVEFORM_POINTS       = 60;
-const MAX_BEAT_DURATION_S   = 180; // 3 minutes — plafond pour éviter des fichiers trop lourds
+// Aligné sur le plafond unifié de la topline (config.TOPLINE_MAX_DURATION,
+// backend) — pas de rôle anti-piratage : le beat de référence est déjà le
+// fichier complet et propre (cf. mobile-studio.component.ts:beatStreamUrl),
+// watermarké seulement à l'export. Étirer au-delà de ce plafond n'aurait de
+// toute façon aucun effet, la topline finale étant tronquée à ce même seuil.
+const MAX_BEAT_DURATION_S   = 150;
 
 // Micro-fade anti-clic à la jonction (en millisecondes).
 // Un beat bien calé est une boucle parfaite : couper sur un temps ne génère
@@ -222,10 +227,14 @@ export class BeatExtenderService {
     };
   }
 
-  // ── Détection du fade anti-piratage ──────────────────────────────────────────
+  // ── Détection du fade de fin de titre ─────────────────────────────────────────
 
   /**
-   * Détecte où le fade-out Python commence.
+   * Détecte où un éventuel fade-out de fin de titre commence, pour éviter d'y
+   * dupliquer une section. Le beat de référence (beatStreamUrl) est désormais
+   * le fichier complet et propre — cette fonction ne cherche plus le fade-out
+   * anti-piratage artificiel de apply_watermark_and_trim() (qui n'existe plus
+   * dans cette source), seulement un éventuel fade musical naturel.
    * Stratégie : fenêtres RMS de 0.5 s — on cherche le dernier moment où le niveau
    * est encore ≥ FADE_THRESHOLD × pic maximal.
    */

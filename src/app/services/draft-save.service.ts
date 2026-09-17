@@ -86,10 +86,33 @@ export class DraftSaveService {
     }
   }
 
+  /**
+   * Brouillons non publiés pour une track donnée — utilisé au retour dans le
+   * studio pour proposer une reprise au lieu de rouvrir une nouvelle session
+   * (donc reconsommer un token, cf. MobileStudioComponent.ngOnInit()).
+   * Repose sur le préfixe `${trackId}_` du label (cf. exportAndPublish/exportLocal) ;
+   * les brouillons créés avant ce préfixage ne sont jamais retrouvés — pruned
+   * naturellement par pruneOld().
+   */
+  async listDraftsForTrack(trackId: number): Promise<DraftEntry[]> {
+    const all = await this.listDrafts();
+    return all.filter(d => d.filename.startsWith(`${trackId}_`));
+  }
+
   /** Supprime un brouillon par son chemin relatif. */
   async deleteDraft(path: string): Promise<void> {
     if (!this.isNative) return;
     await this.fs.deleteFile({ path, directory: Directory.Documents }).catch(() => {});
+  }
+
+  /** Relit un brouillon (chemin relatif de DraftEntry.path) en Blob MP3 — reprise pour publication. */
+  async readDraft(path: string): Promise<Blob> {
+    const { data } = await this.fs.readFile({ path, directory: Directory.Documents });
+    const base64 = typeof data === 'string' ? data : await this._blobToBase64(data as Blob);
+    const binary  = atob(base64);
+    const bytes   = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: 'audio/mpeg' });
   }
 
   /** Supprime tous les brouillons plus vieux que `maxAgeDays` jours. */

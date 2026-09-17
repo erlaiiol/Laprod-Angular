@@ -18,7 +18,7 @@ import { AuthService }              from '../../services/auth.service';
 import { MobileMaquetteService, VocalTrack } from '../../services/mobile-maquette.service';
 import { MobileAudioProcessorService } from '../../services/mobile-audio-processor.service';
 import { LatencyCalibrationService }   from '../../services/latency-calibration.service';
-import { DraftSaveService }            from '../../services/draft-save.service';
+import { DraftSaveService, DraftEntry } from '../../services/draft-save.service';
 import { NativeShellService }          from '../../services/native-shell.service';
 import { PITCH_MONITOR, InterruptedResult, PitchMonitorPlugin, SessionResult } from '../../services/pitch-monitor-plugin';
 import { environment }              from '../../../environments/environment';
@@ -29,6 +29,8 @@ import { BluetoothCalibrationComponent } from '../bluetooth-calibration/bluetoot
 import { MobileStudioWarmupComponent }   from './mobile-studio-warmup/mobile-studio-warmup.component';
 import { MobileStudioPunchinComponent }  from './mobile-studio-punchin/mobile-studio-punchin.component';
 import { MobileStudioConfirmDialogComponent } from './mobile-studio-confirm-dialog/mobile-studio-confirm-dialog.component';
+import { DawStatusBarComponent } from './daw-status-bar/daw-status-bar.component';
+import { DawGuestGateOverlayComponent } from './daw-guest-gate-overlay/daw-guest-gate-overlay.component';
 import { MobileMetronomeService }        from '../../services/mobile-metronome.service';
 import { computeWaveform, spliceWaveform, formatTimer } from '../../utils/waveform.utils';
 
@@ -56,7 +58,9 @@ type StudioState =
 
 type HeadphoneType = 'wired' | 'bluetooth' | 'bluetooth-a2dp' | 'none';
 
-const MAX_REC_SECONDS  = 180;
+// Plafond unifié web/mobile (config.TOPLINE_MAX_DURATION, backend) — pas de
+// rôle anti-piratage ici (cf. beatStreamUrl), juste la durée max d'une prise.
+const MAX_REC_SECONDS  = 150;
 const WAVEFORM_POINTS  = 120;
 const LIVE_WAVE_POINTS = 80;
 const COUNTDOWN_START     = 3;
@@ -76,6 +80,8 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
     BluetoothCalibrationComponent,
     MobileStudioWarmupComponent, MobileStudioPunchinComponent,
     MobileStudioConfirmDialogComponent,
+    DawStatusBarComponent,
+    DawGuestGateOverlayComponent,
   ],
   templateUrl: './mobile-studio.component.html',
   styleUrls: ['./mobile-studio-shared.scss', './mobile-studio.component.scss'],
@@ -197,6 +203,12 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   publishedId      = signal<number | null>(null);
   showUpgradeSheet = signal(false);
 
+  // ── Politique "1 session ouverte = 1 token" ─────────────────────────────────
+  // (cf. routes/toplines_api.py: mobile-session/start, MobileStudioSession)
+  showResumeDraftDialog = signal(false);
+  showQuotaBlocked      = signal(false);
+  quotaBlockedMessage   = signal('');
+
   // ── Punch-in ─────────────────────────────────────────────────────────────────
 
   punchInTrackId = signal<string | null>(null);
@@ -207,6 +219,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   readonly tracks   = this.service.tracks;
   readonly canAdd   = computed(() => this.service.canAddTrack());
   readonly hasTrack = computed(() => this.service.tracks().some(t => t.rawBlob !== null));
+  readonly filledTrackCount = computed(() => this.service.tracks().filter(t => t.rawBlob !== null).length);
 
   readonly MAX_SECONDS  = MAX_REC_SECONDS;
   readonly levelPct     = computed(() => Math.min(100, this.recordRms() * 30_000));
@@ -250,6 +263,10 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   private _btCountdownInterval: ReturnType<typeof setInterval> | null = null;
   private _popBackHandler:      (() => void) | null                  = null;
   private _appStateHandle:      PluginListenerHandle | null          = null;
+  /** Session studio mobile en cours (token déjà consommé) — null tant qu'elle
+   *  n'est pas ouverte (dialogue de reprise en attente, ou quota bloqué). */
+  private _sessionId:           number | null                        = null;
+  private _pendingDraft:        DraftEntry | null                    = null;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -316,13 +333,109 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       this.showCalibration.set(true);
     }
 
+    // Politique "1 session ouverte = 1 token" — uniquement pour un utilisateur
+    // connecté (un guest garde l'accès libre existant, gate à la publication
+    // seulement, cf. showGuestGate). Le studio reste utilisable pendant que
+    // cette résolution se fait (métronome/monitoring non bloqués) ; seule la
+    // publication/reprise dépend de _sessionId — cf. exportAndPublish().
+    if (this.auth.isLoggedIn()) {
+      void this._resolveStudioSession();
+    }
+
     this.cdr.markForCheck();
+  }
+
+  // ── Session studio mobile (politique "1 session ouverte = 1 token") ────────────
+
+  private async _resolveStudioSession(): Promise<void> {
+    const drafts = await this.draftSave.listDraftsForTrack(this.track.id);
+    if (drafts.length > 0) {
+      this._pendingDraft = drafts[0];
+      this.showResumeDraftDialog.set(true);
+      this.cdr.markForCheck();
+      return;
+    }
+    this._startFreshSessionId(
+      sessionId => { this._sessionId = sessionId; this.cdr.markForCheck(); },
+      message    => { this._blockOnQuota(message); this.cdr.markForCheck(); },
+    );
+  }
+
+  /** Choix "Reprendre" du dialogue de reprise de brouillon. */
+  async resumeDraft(): Promise<void> {
+    this.showResumeDraftDialog.set(false);
+    const draft = this._pendingDraft;
+    if (!draft) return;
+
+    this.studioState.set('exporting');
+    this.cdr.markForCheck();
+
+    try {
+      const mp3 = await this.draftSave.readDraft(draft.path);
+      this._resolveSessionIdForPublish(
+        sessionId => this._submitProcessedMp3(mp3, sessionId),
+        message    => {
+          this._blockOnQuota(message);
+          this.studioState.set('idle');
+          this.cdr.markForCheck();
+        },
+      );
+    } catch {
+      this._setError('Impossible de lire le brouillon local.');
+    }
+  }
+
+  /** Choix "Nouvelle session" du dialogue de reprise de brouillon — ignore le(s) brouillon(s) existant(s). */
+  startFreshSession(): void {
+    this.showResumeDraftDialog.set(false);
+    this._pendingDraft = null;
+    this._startFreshSessionId(
+      sessionId => { this._sessionId = sessionId; this.cdr.markForCheck(); },
+      message    => { this._blockOnQuota(message); this.cdr.markForCheck(); },
+    );
+  }
+
+  /** Réutilise une session 'open' déjà existante pour cette track (reprise), sinon en ouvre une nouvelle. */
+  private _resolveSessionIdForPublish(
+    onReady: (sessionId: number) => void,
+    onFail:  (message?: string) => void,
+  ): void {
+    this.toplineSvc.getOpenMobileSession(this.track.id).subscribe({
+      next: res => {
+        if (res.success && res.data?.session_id) { onReady(res.data.session_id); return; }
+        this._startFreshSessionId(onReady, onFail);
+      },
+      error: () => this._startFreshSessionId(onReady, onFail),
+    });
+  }
+
+  private _startFreshSessionId(
+    onReady: (sessionId: number) => void,
+    onFail:  (message?: string) => void,
+  ): void {
+    this.toplineSvc.startMobileSession(this.track.id).subscribe({
+      next: res => {
+        if (res.success && res.data) onReady(res.data.session_id);
+        else onFail(res.feedback?.message);
+      },
+      error: (httpErr) => onFail(httpErr?.error?.feedback?.message),
+    });
+  }
+
+  private _blockOnQuota(message?: string): void {
+    this.quotaBlockedMessage.set(message ?? 'Plus de tokens de topline disponibles.');
+    this.showQuotaBlocked.set(true);
   }
 
   // ── Getters template ──────────────────────────────────────────────────────────
 
   get beatStreamUrl(): string {
-    return `${environment.apiUrl}/api/stream/tracks/${this.track.id}/preview`;
+    // Fichier complet et propre (pas la preview watermarquée) — pour que
+    // l'utilisateur entende le beat dans les meilleures conditions pendant
+    // qu'il compose. La protection anti-vol se fait à l'export (watermark
+    // injecté dans mixAndExport, cf. mobile-audio-processor.service.ts),
+    // avant toute sortie possible (téléchargement local ou envoi serveur).
+    return `${environment.apiUrl}/api/stream/tracks/${this.track.id}/full`;
   }
 
   formatTimer(s: number): string {
@@ -1159,6 +1272,14 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
+    if (this._sessionId === null) {
+      // Résolution de session pas encore terminée, ou bloquée par le quota —
+      // ne devrait pas arriver via l'UI normale (publier est masqué tant que
+      // ce n'est pas résolu), garde-fou défensif.
+      this._setError('Session studio non prête — merci de patienter ou de rouvrir le studio.');
+      this.cdr.markForCheck();
+      return;
+    }
     this._stopPreviewPlayback();
     this.studioState.set('exporting');
     this.errorMsg.set(null);
@@ -1177,7 +1298,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       });
 
       // Sauvegarde locale avant l'upload — filet de sécurité si le réseau coupe.
-      const label = this.track.title.replace(/\s+/g, '_').slice(0, 30);
+      const label = `${this.track.id}_${this.track.title.replace(/\s+/g, '_').slice(0, 30)}`;
       this.draftSave.saveMp3(mp3, label).then(() => {
         this.zone.run(() => {
           this.draftSaved.set(true);
@@ -1193,39 +1314,55 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       // Nettoyage des vieux brouillons (> 7 jours) en arrière-plan
       this.draftSave.pruneOld().catch(() => {});
 
-      const fd = new FormData();
-      fd.append('processed_file', mp3, 'maquette.mp3');
-      fd.append('track_id', String(this.track.id));
-      if (this.description) fd.append('description', this.description);
-
-      const imageUrl = this.track.image_file
-        ? `${environment.apiUrl}/db_assets/${this.track.image_file}` : null;
-      this.statusSvc.openForUpload(this.track.id, this.track.title, imageUrl);
-
-      this.toplineSvc.uploadProcessed(fd).subscribe({
-        next: res => {
-          if (res.success && res.data?.topline_id) {
-            this._hapticSuccess();
-            this.statusSvc.setDoneWithId(res.data.topline_id);
-            this.publishedId.set(res.data.topline_id);
-            this.studioState.set('published');
-            this.cdr.markForCheck();
-          } else {
-            this.statusSvc.stopPolling();
-            this._setError(res.feedback?.message ?? 'Erreur lors de l\'envoi.');
-          }
-          this.cdr.markForCheck();
-        },
-        error: () => {
-          this.statusSvc.stopPolling();
-          this._setError('Impossible de contacter le serveur.');
-        },
-      });
+      this._submitProcessedMp3(mp3, this._sessionId);
 
     } catch (err) {
       console.error('[MobileStudio] export error', err);
       this._setError('Erreur lors du traitement audio.');
     }
+  }
+
+  /**
+   * Envoie un MP3 déjà mixé (fraîchement exporté ou repris depuis un brouillon
+   * local, cf. resumeDraft()) vers /upload-processed avec la session qui l'a payé.
+   */
+  private _submitProcessedMp3(mp3: Blob, sessionId: number): void {
+    const fd = new FormData();
+    fd.append('processed_file', mp3, 'maquette.mp3');
+    fd.append('track_id', String(this.track.id));
+    fd.append('session_id', String(sessionId));
+    if (this.description) fd.append('description', this.description);
+
+    const imageUrl = this.track.image_file
+      ? `${environment.apiUrl}/db_assets/${this.track.image_file}` : null;
+    this.statusSvc.openForUpload(this.track.id, this.track.title, imageUrl);
+
+    this.toplineSvc.uploadProcessed(fd).subscribe({
+      next: res => {
+        if (res.success && res.data?.topline_id) {
+          this._hapticSuccess();
+          this.statusSvc.setDoneWithId(res.data.topline_id);
+          this.publishedId.set(res.data.topline_id);
+          this.studioState.set('published');
+        } else if (res.code === 'SESSION_INVALID') {
+          this.statusSvc.stopPolling();
+          this._setError(res.feedback?.message ?? 'Session studio invalide — merci de rouvrir le studio.');
+        } else {
+          this.statusSvc.stopPolling();
+          this._setError(res.feedback?.message ?? 'Erreur lors de l\'envoi.');
+        }
+        this.cdr.markForCheck();
+      },
+      error: (httpErr) => {
+        this.statusSvc.stopPolling();
+        if (httpErr?.error?.code === 'SESSION_INVALID') {
+          this._setError(httpErr.error?.feedback?.message ?? 'Session studio invalide — merci de rouvrir le studio.');
+        } else {
+          this._setError('Impossible de contacter le serveur.');
+        }
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   async exportLocal(): Promise<void> {
@@ -1244,7 +1381,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
         beatBlob:      this._beatBlob() ?? undefined,
       });
 
-      const label = this.track.title.replace(/\s+/g, '_').slice(0, 30);
+      const label = `${this.track.id}_${this.track.title.replace(/\s+/g, '_').slice(0, 30)}`;
       const savedPath = await this.draftSave.saveMp3(mp3, label);
 
       if (!savedPath) {

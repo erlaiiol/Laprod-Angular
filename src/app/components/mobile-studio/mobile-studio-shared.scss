@@ -156,3 +156,29 @@
   flex-shrink:          0;
   font-variant-numeric: tabular-nums;
 }
+
+// ── Bouton "sauvegarder en local" (CTA idle + guest gate) ─────────────────────
+
+.daw-btn-save-local {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  width:           100%;
+  padding:         13px 16px;
+  border:          1px solid rgba(255, 255, 255, 0.18);
+  border-radius:   14px;
+  background:      transparent;
+  color:           rgba(255, 255, 255, 0.75);
+  font-size:       0.9rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      border-color 0.15s, color 0.15s;
+
+  i { font-size: 0.95rem; }
+
+  &:active {
+    border-color: rgba(255, 255, 255, 0.35);
+    color:        #fff;
+  }
+}

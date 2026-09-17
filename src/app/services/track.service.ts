@@ -50,6 +50,8 @@ export interface Track {
   is_approved:      boolean;
   is_ai_suggested?: boolean;
   full_stream_url: string | null;
+  /** Référence watermarquée dense (pas de troncature) — enregistrement topline web. Absent des listings, présent sur TrackDetail. */
+  reference_stream_url?: string;
   // Données playlist (toujours présentes dans les listings, 0 / null si absent)
   playlist_count:       number;
   first_playlist_image: string | null;

@@ -1,0 +1,26 @@
+<div class="daw-statusbar">
+  <div class="daw-songstate">
+    <span class="daw-songstate-dot" [class.daw-songstate-dot--live]="hasTrack"></span>
+    <span class="daw-songstate-text">
+      @if (hasTrack) {
+        Brouillon&nbsp;·&nbsp;{{ trackCount }} piste{{ trackCount > 1 ? 's' : '' }}
+      } @else {
+        Studio prêt
+      }
+    </span>
+    @if (hasExtendedBeat) {
+      <span class="daw-badge-extended">
+        <i class="bi bi-check-circle-fill"></i> Beat étendu
+      </span>
+    }
+  </div>
+  @if (hasTrack) {
+    <button class="daw-btn-mix"
+            [class.daw-btn-mix--playing]="isPlayingPreview"
+            (click)="togglePreview.emit()"
+            [attr.aria-label]="isPlayingPreview ? 'Arrêter' : 'Écouter le mix'">
+      <i class="bi" [class.bi-stop-fill]="isPlayingPreview" [class.bi-headphones]="!isPlayingPreview"></i>
+      <span>{{ isPlayingPreview ? 'Stop' : 'Mix' }}</span>
+    </button>
+  }
+</div>
