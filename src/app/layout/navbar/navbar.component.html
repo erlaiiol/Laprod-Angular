@@ -15,15 +15,25 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container-fluid">
 
-    <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']" (click)="resetFilters()">
-      <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
-           appImgFallback>
-      <span>LaProd</span>
-    </a>
+    <!-- navbar-top-row regroupe brand + recherche + burger : en display:contents
+         au-delà de lg (ses enfants restent des flex items directs du
+         container-fluid, comportement desktop inchangé), et en flex nowrap
+         en dessous — sinon le burger (4e élément) wrap sur une 2e ligne dès
+         que la recherche prend toute la largeur restante, cf. flex-basis
+         hypothétique d'un <input> qui ignore min-width lors du calcul de
+         wrap. Le menu mobile (.navbar-collapse), lui, doit continuer à wrap
+         sur sa propre ligne quand ouvert : il reste hors de ce wrapper. -->
+    <div class="navbar-top-row">
 
-    <!-- Barre de recherche + filtres — toujours visible : tous les rôles
-         peuvent vouloir parcourir le catalogue. -->
-    <div class="d-flex align-items-center mx-auto flex-grow-1 order-lg-1" style="max-width: 600px;">
+      <a class="navbar-brand d-flex align-items-center" [routerLink]="['/']" (click)="resetFilters()">
+        <img src="/assets/logo.png" alt="LaProd" height="40" class="me-2"
+             appImgFallback>
+        <span>LaProd</span>
+      </a>
+
+      <!-- Barre de recherche + filtres — toujours visible : tous les rôles
+           peuvent vouloir parcourir le catalogue. -->
+      <div class="navbar-search d-flex align-items-center mx-auto flex-grow-1 order-lg-1" style="max-width: 600px;">
       <form class="position-relative flex-grow-1 me-2"
             (submit)="$event.preventDefault(); onSearchEnter()">
         <input type="text"
@@ -74,17 +84,47 @@
           <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
         </svg>
       </button>
-    </div>
+      </div>
 
-    <button class="navbar-toggler order-lg-2" type="button"
-            (click)="toggleMenu()"
-            aria-controls="navbarNav" [attr.aria-expanded]="menuVisible()" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+      <button class="navbar-toggler order-lg-2" type="button"
+              (click)="toggleMenu()"
+              aria-controls="navbarNav" [attr.aria-expanded]="menuVisible()" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+    </div>
 
     <div class="collapse navbar-collapse order-lg-3" id="navbarNav"
          [class.show]="menuVisible()" (click)="onNavLinkClick($event)">
-      <ul class="navbar-nav ms-auto" lpTourAnchor="nav-menu">
+
+      <!-- Sur mobile, "Navigation" et "Mon profil" étaient deux menus
+           superposés (la liste de nav + un dropdown avatar flottant par
+           dessus) — illisible en pleine largeur. On les remplace par un
+           switch explicite : un seul panneau visible à la fois. Le signal
+           openDropdown (déjà utilisé pour armer .show sur le dropdown
+           desktop) fait aussi office d'onglet actif ici. -->
+      @if (isLoggedIn()) {
+        <div class="mobile-menu-tabs d-lg-none">
+          <button type="button" class="mobile-menu-tabs__btn"
+                  [class.active]="openDropdown() !== 'user'"
+                  (click)="selectMobilePane('nav', $event)">
+            <i class="bi bi-compass"></i> Navigation
+          </button>
+          <button type="button" class="mobile-menu-tabs__btn"
+                  [class.active]="openDropdown() === 'user'"
+                  (click)="selectMobilePane('profile', $event)">
+            @if (avatarUrl(); as url) {
+              <img [src]="url" [alt]="username()" class="mobile-menu-tabs__avatar">
+            } @else {
+              <span class="mobile-menu-tabs__avatar">{{ userInitial() }}</span>
+            }
+            Mon profil
+          </button>
+        </div>
+      }
+
+      <ul class="navbar-nav ms-auto" lpTourAnchor="nav-menu"
+          [class.mobile-pane-hidden]="isLoggedIn() && openDropdown() === 'user'">
 
         <!-- Acte principal de l'artiste : parcourir le catalogue de beats. -->
         <li class="nav-item">
@@ -179,8 +219,11 @@
             </a>
           </li>
 
-          <!-- Avatar dropdown — tout ce qui est "mon espace" -->
-          <li class="nav-item dropdown" lpTourAnchor="nav-profile">
+          <!-- Avatar dropdown — tout ce qui est "mon espace". Masqué sous lg :
+               remplacé par l'onglet "Mon profil" du switch mobile ci-dessus,
+               qui affiche le même contenu (profileMenuItems) en pleine
+               largeur au lieu d'un dropdown flottant. -->
+          <li class="nav-item dropdown d-none d-lg-block" lpTourAnchor="nav-profile">
             <a class="nav-link nav-user-toggle dropdown-toggle" href="#" role="button"
                (click)="toggleDropdown('user', $event)"
                [attr.aria-expanded]="openDropdown() === 'user'">
@@ -192,134 +235,7 @@
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
                 [class.show]="openDropdown() === 'user'">
-
-              <li>
-                <a class="dropdown-item" [routerLink]="['/profile', username()]" routerLinkActive="active">
-                  <i class="bi bi-person"></i> Mon profil
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" [routerLink]="['/purchases']" routerLinkActive="active">
-                  <i class="bi bi-bag-check"></i> Mes achats
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" [routerLink]="['/producer/planning']" routerLinkActive="active">
-                  <i class="bi bi-calendar3"></i> Mon planning
-                  <app-beta-badge />
-                </a>
-              </li>
-
-              <!-- Espaces par rôle — repris ici pour un accès en 1 clic depuis
-                   n'importe quelle page (le profil reste le hub complet, cette
-                   liste n'en est qu'un raccourci). Groupés sous un en-tête pour
-                   ne pas noyer le dropdown dans une liste plate. -->
-              @if (isArtist() || isBeatmaker() || isMixEngineer() || isProducer()) {
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-section-label">Mon espace</h6></li>
-
-                @if (isArtist()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
-                      <i class="bi bi-mic-fill"></i> Espace Artiste
-                    </a>
-                  </li>
-                }
-                @if (isBeatmaker()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
-                      <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
-                    </a>
-                  </li>
-                }
-                @if (isMixEngineer()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
-                      <i class="bi bi-sliders"></i> Espace Mix Engineer
-                      @if (mixSamplePending()) {
-                        <span class="role-pending-dot" title="Preview à soumettre">!</span>
-                      }
-                    </a>
-                  </li>
-                }
-                @if (isProducer()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/dashboard/producer']" routerLinkActive="active">
-                      <i class="bi bi-file-earmark-text"></i> Espace Producteur
-                      <app-beta-badge />
-                    </a>
-                  </li>
-                }
-              }
-
-              <!-- Outils vendeur — même logique de raccourci. -->
-              @if ((isBeatmaker() || isMixEngineer()) || (isBeatmaker() || isCertifiedMixEngineer())) {
-                <li><hr class="dropdown-divider"></li>
-                <li><h6 class="dropdown-section-label">Outils vendeur</h6></li>
-
-                @if (isBeatmaker() || isMixEngineer()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
-                      <i class="bi bi-wallet2"></i> Mes gains
-                    </a>
-                  </li>
-                }
-                @if (isBeatmaker() || isCertifiedMixEngineer()) {
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/promo-codes']" routerLinkActive="active">
-                      <i class="bi bi-tag"></i> Mes codes promo
-                    </a>
-                  </li>
-                  <li>
-                    <a class="dropdown-item" [routerLink]="['/campagnes']" routerLinkActive="active">
-                      <i class="bi bi-megaphone"></i> Mes campagnes
-                    </a>
-                  </li>
-                }
-              }
-
-              <li><hr class="dropdown-divider"></li>
-
-              <li>
-                <a class="dropdown-item" [routerLink]="['/profile/edit']" routerLinkActive="active">
-                  <i class="bi bi-pencil"></i> Modifier mon profil
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" [routerLink]="['/profile/security']" routerLinkActive="active">
-                  <i class="bi bi-shield-check"></i> Sécurité
-                </a>
-              </li>
-
-              @if (isAdmin()) {
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" [routerLink]="['/admin']" routerLinkActive="active">
-                    <i class="bi bi-shield-lock"></i> Administration
-                  </a>
-                </li>
-              }
-
-              <li><hr class="dropdown-divider"></li>
-
-              <li>
-                <button class="dropdown-item dropdown-item--theme" (click)="themeSvc.toggle()">
-                  @if (themeSvc.theme() === 'dark') {
-                    <i class="bi bi-sun"></i> Mode clair
-                  } @else {
-                    <i class="bi bi-moon-stars"></i> Mode sombre
-                  }
-                </button>
-              </li>
-
-              <li><hr class="dropdown-divider"></li>
-
-              <li>
-                <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
-                  <i class="bi bi-box-arrow-right"></i> Déconnexion
-                </a>
-              </li>
-
+              <ng-container *ngTemplateOutlet="profileMenuItems"></ng-container>
             </ul>
           </li>
 
@@ -352,7 +268,149 @@
         }
 
       </ul>
+
+      <!-- Panneau mobile "Mon profil" — même contenu (profileMenuItems),
+           affiché en pleine largeur (pas un dropdown flottant) quand
+           l'onglet "Mon profil" est actif dans le switch ci-dessus. -->
+      @if (isLoggedIn()) {
+        <ul class="navbar-nav navbar-nav--mobile-profile d-lg-none"
+            [class.mobile-pane-hidden]="openDropdown() !== 'user'">
+          <ng-container *ngTemplateOutlet="profileMenuItems"></ng-container>
+        </ul>
+      }
+
     </div>
+
+    <ng-template #profileMenuItems>
+
+      <li>
+        <a class="dropdown-item" [routerLink]="['/profile', username()]" routerLinkActive="active">
+          <i class="bi bi-person"></i> Mon profil
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" [routerLink]="['/purchases']" routerLinkActive="active">
+          <i class="bi bi-bag-check"></i> Mes achats
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" [routerLink]="['/producer/planning']" routerLinkActive="active">
+          <i class="bi bi-calendar3"></i> Mon planning
+          <app-beta-badge />
+        </a>
+      </li>
+
+      <!-- Espaces par rôle — repris ici pour un accès en 1 clic depuis
+           n'importe quelle page (le profil reste le hub complet, cette
+           liste n'en est qu'un raccourci). Groupés sous un en-tête pour
+           ne pas noyer le dropdown dans une liste plate. -->
+      @if (isArtist() || isBeatmaker() || isMixEngineer() || isProducer()) {
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-section-label">Mon espace</h6></li>
+
+        @if (isArtist()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/dashboard/artist']" routerLinkActive="active">
+              <i class="bi bi-mic-fill"></i> Espace Artiste
+            </a>
+          </li>
+        }
+        @if (isBeatmaker()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/dashboard/beatmaker']" routerLinkActive="active">
+              <i class="bi bi-music-note-beamed"></i> Espace Beatmaker
+            </a>
+          </li>
+        }
+        @if (isMixEngineer()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/dashboard/mix-engineer']" routerLinkActive="active">
+              <i class="bi bi-sliders"></i> Espace Mix Engineer
+              @if (mixSamplePending()) {
+                <span class="role-pending-dot" title="Preview à soumettre">!</span>
+              }
+            </a>
+          </li>
+        }
+        @if (isProducer()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/dashboard/producer']" routerLinkActive="active">
+              <i class="bi bi-file-earmark-text"></i> Espace Producteur
+              <app-beta-badge />
+            </a>
+          </li>
+        }
+      }
+
+      <!-- Outils vendeur — même logique de raccourci. -->
+      @if ((isBeatmaker() || isMixEngineer()) || (isBeatmaker() || isCertifiedMixEngineer())) {
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-section-label">Outils vendeur</h6></li>
+
+        @if (isBeatmaker() || isMixEngineer()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/wallet']" routerLinkActive="active">
+              <i class="bi bi-wallet2"></i> Mes gains
+            </a>
+          </li>
+        }
+        @if (isBeatmaker() || isCertifiedMixEngineer()) {
+          <li>
+            <a class="dropdown-item" [routerLink]="['/promo-codes']" routerLinkActive="active">
+              <i class="bi bi-tag"></i> Mes codes promo
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" [routerLink]="['/campagnes']" routerLinkActive="active">
+              <i class="bi bi-megaphone"></i> Mes campagnes
+            </a>
+          </li>
+        }
+      }
+
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <a class="dropdown-item" [routerLink]="['/profile/edit']" routerLinkActive="active">
+          <i class="bi bi-pencil"></i> Modifier mon profil
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" [routerLink]="['/profile/security']" routerLinkActive="active">
+          <i class="bi bi-shield-check"></i> Sécurité
+        </a>
+      </li>
+
+      @if (isAdmin()) {
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item" [routerLink]="['/admin']" routerLinkActive="active">
+            <i class="bi bi-shield-lock"></i> Administration
+          </a>
+        </li>
+      }
+
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <button class="dropdown-item dropdown-item--theme" (click)="themeSvc.toggle()">
+          @if (themeSvc.theme() === 'dark') {
+            <i class="bi bi-sun"></i> Mode clair
+          } @else {
+            <i class="bi bi-moon-stars"></i> Mode sombre
+          }
+        </button>
+      </li>
+
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+          <i class="bi bi-box-arrow-right"></i> Déconnexion
+        </a>
+      </li>
+
+    </ng-template>
 
   </div>
 </nav>

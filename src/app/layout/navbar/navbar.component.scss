@@ -14,6 +14,167 @@
 .state-error-inline { color: v.$tag-red; }
 
 
+/* ── Ligne unique mobile ────────────────────────────────────────────────────
+   En dessous de ~500px (petits téléphones), la brand + la recherche + le
+   burger flex-wrap sur 2 lignes dès que leur largeur cumulée dépasse le
+   viewport (le texte "LaProd" à lui seul pousse la recherche+burger en
+   dessous — un <input> ignore min-width lors du calcul de wrap, seul
+   flex-wrap: nowrap force le rendu sur une ligne). Au-delà (576px+), le
+   layout tient déjà sur une ligne sans rien toucher — on scope donc au
+   breakpoint sm pour ne pas rogner la brand sur tablette.
+   navbar-top-row isole brand+recherche+burger du menu mobile
+   (.navbar-collapse) : ce dernier doit garder son propre wrap (flex-basis:
+   100% côté Bootstrap) pour continuer à s'afficher sur sa ligne quand
+   ouvert — un nowrap posé directement sur .container-fluid l'aurait aussi
+   empêché de wrap et l'aurait écrasé dans l'espace restant de la ligne 1. */
+
+.navbar-top-row {
+  display: contents;
+}
+
+@media (max-width: 575.98px) {
+
+  .navbar > .container-fluid {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .navbar-top-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .navbar-brand {
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+
+    span { display: none; }
+
+    img { height: 30px; margin-right: 0 !important; }
+  }
+
+  .navbar-search {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: none !important;
+    min-width: 0;
+
+    form { min-width: 0; }
+    input { min-width: 0; }
+  }
+
+  .navbar-toggler {
+    flex-shrink: 0;
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+  }
+
+}
+
+
+/* ── Menu mobile — panneau + switch Navigation / Profil ────────────────────
+   Sous lg, "Navigation" (Beats, Contrats...) et "Mon profil" (avatar +
+   dropdown "Mon espace") étaient deux menus superposés : la liste de nav en
+   pleine largeur, et par-dessus un dropdown Bootstrap conçu pour un popover
+   étroit ancré sous une icône (position absolute, largeur ~230px), qui
+   débordait et se faisait recouvrir par d'autres éléments position:fixed
+   (mini-lecteur, CTAs flottants). On affiche maintenant un seul panneau à la
+   fois, choisi via un switch explicite en tête de menu — même contenu
+   (profileMenuItems), simplement affiché en flux normal plutôt qu'en
+   popover. Couleurs en rgba(blanc) littéral, pas via les tokens de thème
+   ($bg-elevated etc.) : le nav reste "navbar-dark" en permanence, indépendamment du
+   thème clair/sombre du reste du site (cf. classe bg-dark figée sur <nav>). */
+
+@media (max-width: 991.98px) {
+
+  .navbar-collapse.show {
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.35);
+    max-height: calc(100vh - 56px);
+    max-height: calc(100dvh - 56px);
+    overflow-y: auto;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .navbar-nav {
+    padding: 0.4rem 1rem;
+  }
+
+  .navbar-nav .nav-link {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .navbar-nav .dropdown-item {
+    padding: 0.55rem 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .mobile-pane-hidden { display: none; }
+
+}
+
+.mobile-menu-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.25rem;
+}
+
+.mobile-menu-tabs__btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: v.$radius-sm;
+  color: v.$text-secondary;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+  i.bi { font-size: 0.9rem; }
+
+  &:hover:not(.active) {
+    border-color: rgba(255, 255, 255, 0.32);
+    color: v.$off-white;
+  }
+
+  &.active {
+    background: v.$primary;
+    border-color: v.$primary;
+    color: v.$white;
+  }
+}
+
+.mobile-menu-tabs__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: v.$gradient-primary;
+  color: v.$white;
+  font-size: 0.6rem;
+  font-weight: v.$weight-bold;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.navbar-nav--mobile-profile {
+  padding-top: 0;
+}
+
+
 /* ── Barre de recherche ────────────────────────────────────────────────────── */
 
 .btn-clear-search {
