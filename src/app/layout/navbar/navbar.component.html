@@ -212,17 +212,21 @@
           <li class="nav-item">
             <a class="nav-link nav-notif-btn" [routerLink]="['/notifications']"
                routerLinkActive="active" title="Notifications">
-              <i class="bi bi-bell"></i>
-              @if (notifCount() > 0) {
-                <span class="notif-dot">{{ notifCount() }}</span>
-              }
+              <span class="notif-icon-wrap">
+                <i class="bi bi-bell"></i>
+                @if (notifCount() > 0) {
+                  <span class="notif-dot">{{ notifCount() }}</span>
+                }
+              </span>
             </a>
           </li>
 
-          <!-- Avatar dropdown — tout ce qui est "mon espace". Masqué sous lg :
-               remplacé par l'onglet "Mon profil" du switch mobile ci-dessus,
-               qui affiche le même contenu (profileMenuItems) en pleine
-               largeur au lieu d'un dropdown flottant. -->
+          <!-- Avatar dropdown — sur desktop, un seul popover regroupe tout
+               (profil + raccourcis par rôle) comme avant. Sous lg, ce li est
+               masqué : remplacé par l'onglet "Mon profil" du switch mobile
+               ci-dessus, et le contenu est réparti entre les deux panneaux
+               (profileMenuItems / roleShortcutsItems) plutôt que dans un
+               seul dropdown flottant. -->
           <li class="nav-item dropdown d-none d-lg-block" lpTourAnchor="nav-profile">
             <a class="nav-link nav-user-toggle dropdown-toggle" href="#" role="button"
                (click)="toggleDropdown('user', $event)"
@@ -235,7 +239,8 @@
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"
                 [class.show]="openDropdown() === 'user'">
-              <ng-container *ngTemplateOutlet="profileMenuItems"></ng-container>
+              <ng-container *ngTemplateOutlet="profileMenuItems; context: {showLogout: false}"></ng-container>
+              <ng-container *ngTemplateOutlet="roleShortcutsItems"></ng-container>
             </ul>
           </li>
 
@@ -269,6 +274,18 @@
 
       </ul>
 
+      <!-- Panneau mobile "Navigation" (suite) — raccourcis "Mon espace" /
+           "Outils vendeur", rattachés à l'onglet Navigation plutôt qu'à
+           "Mon profil" : ce sont des actes de travail (accès à ses espaces
+           de vente), pas des réglages de compte. Rééquilibre aussi la
+           longueur des deux panneaux, qui était très inégale. -->
+      @if (isLoggedIn()) {
+        <ul class="navbar-nav navbar-nav--mobile-extra d-lg-none"
+            [class.mobile-pane-hidden]="openDropdown() === 'user'">
+          <ng-container *ngTemplateOutlet="roleShortcutsItems"></ng-container>
+        </ul>
+      }
+
       <!-- Panneau mobile "Mon profil" — même contenu (profileMenuItems),
            affiché en pleine largeur (pas un dropdown flottant) quand
            l'onglet "Mon profil" est actif dans le switch ci-dessus. -->
@@ -281,7 +298,7 @@
 
     </div>
 
-    <ng-template #profileMenuItems>
+    <ng-template #profileMenuItems let-showLogout="showLogout">
 
       <li>
         <a class="dropdown-item" [routerLink]="['/profile', username()]" routerLinkActive="active">
@@ -300,10 +317,59 @@
         </a>
       </li>
 
-      <!-- Espaces par rôle — repris ici pour un accès en 1 clic depuis
-           n'importe quelle page (le profil reste le hub complet, cette
-           liste n'en est qu'un raccourci). Groupés sous un en-tête pour
-           ne pas noyer le dropdown dans une liste plate. -->
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <a class="dropdown-item" [routerLink]="['/profile/edit']" routerLinkActive="active">
+          <i class="bi bi-pencil"></i> Modifier mon profil
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" [routerLink]="['/profile/security']" routerLinkActive="active">
+          <i class="bi bi-shield-check"></i> Sécurité
+        </a>
+      </li>
+
+      @if (isAdmin()) {
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item" [routerLink]="['/admin']" routerLinkActive="active">
+            <i class="bi bi-shield-lock"></i> Administration
+          </a>
+        </li>
+      }
+
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <button class="dropdown-item dropdown-item--theme" (click)="themeSvc.toggle()">
+          @if (themeSvc.theme() === 'dark') {
+            <i class="bi bi-sun"></i> Mode clair
+          } @else {
+            <i class="bi bi-moon-stars"></i> Mode sombre
+          }
+        </button>
+      </li>
+
+      @if (showLogout !== false) {
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+            <i class="bi bi-box-arrow-right"></i> Déconnexion
+          </a>
+        </li>
+      }
+
+    </ng-template>
+
+    <!-- Raccourcis par rôle — "Mon espace" (accès direct au dashboard de
+         chaque rôle possédé) et "Outils vendeur" (gains, codes promo,
+         campagnes). Ce sont des actes de navigation/travail, pas des
+         réglages de compte : rattachés à l'onglet "Navigation" sur mobile
+         plutôt qu'à "Mon profil". Sur desktop, restent dans le même popover
+         avatar que profileMenuItems (composition dans le li ci-dessus). -->
+    <ng-template #roleShortcutsItems let-showLogout="showLogout">
+
       @if (isArtist() || isBeatmaker() || isMixEngineer() || isProducer()) {
         <li><hr class="dropdown-divider"></li>
         <li><h6 class="dropdown-section-label">Mon espace</h6></li>
@@ -342,7 +408,6 @@
         }
       }
 
-      <!-- Outils vendeur — même logique de raccourci. -->
       @if ((isBeatmaker() || isMixEngineer()) || (isBeatmaker() || isCertifiedMixEngineer())) {
         <li><hr class="dropdown-divider"></li>
         <li><h6 class="dropdown-section-label">Outils vendeur</h6></li>
@@ -368,47 +433,14 @@
         }
       }
 
-      <li><hr class="dropdown-divider"></li>
-
-      <li>
-        <a class="dropdown-item" [routerLink]="['/profile/edit']" routerLinkActive="active">
-          <i class="bi bi-pencil"></i> Modifier mon profil
-        </a>
-      </li>
-      <li>
-        <a class="dropdown-item" [routerLink]="['/profile/security']" routerLinkActive="active">
-          <i class="bi bi-shield-check"></i> Sécurité
-        </a>
-      </li>
-
-      @if (isAdmin()) {
+      @if (showLogout !== false) {
         <li><hr class="dropdown-divider"></li>
         <li>
-          <a class="dropdown-item" [routerLink]="['/admin']" routerLinkActive="active">
-            <i class="bi bi-shield-lock"></i> Administration
+          <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+            <i class="bi bi-box-arrow-right"></i> Déconnexion
           </a>
         </li>
       }
-
-      <li><hr class="dropdown-divider"></li>
-
-      <li>
-        <button class="dropdown-item dropdown-item--theme" (click)="themeSvc.toggle()">
-          @if (themeSvc.theme() === 'dark') {
-            <i class="bi bi-sun"></i> Mode clair
-          } @else {
-            <i class="bi bi-moon-stars"></i> Mode sombre
-          }
-        </button>
-      </li>
-
-      <li><hr class="dropdown-divider"></li>
-
-      <li>
-        <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
-          <i class="bi bi-box-arrow-right"></i> Déconnexion
-        </a>
-      </li>
 
     </ng-template>
 

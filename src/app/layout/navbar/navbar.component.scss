@@ -170,7 +170,8 @@
   flex-shrink: 0;
 }
 
-.navbar-nav--mobile-profile {
+.navbar-nav--mobile-profile,
+.navbar-nav--mobile-extra {
   padding-top: 0;
 }
 
@@ -595,16 +596,22 @@ details.filter-accordion[open] .filter-accordion-arrow {
 }
 
 // ── Cloche notifications ───────────────────────────────────────────────────────
+// notif-icon-wrap ancre le badge à la cloche elle-même : sur mobile le
+// .nav-link (parent) devient plein-largeur (rangée de menu pleine largeur),
+// donc un badge positionné en absolute contre LE LIEN se retrouve collé au
+// bord droit de l'écran, loin de l'icône. En ancrant sur un petit wrapper
+// dimensionné au contenu, le badge reste toujours collé à la cloche, quelle
+// que soit la largeur du lien.
 
-.nav-notif-btn {
+.notif-icon-wrap {
   position: relative;
-  padding-right: 0.65rem !important;
+  display: inline-flex;
 }
 
 .notif-dot {
   position: absolute;
-  top: 4px;
-  right: 2px;
+  top: -6px;
+  right: -8px;
   min-width: 16px;
   height: 16px;
   background: v.$primary;
