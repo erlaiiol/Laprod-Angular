@@ -226,7 +226,11 @@ export class NavbarComponent {
   }
 
   toggleMenu(): void {
-    this.menuOpen.update(open => !open);
+    const opening = !this.menuOpen();
+    this.menuOpen.set(opening);
+    // Repartir sur l'onglet "Navigation" à chaque réouverture, plutôt que de
+    // rester coincé sur "Mon profil" si c'est là qu'on avait fermé le menu.
+    if (!opening) this.openDropdown.set(null);
   }
 
   toggleDropdown(name: 'contracts' | 'user', event: Event): void {
@@ -235,6 +239,15 @@ export class NavbarComponent {
     // immédiatement le dropdown qu'on vient d'ouvrir.
     event.stopPropagation();
     this.openDropdown.update(current => (current === name ? null : name));
+  }
+
+  // Switch mobile "Navigation" / "Mon profil" — contrairement à
+  // toggleDropdown (bascule), ici chaque bouton force son propre panneau :
+  // un onglet déjà actif ne doit pas se refermer sur un second clic.
+  selectMobilePane(pane: 'nav' | 'profile', event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.openDropdown.set(pane === 'profile' ? 'user' : null);
   }
 
   // Clic n'importe où hors du toggle (y compris sur un item du menu) :
