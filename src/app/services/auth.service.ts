@@ -678,4 +678,12 @@ export class AuthService {
     return this.http.post(`${this.authUrl}/resend-verification`, { identifier });
   }
 
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post(`${this.authUrl}/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, password: string, passwordConfirm: string): Observable<any> {
+    return this.http.post(`${this.authUrl}/reset-password`, { token, password, password_confirm: passwordConfirm });
+  }
+
 }

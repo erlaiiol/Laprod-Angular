@@ -2,6 +2,8 @@
 Service d'envoi d'emails pour LaProd
 Gère l'envoi d'emails de vérification, notifications, et factures
 """
+import hashlib
+
 from flask import current_app, render_template
 
 
@@ -251,11 +253,16 @@ L'équipe LaProd
     # EMAILS SPÉCIFIQUES - RÉINITIALISATION DE MOT DE PASSE
     # ============================================
     
-def generate_password_reset_token(user_id):
+def _password_fingerprint(user):
+    """Empreinte du hash courant : le token cesse d'être valide dès que le mot de passe change (usage unique)."""
+    return hashlib.sha256((user.password_hash or '').encode()).hexdigest()[:16]
+
+
+def generate_password_reset_token(user):
     """génère un token pour réinitialiser le mot de passe de l'utilisateur"""
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        return serializer.dumps({'user_id': user_id}, salt='password-reset-salt')
+        return serializer.dumps({'user_id': user.id, 'pwd': _password_fingerprint(user)}, salt='password-reset-salt')
     except Exception:
         current_app.logger.error("Erreur lors de la génération du token de réinitialisation de mot de passe")
         return None
@@ -272,7 +279,7 @@ def send_password_reset_email(user):
     Returns:
         bool: True si envoyé
     """
-    reset_token = generate_password_reset_token(user.id)
+    reset_token = generate_password_reset_token(user)
 
     reset_url = _fe(f'/reset-password?token={reset_token}')
 
@@ -306,11 +313,11 @@ L'équipe LaProd
     )
 
 def verify_password_reset_token(token, expiration=1800):
-    """vérifie le token de réinitialisation de mot de passe et retourne l'user_id si validé"""
+    """vérifie le token de réinitialisation de mot de passe et retourne (user_id, empreinte) si validé, sinon None"""
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
         data = serializer.loads(token, salt='password-reset-salt', max_age=expiration)
-        return data['user_id']
+        return data['user_id'], data['pwd']
     except SignatureExpired:
         current_app.logger.warning(f"Token de réinitialisation de mot de passe expiré")
         return None
