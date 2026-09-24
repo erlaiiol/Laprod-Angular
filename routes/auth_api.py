@@ -469,6 +469,76 @@ def resend_verification():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# MOT DE PASSE OUBLIÉ / RÉINITIALISATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@auth_api_bp.route('/forgot-password', methods=['POST'])
+@csrf.exempt
+@limiter.limit('5 per hour')
+def forgot_password():
+    """Envoie un lien de réinitialisation. Sert aussi aux comptes OAuth sans mot de passe
+    (création d'un mot de passe par email). Réponse identique que le compte existe ou non."""
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip()
+    if not email:
+        return err('Email requis.', level='warning')
+
+    _ambiguous_msg = 'Si un compte existe avec cet email, un lien de réinitialisation vient d\'être envoyé.'
+
+    user = db.session.query(User).filter(User.email == email).first()
+    if not user:
+        return ok(message=_ambiguous_msg, level='info')
+
+    try:
+        email_service.send_password_reset_email(user)
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi reset password user #{user.id}: {e}", exc_info=True)
+
+    return ok(message=_ambiguous_msg, level='info')
+
+
+@auth_api_bp.route('/reset-password', methods=['POST'])
+@csrf.exempt
+@limiter.limit('10 per hour')
+def reset_password():
+    """Définit un nouveau mot de passe à partir du token reçu par email."""
+    data = request.get_json(silent=True) or {}
+    token = data.get('token')
+    password = data.get('password') or ''
+    password_confirm = data.get('password_confirm') or ''
+
+    if not token:
+        return err('Token manquant.')
+
+    if len(password) < 9:
+        return err('Mot de passe trop court. 9 caractères minimum.', level='warning')
+    if len(password) > 200:
+        return err('Mot de passe trop long.', level='warning')
+    if password != password_confirm:
+        return err('Les mots de passe ne correspondent pas.', level='warning')
+    if not (re.search(r"[a-z]", password) and re.search(r"[A-Z]", password) and re.search(r"[0-9]", password)):
+        return err('Mot de passe non conforme. Il doit contenir au moins une minuscule, une majuscule et un chiffre.', level='warning')
+
+    verified = email_service.verify_password_reset_token(token)
+    user = db.session.get(User, verified[0]) if verified else None
+    # Empreinte ≠ hash courant : le lien a déjà servi (ou le mot de passe a changé depuis).
+    if not user or verified[1] != email_service._password_fingerprint(user):
+        return err('Lien de réinitialisation invalide ou expiré.', code='TOKEN_EXPIRED')
+
+    user.set_password(password)
+    # Le lien reçu par email prouve la possession de l'adresse.
+    user.email_verified = True
+    db.session.commit()
+    try:
+        revoke_all_refresh_tokens(user.id)
+    except Exception as e:
+        # Le mot de passe est déjà changé : ne pas faire échouer la requête pour un souci Redis.
+        current_app.logger.error(f"Révocation refresh tokens après reset user #{user.id}: {e}")
+
+    return ok(message='Mot de passe mis à jour. Vous pouvez vous connecter.')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SÉLECTION DU RÔLE
 # ═══════════════════════════════════════════════════════════════════════════════
 

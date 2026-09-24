@@ -230,3 +230,14 @@
   a { color: v.$primary; text-decoration: none;
       &:hover { text-decoration: underline; } }
 }
+
+/* ── Pages mot de passe oublié / réinitialisation (styles partagés) ───────── */
+
+.login-card.simple-card {
+  h2 { font-size: 1.25rem; font-weight: 700; margin: 0; color: v.$text-primary; }
+  p  { font-size: 0.9rem; color: v.$text-secondary; margin: 0; }
+  form { display: flex; flex-direction: column; gap: 1rem; }
+  .hint { font-size: 0.78rem; color: v.$text-muted; }
+  .forgot-link { text-align: center; }
+  a.btn-primary { text-align: center; text-decoration: none; }
+}

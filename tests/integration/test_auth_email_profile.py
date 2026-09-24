@@ -4,6 +4,8 @@ Tests d'intégration — vérification email, renvoi, complétion OAuth, sélect
 Complète test_auth_api.py en testant les endpoints du flow post-inscription :
   POST /api/auth/verify-email
   POST /api/auth/resend-verification
+  POST /api/auth/forgot-password
+  POST /api/auth/reset-password
   POST /api/auth/complete-oauth-profile
   POST /api/auth/select-role
 """
@@ -162,6 +164,60 @@ class TestVerifyEmail:
         assert resp.status_code == 404
         data = json.loads(resp.data)
         assert data['success'] is False
+
+
+# ── POST /api/auth/forgot-password + /reset-password ──────────────────────────
+
+class TestPasswordReset:
+
+    def test_forgot_missing_email_returns_error(self, client):
+        resp = client.post('/api/auth/forgot-password', json={})
+        assert resp.status_code == 400
+
+    def test_forgot_unknown_email_returns_ambiguous_ok_without_sending(self, client, mocker):
+        mock_send = mocker.patch('routes.auth_api.email_service.send_password_reset_email')
+        resp = client.post('/api/auth/forgot-password', json={'email': 'nobody@nowhere.com'})
+        assert resp.status_code == 200
+        mock_send.assert_not_called()
+
+    def test_forgot_known_email_sends_mail(self, client, mocker, user):
+        mock_send = mocker.patch(
+            'routes.auth_api.email_service.send_password_reset_email', return_value=True)
+        resp = client.post('/api/auth/forgot-password', json={'email': user.email})
+        assert resp.status_code == 200
+        mock_send.assert_called_once()
+
+    def test_reset_with_valid_token_changes_password_once(self, client, app, db, user, mocker):
+        mock_revoke = mocker.patch('routes.auth_api.revoke_all_refresh_tokens')
+        from utils import email_service
+        with app.app_context():
+            token = email_service.generate_password_reset_token(user)
+        body = {'token': token, 'password': 'NouveauMdp42', 'password_confirm': 'NouveauMdp42'}
+
+        resp = client.post('/api/auth/reset-password', json=body)
+        assert resp.status_code == 200
+        db.session.refresh(user)
+        assert user.check_password('NouveauMdp42')
+        mock_revoke.assert_called_once_with(user.id)
+
+        # Usage unique : le même lien ne fonctionne plus une fois le mot de passe changé.
+        again = client.post('/api/auth/reset-password', json=body)
+        assert again.status_code == 400
+        assert json.loads(again.data)['code'] == 'TOKEN_EXPIRED'
+
+    def test_reset_with_garbage_token_rejected(self, client):
+        resp = client.post('/api/auth/reset-password', json={
+            'token': 'nope', 'password': 'NouveauMdp42', 'password_confirm': 'NouveauMdp42'})
+        assert resp.status_code == 400
+        assert json.loads(resp.data)['code'] == 'TOKEN_EXPIRED'
+
+    def test_reset_weak_password_rejected(self, client, app, user):
+        from utils import email_service
+        with app.app_context():
+            token = email_service.generate_password_reset_token(user)
+        resp = client.post('/api/auth/reset-password', json={
+            'token': token, 'password': 'toutminuscule', 'password_confirm': 'toutminuscule'})
+        assert resp.status_code == 400
 
 
 # ── POST /api/auth/resend-verification ────────────────────────────────────────
