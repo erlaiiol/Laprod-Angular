@@ -522,6 +522,58 @@ details.filter-accordion[open] .filter-accordion-arrow {
   right: 0;
   left: auto;
   margin-top: 0.125rem;
+  // Release clipping after the reveal to preserve the menu's shadow.
+  animation: nav-dropdown-reveal 120ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  // Reveal the surface independently so labels never stretch or squash.
+  > li {
+    animation: nav-dropdown-content 120ms ease-out;
+  }
+}
+
+@keyframes nav-dropdown-reveal {
+  from {
+    clip-path: inset(0 0 94% 0 round var(--bs-dropdown-border-radius));
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--bs-dropdown-border-radius));
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nav-dropdown-content {
+  0%, 20% {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-2px);
+  }
+  55% {
+    opacity: 0.65;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+// Keep the mobile profile reveal consistent with the desktop dropdown.
+@media (max-width: 991.98px) {
+  .navbar-collapse.show .navbar-nav--mobile-profile:not(.mobile-pane-hidden) > li {
+    animation: nav-dropdown-content 120ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item.dropdown .dropdown-menu.show,
+  .nav-item.dropdown .dropdown-menu.show > li,
+  .navbar-collapse.show .navbar-nav--mobile-profile:not(.mobile-pane-hidden) > li {
+    animation: none;
+  }
 }
 
 // ── Lien "Publier" — léger accent sans être un CTA plein ─────────────────────
@@ -859,4 +911,33 @@ details.filter-accordion[open] .filter-accordion-arrow {
   }
 
   .filter-accordion-body { background: #f8f9fb; }
+}
+
+// Clip only during a session transition; dropdowns can overflow at rest.
+.navbar:has(.nav-auth-out, .nav-auth-in) {
+  overflow: clip;
+}
+
+.nav-auth-out {
+  pointer-events: none;
+  animation: nav-auth-exit 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.nav-auth-in {
+  pointer-events: none;
+  animation: nav-auth-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes nav-auth-exit {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100vw); opacity: 0; }
+}
+
+@keyframes nav-auth-enter {
+  from { transform: translateX(100vw); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-auth-out, .nav-auth-in { animation: none; }
 }

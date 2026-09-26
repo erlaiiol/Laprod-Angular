@@ -95,6 +95,9 @@
     </div>
 
     <div class="collapse navbar-collapse order-lg-3" id="navbarNav"
+         [class.nav-auth-out]="authMotion() === 'out'"
+         [class.nav-auth-in]="authMotion() === 'in'"
+         [attr.inert]="authMotion() !== 'idle' ? '' : null"
          [class.show]="menuVisible()" (click)="onNavLinkClick($event)">
 
       <!-- Sur mobile, "Navigation" et "Mon profil" étaient deux menus
@@ -354,9 +357,9 @@
       @if (showLogout !== false) {
         <li><hr class="dropdown-divider"></li>
         <li>
-          <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+          <button type="button" class="dropdown-item dropdown-item--danger" (click)="logout($event)">
             <i class="bi bi-box-arrow-right"></i> Déconnexion
-          </a>
+          </button>
         </li>
       }
 
@@ -436,9 +439,9 @@
       @if (showLogout !== false) {
         <li><hr class="dropdown-divider"></li>
         <li>
-          <a class="dropdown-item dropdown-item--danger" (click)="logout()" [routerLink]="'/login'">
+          <button type="button" class="dropdown-item dropdown-item--danger" (click)="logout($event)">
             <i class="bi bi-box-arrow-right"></i> Déconnexion
-          </a>
+          </button>
         </li>
       }
 

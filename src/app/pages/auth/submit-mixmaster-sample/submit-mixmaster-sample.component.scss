@@ -109,7 +109,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
-  color: v.$bg-border-subtle;
+  color: v.$text-secondary;
   background: v.$bg-base;
 
   th {
@@ -224,7 +224,7 @@
   label {
     font-size: 0.85rem;
     font-weight: 600;
-    color: v.$bg-border-subtle;
+    color: v.$text-secondary;
 
     .field-num {
       display: inline-flex;
@@ -318,7 +318,7 @@
   ul {
     margin: 0;
     padding-left: 1.2rem;
-    color: v.$bg-border-subtle;
+    color: v.$text-secondary;
     li { margin-bottom: 0.2rem; }
   }
 }
@@ -347,7 +347,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
-  color: v.$bg-border-subtle;
+  color: v.$text-secondary;
 
   th {
     padding: 0.3rem 0.5rem;
@@ -558,3 +558,26 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+:host-context([data-theme='light']) {
+  .info-band { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+  .sample-header .badge-role,
+  .badge.badge-yellow,
+  .cert-required,
+  .cert-inline,
+  .text-yellow,
+  .auto-services { color: #854d0e; }
+  .badge.badge-blue { color: #1e40af; }
+  .badge.badge-green,
+  .success-state .success-icon { color: #047857; }
+  .field label .field-num { background: #047857; }
+
+  .upload-progress {
+    background: v.$bg-elevated;
+    border-color: v.$bg-border;
+    &__pct { color: #0f766e; }
+    &__track { background: v.$bg-border; }
+    &__bar { background: #0f766e; }
+  }
+  .spinner-xs { border-color: v.$bg-border; border-top-color: #0f766e; }
+}

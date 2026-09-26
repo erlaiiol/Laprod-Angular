@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { environment } from '../../../environments/environment';
@@ -70,11 +70,44 @@ export class NavbarComponent {
     !!this.bpmMin() || !!this.bpmMax()
   );
 
+  private authService = inject(AuthService);
+  // Presentation only: authentication and route guards update immediately.
+  private displayedUser = signal(this.authService.currentUser());
+  readonly authMotion = signal<'idle' | 'out' | 'in'>('idle');
+  private motionTimer?: ReturnType<typeof setTimeout>;
+  private readonly destroyRef = inject(DestroyRef);
+
   constructor(
     private tagsService:        TagsService,
     private filterStateService: FilterStateService,
-    private authService:        AuthService,
-  ) {}
+  ) {
+    effect(() => {
+      const user = this.authService.currentUser();
+      untracked(() => {
+        if (user?.id === this.displayedUser()?.id && this.authMotion() === 'idle') {
+          this.displayedUser.set(user);
+          return;
+        }
+        if (this.motionTimer) clearTimeout(this.motionTimer);
+        if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          this.displayedUser.set(user);
+          this.authMotion.set('idle');
+          this.openDropdown.set(null);
+          return;
+        }
+        this.authMotion.set('out');
+        this.motionTimer = setTimeout(() => {
+          this.displayedUser.set(this.authService.currentUser());
+          this.openDropdown.set(null);
+          this.authMotion.set('in');
+          this.motionTimer = setTimeout(() => this.authMotion.set('idle'), 240);
+        }, 180);
+      });
+    });
+    this.destroyRef.onDestroy(() => {
+      if (this.motionTimer) clearTimeout(this.motionTimer);
+    });
+  }
 
   keys   = computed(() => this.tagsService.keys())
   styles = computed(() => this.tagsService.styles())
@@ -96,30 +129,31 @@ export class NavbarComponent {
 
   readonly testimonialsEnabled = environment.testimonialsEnabled;
 
-  isBeatmaker   = computed(() => this.authService.isBeatmaker());
-  isArtist      = computed(() => this.authService.isArtist());
-  isMixEngineer = computed(() => this.authService.isMixEngineer());
-  isCertifiedMixEngineer = computed(() => this.authService.isCertifiedMixEngineer());
-  isProducer    = computed(() => this.authService.isProducer());
-  mixSamplePending = computed(() => this.authService.mixSamplePending());
-  isAdmin       = computed(() => this.authService.isAdmin());
-  isPremium     = computed(() => this.authService.isPremium());
-  username      = computed(() => this.authService.currentUser()?.username || '');
-  userInitial   = computed(() => (this.authService.currentUser()?.username || '?').charAt(0).toUpperCase());
+  isBeatmaker   = computed(() => !!this.displayedUser()?.roles?.is_beatmaker);
+  isArtist      = computed(() => !!this.displayedUser()?.roles?.is_artist);
+  isMixEngineer = computed(() => !!this.displayedUser()?.roles?.is_mix_engineer);
+  isCertifiedMixEngineer = computed(() => !!this.displayedUser()?.roles?.is_mixmaster_engineer);
+  isProducer    = computed(() => !!this.displayedUser()?.roles?.is_producer);
+  mixSamplePending = computed(() => this.displayedUser()?.roles?.is_mix_engineer === true && this.displayedUser()?.roles?.mixmaster_sample_submitted === false);
+  isAdmin       = computed(() => !!this.displayedUser()?.roles?.is_admin);
+  isPremium     = computed(() => !!this.displayedUser()?.is_premium && this.displayedUser()?.subscription_plan !== 'free');
+  username      = computed(() => this.displayedUser()?.username || '');
+  userInitial   = computed(() => (this.displayedUser()?.username || '?').charAt(0).toUpperCase());
 
   private readonly staticBase = `${environment.apiUrl}/db_assets/`;
 
   // null tant que l'utilisateur n'a pas mis de photo perso — le chip d'initiale
   // (nav-avatar) sert alors de fallback, comme sur le reste du site.
   avatarUrl = computed(() => {
-    const path = this.authService.currentUser()?.profile_image;
+    const path = this.displayedUser()?.profile_image;
     if (!path || path === 'images/default_profile.png') return null;
     return path.startsWith('http') ? path : this.staticBase + path;
   });
   notifCount    = computed(() => this.notifSvc.unreadCount());
-  isLoggedIn    = computed(() => this.authService.isLoggedIn());
+  isLoggedIn    = computed(() => this.displayedUser() !== null);
 
-  logout() {
+  logout(event: Event) {
+    event.stopPropagation();
     this.authService.logout().subscribe({
       next:  () => {},
       error: () => {},

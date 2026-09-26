@@ -6,6 +6,24 @@
   justify-content: center;
 }
 
+:host-context([data-theme='light']) .btn-favorite {
+  background: #fff1f5;
+  border-color: #fbcfe0;
+  color: #be185d;
+
+  &:hover:not(:disabled),
+  &.is-favorite {
+    background: #fce7f0;
+    border-color: #f9a8cd;
+    color: #be185d;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #be185d;
+    outline-offset: 2px;
+  }
+}
+
 .btn-favorite {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 0;
