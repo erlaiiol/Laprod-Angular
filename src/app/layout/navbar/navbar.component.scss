@@ -818,10 +818,9 @@ details.filter-accordion[open] .filter-accordion-arrow {
 }
 
 // ── Overrides mode clair — éléments à encapsulation Angular ──────────────────
-// Le sélecteur [data-theme="light"] sur <html> est ancêtre de tous les éléments
-// → Angular ajoute automatiquement [_ngcontent] aux sélecteurs fils, ce qui est correct.
+// Le thème est porté par <html>, hors du template encapsulé du composant.
 
-[data-theme="light"] {
+:host-context([data-theme="light"]) {
 
   // Bouton toggle (visiteurs) : bords sombres sur fond clair
   .btn-theme-toggle {
@@ -861,7 +860,8 @@ details.filter-accordion[open] .filter-accordion-arrow {
   }
 
   // Nav link actif : fond sombre + texte clair (contraste garanti dans les deux thèmes)
-  .navbar-nav .nav-link.active {
+  .navbar-nav .nav-link.active,
+  .navbar-nav .dropdown-item.active {
     background: #111827 !important;
     color:      #f5f6f8 !important;
     i.bi { color: #f5f6f8; }
