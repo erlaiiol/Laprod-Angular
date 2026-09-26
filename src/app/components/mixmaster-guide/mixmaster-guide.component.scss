@@ -128,3 +128,24 @@ details[open] .mix-guide__chevron {
     }
   }
 }
+
+:host-context([data-theme='light']) {
+  .mix-guide { background: v.$bg-surface; border-color: v.$bg-border; }
+  .mix-guide__toggle {
+    color: v.$text-primary;
+    &:hover { background: v.$bg-elevated; }
+    i:first-child, .mix-guide__chevron { color: #0f766e; }
+  }
+  .guide-section h6 {
+    color: v.$text-primary;
+    i { color: #0f766e; }
+  }
+  .guide-alert {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #9a3412;
+    strong, .guide-note { color: #7c2d12; }
+    strong i { color: #9a3412; }
+    code { background: #ffedd5; border-color: #fed7aa; color: #7c2d12; }
+  }
+}

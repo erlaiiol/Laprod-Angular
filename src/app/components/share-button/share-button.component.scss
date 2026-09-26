@@ -6,6 +6,23 @@
   justify-content: center;
 }
 
+:host-context([data-theme='light']) .btn-share {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #0f766e;
+
+  &:hover {
+    background: #ccfbf1;
+    border-color: #5eead4;
+    color: #0f766e;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 2px;
+  }
+}
+
 .btn-share {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 0;
