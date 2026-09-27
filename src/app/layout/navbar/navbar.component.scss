@@ -822,6 +822,48 @@ details.filter-accordion[open] .filter-accordion-arrow {
 
 :host-context([data-theme="light"]) {
 
+  .btn-filter-toggle {
+    --bs-btn-color: #374151;
+    --bs-btn-border-color: #6b7280;
+    --bs-btn-hover-color: #111827;
+    --bs-btn-hover-bg: #e5e7eb;
+    --bs-btn-hover-border-color: #374151;
+    --bs-btn-active-color: #111827;
+    --bs-btn-active-bg: #dde2ea;
+    --bs-btn-active-border-color: #374151;
+  }
+
+  .btn-filter-toggle,
+  .navbar-toggler {
+    &:focus, &:focus-visible {
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2) !important;
+    }
+  }
+
+  .navbar-nav .nav-link {
+    &:active, &:focus, &:focus-visible {
+      color: v.$text-primary !important;
+    }
+  }
+
+  .mobile-menu-tabs {
+    border-bottom-color: v.$bg-border;
+  }
+
+  .mobile-menu-tabs__btn {
+    border-color: v.$bg-border;
+
+    &:hover:not(.active) {
+      border-color: v.$text-muted;
+      color: v.$text-primary;
+    }
+  }
+
+  .navbar-collapse.show {
+    background: v.$bg-surface;
+    border-top-color: v.$bg-border;
+  }
+
   // Bouton toggle (visiteurs) : bords sombres sur fond clair
   .btn-theme-toggle {
     border-color: rgba(0, 0, 0, 0.15);
