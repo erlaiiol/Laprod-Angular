@@ -116,6 +116,25 @@ aucun terme technique, `sent_at: null`. Les refactorisations internes n'y figure
 les contredit n'est pas « à finir plus tard » : soit elle est conçue pour les respecter,
 soit sa mise en conformité est livrée avec elle.
 
+## R18 — Dans l'app iOS, aucun paiement ne part sans `IosPurchasePolicyService`
+
+Apple rejette (guideline 3.1.1) une app qui vend un contenu ou une fonctionnalité
+numérique autrement que par son achat intégré — un bouton Stripe, un lien vers le site,
+ou même une phrase « abonne-toi sur laprod.net » suffisent. Une autre app du même éditeur
+(FactureLe) a été refusée pour exactement cette raison, avec la même architecture.
+
+- Tout bouton qui mène à un paiement lit `policy.mode(catégorie)` pour décider quoi
+  afficher, et toute méthode qui redirige vers Stripe commence par
+  `if (!this.policy.guard(catégorie)) return;`.
+- L'abonnement LaProd+ ne passe **jamais** par Stripe dans l'app iOS : achat intégré
+  (`IosPurchaseService`) ou rien.
+- Quand un achat n'est pas proposé sur iOS, on affiche la mention neutre
+  `policy.unavailableMessage` — **sans lien, sans prix, sans renvoi vers le site**.
+- Nouvelle catégorie d'achat ⇒ une clé dans `utils/apple_iap.py::ios_purchase_policy`
+  (défaut `unavailable`) et dans `PurchaseCategory`, avant d'écrire le bouton.
+- Le serveur ne fait jamais confiance à l'app : une transaction Apple n'est créditée
+  qu'après vérification de sa signature, et une seule fois.
+
 ---
 
 ## Checklist avant de rendre une passe
@@ -131,6 +150,8 @@ soit sa mise en conformité est livrée avec elle.
 - [ ] Responsive vérifié ≤ 600 px, thème clair **et** sombre
 - [ ] Entrée `updates.json` si l'utilisateur le remarque
 - [ ] Pages légales relues si la fonctionnalité touche données / classement / paiement
+- [ ] Nouveau point de paiement : gardé par `IosPurchasePolicyService` (R18), et aucun
+      texte visible dans l'app iOS n'invite à payer ailleurs
 - [ ] Nouvelle variable d'environnement ⇒ ajoutée à `doctor.sh` (+ `README.md` §
       Variables d'environnement, `docs/deployment.md` § 6) — sinon son absence en prod
       casse silencieusement la fonctionnalité au lieu d'être détectée avant l'utilisateur

@@ -11,5 +11,5 @@ import { RouterModule } from '@angular/router';
   styleUrl:    './privacy.component.scss',
 })
 export class PrivacyComponent {
-  lastUpdated = '21 mai 2026';
+  lastUpdated = '30 septembre 2026';
 }

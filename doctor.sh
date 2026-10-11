@@ -252,6 +252,37 @@ else
 fi
 warn_var APPLE_BUNDLE_ID "défaut net.laprod.app appliqué par config.py — vérifier que ça correspond au bundle ID iOS réel"
 
+section "Achats intégrés Apple (abonnement LaProd+ dans l'app iOS)"
+# Sans APPLE_APP_ID, l'app iOS n'a RIEN à vendre côté abonnement (Stripe y est
+# interdit par Apple, cf. docs/architecture.md § Paiements sur iOS) : ce n'est
+# pas une panne, mais c'est un manque à gagner silencieux.
+if is_set APPLE_APP_ID; then
+  case "$APPLE_APP_ID" in
+    ''|*[!0-9]*) crit "APPLE_APP_ID doit être l'identifiant NUMÉRIQUE de l'app (App Store Connect > App Information > Apple ID), pas le bundle ID" ;;
+    *) pass "APPLE_APP_ID défini (achat intégré LaProd+ actif sur iOS)" ;;
+  esac
+else
+  warn "APPLE_APP_ID absent — l'abonnement LaProd+ est invendable dans l'app iOS (affiché « indisponible »). Voir docs/checklist-lancement.md § 7."
+fi
+if [ "${APPLE_IAP_ALLOW_XCODE:-}" = "1" ]; then
+  if $PROD; then
+    crit "APPLE_IAP_ALLOW_XCODE=1 en production — des transactions non vérifiables seraient créditées : n'importe qui s'offrirait un abonnement. À retirer immédiatement."
+  else
+    warn "APPLE_IAP_ALLOW_XCODE=1 — transactions de test Xcode acceptées sans vérification (dev uniquement, jamais en prod)"
+  fi
+fi
+for V in IOS_POLICY_SUBSCRIPTION IOS_POLICY_BEAT_LICENSE IOS_POLICY_MIX_ORDER IOS_POLICY_CAMPAIGN_BOOST; do
+  if is_set "$V"; then
+    VAL="${!V}"
+    case "$V:$VAL" in
+      IOS_POLICY_SUBSCRIPTION:iap|IOS_POLICY_SUBSCRIPTION:unavailable) pass "$V=$VAL" ;;
+      IOS_POLICY_SUBSCRIPTION:*) crit "$V=$VAL invalide (iap | unavailable) — traité comme « unavailable » : l'abonnement ne se vend JAMAIS par Stripe dans l'app iOS" ;;
+      *:stripe|*:unavailable) pass "$V=$VAL" ;;
+      *) crit "$V=$VAL invalide (stripe | unavailable) — traité comme « unavailable »" ;;
+    esac
+  fi
+done
+
 # ══════════════════════════════════════════════════════════════════════════
 # 4. Intégrations optionnelles — dégradation gracieuse déjà en place côté code
 # ══════════════════════════════════════════════════════════════════════════

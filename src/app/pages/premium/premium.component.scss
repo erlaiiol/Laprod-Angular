@@ -347,6 +347,33 @@
   }
 }
 
+// ── App iOS : conditions de l'achat intégré + « Restaurer mes achats » ─────────
+.ios-purchase-note {
+  margin: 1.25rem 0;
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: v.$text-secondary;
+
+  p { margin: 0 0 0.75rem; }
+  a { color: v.$tag-blue; }
+
+  .btn-restore {
+    padding: 0.55rem 1.1rem;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    background: transparent;
+    color: v.$text-primary;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled { cursor: not-allowed; opacity: 0.6; }
+  }
+
+  &__legal { margin-top: 0.75rem; font-size: 0.8rem; }
+}
+
 // ── FAQ ────────────────────────────────────────────────────────────────────────
 .faq {
   h3 {

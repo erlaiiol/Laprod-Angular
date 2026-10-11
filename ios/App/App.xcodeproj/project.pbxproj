@@ -19,6 +19,8 @@
 		BB000002BB000002BB000002 /* YINDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000006BB000006BB000006 /* YINDetector.swift */; };
 		BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000007BB000007BB000007 /* ScaleBuilder.swift */; };
 		BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB000009BB000009BB000009 /* RubberBandWrapper.mm */; };
+		CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */; };
+		CC000002CC000002CC000002 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000004CC000004CC000004 /* MainViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +40,8 @@
 		BB000008BB000008BB000008 /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		BB000009BB000009BB000009 /* RubberBandWrapper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = RubberBandWrapper.mm; sourceTree = "<group>"; };
 		BB00000ABB00000ABB00000A /* RubberBandWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RubberBandWrapper.h; sourceTree = "<group>"; };
+		CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitPurchasePlugin.swift; sourceTree = "<group>"; };
+		CC000004CC000004CC000004 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		BB0000E1BB0000E1BB0000E1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -81,6 +85,8 @@
 				BB000008BB000008BB000008 /* App-Bridging-Header.h */,
 				BB000009BB000009BB000009 /* RubberBandWrapper.mm */,
 				BB00000ABB00000ABB00000A /* RubberBandWrapper.h */,
+				CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */,
+				CC000004CC000004CC000004 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -202,6 +208,8 @@
 				BB000002BB000002BB000002 /* YINDetector.swift in Sources */,
 				BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */,
 				BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */,
+				CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */,
+				CC000002CC000002CC000002 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

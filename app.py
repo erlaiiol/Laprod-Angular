@@ -101,6 +101,17 @@ def create_app(test_config=None):
     app.config['APPLE_PRIVATE_KEY'] = config.APPLE_PRIVATE_KEY
     app.config['APPLE_SERVICES_ID'] = config.APPLE_SERVICES_ID
     app.config['APPLE_BUNDLE_ID'] = config.APPLE_BUNDLE_ID
+    # Achats intégrés Apple + politique d'achat de l'app iOS (utils/apple_iap.py)
+    app.config['APPLE_APP_ID'] = config.APPLE_APP_ID
+    app.config['APPLE_IAP_PRODUCT_PREMIUM'] = config.APPLE_IAP_PRODUCT_PREMIUM
+    app.config['APPLE_IAP_PRODUCT_SEMI_PRO'] = config.APPLE_IAP_PRODUCT_SEMI_PRO
+    app.config['APPLE_IAP_PRODUCT_PRO_STRUCTURE'] = config.APPLE_IAP_PRODUCT_PRO_STRUCTURE
+    app.config['APPLE_IAP_ALLOW_XCODE'] = config.APPLE_IAP_ALLOW_XCODE
+    app.config['PREMIUM_DURATION_DAYS'] = config.PREMIUM_DURATION_DAYS
+    app.config['IOS_POLICY_SUBSCRIPTION'] = config.IOS_POLICY_SUBSCRIPTION
+    app.config['IOS_POLICY_BEAT_LICENSE'] = config.IOS_POLICY_BEAT_LICENSE
+    app.config['IOS_POLICY_MIX_ORDER'] = config.IOS_POLICY_MIX_ORDER
+    app.config['IOS_POLICY_CAMPAIGN_BOOST'] = config.IOS_POLICY_CAMPAIGN_BOOST
 
     # Contrats (prix)
     app.config['CONTRACT_EXCLUSIVE_PRICE'] = config.CONTRACT_EXCLUSIVE_PRICE
@@ -467,6 +478,7 @@ def create_app(test_config=None):
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
     from routes.og_preview import og_preview_bp
+    from routes.apple_iap_api import apple_iap_api_bp
 
     app.register_blueprint(premium_api_bp)
     app.register_blueprint(tracks_api_bp)
@@ -505,6 +517,7 @@ def create_app(test_config=None):
     app.register_blueprint(royalties_api_bp)
     app.register_blueprint(structure_api_bp)
     app.register_blueprint(push_api_bp)
+    app.register_blueprint(apple_iap_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

@@ -514,7 +514,8 @@
         @if (activeLicenses().some(l => licenseUrgency(l) === 'urgent' || licenseUrgency(l) === 'soon')) {
           <div class="license-alert">
             <i class="bi bi-exclamation-triangle-fill"></i>
-            <span>Certaines de vos licences expirent bientôt. Renouvelez-les pour conserver vos droits.</span>
+            <!-- App iOS sans paiement de licence : on informe, sans inviter à payer. -->
+            <span>Certaines de vos licences expirent bientôt.@if (policy.beatLicense() !== 'unavailable') { Renouvelez-les pour conserver vos droits.}</span>
           </div>
         }
 
@@ -557,7 +558,7 @@
                         <i class="bi bi-file-earmark-pdf"></i> Contrat
                       </button>
                     }
-                    @if (licenseUrgency(l) === 'urgent' || licenseUrgency(l) === 'soon') {
+                    @if (policy.beatLicense() !== 'unavailable' && (licenseUrgency(l) === 'urgent' || licenseUrgency(l) === 'soon')) {
                       <button class="btn-purchase btn-renew"
                               [disabled]="renewingId() === l.id"
                               (click)="openRenewModal(l)">

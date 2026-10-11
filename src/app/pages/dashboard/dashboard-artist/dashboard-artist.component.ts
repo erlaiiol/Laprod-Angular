@@ -10,6 +10,7 @@ import { MixmasterService } from '../../../services/mixmaster.service';
 import { PurchasesService, PurchasesData } from '../../../services/purchases.service';
 import { PlayerService } from '../../../services/player.service';
 import { ToastService } from '../../../services/toast.service';
+import { IosPurchasePolicyService } from '../../../services/ios-purchase-policy.service';
 import { LicenseService, LicenseItem } from '../../../services/license.service';
 import { RosterService, RosterLinkDTO } from '../../../services/roster.service';
 import { LicenseBadgeComponent } from '../../../components/license-badge/license-badge.component';
@@ -73,6 +74,7 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
   private http         = inject(HttpClient);
   private route        = inject(ActivatedRoute);
   private destroyRef   = inject(DestroyRef);
+  readonly policy      = inject(IosPurchasePolicyService);
 
   // Blob URLs gérés localement (libérés dans ngOnDestroy)
   private blobUrls = new Map<string, string>();
@@ -236,6 +238,7 @@ export class DashboardArtistComponent implements OnInit, OnDestroy {
     const l = this.renewLicenseTarget();
     if (!l?.track?.id) return;
     if (!this.renewLegalAccepted() || !this.renewWithdrawalWaived()) return;
+    if (!this.policy.guard('beat_license')) return;
     if (this.renewingId() !== null) return;
     this.renewingId.set(l.id);
     this.licenseSvc.initiateRenewal(l.track.id, l.id, {

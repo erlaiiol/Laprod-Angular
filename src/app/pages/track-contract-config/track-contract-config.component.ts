@@ -9,6 +9,7 @@ import { TrackService, TrackDetail } from '../../services/track.service';
 import { PaymentService } from '../../services/payment.service';
 import { PromoService, PromoPreview } from '../../services/promo.service';
 import { AuthService } from '../../services/auth.service';
+import { IosPurchasePolicyService } from '../../services/ios-purchase-policy.service';
 import { ImgFallbackDirective } from '../../directives/img-fallback.directive';
 
 type Format      = 'mp3' | 'wav' | 'stems';
@@ -82,6 +83,7 @@ export class TrackContractConfigComponent implements OnInit {
   private promoSvc   = inject(PromoService);
   readonly auth      = inject(AuthService);
   private cdr        = inject(ChangeDetectorRef);
+  readonly policy    = inject(IosPurchasePolicyService);
 
   prices = computed(() => {
     const cp = this.track()?.contract_prices;
@@ -349,6 +351,7 @@ export class TrackContractConfigComponent implements OnInit {
       this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
       return;
     }
+    if (!this.policy.guard('beat_license')) return;
     if (!this.legalAccepted()) {
       this.error.set('Veuillez accepter les conditions légales de la licence avant de continuer.');
       this.cdr.markForCheck();

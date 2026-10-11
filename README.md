@@ -250,6 +250,15 @@ APPLE_PRIVATE_KEY=...
 APPLE_SERVICES_ID=...
 APPLE_BUNDLE_ID=net.laprod.app
 
+# Achats intégrés Apple — abonnement LaProd+ dans l'app iOS (voir
+# docs/architecture.md § Paiements sur iOS et docs/checklist-lancement.md § 7)
+APPLE_APP_ID=...                      # identifiant NUMÉRIQUE de l'app (App Store Connect)
+# APPLE_IAP_PRODUCT_PREMIUM=net.laprod.app.plus.premium.30d            (défauts de config.py)
+# APPLE_IAP_PRODUCT_SEMI_PRO=net.laprod.app.plus.semipro.30d
+# APPLE_IAP_PRODUCT_PRO_STRUCTURE=net.laprod.app.plus.prostructure.30d
+# IOS_POLICY_BEAT_LICENSE=stripe      # stripe | unavailable — idem IOS_POLICY_MIX_ORDER,
+#                                     # IOS_POLICY_CAMPAIGN_BOOST (défaut unavailable)
+
 # Email (SMTP)
 MAIL_SERVER=smtp.example.com
 MAIL_USERNAME=...
