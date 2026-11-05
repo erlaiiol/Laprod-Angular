@@ -3,7 +3,7 @@
 .mti-card {
   background:    rgba(255, 255, 255, 0.04);
   border:        1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 14px;
+  border-radius: 10px;
   overflow:      hidden;
   transition:    border-color 0.2s;
 
@@ -18,31 +18,45 @@
 .mti-header {
   display:     flex;
   align-items: center;
-  gap:         10px;
-  padding:     12px 14px;
+  gap:         8px;
+  padding:     5px 6px 5px 10px;
   cursor:      pointer;
-  min-height:  56px;
+  min-height:  40px;
 }
 
 .mti-name {
-  font-size:   0.85rem;
-  font-weight: 600;
-  color:       v.$text-primary;
-  white-space: nowrap;
-  min-width:   44px;
-  cursor:      text;
-  user-select: none;
+  font-size:     0.8rem;
+  font-weight:   600;
+  color:         v.$text-primary;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  max-width:     30%;
+  flex-shrink:   0;
+  cursor:        text;
+  user-select:   none;
+}
+
+.mti-at-badge {
+  flex-shrink:   0;
+  font-size:     0.6rem;
+  font-weight:   800;
+  letter-spacing: 0.04em;
+  color:         v.$primary;
+  background:    rgba(v.$primary, 0.12);
+  border-radius: 4px;
+  padding:       1px 4px;
 }
 
 .mti-name-input {
   width:         72px;
   min-width:     0;
-  padding:       4px 8px;
+  padding:       3px 7px;
   background:    rgba(255, 255, 255, 0.08);
   border:        1px solid rgba(255, 255, 255, 0.25);
   border-radius: 7px;
   color:         v.$text-primary;
-  font-size:     0.85rem;
+  font-size:     0.8rem;
   font-weight:   600;
   outline:       none;
   flex-shrink:   0;
@@ -53,6 +67,7 @@
 .mti-wf-wrap {
   position:      relative;
   flex:          1;
+  min-width:     0;
   cursor:        pointer;
   border-radius: 4px;
   overflow:      hidden;
@@ -63,7 +78,7 @@
 .mti-waveform {
   display:       block;
   width:         100%;
-  height:        46px;
+  height:        24px;
   border-radius: 4px;
   background:    rgba(255, 255, 255, 0.04);
 }
@@ -83,42 +98,76 @@
 .mti-actions {
   display:     flex;
   align-items: center;
-  gap:         6px;
+  gap:         2px;
   flex-shrink: 0;
+}
 
-  i { color: rgba(255, 255, 255, 0.45); font-size: 0.85rem; }
+.mti-chevron-btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           26px;
+  height:          30px;
+  border:          none;
+  background:      none;
+  padding:         0;
+  color:           rgba(255, 255, 255, 0.45);
+  font-size:       0.8rem;
+  cursor:          pointer;
 }
 
 .mti-icon-btn {
   display:         flex;
   align-items:     center;
   justify-content: center;
-  width:           38px;
-  height:          38px;
+  width:           30px;
+  height:          30px;
   border:          none;
-  border-radius:   10px;
+  border-radius:   8px;
   background:      rgba(255, 255, 255, 0.07);
   color:           v.$text-primary;
   cursor:          pointer;
-  font-size:       0.95rem;
+  font-size:       0.9rem;
   transition:      background 0.15s;
 
   &:active { background: rgba(255, 255, 255, 0.14); }
 
-  &--danger {
-    color: rgba(v.$primary, 0.85);
-    &:active { background: rgba(v.$primary, 0.12); }
+  &--playing {
+    color:      v.$primary;
+    background: rgba(v.$primary, 0.1);
   }
+}
+
+// Actions secondaires (panneau déplié)
+.mti-chip-btn {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  height:        28px;
+  padding:       0 10px;
+  border:        1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:    rgba(255, 255, 255, 0.05);
+  color:         v.$text-primary;
+  font-size:     0.75rem;
+  font-weight:   600;
+  font-family:   inherit;
+  cursor:        pointer;
+  transition:    background 0.15s;
+
+  i { font-size: 0.8rem; }
+
+  &:active { background: rgba(255, 255, 255, 0.12); }
 
   &--punchin {
-    color: rgba(255, 200, 80, 0.8);
+    color: rgba(255, 200, 80, 0.85);
     &:active { background: rgba(255, 200, 80, 0.12); }
   }
 
-  &--playing {
-    color:        v.$primary;
-    background:   rgba(v.$primary, 0.1);
-    border-radius: 8px;
+  &--danger {
+    margin-left: auto;
+    color:       rgba(v.$primary, 0.85);
+    &:active { background: rgba(v.$primary, 0.12); }
   }
 }
 
@@ -130,18 +179,18 @@
   gap:             6px;
   flex:            1;
   justify-content: center;
-  height:          36px;
+  height:          30px;
   border:          none;
-  border-radius:   10px;
+  border-radius:   8px;
   background:      rgba(v.$primary, 0.14);
   color:           v.$primary;
-  font-size:       0.88rem;
+  font-size:       0.82rem;
   font-weight:     600;
   cursor:          pointer;
   transition:      background 0.15s;
 
   &:active { background: rgba(v.$primary, 0.24); }
-  i { font-size: 1rem; }
+  i { font-size: 0.95rem; }
 }
 
 .mti-recording-badge,
@@ -149,7 +198,8 @@
   display:     flex;
   align-items: center;
   gap:         8px;
-  font-size:   0.83rem;
+  min-height:  30px;
+  font-size:   0.8rem;
   color:       v.$text-secondary;
 }
 
@@ -178,7 +228,7 @@
 // ── Contrôles ──────────────────────────────────────────────────────────────────
 
 .mti-controls {
-  padding:    0 14px 14px;
+  padding:    0 10px 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -186,23 +236,24 @@
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  gap:             12px;
-  padding:         10px 0;
+  gap:             10px;
+  padding:         5px 0;
   border-bottom:   1px solid rgba(255, 255, 255, 0.05);
 
-  &--last { border-bottom: none; }
+  &--last    { border-bottom: none; }
+  &--actions { justify-content: flex-start; gap: 6px; padding: 6px 0; }
 }
 
 .mti-row-label {
   display:     flex;
   align-items: center;
   gap:         6px;
-  font-size:   0.83rem;
+  font-size:   0.78rem;
   color:       v.$text-secondary;
-  min-width:   90px;
+  min-width:   80px;
   flex-shrink: 0;
 
-  i { font-size: 0.95rem; }
+  i { font-size: 0.85rem; }
 }
 
 .mti-key {
@@ -250,10 +301,10 @@
 
 .mti-toggle {
   position:      relative;
-  width:         46px;
-  height:        26px;
+  width:         38px;
+  height:        22px;
   border:        none;
-  border-radius: 13px;
+  border-radius: 11px;
   background:    rgba(255, 255, 255, 0.15);
   cursor:        pointer;
   flex-shrink:   0;
@@ -261,7 +312,7 @@
 
   &--on {
     background: v.$primary;
-    .mti-toggle-knob { transform: translateX(20px); }
+    .mti-toggle-knob { transform: translateX(16px); }
   }
 }
 
@@ -269,8 +320,8 @@
   position:      absolute;
   top:           3px;
   left:          3px;
-  width:         20px;
-  height:        20px;
+  width:         16px;
+  height:        16px;
   border-radius: 50%;
   background:    #fff;
   box-shadow:    0 1px 4px rgba(0, 0, 0, 0.3);
@@ -281,18 +332,18 @@
 
 .mti-presets {
   display:         flex;
-  gap:             6px;
+  gap:             4px;
   justify-content: flex-end;
   flex-wrap:       wrap;
 }
 
 .mti-preset-btn {
-  padding:       5px 11px;
+  padding:       3px 9px;
   border:        1.5px solid rgba(255, 255, 255, 0.14);
   border-radius: 20px;
   background:    none;
   color:         v.$text-secondary;
-  font-size:     0.76rem;
+  font-size:     0.72rem;
   font-weight:   600;
   font-family:   inherit;
   cursor:        pointer;

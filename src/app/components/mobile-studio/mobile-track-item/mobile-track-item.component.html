@@ -42,16 +42,20 @@
               title="Double-clic pour renommer">{{ track.name }}</span>
       }
 
-      <!-- Waveform + playhead -->
+      @if (track.settings.useAutotune) {
+        <span class="mti-at-badge" title="Autotune actif">AT</span>
+      }
+
+      <!-- Waveform + playhead (aperçu, volontairement fin) -->
       <div class="mti-wf-wrap" (click)="onWaveformClick($event)">
-        <canvas #wfCanvas class="mti-waveform" width="180" height="46"
+        <canvas #wfCanvas class="mti-waveform" width="360" height="48"
                 aria-hidden="true"></canvas>
         @if (playheadPct !== null) {
           <div class="mti-playhead" [style.left.%]="playheadPct * 100" aria-hidden="true"></div>
         }
       </div>
 
-      <!-- Actions -->
+      <!-- Actions principales — les autres sont dans le panneau déplié -->
       <div class="mti-actions" (click)="$event.stopPropagation()">
         <button class="mti-icon-btn"
                 [class.mti-icon-btn--playing]="isPlayingPreview()"
@@ -59,22 +63,14 @@
                 [attr.aria-label]="isPlayingPreview() ? 'Arrêter' : 'Écouter'">
           <i class="bi" [class.bi-stop-fill]="isPlayingPreview()" [class.bi-play-fill]="!isPlayingPreview()"></i>
         </button>
-        <button class="mti-icon-btn" (click)="startRecord.emit(track.id)" aria-label="Ré-enregistrer">
-          <i class="bi bi-record-circle"></i>
+        <button class="mti-chevron-btn"
+                (click)="expanded.set(!expanded())"
+                [attr.aria-expanded]="expanded()"
+                [attr.aria-label]="expanded() ? 'Replier les réglages' : 'Déplier les réglages'">
+          <i class="bi"
+             [class.bi-chevron-up]="expanded()"
+             [class.bi-chevron-down]="!expanded()"></i>
         </button>
-        <button class="mti-icon-btn mti-icon-btn--punchin"
-                (click)="punchIn.emit(track.id)"
-                aria-label="Punch-in — ré-enregistrer depuis un point">
-          <i class="bi bi-scissors"></i>
-        </button>
-        <button class="mti-icon-btn mti-icon-btn--danger"
-                (click)="remove.emit(track.id)"
-                aria-label="Supprimer">
-          <i class="bi bi-trash3"></i>
-        </button>
-        <i class="bi"
-           [class.bi-chevron-up]="expanded()"
-           [class.bi-chevron-down]="!expanded()"></i>
       </div>
 
     }
@@ -84,6 +80,24 @@
   <!-- ── Contrôles expandables ──────────────────────────────────────────────── -->
   @if (track.trackState === 'empty' || (track.trackState === 'recorded' && expanded())) {
     <div class="mti-controls">
+
+      @if (track.trackState === 'recorded') {
+        <div class="mti-row mti-row--actions">
+          <button class="mti-chip-btn" (click)="startRecord.emit(track.id)">
+            <i class="bi bi-record-circle"></i> Refaire
+          </button>
+          <button class="mti-chip-btn mti-chip-btn--punchin"
+                  (click)="punchIn.emit(track.id)"
+                  aria-label="Punch-in — ré-enregistrer depuis un point">
+            <i class="bi bi-scissors"></i> Punch-in
+          </button>
+          <button class="mti-chip-btn mti-chip-btn--danger"
+                  (click)="remove.emit(track.id)"
+                  aria-label="Supprimer">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      }
 
       <!-- Autotune — simple ON / OFF -->
       <div class="mti-row">
