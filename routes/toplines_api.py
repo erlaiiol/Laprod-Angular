@@ -91,6 +91,8 @@ def upload_topline():
       - track_id        : int
       - use_autotune    : 'true' | 'false'
       - latency_hint_ms : int (optionnel)
+      - beat_offset_ms  : int (optionnel) — position du beat (ms) quand le
+                          MediaRecorder a réellement démarré
       - description     : str (optionnel, max 500 car.)
 
     Headers (guest uniquement) :
@@ -155,6 +157,7 @@ def upload_topline():
         use_autotune    = request.form.get('use_autotune', 'false') == 'true'
         description     = request.form.get('description', '').strip()[:500] or None
         latency_hint_ms = max(0, min(500, int(request.form.get('latency_hint_ms', 0) or 0)))
+        beat_offset_ms  = max(0, min(3000, int(request.form.get('beat_offset_ms', 0) or 0)))
 
         if not voice_file or not track_id_raw:
             return err(
@@ -226,6 +229,7 @@ def upload_topline():
             'track_key':        track.key,
             'timestamp':        timestamp,
             'latency_hint_ms':  latency_hint_ms,
+            'beat_offset_ms':   beat_offset_ms,
         }
 
         redis_client.hset(f"job:{job_id}", mapping={

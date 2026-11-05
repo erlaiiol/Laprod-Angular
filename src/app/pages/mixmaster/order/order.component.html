@@ -437,6 +437,11 @@
           </div>
         }
 
+        <!-- App iOS : voir IosPurchasePolicyService (mention neutre si la
+             commande n'y est pas payable). -->
+        @if (policy.mixOrder() === 'unavailable') {
+          @if (policy.ready()) { <p class="purchase-unavailable"><i class="bi bi-info-circle"></i> {{ policy.unavailableMessage }}</p> }
+        } @else {
         <button type="submit" class="btn-submit"
                 [class.btn-submit--quick]="mode() === 'quick'"
                 [class.btn-submit--login]="!auth.isLoggedIn()"
@@ -450,6 +455,7 @@
             Payer {{ finalPrice().toFixed(2) }}€ maintenant via Stripe
           }
         </button>
+        }
 
       </form>
     </div>

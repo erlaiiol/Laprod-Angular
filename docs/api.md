@@ -112,7 +112,7 @@ Forme unique, tous endpoints paginés confondus :
 
 ## 6. Carte des domaines
 
-36 blueprints, enregistrés dans `app.py` (imports centralisés dans `routes/__init__.py`).
+37 blueprints, enregistrés dans `app.py` (imports centralisés dans `routes/__init__.py`).
 
 | Domaine | Blueprint | Principales routes |
 |---|---|---|
@@ -127,7 +127,8 @@ Forme unique, tous endpoints paginés confondus :
 | Webhooks | `stripe_webhook_api` | événements Stripe |
 | Wallet | `wallet_api` | solde, transactions, retrait |
 | Connect | `stripe_connect_api` | onboarding vendeur |
-| Abonnements | `premium_api` | `GET /plans`, `POST /subscribe`, `POST /activate` |
+| Abonnements | `premium_api` | `GET /plans`, `POST /subscribe`, `POST /activate` (Stripe — web et Android) |
+| Abonnements iOS | `apple_iap_api` | `GET /api/apple-iap/policy` (public), `GET /products`, `POST /verify` (transactions StoreKit signées), `POST /notifications` (Apple, remboursements) |
 | Licences / contrats | `licenses_api`, `contracts_api`, `invoice_api` | contrat PDF, facture |
 | Contract Builder | `contract_builder_api` | templates, clauses, génération, signature |
 | Contract Analyzer | `contract_analyzer_api` | analyse de contrat déposé |
@@ -167,4 +168,6 @@ Forme unique, tous endpoints paginés confondus :
 - [ ] Autorisation revérifiée serveur, via `can_*` ou `plan_rank`
 - [ ] Aucune relation SQLAlchemy lue dans une boucle sans `selectinload`
 - [ ] Test pytest du chemin nominal **et** du refus d'autorisation
+- [ ] Endpoint qui crée une session de paiement : son point d'entrée front passe par
+      `IosPurchasePolicyService` (R18) — sinon l'app iOS est rejetée par Apple
 - [ ] Objet de test ajouté à `src/testing/data/` si le front le consomme

@@ -659,6 +659,12 @@
         <a [routerLink]="['/track', track()!.id]" class="btn-back">
           <i class="bi bi-arrow-left"></i> Retour
         </a>
+        <!-- App iOS : le paiement n'est proposé que si la politique d'achat
+             l'autorise (IosPurchasePolicyService) — sinon une mention neutre,
+             sans lien ni renvoi vers le site. -->
+        @if (policy.beatLicense() === 'unavailable') {
+          @if (policy.ready()) { <p class="purchase-unavailable"><i class="bi bi-info-circle"></i> {{ policy.unavailableMessage }}</p> }
+        } @else {
         <button class="btn-confirm"
                 [class.btn-confirm--quick]="mode() === 'quick'"
                 [class.btn-confirm--login]="!auth.isLoggedIn()"
@@ -672,6 +678,7 @@
             <i class="bi bi-lock-fill"></i> Confirmer et payer — {{ finalPrice().toFixed(2) }}€
           }
         </button>
+        }
       </div>
 
     </main>

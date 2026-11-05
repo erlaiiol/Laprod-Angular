@@ -168,7 +168,7 @@
                   <span class="segment-count">{{ audienceOf(s) }}</span>
                 </div>
                 <span class="segment-hint">{{ segmentHints[s] }}</span>
-                @if (s === 'all') {
+                @if (s === 'all' && policy.campaignBoost() !== 'unavailable') {
                   <span class="segment-price">Diffusion payante — {{ superPrice() | number:'1.2-2' }} €</span>
                 }
               </button>
@@ -261,7 +261,10 @@
         @if (editingId(); as id) {
           @for (c of campaigns(); track c.id) {
             @if (c.id === id) {
-              @if (c.requires_payment && !c.is_paid) {
+              @if (c.requires_payment && !c.is_paid && policy.campaignBoost() === 'unavailable') {
+                <!-- App iOS : la diffusion payante n'y est pas vendue. -->
+                @if (policy.ready()) { <p class="purchase-unavailable"><i class="bi bi-info-circle"></i> {{ policy.unavailableMessage }}</p> }
+              } @else if (c.requires_payment && !c.is_paid) {
                 <button type="button" class="btn-primary"
                         [disabled]="checkingOut()"
                         (click)="payAndUnlock(c)">

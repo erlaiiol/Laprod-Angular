@@ -7,6 +7,7 @@ import {
   SEGMENT_LABELS, SEGMENT_HINTS,
 } from '../../services/campaign.service';
 import { ToastService } from '../../services/toast.service';
+import { IosPurchasePolicyService } from '../../services/ios-purchase-policy.service';
 
 const SUBJECT_MAX = 120;
 const BODY_MAX    = 2000;
@@ -25,6 +26,7 @@ export class CampaignsComponent implements OnInit {
   private toast       = inject(ToastService);
   private route       = inject(ActivatedRoute);
   private router      = inject(Router);
+  readonly policy     = inject(IosPurchasePolicyService);
 
   readonly segmentLabels = SEGMENT_LABELS;
   readonly segmentHints  = SEGMENT_HINTS;
@@ -230,6 +232,7 @@ export class CampaignsComponent implements OnInit {
   }
 
   payAndUnlock(c: Campaign): void {
+    if (!this.policy.guard('campaign_boost')) return;
     if (this.checkingOut()) return;
     this.checkingOut.set(true);
     this.campaignSvc.checkoutSuperPremium(c.id).subscribe({

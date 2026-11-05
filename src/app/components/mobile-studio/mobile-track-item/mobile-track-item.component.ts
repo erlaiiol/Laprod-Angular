@@ -33,7 +33,7 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
   @ViewChild('wfCanvas')   wfCanvasRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('nameInput')  nameInputRef?: ElementRef<HTMLInputElement>;
 
-  readonly expanded         = signal(true);
+  readonly expanded         = signal(false);
   readonly editingName      = signal(false);
   readonly isPlayingPreview = signal(false);
   editNameValue             = '';
@@ -71,40 +71,18 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W     = canvas.width;
-    const H     = canvas.height;
-    // 12 px en bas réservés aux marqueurs de temps si la piste est > 30 s
-    const showMarkers = this.track.duration >= 30;
-    const waveH = showMarkers ? H - 13 : H;
-    const barW  = W / wf.length;
+    // Aperçu volontairement fin : pas de graduations temporelles, juste l'allure
+    const W    = canvas.width;
+    const H    = canvas.height;
+    const barW = W / wf.length;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#A51929' + '66';
+    ctx.fillStyle = '#A51929' + '99';
 
     for (let i = 0; i < wf.length; i++) {
-      const barH = Math.max(2, wf[i] * waveH);
-      ctx.fillRect(i * barW + 0.5, (waveH - barH) / 2, Math.max(1, barW - 1), barH);
+      const barH = Math.max(2, wf[i] * H);
+      ctx.fillRect(i * barW + 0.5, (H - barH) / 2, Math.max(1, barW - 1), barH);
     }
-
-    if (!showMarkers) return;
-
-    // Graduations temporelles : 30 s si durée ≤ 2 min, sinon 60 s
-    const duration = this.track.duration;
-    const step     = duration <= 120 ? 30 : 60;
-    ctx.font      = '7px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-
-    for (let t = step; t < duration; t += step) {
-      const x = (t / duration) * W;
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.fillRect(Math.round(x), waveH + 1, 1, 4);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      ctx.fillText(this._fmtTime(t), x, H - 1);
-    }
-  }
-
-  private _fmtTime(s: number): string {
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
   // ── Seek sur clic waveform ────────────────────────────────────────────────────

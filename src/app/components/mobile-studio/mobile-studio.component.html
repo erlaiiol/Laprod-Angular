@@ -346,16 +346,16 @@
                 @if (!beatWaveReady()) {
                   <div class="daw-beat-wf-shimmer" aria-hidden="true"></div>
                 }
+                <!-- Temps écoulé / total (incrusté sur la waveform) -->
+                @if (beatWaveReady()) {
+                  <div class="daw-beat-wf-time">
+                    <span>{{ fmtBeatTime(beatCurrentTime()) }}</span>
+                    @if (beatDuration() > 0) {
+                      <span class="daw-beat-wf-time-sep"> / {{ fmtBeatTime(beatDuration()) }}</span>
+                    }
+                  </div>
+                }
               </div>
-              <!-- Temps écoulé / total -->
-              @if (beatWaveReady()) {
-                <div class="daw-beat-wf-time">
-                  <span>{{ fmtBeatTime(beatCurrentTime()) }}</span>
-                  @if (beatDuration() > 0) {
-                    <span class="daw-beat-wf-time-sep"> / {{ fmtBeatTime(beatDuration()) }}</span>
-                  }
-                </div>
-              }
 
               @if (beatIsPlaying()) {
                 <div class="daw-beat-vol-row" (click)="$event.stopPropagation()">

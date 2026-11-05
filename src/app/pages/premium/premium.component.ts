@@ -1,9 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, signal, computed, effect, inject, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService, PlanKey, PLAN_ORDER } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
+import { IosPurchasePolicyService } from '../../services/ios-purchase-policy.service';
+import {
+  IosPurchaseService, IosPlanOffer, AppleVerifyData,
+  IosPurchaseCancelledError, IosPurchasePendingError,
+} from '../../services/ios-purchase.service';
 import { environment } from '../../../environments/environment';
 
 /** Un palier tel que le serveur le décrit (GET /api/premium/plans). */
@@ -63,6 +68,19 @@ export class PremiumComponent implements OnInit {
   readonly auth = inject(AuthService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  private destroyRef  = inject(DestroyRef);
+  private iosPurchase = inject(IosPurchaseService);
+  readonly policy     = inject(IosPurchasePolicyService);
+
+  /** Par quel moyen l'abonnement se paie ICI : Stripe (web, Android), achat
+   *  intégré Apple (app iOS), ou pas du tout. Dans l'app iOS, aucun chemin ne
+   *  doit mener à Stripe pour un abonnement (App Review 3.1.1). */
+  readonly purchaseMode = this.policy.subscription;
+
+  /** Offres App Store (prix dans la devise du compte Apple). Vide hors iOS. */
+  iosOffers       = signal<IosPlanOffer[]>([]);
+  iosOffersLoaded = signal(false);
+  restoring       = signal(false);
 
   readonly user      = this.auth.currentUser;
   readonly isPremium = this.auth.isPremium;
@@ -87,6 +105,15 @@ export class PremiumComponent implements OnInit {
   /** Argument massue par palier — affiché en bandeau sous le tableau, pour que le
    *  tableau reste lisible sans perdre le discours de vente. */
   highlights = computed(() => this.plans().filter(p => p.key !== 'free'));
+
+  constructor() {
+    // La politique iOS arrive du serveur après le premier rendu : on attend
+    // qu'elle dise 'iap' pour charger les produits App Store, une seule fois.
+    effect(() => {
+      if (this.purchaseMode() !== 'iap') return;
+      untracked(() => this.initIosPurchases());
+    });
+  }
 
   ngOnInit(): void {
     this.http.get<any>(`${environment.apiUrl}/api/premium/plans`).subscribe({
@@ -172,8 +199,94 @@ export class PremiumComponent implements OnInit {
     document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' });
   }
 
+  // ── Achat intégré Apple (app iOS uniquement) ───────────────────────────────
+
+  private iosInitialized = false;
+
+  private initIosPurchases(): void {
+    if (this.iosInitialized) return;
+    this.iosInitialized = true;
+
+    this.iosPurchase.loadOffers()
+      .then(offers => this.iosOffers.set(offers))
+      .catch(() => this.iosOffers.set([]))
+      .finally(() => this.iosOffersLoaded.set(true));
+
+    // Rattrapage silencieux d'un achat payé mais jamais crédité (réseau coupé
+    // juste après le paiement) : sans effet si tout est déjà à jour.
+    this.iosPurchase.reconcile()
+      .then(data => this.onIosVerified(data))
+      .catch(() => { /* le bouton « Restaurer mes achats » reste disponible */ });
+
+    this.iosPurchase.onTransactionUpdated(data => this.onIosVerified(data))
+      .then(handle => this.destroyRef.onDestroy(() => handle.remove()))
+      .catch(() => { /* plugin absent : aucun achat possible, rien à écouter */ });
+  }
+
+  iosOffer(key: PlanKey): IosPlanOffer | undefined {
+    return this.iosOffers().find(o => o.plan === key);
+  }
+
+  private onIosVerified(data: AppleVerifyData | null): void {
+    if (!data?.credited) return;
+    this.activated.set(true);
+    this.auth.me().subscribe();
+    this.toast.showToast({ level: 'success', message: 'Abonnement activé avec succès !' });
+  }
+
+  /** Point d'entrée unique des boutons de palier : choisit le moyen de paiement. */
+  buy(key: PlanKey): void {
+    if (this.purchaseMode() === 'iap') this.purchaseNative(key);
+    else this.subscribe(key);
+  }
+
+  private purchaseNative(key: PlanKey): void {
+    if (this.isCurrentPlan(key) || this.isBelowCurrentPlan(key)) return;
+    const offer = this.iosOffer(key);
+    if (!offer || this.subscribing() !== null) return;
+
+    this.subscribing.set(key);
+    this.iosPurchase.purchase(offer.productId)
+      .then(data => this.onIosVerified(data))
+      .catch(err => {
+        if (err instanceof IosPurchaseCancelledError) return;
+        if (err instanceof IosPurchasePendingError) {
+          this.toast.showToast({
+            level: 'info',
+            message: "Achat en attente de validation. Ton abonnement s'activera dès qu'il sera approuvé.",
+          });
+          return;
+        }
+        this.toast.showToast({
+          level: 'error',
+          message: err?.error?.feedback?.message ?? err?.feedback?.message
+            ?? "L'achat n'a pas abouti. Si tu as été débité, utilise « Restaurer mes achats ».",
+        });
+      })
+      .finally(() => this.subscribing.set(null));
+  }
+
+  restorePurchases(): void {
+    if (this.restoring()) return;
+    this.restoring.set(true);
+    this.iosPurchase.restore()
+      .then(data => {
+        if (data?.credited) this.onIosVerified(data);
+        else this.toast.showToast({ level: 'info', message: 'Aucun achat à restaurer.' });
+      })
+      .catch(err => this.toast.showToast({
+        level: 'error',
+        message: err?.error?.feedback?.message ?? 'La restauration a échoué. Réessaie dans un instant.',
+      }))
+      .finally(() => this.restoring.set(false));
+  }
+
+  // ── Stripe (web, Android) ──────────────────────────────────────────────────
+
   subscribe(key: PlanKey): void {
     if (this.isCurrentPlan(key) || this.isBelowCurrentPlan(key)) return;
+    // Jamais de checkout Stripe pour un abonnement dans l'app iOS.
+    if (!this.policy.guard('subscription')) return;
 
     this.subscribing.set(key);
     this.http.post<any>(`${environment.apiUrl}/api/premium/subscribe`, { plan: key })

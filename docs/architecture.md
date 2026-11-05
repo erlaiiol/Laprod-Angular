@@ -131,6 +131,62 @@ Conséquence sur toute nouvelle fonctionnalité web : elle doit fonctionner dans
 `capacitor://` / `https://app.laprod.net` (CORS), sans dépendre d'un domaine tiers, et sans
 supposer que les cookies se comportent comme sur le web.
 
+Les plugins natifs **locaux** (`PitchMonitorPlugin`, `StoreKitPurchasePlugin`) ne sont pas
+des paquets npm : `cap sync` ne les inscrit pas dans `packageClassList`, donc Capacitor ne
+les charge pas tout seul. Sur iOS ils sont enregistrés à la main dans
+`ios/App/App/MainViewController.swift` (classe racine déclarée dans `Main.storyboard`).
+Tout nouveau plugin Swift local s'ajoute là, sinon ses appels JS échouent avec
+« not implemented on ios » alors que le projet compile.
+
+### Paiements sur iOS
+
+Apple refuse en review (guideline 3.1.1) qu'une app iOS vende un contenu ou une
+fonctionnalité numérique autrement que par son achat intégré — y compris par un lien vers
+le site. Le web et Android ne sont pas concernés et restent sur Stripe.
+
+| Catégorie | Web / Android | App iOS (défaut) | Pourquoi |
+|---|---|---|---|
+| Abonnement LaProd+ | Stripe | **Achat intégré Apple** | Débloque des fonctionnalités de l'app : cas d'école du 3.1.1 |
+| Licence d'un beat | Stripe | Stripe | Contrat de licence + fichiers exploités **hors** de l'app, vendus par un tiers (3.1.3(e)) |
+| Commande mix/master | Stripe | Stripe | Prestation réalisée par une personne, livrée hors de l'app (3.1.3(e)) |
+| Diffusion payante d'une campagne | Stripe | **Indisponible** | Service numérique consommé dans la plateforme, sans produit Apple équivalent |
+| Onboarding Connect, retrait du wallet | Stripe | Stripe | Ce n'est pas un achat : c'est le versement des revenus du vendeur |
+
+Les lignes « Stripe » sur iOS sont une lecture défendable des règles d'Apple, pas une
+garantie : si App Review conteste l'une d'elles, on la passe à `unavailable` côté serveur
+(`IOS_POLICY_*`, cf. `docs/deployment.md` § 6) sans republier l'app.
+
+Mécanique :
+
+```
+App iOS ── GET /api/apple-iap/policy ──▶ { subscription: 'iap', beat_license: 'stripe', … }
+   │            (IosPurchasePolicyService — tout est 'unavailable' tant que non chargé)
+   │
+   ├─ StoreKitPurchasePlugin.purchase(productId, appAccountToken)
+   │        └─ feuille d'achat Apple ─▶ transaction signée (JWS)
+   │
+   └─ POST /api/apple-iap/verify { transactions: [JWS] }
+            └─ utils/apple_iap.py : signature vérifiée contre les certificats Apple
+               → AppleIapTransaction (unique par transaction) → +30 jours sur le palier
+```
+
+- Le produit App Store est un **abonnement sans renouvellement automatique de 30 jours**,
+  l'équivalent exact du paiement unique Stripe (`PREMIUM_DURATION_DAYS`). Pas de cycle de
+  renouvellement à suivre, donc aucune clé d'API App Store à gérer.
+- `AppleIapTransaction.transaction_id` est unique : StoreKit représente les mêmes
+  transactions à chaque lancement et à chaque « Restaurer mes achats », elles ne sont
+  créditées qu'une fois. Un abonnement encore actif est **prolongé**, jamais écrasé.
+- `appAccountToken` (UUID dérivé de l'utilisateur, resigné par Apple dans la transaction)
+  empêche de créditer un achat sur un autre compte LaProd que celui qui l'a payé.
+- Remboursement par Apple ⇒ notification serveur (`POST /api/apple-iap/notifications`) ⇒
+  les 30 jours correspondants sont repris.
+- Le prix affiché dans l'app iOS vient de StoreKit (devise du compte Apple), jamais de
+  `utils/plans.py`. Apple est le vendeur et émet le reçu : LaProd n'émet pas de facture
+  pour ces achats.
+- Un abonnement payé sur le web reste valable dans l'app iOS, et inversement : c'est le
+  même `subscription_plan` / `premium_expires_at`, seul `premium_source` diffère
+  (`stripe` | `apple` | `admin`).
+
 ---
 
 ## 5. Flux argent

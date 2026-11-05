@@ -1108,6 +1108,87 @@ physique :
 
 ---
 
+# Chantier — Achats intégrés iOS (conformité App Store 3.1.1)
+
+> **État : code livré le 30/09/2026, non vérifié sur device.** Étapes manuelles dans
+> `docs/checklist-lancement.md` § 7.1–7.2 et § 8. Architecture : `docs/architecture.md`
+> § Paiements sur iOS. Règle permanente : `docs/development-rules.md` R18.
+
+## Pourquoi
+
+FactureLe, autre app du même éditeur à l'architecture identique (paiement Stripe via
+redirection web), a été refusée par App Review pour vente de produits numériques hors
+App Store — y compris après avoir remplacé le bouton par un simple lien vers le site.
+LaProd présentait le même défaut sur cinq points de paiement. Corrigé avant la première
+soumission iOS.
+
+## Décisions actées
+
+1. **Abonnement LaProd+ = achat intégré Apple sur iOS**, Stripe partout ailleurs. Les
+   deux sources alimentent les mêmes champs (`subscription_plan`, `premium_expires_at`).
+2. **Produit « sans renouvellement automatique », 30 jours.** C'est le modèle déjà vendu
+   sur le web (paiement unique, `PREMIUM_DURATION_DAYS`) : pas de cycle de renouvellement,
+   pas de clé d'API App Store, pas de bascule de modèle économique pour une seule
+   plateforme. Passer à l'auto-renouvelable serait un chantier à part (web compris).
+3. **Vérification maison, pas de RevenueCat.** Même choix que pour FactureLe : la
+   bibliothèque officielle d'Apple (`app-store-server-library`) vérifie la signature hors
+   ligne ; aucun tiers ne connaît nos clients ni ne prend de pourcentage.
+4. **Plugin Swift local** (`StoreKitPurchasePlugin.swift`), repris de celui de FactureLe
+   — le seul des deux à avoir déjà tourné sur un iPhone.
+5. **Licences de beats et mix/master restent sur Stripe dans l'app iOS** (exploitation
+   hors de l'app, vente entre utilisateurs — 3.1.3(e)). Le passage par l'achat intégré
+   est de toute façon impraticable : prix libres fixés par chaque vendeur, et 30 %
+   prélevés par Apple sur une vente où LaProd en prend 10. **C'est le risque résiduel de
+   la soumission** : l'interrupteur `IOS_POLICY_*` permet de retirer ces achats de l'app
+   iOS sans nouveau build si App Review les refuse.
+6. **Diffusion payante des campagnes : retirée de l'app iOS.** Service numérique consommé
+   dans la plateforme, volume marginal, aucun intérêt à créer un quatrième produit Apple.
+7. **Politique pilotée par le serveur, repli sur « indisponible ».** Politique non
+   chargée, valeur inconnue, serveur injoignable : l'app ne vend rien plutôt que de
+   vendre quelque chose qu'Apple n'a pas validé.
+
+## Ce qui est livré
+
+- Backend : `utils/apple_iap.py`, `routes/apple_iap_api.py`, modèle
+  `AppleIapTransaction` + migration `c4e8a1f07b52`, certificats racine Apple dans
+  `utils/apple_certs/`, contrôles `doctor.sh`. Tests : `tests/integration/test_apple_iap_api.py`.
+- iOS : `StoreKitPurchasePlugin.swift`, `MainViewController.swift` (enregistre aussi
+  `PitchMonitorPlugin`, qui ne l'était pas).
+- Front : `IosPurchasePolicyService`, `IosPurchaseService`, page Premium (prix StoreKit,
+  achat, restauration, FAQ adaptée), garde sur les quatre autres points de paiement
+  (licence, renouvellement de licence, commande mix/master, campagne).
+- Légal : CGU art. 6.1 et 6.5, politique de confidentialité § 2.3 et sous-traitants.
+
+## Pièges
+
+- **Un abonnement sans renouvellement reste pour toujours dans l'historique StoreKit.**
+  Toute logique du type « l'appareil possède l'achat ⇒ je crédite » offrirait 30 jours à
+  chaque lancement. Seule la table `apple_iap_transaction` fait foi.
+- **L'équipe de review achète en Sandbox sur un build de production.** Le serveur essaie
+  donc toujours Production puis Sandbox ; refuser le Sandbox en prod ferait échouer la
+  review sur « l'achat ne débloque rien ».
+- **`getProducts` renvoie une liste vide sans erreur** tant que le Paid Apps Agreement
+  n'est pas actif ou que les produits ne sont pas « Ready to Submit ».
+- **Un fichier `.storekit` local** (Xcode > File > New > StoreKit Configuration File,
+  synchronisé avec App Store Connect) permet de tester avant que les produits soient
+  approuvés, mais ses transactions ne sont pas signées par Apple : le serveur les refuse
+  sauf `APPLE_IAP_ALLOW_XCODE=1`, à n'utiliser qu'en local.
+- **Aucun texte visible sur iOS ne doit inviter à payer ailleurs** — y compris dans une
+  FAQ, une notification ou un email déclenché depuis l'app.
+
+## Non traité, volontairement
+
+- **Android** : Google Play tolère le paiement externe pour ce type d'app ; rien ne
+  change (Stripe).
+- **Offres promotionnelles Apple / codes d'offre** : les codes promo LaProd sont ceux des
+  vendeurs, sur les beats — sans rapport avec l'abonnement.
+- **Liens externes autorisés par le DMA (UE) ou sur le storefront US** : possibles, mais
+  soumis à un avenant et à des commissions Apple spécifiques. Décision commerciale, pas
+  technique — à instruire séparément si l'achat intégré s'avère trop coûteux.
+- **Facture LaProd pour un achat Apple** : Apple est le vendeur et émet le reçu.
+
+---
+
 # Chantiers suivants (non spécifiés)
 
 À détailler au même format le moment venu.

@@ -309,6 +309,78 @@
   &--muted { color: v.$tag-neutral; &:hover { color: v.$text-secondary; } }
 }
 
+.mic-blocked {
+  display:       flex;
+  flex-wrap:     wrap;
+  align-items:   center;
+  gap:           0.75rem;
+  margin:        0.25rem 0 0.75rem;
+  padding:       0.8rem 0.9rem;
+  background:    rgba(v.$primary, 0.1);
+  border:        1px solid rgba(v.$primary, 0.45);
+  border-radius: v.$radius-lg;
+
+  &__icon { font-size: 1.4rem; color: v.$primary; }
+  &__body { flex: 1 1 14rem; strong { font-size: 0.9rem; } p { margin: 0.15rem 0 0; font-size: 0.78rem; color: v.$text-secondary; } }
+
+  &__retry {
+    background:    none;
+    border:        1px solid rgba(v.$primary, 0.6);
+    color:         v.$off-white;
+    border-radius: v.$radius-md;
+    padding:       0.4rem 0.8rem;
+    font-size:     0.8rem;
+    cursor:        pointer;
+    &:hover { background: rgba(v.$primary, 0.2); }
+  }
+}
+
+.calib-nudge {
+  display:        flex;
+  flex-wrap:      wrap;
+  align-items:    center;
+  gap:            0.75rem;
+  margin:         0.25rem 0 0.75rem;
+  padding:        0.8rem 0.9rem;
+  background:     rgba(v.$primary, 0.1);
+  border:         1px solid rgba(v.$primary, 0.45);
+  border-radius:  v.$radius-lg;
+  animation:      calib-nudge-pulse 2.4s ease-in-out 3;
+
+  &__icon   { font-size: 1.5rem; color: v.$primary; }
+  &__body   { flex: 1 1 14rem; strong { font-size: 0.9rem; } p { margin: 0.15rem 0 0; font-size: 0.78rem; color: v.$text-secondary; } }
+  &__actions { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+
+  &__cta {
+    background:    v.$primary;
+    color:         #fff;
+    border:        none;
+    border-radius: v.$radius-md;
+    padding:       0.5rem 0.9rem;
+    font-size:     0.82rem;
+    font-weight:   600;
+    cursor:        pointer;
+    &:hover { filter: brightness(1.1); }
+  }
+
+  &__later {
+    background: none;
+    border:     none;
+    padding:    0;
+    font-size:  0.72rem;
+    color:      v.$tag-neutral;
+    cursor:     pointer;
+    &:hover { color: v.$text-secondary; }
+  }
+}
+
+@keyframes calib-nudge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(v.$primary, 0); }
+  50%      { box-shadow: 0 0 0 5px rgba(v.$primary, 0.18); }
+}
+
+@media (prefers-reduced-motion: reduce) { .calib-nudge { animation: none; } }
+
 // ── Calibration overlay (replaces idle content when calibrating) ──────────────
 
 .calib-overlay {

@@ -736,8 +736,8 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const wf     = this._beatWaveform;
     if (!canvas || !wf) return;
 
-    const W = canvas.offsetWidth || 320;
-    const H = 52;
+    const W = canvas.offsetWidth  || 320;
+    const H = canvas.offsetHeight || 32;
     if (canvas.width !== W || canvas.height !== H) {
       canvas.width  = W;
       canvas.height = H;

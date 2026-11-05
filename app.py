@@ -101,6 +101,17 @@ def create_app(test_config=None):
     app.config['APPLE_PRIVATE_KEY'] = config.APPLE_PRIVATE_KEY
     app.config['APPLE_SERVICES_ID'] = config.APPLE_SERVICES_ID
     app.config['APPLE_BUNDLE_ID'] = config.APPLE_BUNDLE_ID
+    # Achats intégrés Apple + politique d'achat de l'app iOS (utils/apple_iap.py)
+    app.config['APPLE_APP_ID'] = config.APPLE_APP_ID
+    app.config['APPLE_IAP_PRODUCT_PREMIUM'] = config.APPLE_IAP_PRODUCT_PREMIUM
+    app.config['APPLE_IAP_PRODUCT_SEMI_PRO'] = config.APPLE_IAP_PRODUCT_SEMI_PRO
+    app.config['APPLE_IAP_PRODUCT_PRO_STRUCTURE'] = config.APPLE_IAP_PRODUCT_PRO_STRUCTURE
+    app.config['APPLE_IAP_ALLOW_XCODE'] = config.APPLE_IAP_ALLOW_XCODE
+    app.config['PREMIUM_DURATION_DAYS'] = config.PREMIUM_DURATION_DAYS
+    app.config['IOS_POLICY_SUBSCRIPTION'] = config.IOS_POLICY_SUBSCRIPTION
+    app.config['IOS_POLICY_BEAT_LICENSE'] = config.IOS_POLICY_BEAT_LICENSE
+    app.config['IOS_POLICY_MIX_ORDER'] = config.IOS_POLICY_MIX_ORDER
+    app.config['IOS_POLICY_CAMPAIGN_BOOST'] = config.IOS_POLICY_CAMPAIGN_BOOST
 
     # Contrats (prix)
     app.config['CONTRACT_EXCLUSIVE_PRICE'] = config.CONTRACT_EXCLUSIVE_PRICE
@@ -289,6 +300,48 @@ def create_app(test_config=None):
             db.session.commit()
             app.logger.info("Compte de test Play Store cree")
 
+    @app.cli.command('create-apple-review-account')
+    def create_apple_review_account():
+        """
+        Crée le compte de démo pour App Review (App Store Connect > App Review
+        Information > Informations de connexion). Contrairement au compte Play Store,
+        il est volontairement GRATUIT : le reviewer doit voir les boutons d'achat
+        LaProd+ en achat intégré. Idempotent. Mot de passe lu dans
+        APPLE_REVIEW_PASSWORD (pas de valeur par défaut : la commande refuse de
+        s'exécuter sans).
+        """
+        from extensions import db
+        from models import User
+        from utils import plans
+        from datetime import datetime
+
+        password = os.environ.get('APPLE_REVIEW_PASSWORD')
+        if not password:
+            raise click.ClickException("APPLE_REVIEW_PASSWORD non défini dans l'environnement.")
+
+        with app.app_context():
+            existing = db.session.query(User).filter_by(username='apple_review').first()
+            if existing:
+                app.logger.info("Le compte de demo Apple existe deja")
+                return
+
+            account = User(
+                username='apple_review',
+                email='apple-review@laprod.net',
+                signature='Compte de démo — App Review',
+                account_status='active',
+                email_verified=True,
+                terms_accepted_at=datetime.now(),
+                user_type_selected=True,
+                is_artist=True,
+                is_beatmaker=True,
+                subscription_plan=plans.FREE,
+            )
+            account.set_password(password)
+            db.session.add(account)
+            db.session.commit()
+            app.logger.info("Compte de demo Apple cree")
+
     @app.cli.command('seed-contract-builder')
     def seed_contract_builder():
         """Initialise les groupes et clauses du contract builder."""
@@ -467,6 +520,7 @@ def create_app(test_config=None):
     from routes.recommendation_api import recommendation_api_bp
     from routes.streaming_service import streaming_bp
     from routes.og_preview import og_preview_bp
+    from routes.apple_iap_api import apple_iap_api_bp
 
     app.register_blueprint(premium_api_bp)
     app.register_blueprint(tracks_api_bp)
@@ -505,6 +559,7 @@ def create_app(test_config=None):
     app.register_blueprint(royalties_api_bp)
     app.register_blueprint(structure_api_bp)
     app.register_blueprint(push_api_bp)
+    app.register_blueprint(apple_iap_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

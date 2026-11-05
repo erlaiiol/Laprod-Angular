@@ -109,6 +109,44 @@ APPLE_SERVICES_ID = os.environ.get('APPLE_SERVICES_ID')
 # @capawesome/capacitor-apple-sign-in), jamais utilisé pour le web.
 APPLE_BUNDLE_ID = os.environ.get('APPLE_BUNDLE_ID', 'net.laprod.app')
 
+# ── Achats intégrés Apple (StoreKit 2) ────────────────────────────────────────
+# Sur iOS, LaProd+ ne peut PAS être vendu par Stripe : Apple (App Review 3.1.1)
+# refuse toute app qui vend un contenu numérique hors de son système d'achat
+# intégré, y compris par simple lien vers le site. Les trois paliers existent
+# donc en double : Stripe (web + Android) et produits App Store (iOS).
+# Voir docs/architecture.md § Paiements sur iOS et utils/apple_iap.py.
+#
+# APPLE_APP_ID : identifiant NUMÉRIQUE de l'app (App Store Connect > App
+# Information > Apple ID), pas le bundle ID. Exigé par Apple pour vérifier une
+# transaction de production : sans lui l'achat intégré est désactivé proprement
+# (l'app iOS affiche « indisponible »), il ne fait jamais planter le démarrage.
+APPLE_APP_ID = os.environ.get('APPLE_APP_ID')
+# Identifiants des produits « abonnement sans renouvellement automatique »
+# (30 jours, même durée que PREMIUM_DURATION_DAYS côté Stripe), un par palier.
+APPLE_IAP_PRODUCT_PREMIUM = os.environ.get(
+    'APPLE_IAP_PRODUCT_PREMIUM', 'net.laprod.app.plus.premium.30d')
+APPLE_IAP_PRODUCT_SEMI_PRO = os.environ.get(
+    'APPLE_IAP_PRODUCT_SEMI_PRO', 'net.laprod.app.plus.semipro.30d')
+APPLE_IAP_PRODUCT_PRO_STRUCTURE = os.environ.get(
+    'APPLE_IAP_PRODUCT_PRO_STRUCTURE', 'net.laprod.app.plus.prostructure.30d')
+# DEV UNIQUEMENT : accepte les transactions signées par Xcode (fichier
+# LaProdPlus.storekit), qui ne sont PAS vérifiables contre les certificats
+# Apple. Activé en production, n'importe qui s'offrirait un abonnement avec une
+# transaction fabriquée — doctor.sh --prod le signale en CRIT.
+APPLE_IAP_ALLOW_XCODE = os.environ.get('APPLE_IAP_ALLOW_XCODE', '') == '1'
+
+# ── Politique d'achat dans l'app iOS, par catégorie ───────────────────────────
+# Pilotée par le serveur pour pouvoir RESTREINDRE sans republier l'app si App
+# Review conteste une catégorie. Ne jamais l'assouplir après validation d'un
+# build : activer un paiement qu'Apple n'a pas vu en review est un motif de
+# retrait de l'app (2.3.1). Valeurs : voir utils/apple_iap.py::ios_purchase_policy.
+#   subscription   : 'iap' | 'unavailable'
+#   autres         : 'stripe' | 'unavailable'
+IOS_POLICY_SUBSCRIPTION = os.environ.get('IOS_POLICY_SUBSCRIPTION', 'iap')
+IOS_POLICY_BEAT_LICENSE = os.environ.get('IOS_POLICY_BEAT_LICENSE', 'stripe')
+IOS_POLICY_MIX_ORDER = os.environ.get('IOS_POLICY_MIX_ORDER', 'stripe')
+IOS_POLICY_CAMPAIGN_BOOST = os.environ.get('IOS_POLICY_CAMPAIGN_BOOST', 'unavailable')
+
 
 # ============================================
 # CONFIGURATION STRIPE

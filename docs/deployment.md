@@ -139,6 +139,30 @@ côté Apple Developer Portal) : `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE
 (Services ID du flow web/Android), `APPLE_BUNDLE_ID` (flow natif iOS, défaut
 `net.laprod.app`, à ne changer que si le bundle ID change).
 
+Achats intégrés Apple (abonnement LaProd+ dans l'app iOS — cf. `docs/architecture.md`
+§ Paiements sur iOS) :
+
+- `APPLE_APP_ID` — identifiant **numérique** de l'app (App Store Connect > App Information
+  > Apple ID). Absent ⇒ l'abonnement est affiché « indisponible » dans l'app iOS ; rien ne
+  plante, mais rien ne se vend.
+- `APPLE_IAP_PRODUCT_PREMIUM` / `_SEMI_PRO` / `_PRO_STRUCTURE` — identifiants des trois
+  produits App Store. Optionnels : les défauts de `config.py`
+  (`net.laprod.app.plus.<palier>.30d`) conviennent si les produits sont créés avec ces
+  identifiants.
+- `IOS_POLICY_SUBSCRIPTION` (`iap` | `unavailable`), `IOS_POLICY_BEAT_LICENSE`,
+  `IOS_POLICY_MIX_ORDER`, `IOS_POLICY_CAMPAIGN_BOOST` (`stripe` | `unavailable`) — ce que
+  l'app iOS a le droit de vendre. Lus à chaud par l'app : **restreindre** ne demande qu'un
+  redémarrage de `web`, pas de nouveau build. **Ne jamais assouplir** une valeur après la
+  validation d'un build par Apple sans repasser en review.
+- `APPLE_IAP_ALLOW_XCODE=1` — **dev uniquement** (transactions de test Xcode, non
+  vérifiables). `doctor.sh --prod` le signale en `CRIT`.
+
+Aucune clé privée n'est nécessaire : les transactions sont vérifiées hors ligne contre les
+certificats racine publics d'Apple, embarqués dans `utils/apple_certs/`.
+
+URL à déclarer dans App Store Connect (App Information > App Store Server Notifications,
+**Version 2**, Production **et** Sandbox) : `https://laprod.net/api/apple-iap/notifications`.
+
 `CORS_ORIGINS` doit inclure les origines du WebView Capacitor en plus du web :
 `https://app.laprod.net` (Android), `capacitor://app.laprod.net` (iOS),
 `http://localhost:4200` (dev).

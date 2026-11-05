@@ -954,7 +954,7 @@
 // ── Sections ─────────────────────────────────────────────────────────────────
 
 .daw-section {
-  padding:       10px 14px;
+  padding:       8px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 
   &--voices   { flex: 1; }
@@ -970,7 +970,7 @@
   color:          rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin:         0 0 8px;
+  margin:         0 0 5px;
 
   i { font-size: 0.78rem; }
 }
@@ -980,7 +980,7 @@
 .daw-beat-lane {
   background:    rgba(255, 255, 255, 0.03);
   border:        1.5px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
+  border-radius: 10px;
   overflow:      hidden;
   cursor:        pointer;
   transition:    border-color 0.18s, background 0.18s;
@@ -999,8 +999,8 @@
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  padding:         10px 12px 6px;
-  gap:             10px;
+  padding:         5px 6px 4px 10px;
+  gap:             8px;
 }
 
 .daw-track-label {
@@ -1012,7 +1012,7 @@
 }
 
 .daw-track-label-name {
-  font-size:     0.86rem;
+  font-size:     0.8rem;
   font-weight:   600;
   color:         v.$text-primary;
   white-space:   nowrap;
@@ -1049,8 +1049,8 @@
   display:         flex;
   align-items:     center;
   justify-content: center;
-  width:           40px;
-  height:          40px;
+  width:           32px;
+  height:          32px;
   border:          1.5px solid rgba(255, 255, 255, 0.14);
   border-radius:   50%;
   background:      rgba(255, 255, 255, 0.05);
@@ -1069,17 +1069,17 @@
   }
 }
 
-// Waveform décorative du beat (CSS pur)
+// Waveform du beat — aperçu fin, le temps est incrusté en bas à droite
 .daw-beat-wf-wrap {
   position: relative;
-  margin:   0 12px 10px;
-  height:   52px;
+  margin:   0 8px 7px;
+  height:   32px;
 }
 
 .daw-beat-waveform {
   display:       block;
   width:         100%;
-  height:        52px;
+  height:        32px;
   border-radius: 6px;
   background:    rgba(v.$primary, 0.04);
   border:        1px solid rgba(v.$primary, 0.12);
@@ -1093,13 +1093,20 @@
 }
 
 .daw-beat-wf-time {
-  display:     flex;
-  align-items: center;
-  gap:         2px;
-  padding:     2px 14px 0;
-  font-size:   0.75rem;
-  font-weight: 600;
-  color:       rgba(255, 255, 255, 0.48);
+  position:      absolute;
+  right:         4px;
+  bottom:        3px;
+  display:       flex;
+  align-items:   center;
+  gap:           2px;
+  padding:       0 4px;
+  border-radius: 4px;
+  background:    rgba(0, 0, 0, 0.45);
+  font-size:     0.62rem;
+  font-weight:   600;
+  line-height:   1.4;
+  color:         rgba(255, 255, 255, 0.7);
+  pointer-events: none;
   font-variant-numeric: tabular-nums;
 
   .daw-beat-wf-time-sep { color: rgba(255, 255, 255, 0.3); }
@@ -1138,7 +1145,7 @@
   display:     flex;
   align-items: center;
   gap:         8px;
-  padding:     0 12px 10px;
+  padding:     0 10px 7px;
 
   i {
     font-size:   0.9rem;
@@ -1153,7 +1160,7 @@
   align-items:     center;
   justify-content: space-between;
   gap:             10px;
-  padding:         10px 12px 12px;
+  padding:         7px 10px;
   border-top:      1px solid rgba(v.$primary, 0.15);
   background:      rgba(v.$primary, 0.05);
   animation:       fadeIn 0.15s ease;
@@ -1259,8 +1266,8 @@
 .daw-voices-list {
   display:        flex;
   flex-direction: column;
-  gap:            8px;
-  margin-bottom:  10px;
+  gap:            5px;
+  margin-bottom:  6px;
 }
 
 .daw-add-btn {
@@ -1269,9 +1276,9 @@
   justify-content: center;
   gap:             7px;
   width:           100%;
-  padding:         13px;
+  padding:         8px;
   border:          1.5px dashed rgba(255, 255, 255, 0.2);
-  border-radius:   14px;
+  border-radius:   10px;
   background:      none;
   color:           v.$text-secondary;
   font-size:       0.88rem;

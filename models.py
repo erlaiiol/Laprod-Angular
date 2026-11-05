@@ -2110,6 +2110,48 @@ class PremiumPayment(db.Model):
         return f"<PremiumPayment #{self.id} user={self.user_id} plan={self.plan} {self.amount_paid}€>"
 
 
+# =============================================================================
+# APPLE IAP — Transactions d'achat intégré (abonnement LaProd+ sur iOS)
+# =============================================================================
+
+class AppleIapTransaction(db.Model):
+    """Une transaction App Store déjà créditée. Sert d'abord de verrou
+    d'idempotence : StoreKit représente la même transaction à chaque lancement
+    et à chaque « Restaurer mes achats », et un abonnement sans renouvellement
+    automatique reste indéfiniment dans l'historique Apple — sans cette table,
+    chaque restauration offrirait 30 jours de plus.
+
+    user_id est nullable à dessein (exception assumée à R9) : à la suppression
+    du compte, la ligne survit avec user_id NULL, pour qu'un nouveau compte ne
+    puisse pas rejouer la transaction d'un compte supprimé."""
+    __tablename__ = 'apple_iap_transaction'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+
+    product_id    = db.Column(db.String(120), nullable=False)
+    plan          = db.Column(db.String(20),  nullable=False)
+    duration_days = db.Column(db.Integer,     nullable=False)
+    # 'Production' | 'Sandbox' | 'Xcode' — un achat Sandbox (TestFlight, review
+    # Apple) crédite réellement le compte : c'est ce qu'Apple attend pour tester.
+    environment   = db.Column(db.String(20),  nullable=False)
+    # Prix réellement facturé par Apple (peut différer de la grille Stripe : les
+    # paliers de prix App Store ne tombent pas toujours sur les mêmes montants).
+    price         = db.Column(db.Numeric(10, 2), nullable=True)
+    currency      = db.Column(db.String(8),      nullable=True)
+
+    purchased_at = db.Column(db.DateTime, nullable=False)
+    # Remboursement / révocation notifiés par Apple : les jours sont repris.
+    revoked_at   = db.Column(db.DateTime, nullable=True)
+    created_at   = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    user = db.relationship('User', backref='apple_iap_transactions')
+
+    def __repr__(self):
+        return f"<AppleIapTransaction {self.transaction_id} user={self.user_id} plan={self.plan}>"
+
+
 class LicenseNotificationLog(db.Model):
     """Journal de déduplication des notifications planifiées de licences."""
     __tablename__ = 'license_notification_log'

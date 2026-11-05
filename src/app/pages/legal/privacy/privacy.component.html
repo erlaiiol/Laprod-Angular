@@ -71,6 +71,12 @@
           ou données CVV. Nous conservons uniquement l'identifiant de transaction Stripe
           (<em>payment_intent_id</em>) à des fins de facturation et de traçabilité.
         </p>
+        <p>
+          Lorsqu'un abonnement est acheté depuis l'application iOS, le paiement est traité par
+          <strong>Apple</strong>. LaProd ne reçoit aucune donnée bancaire : nous conservons
+          uniquement l'identifiant de la transaction Apple, le produit acheté, son prix et sa
+          date, pour activer l'abonnement et éviter qu'un même achat soit crédité deux fois.
+        </p>
         <h3>2.4 Données de connexion via Google ou Apple (OAuth)</h3>
         <p>
           Si l'Utilisateur choisit de se connecter via Google, nous recevons de Google son adresse
@@ -150,7 +156,8 @@
           </li>
           <li>
             <strong>Apple Inc.</strong> — authentification via « Sign in with Apple » (si
-            l'Utilisateur choisit cette option).
+            l'Utilisateur choisit cette option) et paiement des abonnements achetés depuis
+            l'application iOS.
           </li>
           <li>
             <strong>Prestataires d'hébergement</strong> — les serveurs de LaProd sont hébergés chez

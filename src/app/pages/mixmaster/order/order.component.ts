@@ -6,6 +6,7 @@ import { MixmasterService, MixEngineerPublic } from '../../../services/mixmaster
 import { PromoService, PromoPreview } from '../../../services/promo.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
+import { IosPurchasePolicyService } from '../../../services/ios-purchase-policy.service';
 import { MixmasterGuideComponent } from '../../../components/mixmaster-guide/mixmaster-guide.component';
 import { environment } from '../../../../environments/environment';
 
@@ -126,6 +127,7 @@ export class MixmasterOrderComponent implements OnInit {
   private promoSvc = inject(PromoService);
   private toast   = inject(ToastService);
   private cdr     = inject(ChangeDetectorRef);
+  readonly policy = inject(IosPurchasePolicyService);
 
   constructor() {
     // Les prestations cochées déterminent le prix brut ET le périmètre remisable.
@@ -244,6 +246,7 @@ export class MixmasterOrderComponent implements OnInit {
       this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
       return;
     }
+    if (!this.policy.guard('mix_order')) return;
     if (this.submitting()) return;
     const stems = this.stemsFile();
     if (!stems) { this.toast.showToast({ level: 'warning', message: 'Veuillez uploader votre archive (ZIP/RAR).' }); return; }

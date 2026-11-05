@@ -99,16 +99,24 @@
                     <div class="ptable-badge ptable-badge--current">Palier actuel</div>
                   }
                   <div class="ptable-name">{{ col.label }}</div>
+                  <!-- Dans l'app iOS, le prix affiché est celui de l'App Store (devise
+                       du compte Apple), jamais celui de la grille Stripe ; et si rien
+                       n'est achetable ici, on n'affiche aucun prix. -->
                   <div class="ptable-price">
-                    {{ col.price === 0 ? 'Gratuit' : (col.price | number:'1.2-2') + ' €' }}
-                    @if (col.price > 0) { <span>/mois</span> }
+                    @if (col.price === 0) {
+                      Gratuit
+                    } @else if (purchaseMode() === 'stripe') {
+                      {{ (col.price | number:'1.2-2') + ' €' }} <span>/mois</span>
+                    } @else if (iosOffer(col.key); as offer) {
+                      {{ offer.displayPrice }} <span>/ 30 jours</span>
+                    }
                   </div>
                   @if (isColumnLocked(col.key)) {
                     <button class="btn-plan btn-plan-disabled" disabled>{{ lockedLabel(col.key) }}</button>
-                  } @else {
+                  } @else if (purchaseMode() === 'stripe' || iosOffer(col.key)) {
                     <button class="btn-plan" [class]="'btn-plan-' + col.key"
                             [disabled]="subscribing() !== null"
-                            (click)="subscribe(col.key)">
+                            (click)="buy(col.key)">
                       @if (subscribing() === col.key) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                       }
@@ -156,6 +164,31 @@
       </div>
     }
 
+    <!-- ── App iOS : conditions de l'achat intégré + restauration ─────────────
+         Texte et bouton exigés par Apple. Aucune mention d'un autre moyen de
+         paiement ni du site : ce serait un motif de rejet (3.1.1). -->
+    @if (policy.isIosApp) {
+      <div class="ios-purchase-note">
+        @if (purchaseMode() === 'iap') {
+          <p>
+            Paiement avec ton compte Apple. Chaque achat donne <strong>30 jours</strong>
+            d'accès au palier choisi, <strong>sans renouvellement automatique</strong> :
+            tu n'es jamais prélevé sans l'avoir demandé.
+          </p>
+          <button type="button" class="btn-restore" [disabled]="restoring()" (click)="restorePurchases()">
+            @if (restoring()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Restaurer mes achats
+          </button>
+          <p class="ios-purchase-note__legal">
+            <a routerLink="/cgu">Conditions d'utilisation</a> ·
+            <a routerLink="/privacy">Politique de confidentialité</a>
+          </p>
+        } @else if (policy.ready()) {
+          <p>Les abonnements LaProd+ ne sont pas proposés dans l'application iOS pour le moment.</p>
+        }
+      </div>
+    }
+
     <!-- Les arguments de vente (typologie + argument massue) descendent sous le
          tableau : ils gardent leur force sans étrangler les colonnes. -->
     <div class="highlights-strip">
@@ -175,10 +208,20 @@
 
     <!-- Registre : tutoiement, comme le reste de la page. Seule la question sur
          le Pro Structuré vouvoie — c'est la seule qui s'adresse à une structure. -->
+    <!-- Les réponses qui parlent de résiliation, de renouvellement ou de Stripe
+         décrivent le paiement web : dans l'app iOS elles seraient fausses (achat
+         Apple, 30 jours, sans renouvellement), donc remplacées. -->
+    @if (policy.isIosApp) {
+      <div class="faq-item">
+        <strong>Je peux essayer sans risque ?</strong>
+        <p>Oui. Chaque achat donne 30 jours d'accès et ne se renouvelle pas tout seul : il n'y a rien à résilier, et aucune facturation surprise.</p>
+      </div>
+    } @else {
     <div class="faq-item">
       <strong>Je peux essayer sans risque ?</strong>
       <p>Oui. Tu peux résilier à tout moment depuis notre support. Ton accès reste actif jusqu'à la fin de la période en cours — aucune facturation surprise.</p>
     </div>
+    }
     <div class="faq-item">
       <strong>Je peux changer de palier ?</strong>
       <p>Oui, à tout moment. Ton abonnement est prolongé en conséquence — tu ne perds jamais ce que tu as déjà payé.</p>
@@ -187,6 +230,7 @@
       <strong>Qu'est-ce que le badge Mastering Pro ?</strong>
       <p>À partir du palier Semi-Pro, ton profil d'ingénieur affiche un badge indiquant que tu es habilité à proposer — et à facturer — le service de mastering. Tu peux aussi l'obtenir sans abonnement en faisant valider un échantillon par notre équipe.</p>
     </div>
+    @if (!policy.isIosApp) {
     <div class="faq-item">
       <strong>Et si j'oublie d'annuler ?</strong>
       <p>On t'envoie un email de rappel 7 jours avant chaque renouvellement. Tu peux résilier depuis la page <a routerLink="/contact">Contact</a> à tout moment.</p>
@@ -195,6 +239,12 @@
       <strong>Le paiement est-il sécurisé ?</strong>
       <p>Oui, les paiements sont traités par Stripe, certifié PCI-DSS. Aucune donnée bancaire ne transite sur nos serveurs.</p>
     </div>
+    } @else {
+      <div class="faq-item">
+        <strong>Le paiement est-il sécurisé ?</strong>
+        <p>Oui, l'achat passe par ton compte Apple. Aucune donnée bancaire ne transite sur nos serveurs.</p>
+      </div>
+    }
 
     <!-- Question adressée aux structures : on y vouvoie, comme sur la carte
          Pro Structuré et comme dans le Contract Builder lui-même. -->

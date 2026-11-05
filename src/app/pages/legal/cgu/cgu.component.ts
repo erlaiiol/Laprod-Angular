@@ -12,6 +12,6 @@ import { LEGAL_ENTITY } from '../../../config/legal.config';
   styleUrl:    './cgu.component.scss',
 })
 export class CguComponent {
-  lastUpdated = '21 mai 2026';
+  lastUpdated = '30 septembre 2026';
   readonly legal = LEGAL_ENTITY;
 }
