@@ -300,6 +300,48 @@ def create_app(test_config=None):
             db.session.commit()
             app.logger.info("Compte de test Play Store cree")
 
+    @app.cli.command('create-apple-review-account')
+    def create_apple_review_account():
+        """
+        Crée le compte de démo pour App Review (App Store Connect > App Review
+        Information > Informations de connexion). Contrairement au compte Play Store,
+        il est volontairement GRATUIT : le reviewer doit voir les boutons d'achat
+        LaProd+ en achat intégré. Idempotent. Mot de passe lu dans
+        APPLE_REVIEW_PASSWORD (pas de valeur par défaut : la commande refuse de
+        s'exécuter sans).
+        """
+        from extensions import db
+        from models import User
+        from utils import plans
+        from datetime import datetime
+
+        password = os.environ.get('APPLE_REVIEW_PASSWORD')
+        if not password:
+            raise click.ClickException("APPLE_REVIEW_PASSWORD non défini dans l'environnement.")
+
+        with app.app_context():
+            existing = db.session.query(User).filter_by(username='apple_review').first()
+            if existing:
+                app.logger.info("Le compte de demo Apple existe deja")
+                return
+
+            account = User(
+                username='apple_review',
+                email='apple-review@laprod.net',
+                signature='Compte de démo — App Review',
+                account_status='active',
+                email_verified=True,
+                terms_accepted_at=datetime.now(),
+                user_type_selected=True,
+                is_artist=True,
+                is_beatmaker=True,
+                subscription_plan=plans.FREE,
+            )
+            account.set_password(password)
+            db.session.add(account)
+            db.session.commit()
+            app.logger.info("Compte de demo Apple cree")
+
     @app.cli.command('seed-contract-builder')
     def seed_contract_builder():
         """Initialise les groupes et clauses du contract builder."""

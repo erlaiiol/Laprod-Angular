@@ -207,7 +207,7 @@ final class AudioSession {
         let avSession = AVAudioSession.sharedInstance()
         try avSession.setCategory(.playAndRecord,
                                   mode: .measurement,
-                                  options: [.defaultToSpeaker, .allowBluetooth])
+                                  options: [.defaultToSpeaker, .allowBluetoothHFP])
         let ioDuration = options.monitorAutotune ? 0.003 : 0.005
         try avSession.setPreferredIOBufferDuration(ioDuration)
         try avSession.setActive(true)
