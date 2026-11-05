@@ -107,9 +107,47 @@
               <a routerLink="/register" class="guest-limit-cta">Créer un compte</a>
             </div>
           }
+          @if (showCalibNudge()) {
+            <div class="calib-nudge">
+              <i class="bi bi-soundwave calib-nudge__icon"></i>
+              <div class="calib-nudge__body">
+                <strong>
+                  @if (calibStale()) { Nouvelle sortie audio détectée } @else { Évitez le décalage voix / beat }
+                </strong>
+                <p>
+                  @if (calibStale()) {
+                    Votre calibration date d'un autre casque ou haut-parleur. Refaites-la, 20 secondes suffisent.
+                  } @else {
+                    Calibrez le métronome en 20 secondes : votre voix sera calée pile sur le beat.
+                  }
+                </p>
+              </div>
+              <div class="calib-nudge__actions">
+                <button class="calib-nudge__cta" (click)="startCalibration()">
+                  <i class="bi bi-play-fill"></i> Lancer le métronome
+                </button>
+                <button class="calib-nudge__later" (click)="snoozeCalibNudge()">Plus tard</button>
+              </div>
+            </div>
+          }
+          @if (micBlocked()) {
+            <div class="mic-blocked" role="alert">
+              <i class="bi bi-mic-mute-fill mic-blocked__icon"></i>
+              <div class="mic-blocked__body">
+                @if (micState() === 'denied') {
+                  <strong>Le micro est bloqué pour LaProd</strong>
+                  <p>Cliquez sur le cadenas à gauche de l'adresse, autorisez le <strong>Microphone</strong>, puis réessayez.</p>
+                } @else {
+                  <strong>Aucun micro disponible</strong>
+                  <p>Branchez un micro, vérifiez qu'aucune autre application ne l'utilise, et que la page est en HTTPS.</p>
+                }
+              </div>
+              <button class="mic-blocked__retry" (click)="retryMic()">Réessayer</button>
+            </div>
+          }
           <button class="btn-start-rec"
                   (click)="startRecording()"
-                  [disabled]="startingRecording() || auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
+                  [disabled]="startingRecording() || micBlocked() || auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
             @if (startingRecording()) {
               <span class="btn-spinner"></span> Préparation du beat…
             } @else {

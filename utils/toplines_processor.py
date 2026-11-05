@@ -438,7 +438,7 @@ def _apply_frame_by_frame_correction(y, sr, f0, corrections, hop_length):
 
 # ── Fusion voix + beat ────────────────────────────────────────────────────────
 
-def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, latency_ms=0):
+def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, latency_ms=0, beat_offset_ms=0):
     """
     Fusionne la voix traitée avec l'instrumentale via pydub.
 
@@ -453,6 +453,10 @@ def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, la
                      le décalage perçu : l'utilisateur chante en réponse à ce qu'il entend,
                      mais le son lui parvient avec `latency_ms` ms de retard. Sans correction,
                      la voix dans le mix final est d'autant en retard sur le beat.
+        beat_offset_ms: Position du beat (ms) au moment où l'enregistrement de la voix a
+                     réellement démarré côté client. Le MediaRecorder démarre quelques
+                     dizaines de ms après le début du beat : sans cet offset, voix[0] était
+                     calée sur beat[0] alors qu'elle correspond à beat[offset].
 
     Returns:
         str: Chemin relatif du fichier fusionné (ex: 'audio/toplines/topline_final_X.wav').
@@ -466,12 +470,21 @@ def merge_voice_and_beat(voice_path, beat_path, track_id, user_id, timestamp, la
 
     current_app.logger.debug(f"Voice: {len(voice)/1000:.2f}s — Beat: {len(beat)/1000:.2f}s")
 
-    # Compensation de latence hardware : rogner le début de la voix avance son
-    # positionnement dans le mix sans altérer sa durée utile.
-    latency_ms = max(0, min(int(latency_ms), 500))
-    if latency_ms > 0 and len(voice) > latency_ms + 500:  # garder au moins 500ms de voix
-        voice = voice[latency_ms:]
-        current_app.logger.info(f"Sync correction: -{latency_ms}ms voice start (hardware latency)")
+    # Alignement voix/beat : voix[0] correspond à beat[beat_offset_ms] (le
+    # recorder démarre après le beat), et la voix entendue est en retard de
+    # latency_ms (latence matérielle de sortie). Décalage net appliqué à la voix :
+    # > 0 → silence ajouté devant, < 0 → début de la voix rogné.
+    latency_ms     = max(0, min(int(latency_ms), 500))
+    beat_offset_ms = max(0, min(int(beat_offset_ms or 0), 3000))
+    shift_ms       = beat_offset_ms - latency_ms
+    if shift_ms > 0:
+        silence = (AudioSegment.silent(duration=shift_ms, frame_rate=voice.frame_rate)
+                   .set_channels(voice.channels).set_sample_width(voice.sample_width))
+        voice = silence + voice
+        current_app.logger.info(f"Sync correction: +{shift_ms}ms voice start (offset {beat_offset_ms}ms, latency {latency_ms}ms)")
+    elif shift_ms < 0 and len(voice) > -shift_ms + 500:  # garder au moins 500ms de voix
+        voice = voice[-shift_ms:]
+        current_app.logger.info(f"Sync correction: {shift_ms}ms voice start (offset {beat_offset_ms}ms, latency {latency_ms}ms)")
 
     beat_adjusted  = beat  - 9   # -9 dB
     voice_adjusted = voice + 0   # 0 dB (inchangé)

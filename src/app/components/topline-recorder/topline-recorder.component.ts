@@ -48,6 +48,15 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   calibResult    = signal<number | null>(null);
   calibBeat      = signal(false);
   isBluetooth    = signal(false);
+  // Calibration enregistrée avec un autre type de sortie (casque BT ↔ filaire/HP) : périmée
+  calibStale     = signal(false);
+  // 'denied' = micro bloqué dans le navigateur (le clic ne redemandera rien) ; 'unavailable' = pas d'appareil / contexte non sécurisé
+  micState       = signal<'unknown' | 'prompt' | 'granted' | 'denied' | 'unavailable'>('unknown');
+  readonly micBlocked = computed(() => this.micState() === 'denied' || this.micState() === 'unavailable');
+  // « Plus tard » sur l'encart de calibration : masqué CALIB_NUDGE_SNOOZE_DAYS jours
+  nudgeSnoozed   = signal(this._readNudgeSnoozed());
+  readonly needsCalibration = computed(() => this.calibResult() === null || this.calibStale());
+  readonly showCalibNudge   = computed(() => this.needsCalibration() && !this.nudgeSnoozed());
 
   useAutotune  = false;
   useMonitor   = false;
@@ -103,6 +112,9 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private recordingStartTime = 0;
   private recordingTooShort  = false;
   private _latencyHintMs     = 0;
+  private _beatOffsetMs      = 0;
+  private _micPermStatus: PermissionStatus | null = null;
+  private readonly CALIB_NUDGE_SNOOZE_DAYS = 3;
 
   private _calibCtx:       AudioContext | null = null;
   private _calibBeatTimes: number[] = [];
@@ -113,8 +125,57 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   private readonly _CALIB_LEAD_IN = 2;
   private readonly _CALIB_BPM     = 90;
 
+  private _readNudgeSnoozed(): boolean {
+    const until = parseInt(localStorage.getItem('laprod_calib_nudge_until') ?? '', 10);
+    return until > Date.now();
+  }
+
+  snoozeCalibNudge(): void {
+    const until = Date.now() + this.CALIB_NUDGE_SNOOZE_DAYS * 86_400_000;
+    localStorage.setItem('laprod_calib_nudge_until', String(until));
+    this.nudgeSnoozed.set(true);
+  }
+
   ngAfterViewInit(): void {
     this._initLatencyHint();
+    this._watchMicPermission();
+  }
+
+  /** Suit l'état de la permission micro (Permissions API ; absente/partielle sur Safari → repli sur l'erreur du clic). */
+  private async _watchMicPermission(): Promise<void> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.micState.set('unavailable');
+      return;
+    }
+    try {
+      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      this._micPermStatus = status;
+      const sync = () => {
+        this.micState.set(status.state as 'prompt' | 'granted' | 'denied');
+        this.cdr.markForCheck();
+      };
+      status.onchange = sync;
+      sync();
+    } catch { /* Safari : on laisse 'unknown', getUserMedia tranchera au clic */ }
+  }
+
+  /** Relance après que l'utilisateur a réautorisé le micro dans les réglages du site. */
+  async retryMic(): Promise<void> {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      s.getTracks().forEach(t => t.stop());
+      this.micState.set('granted');
+      this.errorMsg.set(null);
+    } catch (e) {
+      this.micState.set(this._isNoDeviceError(e) ? 'unavailable' : 'denied');
+    }
+    this.cdr.markForCheck();
+  }
+
+  private _isNoDeviceError(e: unknown): boolean {
+    const n = (e as DOMException)?.name;
+    return n === 'NotFoundError' || n === 'NotReadableError' || n === 'OverconstrainedError';
   }
 
   private async _initLatencyHint(): Promise<void> {
@@ -130,6 +191,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
         this.isBluetooth.set(true);
       }
     } catch { /* ignore */ }
+    // Une calibration faite en filaire n'est pas valable en Bluetooth (+100-200 ms) et inversement
+    const savedBt = localStorage.getItem('laprod_latency_bt');
+    if (this.calibResult() !== null && savedBt !== null && (savedBt === '1') !== this.isBluetooth()) {
+      this.calibStale.set(true);
+      this.nudgeSnoozed.set(false);
+    }
     this.cdr.markForCheck();
   }
 
@@ -158,6 +225,11 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
 
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        this.micState.set('unavailable');
+        this.errorMsg.set('Le microphone n\'est pas disponible ici (connexion sécurisée HTTPS requise).');
+        return;
+      }
       if (typeof MediaRecorder === 'undefined') {
         this.errorMsg.set('Votre navigateur ne prend pas en charge l\'enregistrement audio. Mettez à jour Safari ou utilisez Chrome.');
         return;
@@ -169,8 +241,14 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
           video: false,
         });
-      } catch {
-        this.errorMsg.set('Accès au microphone refusé. Autorisez le micro dans votre navigateur.');
+      } catch (e) {
+        if (this._isNoDeviceError(e)) {
+          this.micState.set('unavailable');
+          this.errorMsg.set('Aucun microphone utilisable détecté. Branchez un micro ou fermez l\'application qui l\'utilise.');
+        } else {
+          this.micState.set('denied');
+          this.errorMsg.set('Accès au microphone refusé. Autorisez le micro dans votre navigateur.');
+        }
         return;
       }
 
@@ -249,6 +327,12 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.mediaRecorder = new MediaRecorder(this.micStream!, recorderOptions);
     this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.mediaRecorder.onstop = () => this.onRecordingStop();
+    // Position réelle du beat quand le recorder démarre : voix[0] ≠ beat[0].
+    // Envoyée au serveur pour caler la voix sur le beat à la fusion.
+    this._beatOffsetMs = 0;
+    this.mediaRecorder.onstart = () => {
+      this._beatOffsetMs = Math.max(0, Math.round(this.player.audioEl.currentTime * 1000));
+    };
     this.mediaRecorder.start(100);
 
     // Timer
@@ -268,7 +352,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   /**
    * Résout quand `player.audioEl` émet réellement 'playing' (son audible),
-   * pas seulement quand play() a été demandé. Filet de sécurité 2s si
+   * pas seulement quand play() a été demandé. Filet de sécurité 4s si
    * l'événement n'arrive jamais, pour ne pas bloquer l'enregistrement.
    */
   private _waitForBeatAudible(): Promise<void> {
@@ -283,7 +367,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       };
       const onPlaying = () => finish();
       audioEl.addEventListener('playing', onPlaying);
-      setTimeout(finish, 2000);
+      setTimeout(finish, 4000);
 
       this.player.play(this.track as any, 'home', { referenceSource: true });
     });
@@ -344,6 +428,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     fd.append('track_id',        String(this.track.id));
     fd.append('use_autotune',    String(this.useAutotune));
     fd.append('latency_hint_ms', String(this._latencyHintMs));
+    fd.append('beat_offset_ms',  String(this._beatOffsetMs));
     if (this.description) fd.append('description', this.description);
 
     const imageUrl = this.track.image_file
@@ -666,6 +751,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       this.calibResult.set(result);
       this._latencyHintMs = result;
       localStorage.setItem('laprod_latency_ms', String(result));
+      localStorage.setItem('laprod_latency_bt', this.isBluetooth() ? '1' : '0');
+      this.calibStale.set(false);
     }
 
     this._calibCtx?.close();
@@ -693,12 +780,15 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   resetCalibration(): void {
     localStorage.removeItem('laprod_latency_ms');
+    localStorage.removeItem('laprod_latency_bt');
+    this.calibStale.set(false);
     this.calibResult.set(null);
     this._latencyHintMs = 0;
     this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {
+    if (this._micPermStatus) this._micPermStatus.onchange = null;
     this.clearTimerAndMic();
     this.cancelCalibration();
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
