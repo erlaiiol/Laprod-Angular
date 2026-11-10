@@ -79,14 +79,22 @@
 
         <div class="field-group">
           <label for="password">Mot de passe</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            autocomplete="new-password"
-            required
-            [(ngModel)]="password"
-          />
+          <div class="pwd-field">
+            <input
+              #pwd
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="new-password"
+              required
+              [(ngModel)]="password"
+            />
+            <button type="button" class="pwd-toggle"
+                    [attr.aria-label]="pwd.type === 'password' ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
+                    (click)="pwd.type = pwd.type === 'password' ? 'text' : 'password'">
+              <i class="bi" [class.bi-eye]="pwd.type === 'password'" [class.bi-eye-slash]="pwd.type !== 'password'"></i>
+            </button>
+          </div>
           <span class="field-hint">
             9 caractères minimum · une majuscule · une minuscule · un chiffre
           </span>
@@ -94,14 +102,22 @@
 
         <div class="field-group">
           <label for="passwordConfirm">Confirmer le mot de passe</label>
-          <input
-            type="password"
-            id="passwordConfirm"
-            name="passwordConfirm"
-            autocomplete="new-password"
-            required
-            [(ngModel)]="passwordConfirm"
-          />
+          <div class="pwd-field">
+            <input
+              #pwdConfirm
+              type="password"
+              id="passwordConfirm"
+              name="passwordConfirm"
+              autocomplete="new-password"
+              required
+              [(ngModel)]="passwordConfirm"
+            />
+            <button type="button" class="pwd-toggle"
+                    [attr.aria-label]="pwdConfirm.type === 'password' ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
+                    (click)="pwdConfirm.type = pwdConfirm.type === 'password' ? 'text' : 'password'">
+              <i class="bi" [class.bi-eye]="pwdConfirm.type === 'password'" [class.bi-eye-slash]="pwdConfirm.type !== 'password'"></i>
+            </button>
+          </div>
         </div>
 
         <div class="field-group">

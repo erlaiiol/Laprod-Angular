@@ -42,9 +42,15 @@ export class CompleteProfileComponent implements OnInit {
     this.auth.completeOauthProfile(this.username, this.signature, this.acceptTerms)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (res) => {
+        next: async (res) => {
           if (res.success && res.data) {
-            this.auth.storeOauthAuth(res.data);
+            try {
+              const saved = this.auth.storeOauthAuth(res.data);
+              if (saved) await saved;
+            } catch {
+              this.error.set('Impossible de sauvegarder la session sur cet appareil. Réessayez.');
+              return;
+            }
             const next = res.data.next;
             this.router.navigate([next === 'select-role' ? '/select-role' : '/']);
           } else {

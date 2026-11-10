@@ -170,6 +170,32 @@ def is_refresh_token_valid(user_id: int, jti: str) -> bool:
     return redis_client.exists(f"{REFRESH_PREFIX}{user_id}:{jti}") == 1
 
 
+def rotate_refresh_token(user_id: int, old_jti: str, new_jti: str, ttl: int, tokens: dict) -> dict | None:
+    """Atomically rotate, replaying the same response for 60s after a lost response.
+
+    Keeping the old key for a short grace period also handles concurrent tabs.
+    The grace is bounded by the old token's remaining lifetime. Revocation deletes
+    both old and new keys through the existing per-user prefix.
+    """
+    import json
+    from extensions import redis_client
+    script = """
+        local previous = redis.call('GET', KEYS[1])
+        if not previous then return false end
+        if previous ~= '1' then return previous end
+        local remaining = redis.call('TTL', KEYS[1])
+        if remaining <= 0 then return false end
+        redis.call('SET', KEYS[2], '1', 'EX', ARGV[1])
+        redis.call('SET', KEYS[1], ARGV[2], 'EX', math.min(remaining, 60))
+        return ARGV[2]
+    """
+    result = redis_client.eval(
+        script, 2, f"{REFRESH_PREFIX}{user_id}:{old_jti}",
+        f"{REFRESH_PREFIX}{user_id}:{new_jti}", ttl, json.dumps(tokens),
+    )
+    return json.loads(result) if result else None
+
+
 def revoke_all_refresh_tokens(user_id: int) -> None:
     """Révoque TOUS les refresh tokens d'un user (logout, changement de mot de passe)."""
     from extensions import redis_client

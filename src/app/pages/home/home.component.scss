@@ -192,6 +192,21 @@
   max-width: 560px;
 }
 
+.lp-landing__app {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.15rem 0 0.5rem;
+  p { margin: 0; font-size: 0.88rem; color: v.$text-secondary; }
+}
+.lp-landing__app-label {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.75rem; font-weight: 600; color: v.$text-primary;
+}
+.lp-landing__app-dot { width: 6px; height: 6px; border-radius: 50%; background: #46d7a0; box-shadow: 0 0 10px rgba(70, 215, 160, 0.35); }
+
 .lp-landing__tabs {
   display: flex;
   gap: 0.5rem;

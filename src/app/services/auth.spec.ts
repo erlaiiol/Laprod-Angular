@@ -140,6 +140,17 @@ describe('AuthService', () => {
     expect(service.isLoggedIn()).toBe(false);
   });
 
+  it('switches from a remembered account to a short session without stale credentials', () => {
+    localStorage.setItem('access_token', 'old-account');
+    localStorage.setItem('refresh_token', 'old-refresh');
+    localStorage.setItem('user', JSON.stringify({ ...mockUser, id: 2 }));
+    service.login('user@test.com', 'password123', false).subscribe();
+    httpMock.expectOne(`${AUTH_URL}/login`).flush(mockLoginSuccess);
+    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(service.getToken()).toBe(mockLoginSuccess.data.tokens.access_token);
+    expect(sessionStorage.getItem('refresh_token')).toBe(mockLoginSuccess.data.tokens.refresh_token);
+  });
+
   // -- logout() --
 
   it('logout() clears currentUser signal', () => {

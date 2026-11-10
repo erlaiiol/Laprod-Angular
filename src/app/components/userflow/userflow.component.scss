@@ -37,7 +37,12 @@ $flow-colors: (
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(440px, 100vw);
+  // Jamais pleine largeur : une bande de fond reste visible à gauche (on
+  // comprend que c'est un panneau, et on peut taper à côté pour le fermer).
+  width: min(440px, calc(100vw - 2rem));
+  // Sous la Dynamic Island / l'indicateur d'accueil en app native.
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
   background: v.$bg-surface;
   border-left: 1px solid v.$bg-border;
   display: flex;

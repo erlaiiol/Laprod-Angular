@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Capacitor } from '@capacitor/core';
 import { AuthService } from '../../../services/auth.service';
 import { UserflowService } from '../../../services/userflow.service';
 import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
@@ -14,7 +13,6 @@ import { TourAnchorDirective } from '../../../directives/tour-anchor.directive';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarFabsComponent implements OnInit, OnDestroy {
-  readonly isNative    = Capacitor.isNativePlatform();
   readonly collapsed   = signal(false);
   readonly auth        = inject(AuthService);
   readonly userflowSvc = inject(UserflowService);

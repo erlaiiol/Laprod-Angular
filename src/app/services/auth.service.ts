@@ -1,9 +1,12 @@
-import { computed, Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { catchError, finalize, from, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { catchError, finalize, from, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
+import { NativeShellService } from './native-shell.service';
+import { AuthStorageService } from './auth-storage.service';
+import { App } from '@capacitor/app';
 
 /**
  * Paliers d'abonnement — miroir de utils/plans.py (PLAN_ORDER).
@@ -150,10 +153,32 @@ export class AuthService {
 
   private authUrl = `${environment.apiUrl}/api/auth`
 
+  private nativeShell = inject(NativeShellService);
+  private storage = inject(AuthStorageService);
+
   constructor(private http:HttpClient, private router:Router) {
     // Reprendre le timer si l'utilisateur était déjà connecté (rechargement de page)
     const token = this.getToken();
     if (token) this._scheduleProactiveRefresh(token);
+  }
+
+
+  /** Bootstrap waits for native credentials before guards and HTTP requests run. */
+  async initialize(): Promise<void> {
+    await this.storage.initialize();
+    this._currentUser.set(this.getUser());
+    const token = this.getToken();
+    if (token) this._scheduleProactiveRefresh(token);
+    if (this.storage.native) {
+      await App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && this.isLoggedIn()) {
+          this.refreshIfExpiringSoon().subscribe({ error: () => {} });
+        }
+      });
+    }
+    window.addEventListener('online', () => {
+      if (this.isLoggedIn()) this.refreshIfExpiringSoon().subscribe({ error: () => {} });
+    });
   }
 
   // ── Timer de rafraîchissement proactif ───────────────────────────────────────
@@ -168,7 +193,7 @@ export class AuthService {
   private _scheduleProactiveRefresh(token: string): void {
     if (this._refreshTimer) clearTimeout(this._refreshTimer);
     try {
-      const payload     = JSON.parse(atob(token.split('.')[1]));
+      const payload     = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
       const expiresInMs = payload.exp * 1000 - Date.now();
       if (expiresInMs <= 0) return; // déjà expiré — l'intercepteur gère le 401
       // Rafraîchir 5 min avant expiration, minimum 30 s pour éviter les boucles
@@ -188,7 +213,7 @@ export class AuthService {
     const token = this.getToken();
     if (!token) return true;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
       return payload.exp * 1000 < Date.now();
     } catch { return true; }
   }
@@ -297,6 +322,8 @@ export class AuthService {
         }
 
       }),
+      switchMap(res => this.storage.native && res.success
+        ? from(this.storage.flush()).pipe(map(() => res)) : of(res)),
       catchError((err)=> {
         if (err.error) {
           this.failedAuth(err.error)
@@ -309,9 +336,13 @@ export class AuthService {
 
 
     private storeAuth(res: LoginSuccess, remember = true){
-      // remember=false → sessionStorage (effacé à la fermeture du navigateur)
-      // remember=true  → localStorage (persistant entre les sessions)
-      const storage = remember ? localStorage : sessionStorage;
+      // Session courte : mémoire native ou sessionStorage web.
+      // Session persistante : coffre natif ou localStorage web.
+      // Remove stale credentials from the other storage before switching sessions.
+      for (const target of [this.storage.persistent, this.storage.session]) {
+        for (const key of ['access_token', 'refresh_token', 'user']) target.removeItem(key);
+      }
+      const storage = remember ? this.storage.persistent : this.storage.session;
 
       storage.setItem('access_token', res.data.tokens.access_token);
 
@@ -338,8 +369,11 @@ export class AuthService {
 
   logout(): Observable<any> {
     return this.http.post(`${this.authUrl}/logout`, {}).pipe(
-      tap(() => this._clearAuth()),
-      catchError(() => { this._clearAuth(); return of(null); })
+      catchError(() => of(null)),
+      switchMap(result => {
+        this._clearAuth();
+        return this.storage.native ? from(this.storage.flush()).pipe(map(() => result)) : of(result);
+      }),
     );
   }
 
@@ -353,13 +387,13 @@ export class AuthService {
     if (this._refreshTimer) { clearTimeout(this._refreshTimer); this._refreshTimer = undefined; }
     // Ne pas effacer tout le localStorage — les préférences UI (onboarding_done,
     // card_info_mode, display_mode…) doivent persister entre les sessions.
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    this.storage.persistent.removeItem('access_token');
+    this.storage.persistent.removeItem('refresh_token');
+    this.storage.persistent.removeItem('user');
     // Session courte (remember=false) → tokens dans sessionStorage
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-    sessionStorage.removeItem('user');
+    this.storage.session.removeItem('access_token');
+    this.storage.session.removeItem('refresh_token');
+    this.storage.session.removeItem('user');
     this._currentUser.set(null);
     this.router.navigate(['/login']);
   }
@@ -371,10 +405,10 @@ export class AuthService {
       return;
     }
     const persist = (u: User) => {
-      if (localStorage.getItem('user')) {
-        localStorage.setItem('user', JSON.stringify(u));
+      if (this.storage.persistent.getItem('user')) {
+        this.storage.persistent.setItem('user', JSON.stringify(u));
       } else {
-        sessionStorage.setItem('user', JSON.stringify(u));
+        this.storage.session.setItem('user', JSON.stringify(u));
       }
     };
 
@@ -404,22 +438,22 @@ export class AuthService {
   /** Met à jour le signal et le stockage actif avec un objet User partiel ou complet. */
   updateCurrentUser(partial: Partial<User>): void {
     const merged = { ...this._currentUser()!, ...partial } as User;
-    if (localStorage.getItem('user')) {
-      localStorage.setItem('user', JSON.stringify(merged));
+    if (this.storage.persistent.getItem('user')) {
+      this.storage.persistent.setItem('user', JSON.stringify(merged));
     } else {
-      sessionStorage.setItem('user', JSON.stringify(merged));
+      this.storage.session.setItem('user', JSON.stringify(merged));
     }
     this._currentUser.set(merged);
   }
 
   getToken(): string | null {
     // localStorage d'abord (session persistante), puis sessionStorage (session courte)
-    return localStorage.getItem('access_token') ?? sessionStorage.getItem('access_token');
+    return this.storage.persistent.getItem('access_token') ?? this.storage.session.getItem('access_token');
   }
 
   getUser() {
-    const user = localStorage.getItem('user') ?? sessionStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    const user = this.storage.persistent.getItem('user') ?? this.storage.session.getItem('user');
+    try { return user ? JSON.parse(user) : null; } catch { return null; }
   }
 
   /**
@@ -430,7 +464,7 @@ export class AuthService {
     const token = this.getToken();
     if (!token) return of(undefined);
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
       const expiresInMs = payload.exp * 1000 - Date.now();
       if (expiresInMs < windowMs) {
         return this.refreshToken().pipe(map(() => undefined));
@@ -445,10 +479,10 @@ export class AuthService {
         if (res.success) {
           this._currentUser.set(res.data.user);
           // Persister dans le même stockage que la session en cours
-          if (localStorage.getItem('user')) {
-            localStorage.setItem('user', JSON.stringify(res.data.user));
+          if (this.storage.persistent.getItem('user')) {
+            this.storage.persistent.setItem('user', JSON.stringify(res.data.user));
           } else {
-            sessionStorage.setItem('user', JSON.stringify(res.data.user));
+            this.storage.session.setItem('user', JSON.stringify(res.data.user));
           }
         }
       }),
@@ -477,19 +511,41 @@ export class AuthService {
    * disallowed_useragent). Le retour dans l'app se fait via le schéma custom
    * net.laprod.app:// (cf. routes/auth_api.py, NativeShellService.init()).
    *
-   * Sur web (et sur iOS tant que le schéma n'y est pas câblé — chantier à
-   * venir), ne fait rien : l'appelant garde un <a [href]="googleLoginUrl">
+   * Sur iOS natif : ASWebAuthenticationSession (plugin local WebAuthSession),
+   * qui rend directement l'URL net.laprod.app://oauth-callback?… — sans ça, le
+   * lien ouvrait Safari et la connexion se terminait sur le site web.
+   *
+   * Sur web, ne fait rien : l'appelant garde un <a [href]="googleLoginUrl">
    * classique, qui navigue normalement.
    *
    * import() dynamique pour ne jamais charger @capacitor/browser dans le
    * bundle web initial (même discipline que push.service.ts).
    */
   async startGoogleLogin(event: Event): Promise<void> {
-    if (Capacitor.getPlatform() !== 'android') return;
+    await this._startNativeOauth(event, this.googleLoginUrl);
+  }
+
+  private async _startNativeOauth(event: Event, loginUrl: string): Promise<void> {
+    const platform = Capacitor.getPlatform();
+    if (platform === 'web') return;
 
     event.preventDefault();
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url: `${this.googleLoginUrl}?platform=mobile` });
+    const url = `${loginUrl}?platform=mobile`;
+
+    if (platform === 'android') {
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.open({ url });
+      return;
+    }
+
+    const { WebAuthSession } = await import('./web-auth-session-plugin');
+    try {
+      const res = await WebAuthSession.start({ url, callbackScheme: 'net.laprod.app' });
+      this.nativeShell.handleOauthCallbackUrl(res.url);
+    } catch (err: any) {
+      if (err?.code === 'CANCELED') return;  // feuille fermée par l'utilisateur
+      this.router.navigate(['/oauth-callback'], { queryParams: { error: 'oauth_failed' } });
+    }
   }
 
   // ── Connexion Apple ──────────────────────────────────────────────────────
@@ -502,14 +558,11 @@ export class AuthService {
 
   readonly appleLoginUrl = `${this.authUrl}/apple/login`;
 
-  /** Sur Android natif : Chrome Custom Tabs, comme startGoogleLogin. Sur web et
-   *  iOS (qui utilise le flow natif, cf. appleNativeSignIn), ne fait rien. */
+  /** Sur Android natif : Chrome Custom Tabs, comme startGoogleLogin. Sur web,
+   *  ne fait rien. iOS utilise normalement le flow natif (appleNativeSignIn) ;
+   *  s'il passait quand même ici, même feuille système que Google. */
   async startAppleWebLogin(event: Event): Promise<void> {
-    if (Capacitor.getPlatform() !== 'android') return;
-
-    event.preventDefault();
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url: `${this.appleLoginUrl}?platform=mobile` });
+    await this._startNativeOauth(event, this.appleLoginUrl);
   }
 
   /**
@@ -582,23 +635,36 @@ export class AuthService {
   refreshToken(): Observable<string> {
     if (this._refreshing$) return this._refreshing$;
 
-    const rt = localStorage.getItem('refresh_token') ?? sessionStorage.getItem('refresh_token');
-    if (!rt) return throwError(() => new Error('no_refresh_token'));
+    const rt = this.storage.persistent.getItem('refresh_token') ?? this.storage.session.getItem('refresh_token');
+    if (!rt) {
+      this.silentLogout();
+      return throwError(() => new Error('no_refresh_token'));
+    }
 
-    this._refreshing$ = this.http.post<any>(
+    const sessionToken = this.getToken();
+    this._refreshing$ = this.http.post<{ data: { access_token: string; refresh_token?: string } }>(
       `${this.authUrl}/refresh`, {},
       { headers: { Authorization: `Bearer ${rt}` } },
     ).pipe(
-      map((res): string => res.data.access_token),
-      tap(token => {
-        // Stocker dans le même espace que la session en cours (localStorage ou sessionStorage)
-        const storage = localStorage.getItem('refresh_token') ? localStorage : sessionStorage;
-        storage.setItem('access_token', token);
-        // Planifier le prochain rafraîchissement automatique
-        this._scheduleProactiveRefresh(token);
+      switchMap(res => {
+        // A logout or a new login while the request was in flight must win.
+        if (this.getToken() !== sessionToken) return throwError(() => new Error('session_changed'));
+        const storage = this.storage.persistent.getItem('refresh_token') ? this.storage.persistent : this.storage.session;
+        storage.setItem('access_token', res.data.access_token);
+        if (res.data.refresh_token) storage.setItem('refresh_token', res.data.refresh_token);
+        return this.storage.native
+          ? from(this.storage.flush()).pipe(map(() => res.data.access_token))
+          : of(res.data.access_token);
       }),
-      shareReplay(1),
+      tap(token => this._scheduleProactiveRefresh(token)),
+      catchError(error => {
+        // Definitive rejection only; offline/5xx/rate limiting preserve the session.
+        if (this.getToken() === sessionToken && error instanceof HttpErrorResponse &&
+            [401, 422].includes(error.status)) this.silentLogout();
+        return throwError(() => error);
+      }),
       finalize(() => { this._refreshing$ = null; }),
+      shareReplay({ bufferSize: 1, refCount: false }),
     );
 
     return this._refreshing$;
@@ -638,12 +704,14 @@ export class AuthService {
   }
 
   /** Stocke les tokens et l'utilisateur après échange OAuth (toujours persistent). */
-  storeOauthAuth(data: OauthExchangeData | CompleteOauthProfileData): void {
-    localStorage.setItem('access_token',  data.tokens.access_token);
-    localStorage.setItem('refresh_token', data.tokens.refresh_token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+  storeOauthAuth(data: OauthExchangeData | CompleteOauthProfileData): Promise<void> | void {
+    for (const key of ['access_token', 'refresh_token', 'user']) this.storage.session.removeItem(key);
+    this.storage.persistent.setItem('access_token',  data.tokens.access_token);
+    this.storage.persistent.setItem('refresh_token', data.tokens.refresh_token);
+    this.storage.persistent.setItem('user', JSON.stringify(data.user));
     this._currentUser.set(data.user);
     this._scheduleProactiveRefresh(data.tokens.access_token);
+    if (this.storage.native) return this.storage.flush();
   }
 
   // ── Inscription ───────────────────────────────────────────────────────────

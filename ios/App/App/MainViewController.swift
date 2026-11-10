@@ -18,5 +18,6 @@ class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(PitchMonitorPlugin())
         bridge?.registerPluginInstance(StoreKitPurchasePlugin())
+        bridge?.registerPluginInstance(WebAuthSessionPlugin())
     }
 }

@@ -162,12 +162,18 @@ export class LoginComponent {
     this.authService.appleNativeSignIn()
       .pipe(finalize(() => this.appleLoading.set(false)))
       .subscribe({
-        next: (res) => {
+        next: async (res) => {
           if (!res.success || !res.data) {
             this.error.set(res.feedback?.message ?? 'Échec de la connexion Apple.');
             return;
           }
-          this.authService.storeOauthAuth(res.data);
+          try {
+            const saved = this.authService.storeOauthAuth(res.data);
+            if (saved) await saved;
+          } catch {
+            this.error.set('Impossible de sauvegarder la session sur cet appareil. Réessayez.');
+            return;
+          }
           if (!this.redirectToPendingDestination()) {
             this.authService.navigateAfterOauth(res.data.next, res.data.suggested_name);
           }

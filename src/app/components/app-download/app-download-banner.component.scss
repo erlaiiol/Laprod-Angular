@@ -1,0 +1,32 @@
+@use 'variables' as v;
+
+:host { display: block; }
+.download-banner {
+  padding: 0.7rem max(1rem, env(safe-area-inset-right)) 0.7rem max(1rem, env(safe-area-inset-left));
+  background: linear-gradient(110deg, rgba(v.$primary, 0.13), transparent 65%), v.$bg-surface;
+  border-bottom: 1px solid rgba(v.$primary, 0.2);
+  &__content { display: flex; align-items: center; gap: 0.85rem; max-width: 1200px; margin-inline: auto; }
+  &__icon { flex-shrink: 0; border-radius: 10px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15); }
+  &__copy { display: flex; flex: 1; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  strong { font-size: 0.85rem; font-weight: 650; color: v.$text-primary; }
+  span { font-size: 0.75rem; line-height: 1.4; color: v.$text-secondary; }
+  &__close {
+    display: grid; place-items: center; align-self: center; flex-shrink: 0;
+    width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent;
+    color: v.$text-secondary; cursor: pointer;
+    &:hover { color: v.$text-primary; background: rgba(v.$primary, 0.1); }
+    &:focus-visible { outline: 2px solid v.$primary; outline-offset: 2px; }
+  }
+}
+@media (max-width: 600px) {
+  .download-banner {
+    padding: 0.65rem max(0.65rem, env(safe-area-inset-right)) 0.65rem max(0.85rem, env(safe-area-inset-left));
+    &__content { gap: 0.6rem; flex-wrap: wrap; }
+    &__icon { width: 36px; height: 36px; }
+    &__copy { flex-basis: calc(100% - 100px); }
+    strong { font-size: 0.8rem; }
+    span { font-size: 0.7rem; }
+    app-store-links { order: 4; margin-left: 46px; }
+    &__close { margin-left: auto; }
+  }
+}

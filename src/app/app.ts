@@ -15,12 +15,13 @@ import { NativeShellService } from './services/native-shell.service';
 import { PushService } from './services/push.service';
 import { YoutubeBubbleComponent } from './components/ui/youtube-bubble/youtube-bubble.component';
 import { SidebarFabsComponent } from './components/ui/sidebar-fabs/sidebar-fabs.component';
+import { AppDownloadBannerComponent } from './components/app-download/app-download-banner.component';
 import { MixSampleBannerComponent } from './components/mix-sample-banner/mix-sample-banner.component';
 import { TourOverlayComponent } from './components/tour-overlay/tour-overlay.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent, YoutubeBubbleComponent, SidebarFabsComponent, MixSampleBannerComponent, TourOverlayComponent],
+  imports: [AppDownloadBannerComponent, RouterOutlet, RouterModule, NavbarComponent, ToastComponent, FooterComponent, PlayerComponent, UploadProgressToastComponent, ToplineProgressToastComponent, UserflowComponent, YoutubeBubbleComponent, SidebarFabsComponent, MixSampleBannerComponent, TourOverlayComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

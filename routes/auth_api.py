@@ -14,13 +14,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import config
 from utils.file_validator import validate_image_file
-from sqlalchemy import select, or_
+from sqlalchemy import func, select, or_
 
 from extensions import db, limiter, oauth, csrf
 import extensions as _ext
 from models import User, PriceChangeRequest, LoginEvent
 from helpers import (
-    sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens,
+    sanitize_html, store_refresh_token, is_refresh_token_valid, revoke_all_refresh_tokens, rotate_refresh_token,
     get_login_failure_count, record_login_failure, clear_login_failures, LOGIN_CAPTCHA_AFTER,
 )
 from utils.turnstile import verify_turnstile_token
@@ -175,6 +175,12 @@ def login():
 
     user = db.session.query(User).filter(
         or_(User.username == identifier, User.email == identifier)).first()
+    if not user and '@' in identifier:
+        # Email insensible à la casse (majuscule auto du clavier iOS) ; la
+        # correspondance exacte reste prioritaire au cas où deux comptes ne
+        # diffèrent que par la casse.
+        user = db.session.query(User).filter(
+            func.lower(User.email) == identifier.lower()).first()
 
     if user:
         valid = user.check_password(password)
@@ -1352,9 +1358,24 @@ def jwt_token_refresh():
     # rafraîchissements proactifs répétés d'un onglet resté ouvert.
     LoginEvent.record(user.id, 'refresh')
 
+    # Preserve the original session policy (1 day or 30 days), extending it
+    # only on successful use. Legacy/OAuth tokens derive it from exp - iat.
+    lifetime = int(jwt_data.get('session_lifetime', jwt_data['exp'] - jwt_data['iat']))
+    lifetime = max(1, min(lifetime, 30 * 24 * 60 * 60))
     access_token = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(
+        identity=str(user.id), expires_delta=timedelta(seconds=lifetime),
+        additional_claims={'session_lifetime': lifetime},
+    )
+    decoded = decode_token(refresh_token)
+    tokens = rotate_refresh_token(
+        user_id, jti, decoded['jti'], max(1, int(decoded['exp'] - time.time())),
+        {'access_token': access_token, 'refresh_token': refresh_token},
+    )
+    if tokens is None:
+        return err('Refresh token invalide ou expiré. Veuillez vous reconnecter.', status=401)
+    return ok(tokens)
 
-    return ok({'access_token': access_token})
 
 @auth_api_bp.route('/complete-oauth-profile', methods=['POST'])
 @jwt_required()
