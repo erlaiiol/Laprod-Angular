@@ -151,7 +151,7 @@ export class PlayerService {
     // Jouer un beat normal efface le contexte mix order (et inversement)
     this.viewingMixOrder.set(null);
     // Record listening history — uniquement si connecté (évite un 401 → refresh → logout)
-    if (track.id > 0 && localStorage.getItem('access_token')) {
+    if (track.id > 0 && this.auth.getToken()) {
       this.http.post(`${this.favoritesUrl}/listening/${track.id}`, {})
         .subscribe({ error: () => {} });
     }
@@ -349,7 +349,7 @@ export class PlayerService {
   }
 
   private _sendListenEvent(track: Track): void {
-    if (!localStorage.getItem('access_token')) return;
+    if (!this.auth.getToken()) return;
     if (this._secondsListened <= 0) return;
 
     const trackDuration = this.duration() || 0;

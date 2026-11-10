@@ -1,6 +1,8 @@
-import { ApplicationConfig, isDevMode, provideBrowserGlobalErrorListeners, provideCheckNoChangesConfig, provideZonelessChangeDetection } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, isDevMode, provideBrowserGlobalErrorListeners, provideCheckNoChangesConfig, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withInMemoryScrolling, withPreloading } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+
+import { AuthService } from './services/auth.service';
 
 import { routes } from './app.routes';
 import { IdlePreloadStrategy } from './routing/idle-preload.strategy';
@@ -9,6 +11,7 @@ import { jwtInterceptor } from './interceptors/jwt.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideAppInitializer(() => inject(AuthService).initialize()),
     provideZonelessChangeDetection(),
     provideBrowserGlobalErrorListeners(),
     // Filet de sécurité du rollout OnPush (dev uniquement, tree-shaké en prod) :

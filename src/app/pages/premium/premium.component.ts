@@ -184,6 +184,11 @@ export class PremiumComponent implements OnInit {
     return key === 'semi_pro';
   }
 
+  /** Vue cartes (mobile) : le groupe contient-il au moins un droit inclus dans ce palier ? */
+  hasIncluded(group: ComparisonGroup, colIndex: number): boolean {
+    return group.rows.some(r => r.cells[colIndex] && r.cells[colIndex].kind !== 'no');
+  }
+
   /** Le CTA d'une colonne est-il désactivé (palier actuel ou inférieur, ou gratuit) ? */
   isColumnLocked(key: PlanKey): boolean {
     return key === 'free' || this.isCurrentPlan(key) || this.isBelowCurrentPlan(key);

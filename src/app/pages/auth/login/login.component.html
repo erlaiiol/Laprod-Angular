@@ -44,6 +44,9 @@
           name="identifier"
           placeholder="pseudo ou adresse email"
           autocomplete="username"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
           autofocus
           required
           [(ngModel)]="identifier"
@@ -56,14 +59,22 @@
           <label for="password">Mot de passe</label>
           <a routerLink="/forgot-password" class="forgot-link">Mot de passe oublié ?</a>
         </div>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          autocomplete="current-password"
-          required
-          [(ngModel)]="password"
-        />
+        <div class="pwd-field">
+          <input
+            #pwd
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+            [(ngModel)]="password"
+          />
+          <button type="button" class="pwd-toggle"
+                  [attr.aria-label]="pwd.type === 'password' ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
+                  (click)="pwd.type = pwd.type === 'password' ? 'text' : 'password'">
+            <i class="bi" [class.bi-eye]="pwd.type === 'password'" [class.bi-eye-slash]="pwd.type !== 'password'"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Se souvenir de moi -->

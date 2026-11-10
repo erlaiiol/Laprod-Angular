@@ -41,6 +41,14 @@
       <h1 class="lp-landing__title">Passe de ta passion<br><span>à ta carrière.</span></h1>
       <p class="lp-landing__intro">Peu importe où tu en es aujourd'hui. LaProd te donne les outils pour travailler comme un professionnel — pas la promesse d'un succès qu'on ne peut pas garantir.</p>
 
+      @if (!downloads.isNative) {
+        <div class="lp-landing__app">
+          <span class="lp-landing__app-label"><span class="lp-landing__app-dot" aria-hidden="true"></span> LaProd est aussi dans ta poche</span>
+          <p>Trouve ton beat. Pose ton idée. Emporte ton studio.</p>
+          <app-store-links />
+        </div>
+      }
+
       <!-- ── Onglets rôle ─────────────────────────────────────────────────── -->
       <div class="lp-landing__tabs">
         <button class="lp-tab" [class.lp-tab--active]="heroTab() === 'artiste'"

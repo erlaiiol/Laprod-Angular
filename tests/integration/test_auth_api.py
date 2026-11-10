@@ -118,6 +118,14 @@ class TestLogin:
         )
         assert resp.status_code == 200
 
+    def test_login_email_is_case_insensitive(self, client, user):
+        """Majuscule auto du clavier iOS : l'email doit matcher quelle que soit la casse."""
+        resp = client.post(
+            '/api/auth/login',
+            json={'identifier': user.email.capitalize(), 'password': 'TestPassword123!'},
+        )
+        assert resp.status_code == 200
+
 
 # ── GET /api/auth/me ───────────────────────────────────────────────────────────
 

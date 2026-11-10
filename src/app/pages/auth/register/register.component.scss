@@ -234,3 +234,7 @@
   a { color: v.$primary; text-decoration: none;
       &:hover { text-decoration: underline; } }
 }
+
+/* ── Mot de passe : bouton afficher/masquer ──────────────────────────────── */
+
+@include m.password-toggle;

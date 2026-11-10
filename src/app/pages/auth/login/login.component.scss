@@ -241,3 +241,7 @@
   .forgot-link { text-align: center; }
   a.btn-primary { text-align: center; text-decoration: none; }
 }
+
+/* ── Mot de passe : bouton afficher/masquer ──────────────────────────────── */
+
+@include m.password-toggle;

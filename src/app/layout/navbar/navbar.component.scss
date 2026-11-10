@@ -34,9 +34,11 @@
 
 @media (max-width: 575.98px) {
 
+  // 0.5rem collait le burger au bord arrondi de l'écran (iPhone) : on laisse
+  // respirer, la recherche (flex-grow) absorbe la différence.
   .navbar > .container-fluid {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: max(0.9rem, env(safe-area-inset-left));
+    padding-right: max(0.9rem, env(safe-area-inset-right));
   }
 
   .navbar-top-row {
@@ -67,8 +69,8 @@
 
   .navbar-toggler {
     flex-shrink: 0;
-    padding: 0.25rem 0.5rem;
-    font-size: 1rem;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.9rem;
   }
 
 }
@@ -251,13 +253,22 @@
 /* ── Popover de filtres ────────────────────────────────────────────────────── */
 
 .filters-popover {
-  position: fixed; top: 0; right: -360px; width: 340px;
+  position: fixed; top: 0; right: 0; width: min(340px, calc(100vw - 2rem));
   height: 100vh; height: 100dvh;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   background: v.$bg-surface; border-left: 1px solid v.$bg-border;
   z-index: v.$z-drawer; display: flex; flex-direction: column;
-  transition: right v.$dur-slow v.$ease-in-out; overflow: hidden;
+  overflow: hidden;
+  // Fermé : translaté hors champ ET invisible — garé en right négatif, le
+  // WebView iOS l'incluait dans la zone scrollable (l'app « dépassait »
+  // horizontalement). visibility retire aussi ses champs de l'ordre de tab.
+  transform: translateX(100%); visibility: hidden;
+  transition: transform v.$dur-slow v.$ease-in-out, visibility 0s linear v.$dur-slow;
 
-  &.open { right: 0; box-shadow: v.$shadow-lg; }
+  &.open {
+    transform: none; visibility: visible; box-shadow: v.$shadow-lg;
+    transition: transform v.$dur-slow v.$ease-in-out, visibility 0s;
+  }
 }
 
 .filters-header {

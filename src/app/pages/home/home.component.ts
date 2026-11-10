@@ -14,6 +14,8 @@ import { TrackCardComponent } from '../../components/track-card/track-card.compo
 import { TagCategoryFilterComponent } from '../../components/tag-category-filter/tag-category-filter.component';
 import { OnboardingModalComponent } from '../../components/onboarding-modal/onboarding-modal.component';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
+import { AppDownloadService } from '../../services/app-download.service';
+import { StoreLinksComponent } from '../../components/app-download/store-links.component';
 import { BetaBadgeComponent } from '../../components/beta-badge/beta-badge.component';
 import { FilterStateService, ActiveFilters } from '../../services/filter-state.service';
 import { ToastService } from '../../services/toast.service';
@@ -47,12 +49,13 @@ const STATS_COUNTUP_MS = 1600;
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent, RevealOnScrollDirective, TourAnchorDirective, BetaBadgeComponent],
+  imports: [StoreLinksComponent, CommonModule, RouterModule, TrackCardComponent, TagCategoryFilterComponent, OnboardingModalComponent, PaginationComponent, RevealOnScrollDirective, TourAnchorDirective, BetaBadgeComponent],
   templateUrl: './home.component.html',
   styleUrls:   ['./home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent implements OnInit {
+  readonly downloads = inject(AppDownloadService);
 
   tracks          = signal<Track[]>([]);
   loading         = signal(true);

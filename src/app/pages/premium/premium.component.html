@@ -93,36 +93,7 @@
                 <th class="ptable-col"
                     [class.ptable-col--reco]="isRecommended(col.key)"
                     [class.ptable-col--current]="isCurrentPlan(col.key)">
-                  @if (isRecommended(col.key) && !isPremium()) {
-                    <div class="ptable-badge"><i class="bi bi-star-fill"></i> Le plus choisi</div>
-                  } @else if (isCurrentPlan(col.key)) {
-                    <div class="ptable-badge ptable-badge--current">Palier actuel</div>
-                  }
-                  <div class="ptable-name">{{ col.label }}</div>
-                  <!-- Dans l'app iOS, le prix affiché est celui de l'App Store (devise
-                       du compte Apple), jamais celui de la grille Stripe ; et si rien
-                       n'est achetable ici, on n'affiche aucun prix. -->
-                  <div class="ptable-price">
-                    @if (col.price === 0) {
-                      Gratuit
-                    } @else if (purchaseMode() === 'stripe') {
-                      {{ (col.price | number:'1.2-2') + ' €' }} <span>/mois</span>
-                    } @else if (iosOffer(col.key); as offer) {
-                      {{ offer.displayPrice }} <span>/ 30 jours</span>
-                    }
-                  </div>
-                  @if (isColumnLocked(col.key)) {
-                    <button class="btn-plan btn-plan-disabled" disabled>{{ lockedLabel(col.key) }}</button>
-                  } @else if (purchaseMode() === 'stripe' || iosOffer(col.key)) {
-                    <button class="btn-plan" [class]="'btn-plan-' + col.key"
-                            [disabled]="subscribing() !== null"
-                            (click)="buy(col.key)">
-                      @if (subscribing() === col.key) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                      }
-                      {{ ctaLabel(col) }}
-                    </button>
-                  }
+                  <ng-container [ngTemplateOutlet]="planHead" [ngTemplateOutletContext]="{ $implicit: col }" />
                 </th>
               }
             </tr>
@@ -162,7 +133,77 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile : une carte par palier, avec uniquement ce qu'il inclut. Le
+           tableau à 4 colonnes défilait horizontalement et devenait illisible
+           sur téléphone (app iOS/Android notamment). -->
+      <div class="plans-cards">
+        @for (col of cmp.columns; track col.key; let ci = $index) {
+          <article class="plan-card"
+                   [class.plan-card--reco]="isRecommended(col.key)"
+                   [class.plan-card--current]="isCurrentPlan(col.key)">
+            <div class="plan-card__head">
+              <ng-container [ngTemplateOutlet]="planHead" [ngTemplateOutletContext]="{ $implicit: col }" />
+            </div>
+            @for (group of cmp.groups; track group.title) {
+              @if (hasIncluded(group, ci)) {
+                <div class="plan-card__group">{{ group.title }}</div>
+                <ul class="plan-card__list">
+                  @for (row of group.rows; track row.label) {
+                    @if (row.cells[ci]; as cell) {
+                      @if (cell.kind !== 'no') {
+                        <li>
+                          <i class="bi bi-check-lg ptable-yes"></i>
+                          <span>
+                            {{ row.label }}
+                            @if (cell.kind === 'text') { : <strong>{{ cell.text }}</strong> }
+                          </span>
+                        </li>
+                      }
+                    }
+                  }
+                </ul>
+              }
+            }
+          </article>
+        }
+      </div>
     }
+
+    <!-- En-tête d'un palier (badge, nom, prix, bouton) : partagé entre l'en-tête
+         de colonne du tableau (desktop) et les cartes (mobile). -->
+    <ng-template #planHead let-col>
+      @if (isRecommended(col.key) && !isPremium()) {
+        <div class="ptable-badge"><i class="bi bi-star-fill"></i> Le plus choisi</div>
+      } @else if (isCurrentPlan(col.key)) {
+        <div class="ptable-badge ptable-badge--current">Palier actuel</div>
+      }
+      <div class="ptable-name">{{ col.label }}</div>
+      <!-- Dans l'app iOS, le prix affiché est celui de l'App Store (devise
+           du compte Apple), jamais celui de la grille Stripe ; et si rien
+           n'est achetable ici, on n'affiche aucun prix. -->
+      <div class="ptable-price">
+        @if (col.price === 0) {
+          Gratuit
+        } @else if (purchaseMode() === 'stripe') {
+          {{ (col.price | number:'1.2-2') + ' €' }} <span>/mois</span>
+        } @else if (iosOffer(col.key); as offer) {
+          {{ offer.displayPrice }} <span>/ 30 jours</span>
+        }
+      </div>
+      @if (isColumnLocked(col.key)) {
+        <button class="btn-plan btn-plan-disabled" disabled>{{ lockedLabel(col.key) }}</button>
+      } @else if (purchaseMode() === 'stripe' || iosOffer(col.key)) {
+        <button class="btn-plan" [class]="'btn-plan-' + col.key"
+                [disabled]="subscribing() !== null"
+                (click)="buy(col.key)">
+          @if (subscribing() === col.key) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          {{ ctaLabel(col) }}
+        </button>
+      }
+    </ng-template>
 
     <!-- ── App iOS : conditions de l'achat intégré + restauration ─────────────
          Texte et bouton exigés par Apple. Aucune mention d'un autre moyen de

@@ -27,7 +27,6 @@ export const authGuard: CanActivateFn = () => {
     return auth.refreshToken().pipe(
       map(() => redirectIfIncomplete()),
       catchError(() => {
-        auth.silentLogout();
         return of(false);
       }),
     );

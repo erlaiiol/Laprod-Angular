@@ -76,12 +76,19 @@ export class OauthCallbackComponent implements OnInit {
     sessionStorage.setItem('oauth_done', code);
 
     this.auth.tokenExchange(code).subscribe({
-      next: (res) => {
+      next: async (res) => {
         if (!res.success || !res.data) {
           this.error.set(res.feedback?.message ?? 'Code invalide ou expiré.');
           return;
         }
-        this.auth.storeOauthAuth(res.data);
+        try {
+          const saved = this.auth.storeOauthAuth(res.data);
+          if (saved) await saved;
+        } catch {
+          sessionStorage.removeItem('oauth_done');
+          this.error.set('Impossible de sauvegarder la session sur cet appareil. Réessayez.');
+          return;
+        }
         this.auth.navigateAfterOauth(res.data.next, res.data.suggested_name);
       },
       error: (err) => {

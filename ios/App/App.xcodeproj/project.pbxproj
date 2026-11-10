@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		A1B2C3D4E5F60718293A4B5C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* GoogleService-Info.plist */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -20,11 +21,13 @@
 		BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000007BB000007BB000007 /* ScaleBuilder.swift */; };
 		BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB000009BB000009BB000009 /* RubberBandWrapper.mm */; };
 		CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */; };
+		CC000005CC000005CC000005 /* WebAuthSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */; };
 		CC000002CC000002CC000002 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000004CC000004CC000004 /* MainViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 		BB00000ABB00000ABB00000A /* RubberBandWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RubberBandWrapper.h; sourceTree = "<group>"; };
 		BB0000E1BB0000E1BB0000E1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitPurchasePlugin.swift; sourceTree = "<group>"; };
+		CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthSessionPlugin.swift; sourceTree = "<group>"; };
 		CC000004CC000004CC000004 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -86,6 +90,7 @@
 				BB000009BB000009BB000009 /* RubberBandWrapper.mm */,
 				BB00000ABB00000ABB00000A /* RubberBandWrapper.h */,
 				CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */,
+				CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */,
 				CC000004CC000004CC000004 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -93,6 +98,7 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				BB0000E1BB0000E1BB0000E1 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
+				A1B2C3D4E5F60718293A4B5D /* GoogleService-Info.plist */,
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
@@ -171,6 +177,7 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				A1B2C3D4E5F60718293A4B5C /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,6 +216,7 @@
 				BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */,
 				BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */,
 				CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */,
+				CC000005CC000005CC000005 /* WebAuthSessionPlugin.swift in Sources */,
 				CC000002CC000002CC000002 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

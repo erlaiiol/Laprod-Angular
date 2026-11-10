@@ -15,6 +15,9 @@ import { SafeArea, SystemBarsStyle } from '@capacitor-community/safe-area';
 // handler via pushBackHandler() pour l'intercepter tant qu'ils sont ouverts,
 // au lieu de laisser Android quitter l'app ou naviguer de façon inattendue.
 
+/** Redirection finale des flows OAuth lancés depuis l'app (cf. routes/auth_api.py, _MOBILE_OAUTH_SCHEME). */
+export const OAUTH_CALLBACK_PREFIX = 'net.laprod.app://oauth-callback';
+
 type BackHandler = () => boolean; // true = consommé, false = laisse remonter à la pile suivante
 
 @Injectable({ providedIn: 'root' })
@@ -51,20 +54,30 @@ export class NativeShellService {
       // AndroidManifest.xml. On referme l'onglet devenu orphelin et on
       // reprend le code là où OauthCallbackComponent sait déjà quoi en faire.
       App.addListener('appUrlOpen', ({ url }) => {
-        if (!url.startsWith('net.laprod.app://oauth-callback')) return;
+        if (!url.startsWith(OAUTH_CALLBACK_PREFIX)) return;
 
         import('@capacitor/browser').then(({ Browser }) => Browser.close().catch(() => {}));
-
-        // Succès (?code=) et échec (?error=, cf. routes/auth_api.py::_oauth_error_redirect)
-        // atterrissent tous les deux sur /oauth-callback — OauthCallbackComponent
-        // gère déjà les deux cas indifféremment de la plateforme.
-        const params = new URL(url).searchParams;
-        const code   = params.get('code');
-        const error  = params.get('error');
-        if (code)       this.router.navigateByUrl(`/oauth-callback?code=${code}`);
-        else if (error) this.router.navigateByUrl(`/oauth-callback?error=${error}`);
+        this.handleOauthCallbackUrl(url);
       });
     }
+  }
+
+  /**
+   * Reprend une URL net.laprod.app://oauth-callback?… dans l'app. Appelée par
+   * le listener appUrlOpen (Android) et directement par AuthService sur iOS,
+   * où ASWebAuthenticationSession rend l'URL sans passer par appUrlOpen.
+   *
+   * Succès (?code=) et échec (?error=, cf. routes/auth_api.py::_oauth_error_redirect)
+   * atterrissent tous les deux sur /oauth-callback — OauthCallbackComponent
+   * gère déjà les deux cas indifféremment de la plateforme.
+   */
+  handleOauthCallbackUrl(url: string): void {
+    if (!url.startsWith(OAUTH_CALLBACK_PREFIX)) return;
+    const params = new URL(url).searchParams;
+    const code   = params.get('code');
+    const error  = params.get('error');
+    if (code)       this.router.navigate(['/oauth-callback'], { queryParams: { code } });
+    else if (error) this.router.navigate(['/oauth-callback'], { queryParams: { error } });
   }
 
   /** Empile un handler de retour (ex. fermer une modale). Retourne la fonction pour le retirer. */
