@@ -41,6 +41,11 @@
 #define BRIDGE_RING_CAPACITY 16384u   // ~370ms @44.1kHz — large marge anti-xrun, pas la latence réelle
 #define RECORD_RING_CAPACITY 65536u   // ~1.5s @44.1kHz — marge si le polling Kotlin (~20ms) prend du retard
 
+// Chaîne voix du retour casque (boue / présence / clarté / volume) — coefficients calculés
+// côté Kotlin (VoiceFx.kt, seule source des formules) : 4 biquads × (b0,b1,b2,a1,a2) + volume.
+#define VOICE_FX_BIQUADS 4u
+#define VOICE_FX_COEFS (VOICE_FX_BIQUADS * 5u + 1u)
+
 // ── État du moteur ───────────────────────────────────────────────────────────────
 
 typedef struct Engine {
@@ -71,7 +76,55 @@ typedef struct Engine {
     _Atomic float statusPitchHz;      // NAN = rien de neuf depuis le dernier poll
     _Atomic int32_t statusInterrupted; // 0/1, remis à 0 par aaudio_engine_poll_status
     _Atomic int64_t statusGeneration;
+
+    // Chaîne voix : publiée par aaudio_engine_set_voice_fx (thread Kotlin) via un seqlock —
+    // le callback d'entrée ne copie fxPending dans fxActive que si la séquence est paire et
+    // inchangée pendant la copie (jamais de coefficients à moitié écrits, aucun lock).
+    _Atomic uint32_t fxSeq;
+    float fxPending[VOICE_FX_COEFS];
+    float fxActive[VOICE_FX_COEFS];   // thread audio uniquement
+    uint32_t fxSeen;                  // thread audio uniquement
+    float fxState[VOICE_FX_BIQUADS * 2u];
 } Engine;
+
+static void voiceFxIdentity(float *c) {
+    memset(c, 0, sizeof(float) * VOICE_FX_COEFS);
+    for (size_t b = 0; b < VOICE_FX_BIQUADS; b++) c[b * 5u] = 1.0f; // b0 = 1 : passe-tout
+    c[VOICE_FX_BIQUADS * 5u] = 1.0f;                                 // volume
+}
+
+// Thread audio : récupère d'éventuels nouveaux coefficients puis filtre `buf` en place
+// (forme directe II transposée).
+static void voiceFxProcess(Engine *e, float *buf, size_t n) {
+    uint32_t s1 = atomic_load_explicit(&e->fxSeq, memory_order_acquire);
+    if ((s1 & 1u) == 0u && s1 != e->fxSeen) {
+        float tmp[VOICE_FX_COEFS];
+        memcpy(tmp, e->fxPending, sizeof tmp);
+        atomic_thread_fence(memory_order_acquire);
+        if (atomic_load_explicit(&e->fxSeq, memory_order_relaxed) == s1) {
+            memcpy(e->fxActive, tmp, sizeof tmp);
+            e->fxSeen = s1;
+        }
+    }
+
+    const float *c = e->fxActive;
+    for (size_t b = 0; b < VOICE_FX_BIQUADS; b++) {
+        const float b0 = c[b * 5u], b1 = c[b * 5u + 1u], b2 = c[b * 5u + 2u];
+        const float a1 = c[b * 5u + 3u], a2 = c[b * 5u + 4u];
+        float z1 = e->fxState[b * 2u], z2 = e->fxState[b * 2u + 1u];
+        for (size_t i = 0; i < n; i++) {
+            const float x = buf[i];
+            const float y = b0 * x + z1;
+            z1 = b1 * x - a1 * y + z2;
+            z2 = b2 * x - a2 * y;
+            buf[i] = y;
+        }
+        e->fxState[b * 2u] = z1;
+        e->fxState[b * 2u + 1u] = z2;
+    }
+    const float vol = c[VOICE_FX_BIQUADS * 5u];
+    if (vol != 1.0f) for (size_t i = 0; i < n; i++) buf[i] *= vol;
+}
 
 // ── Callbacks temps réel ────────────────────────────────────────────────────────
 
@@ -122,10 +175,12 @@ static aaudio_data_callback_result_t onInputData(AAudioStream *stream, void *use
                 if (k > MAX_CALLBACK_FRAMES) k = MAX_CALLBACK_FRAMES;
                 psola_retrieve(e->psola, outBuf, k);
                 for (size_t i = 0; i < k; i++) outBuf[i] *= gain;
+                voiceFxProcess(e, outBuf, k);
                 spsc_ring_write(&e->bridgeRing, outBuf, k);
             }
         } else {
             for (size_t i = 0; i < n; i++) outBuf[i] = in[i] * gain;
+            voiceFxProcess(e, outBuf, n);
             spsc_ring_write(&e->bridgeRing, outBuf, n);
         }
     }
@@ -209,6 +264,9 @@ Engine *aaudio_engine_create(int32_t sampleRate, bool useMonitor, bool monitorAu
     atomic_init(&e->statusPitchHz, NAN);
     atomic_init(&e->statusInterrupted, 0);
     atomic_init(&e->statusGeneration, 0);
+    atomic_init(&e->fxSeq, 0u);
+    voiceFxIdentity(e->fxPending);
+    voiceFxIdentity(e->fxActive);
 
     spsc_ring_init(&e->bridgeRing, e->bridgeStorage, BRIDGE_RING_CAPACITY);
     spsc_ring_init(&e->recordRing, e->recordStorage, RECORD_RING_CAPACITY);
@@ -313,6 +371,17 @@ void aaudio_engine_set_monitor_options(Engine *e, bool useMonitor, bool monitorA
     atomic_store_explicit(&e->useMonitor, useMonitor, memory_order_relaxed);
     atomic_store_explicit(&e->monitorAutotune, monitorAutotune, memory_order_relaxed);
     atomic_store_explicit(&e->voiceGain, voiceGain, memory_order_relaxed);
+}
+
+// Publie de nouveaux coefficients de chaîne voix (VoiceFx.kt) — thread Kotlin unique,
+// appliqués par le callback d'entrée au bloc suivant. `count` != VOICE_FX_COEFS → ignoré.
+void aaudio_engine_set_voice_fx(Engine *e, const float *coefs, size_t count) {
+    if (!e || !coefs || count != VOICE_FX_COEFS) return;
+    uint32_t s = atomic_load_explicit(&e->fxSeq, memory_order_relaxed);
+    atomic_store_explicit(&e->fxSeq, s + 1u, memory_order_relaxed);   // impair : écriture en cours
+    atomic_thread_fence(memory_order_release);
+    memcpy(e->fxPending, coefs, sizeof(float) * VOICE_FX_COEFS);
+    atomic_store_explicit(&e->fxSeq, s + 2u, memory_order_release);   // pair : publié
 }
 
 // Arrête puis détruit le moteur. À appeler depuis un thread Kotlin normal (jamais depuis

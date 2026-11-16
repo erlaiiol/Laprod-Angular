@@ -9,6 +9,33 @@ export interface SessionResult {
   sampleRate: number;
   channels:   number;
   format:     'float32' | 'int16';
+  /** iOS, beat natif uniquement : position du beat (s) correspondant au 1er
+   *  échantillon enregistré, latences casque NON compensées. */
+  firstSampleBeatSec?: number;
+}
+
+/**
+ * Chaîne voix appliquée au retour casque, en temps réel, côté natif — miroir
+ * simplifié de la chaîne d'export (MobileAudioProcessorService._applyVocalChain) :
+ * coupe-bas ("boue"), présence, clarté, réverb, volume de piste.
+ */
+export interface VoiceFx {
+  lowCutHz:   number;
+  presenceDb: number;
+  clarityDb:  number;
+  reverbWet:  number;   // 0–1
+  volume:     number;   // gain linéaire de la piste
+}
+
+/** Retour de startSession (iOS). Android ne renvoie rien. */
+export interface StartSessionInfo {
+  /** true si le beat est joué par le moteur natif (même horloge que le micro). */
+  nativeBeat?:      boolean;
+  /** Délai (ms) avant le départ effectif du beat natif. */
+  startInMs?:       number;
+  /** Latences rapportées par le système (Bluetooth inclus côté sortie). */
+  outputLatencyMs?: number;
+  inputLatencyMs?:  number;
 }
 
 export interface InterruptedResult extends SessionResult {
@@ -25,7 +52,26 @@ export interface PitchMonitorPlugin {
     monitorAutotune?: boolean;
     /** Vitesse de correction : 'natural' (τ≈75ms), 'precise' (τ≈25ms), 'robot' (snap instantané). Défaut : 'natural'. */
     retuneSpeed?:   'natural' | 'precise' | 'robot';
-  }): Promise<void>;
+    /** iOS : chemin/URI file:// du beat à jouer dans le moteur natif. */
+    beatPath?:      string;
+    /** iOS : position du beat (s) au départ de la lecture native. */
+    beatStartSec?:  number;
+    beatVolume?:    number;
+    /** iOS : départ du beat (et de l'enregistrement) différé de N ms — décompte. */
+    startDelayMs?:  number;
+    /** iOS : le beat boucle (échauffement). */
+    loopBeat?:      boolean;
+    /** false = micro ouvert pour le retour casque uniquement, rien n'est stocké. Défaut true. */
+    record?:        boolean;
+    /** Chaîne voix du retour casque (modifiable ensuite via setVoiceFx). */
+    fx?:            VoiceFx;
+  }): Promise<StartSessionInfo | void>;
+
+  /** Met à jour la chaîne voix du retour casque — effet immédiat (iOS et Android). */
+  setVoiceFx(fx: VoiceFx): Promise<void>;
+
+  /** iOS uniquement — volume du beat natif en cours de session. */
+  setBeatVolume(opts: { volume: number }): Promise<void>;
 
   stopSession(): Promise<SessionResult>;
 
@@ -33,7 +79,8 @@ export interface PitchMonitorPlugin {
   requestPermission(): Promise<{ microphone: 'granted' | 'denied' }>;
 
   /** Détecte le type de périphérique audio branché.
-   * 'bluetooth' = HFP/SCO (monitoring capable) ; 'bluetooth-a2dp' = lecture seule. */
+   * 'bluetooth' = HFP/SCO ; 'bluetooth-a2dp' = profil musique. Les deux permettent
+   * le monitoring (avec la latence du Bluetooth, ~150-250 ms). */
   checkHeadphones(): Promise<{ type: 'wired' | 'bluetooth' | 'bluetooth-a2dp' | 'none' }>;
 
   addListener(event: 'pitch',             handler: (data: PitchEvent)       => void): Promise<{ remove: () => void }>;

@@ -14,7 +14,9 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Thread model (unchanged from the Rubber Band version):
 ///   -setPitchCents:   thread-safe (atomic internally, on the Rust side), call from detection timer
-///   -feedInput:count: call from the AVAudioEngine tap callback (IO thread)
+///   -feedInput:count: call from the AVAudioSinkNode block (real-time IO thread), once per
+///                     hardware cycle — never from a tap (taps deliver ~100 ms bursts)
+///   -copyLatestInto:count: call from the detection timer (lock-free read of recent input)
 ///   -renderInto:frameCount: call from AVAudioSourceNode render block (render thread)
 @interface RubberBandWrapper : NSObject
 
@@ -30,6 +32,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns `frameCount` always; the buffer is silence-padded during startup latency.
 /// Must be called from the AVAudioSourceNode render block.
 - (NSInteger)renderInto:(float *)output frameCount:(NSInteger)frameCount;
+
+/// Copy the `count` most recent input samples (for pitch detection) without locking.
+/// Returns NO until at least `count` samples have been fed. Safe from any single reader
+/// thread while the IO thread keeps feeding.
+- (BOOL)copyLatestInto:(float *)output count:(NSInteger)count;
 
 /// Reset internal state; call when the engine restarts.
 - (void)reset;

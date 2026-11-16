@@ -58,7 +58,7 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   });
 
   showConfirmModal = signal(false);
-  private pendingAction: 'download' | 'rec' | null = null;
+  private pendingAction: 'download' | null = null;
 
   private wavesurfer: WaveSurfer | null = null;
   private initPromise: Promise<void> | null = null;
@@ -182,21 +182,17 @@ export class PlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   onRecClick(): void {
-    if (this.isViewingTrackLoaded()) {
-      this.player.recRequested.update(n => n + 1);
-    } else {
-      this.pendingAction = 'rec';
-      this.showConfirmModal.set(true);
-    }
+    // Pas de confirmation "charger ce beat ?" pour la topline : le studio
+    // travaille sur le beat de la page (viewingTrack), pas sur celui du player,
+    // et track-detail met le player en pause en ouvrant le recorder.
+    this.player.recRequested.update(n => n + 1);
   }
 
   confirmLoadTrack(): void {
     const viewing = this.player.viewingTrack();
     if (viewing) this.player.play(viewing);
     this.showConfirmModal.set(false);
-    if (this.pendingAction === 'rec') {
-      setTimeout(() => this.player.recRequested.update(n => n + 1), 250);
-    } else if (this.pendingAction === 'download') {
+    if (this.pendingAction === 'download') {
       setTimeout(() => this.doDownload(), 250);
     }
     this.pendingAction = null;

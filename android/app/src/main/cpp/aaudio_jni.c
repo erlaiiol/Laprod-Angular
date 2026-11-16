@@ -18,6 +18,7 @@ int32_t aaudio_engine_poll_status(Engine *e, float *out_level, float *out_pitch_
 size_t aaudio_engine_drain_recorded(Engine *e, float *out, size_t maxSamples);
 void aaudio_engine_set_monitor_options(Engine *e, bool useMonitor, bool monitorAutotune,
                                         float voiceGain);
+void aaudio_engine_set_voice_fx(Engine *e, const float *coefs, size_t count);
 void aaudio_engine_destroy(Engine *e);
 
 JNIEXPORT jlong JNICALL
@@ -78,6 +79,18 @@ Java_net_laprod_app_PsolaAudioEngine_nativeSetMonitorOptions(JNIEnv *env, jobjec
     (void) thiz;
     aaudio_engine_set_monitor_options((Engine *) (intptr_t) handle, useMonitor != JNI_FALSE,
                                        monitorAutotune != JNI_FALSE, voiceGain);
+}
+
+// `coefs` : FloatArray produit par VoiceFx.computeCoefficients (21 floats).
+JNIEXPORT void JNICALL
+Java_net_laprod_app_PsolaAudioEngine_nativeSetVoiceFx(JNIEnv *env, jobject thiz, jlong handle,
+                                                       jfloatArray coefs) {
+    (void) thiz;
+    jsize n = (*env)->GetArrayLength(env, coefs);
+    jfloat *buf = (*env)->GetFloatArrayElements(env, coefs, NULL);
+    if (!buf) return;
+    aaudio_engine_set_voice_fx((Engine *) (intptr_t) handle, buf, (size_t) n);
+    (*env)->ReleaseFloatArrayElements(env, coefs, buf, JNI_ABORT);
 }
 
 JNIEXPORT void JNICALL

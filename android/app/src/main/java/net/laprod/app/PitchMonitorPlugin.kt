@@ -54,6 +54,8 @@ class PitchMonitorPlugin : Plugin() {
             trackKey        = call.getString("trackKey")         ?: "",
             monitorAutotune = call.getBoolean("monitorAutotune") ?: false,
             smoothK         = smoothK,
+            record          = call.getBoolean("record")          ?: true,
+            fx              = parseFx(call.getObject("fx")),
         )
 
         val session = AudioRecordingSession(opts, context)
@@ -99,6 +101,27 @@ class PitchMonitorPlugin : Plugin() {
         })
     }
 
+    // Réglages de la piste appliqués au retour casque en temps réel — le changement
+    // s'entend immédiatement.
+    @PluginMethod
+    fun setVoiceFx(call: PluginCall) {
+        activeSession?.setVoiceFx(parseFx(call.data))
+        call.resolve()
+    }
+
+    private fun parseFx(obj: JSObject?): VoiceFx.Params {
+        val d = VoiceFx.Params()
+        if (obj == null) return d
+        fun num(k: String, def: Float) = if (obj.has(k)) obj.optDouble(k, def.toDouble()).toFloat() else def
+        return VoiceFx.Params(
+            lowCutHz   = num("lowCutHz",   d.lowCutHz),
+            presenceDb = num("presenceDb", d.presenceDb),
+            clarityDb  = num("clarityDb",  d.clarityDb),
+            reverbWet  = num("reverbWet",  d.reverbWet),
+            volume     = num("volume",     d.volume),
+        )
+    }
+
     @PluginMethod
     fun checkHeadphones(call: PluginCall) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -135,6 +158,9 @@ data class RecordingOptions(
     val trackKey:        String,
     val monitorAutotune: Boolean,
     val smoothK:         Float,
+    /** false = micro ouvert pour le retour casque seul, rien n'est stocké. */
+    val record:          Boolean = true,
+    val fx:              VoiceFx.Params = VoiceFx.Params(),
 )
 
 // ── SessionResult ─────────────────────────────────────────────────────────────
@@ -210,6 +236,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private var smoothedSemitones = 0f
     private val MONITOR_CAP       = 2.5f
 
+    // Chaîne voix du retour casque (boue / présence / clarté / volume), cf. VoiceFx.kt.
+    private val voiceFx = VoiceFx(SAMPLE_RATE).also { it.update(opts.fx) }
+
     private var focusRequest:  AudioFocusRequest? = null
     private var noisyReceiver: BroadcastReceiver? = null
 
@@ -233,6 +262,7 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         )
         if (engine != null) {
             aaudioEngine = engine
+            engine.setVoiceFx(voiceFx.coefficients)
             startFastPath(engine)
         } else {
             startFallbackPath()
@@ -266,6 +296,13 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         context.registerReceiver(noisyReceiver,
                                   IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+    }
+
+    /** Nouveaux réglages de piste : effet au bloc audio suivant, sur les deux chemins. */
+    fun setVoiceFx(p: VoiceFx.Params) {
+        voiceFx.update(p)
+        aaudioEngine?.setVoiceFx(voiceFx.coefficients)
+        reverb?.let { r -> runCatching { r.enabled = p.reverbWet > 0.01f } }
     }
 
     // ── Chemin rapide : moteur AAudio natif ───────────────────────────────────
@@ -320,7 +357,7 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         var drained: Int
         do {
             drained = engine.drainRecorded(drainBuf)
-            if (drained > 0) pcmBuffer.write(floatsToInt16(drainBuf, drained, 1.0f))
+            if (drained > 0 && opts.record) pcmBuffer.write(floatsToInt16(drainBuf, drained, 1.0f))
         } while (drained == drainBuf.size)
     }
 
@@ -369,22 +406,21 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 psola = PsolaProcessor(SAMPLE_RATE)
             }
 
-            // Reverb plate sur le retour monitoring (miroir du chemin iOS).
+            // Reverb plate sur le retour monitoring (miroir du chemin iOS) — toujours créée,
+            // activée/désactivée en direct selon le réglage de piste (setVoiceFx).
             // runCatching : AudioEffect peut échouer sur certains appareils / émulateurs.
-            if (opts.reverbWet > 0f) {
-                runCatching {
-                    reverb = PresetReverb(0, outputTrack!!.audioSessionId).apply {
-                        preset  = PresetReverb.PRESET_PLATE
-                        enabled = true
-                    }
+            runCatching {
+                reverb = PresetReverb(0, outputTrack!!.audioSessionId).apply {
+                    preset  = PresetReverb.PRESET_PLATE
+                    enabled = opts.fx.reverbWet > 0.01f
                 }
             }
         }
 
         // ── Boucle de capture ──────────────────────────────────────────────────
         val loop = AudioCaptureLoop(SAMPLE_RATE, bufferSize) { floats, bytes, byteCount ->
-            // Toujours enregistrer les octets bruts (audio non traité → serveur)
-            pcmBuffer.write(bytes, 0, byteCount)
+            // Enregistrer les octets bruts (audio non traité → serveur), sauf retour casque seul
+            if (opts.record) pcmBuffer.write(bytes, 0, byteCount)
             onLevel?.invoke(computeRms(floats))
 
             if (opts.useMonitor) {
@@ -395,11 +431,15 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                     if (available > 0) {
                         val out = FloatArray(available)
                         psola?.retrieve(out)
+                        voiceFx.process(out, available)
                         outputTrack?.write(floatsToInt16(out, available, opts.voiceGain), 0, available * 2)
                     }
                 } else {
-                    // Monitoring simple : volume direct, pas de pitch shift
-                    outputTrack?.write(applyGain(bytes, byteCount, opts.voiceGain), 0, byteCount)
+                    // Monitoring simple : chaîne voix, pas de pitch shift. Copie : `floats`
+                    // sert encore à la détection de hauteur ci-dessous.
+                    val out = floats.copyOf()
+                    voiceFx.process(out, out.size)
+                    outputTrack?.write(floatsToInt16(out, out.size, opts.voiceGain), 0, out.size * 2)
                 }
             }
 
@@ -501,20 +541,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
             val s  = (samples[i] * gain * 32767f).toInt().coerceIn(-32_768, 32_767).toShort()
             out[i * 2]     = (s.toInt() and 0xFF).toByte()
             out[i * 2 + 1] = ((s.toInt() shr 8) and 0xFF).toByte()
-        }
-        return out
-    }
-
-    // Int16 little-endian bytes → gain applied in-place
-    private fun applyGain(bytes: ByteArray, byteCount: Int, gain: Float): ByteArray {
-        val out = ByteArray(byteCount)
-        var i = 0
-        while (i < byteCount - 1) {
-            val sample = ((bytes[i + 1].toInt() shl 8) or (bytes[i].toInt() and 0xFF)).toShort()
-            val scaled = (sample * gain).toInt().coerceIn(-32_768, 32_767).toShort()
-            out[i]     = (scaled.toInt() and 0xFF).toByte()
-            out[i + 1] = ((scaled.toInt() shr 8) and 0xFF).toByte()
-            i += 2
         }
         return out
     }

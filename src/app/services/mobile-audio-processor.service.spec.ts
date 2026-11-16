@@ -89,15 +89,17 @@ describe('MobileAudioProcessorService — spliceAudio', () => {
     }
   });
 
-  it('fromSec > durée existing — clamp sur la fin du buffer', async () => {
+  it('fromSec > durée existing — la nouvelle prise reste à sa position, trou silencieux', async () => {
     const existing = makeF32Blob(2, 0.5);
     const newAudio = makeF32Blob(1, 0.8);
 
-    const spliced = await svc.spliceAudio(existing, newAudio, 999);
+    const spliced = await svc.spliceAudio(existing, newAudio, 3);
     const data    = await readBlob(spliced);
 
-    // keepSamples clampé à existBuf.length (2 s) → total = 2 s + 1 s = 3 s
-    expect(data.length).toBe(Math.round(3 * SR));
+    // 2 s d'existant + 1 s de silence + 1 s de nouvelle prise = 4 s
+    expect(data.length).toBe(Math.round(4 * SR));
+    expect(data[Math.round(2.5 * SR)]).toBe(0);
+    expect(data[Math.round(3.5 * SR)]).toBeCloseTo(0.8, 5);
   });
 
   it('retourne un Blob de type audio/pcm-f32', async () => {
@@ -202,5 +204,131 @@ describe('MobileAudioProcessorService — quickMix', () => {
     const ch        = buf.getChannelData(0);
     const hasSignal = Array.from(ch).some(v => Math.abs(v) > 0.05);
     expect(hasSignal).toBe(true);
+  });
+});
+
+// ── Réglages "Boue" (coupe-bas) et "Présence" ─────────────────────────────────
+
+describe('MobileAudioProcessorService — réglages boue / présence', () => {
+
+  let svc: MobileAudioProcessorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [MobileAudioProcessorService, ...testProviders] });
+    svc = TestBed.inject(MobileAudioProcessorService);
+  });
+
+  function sineBlob(hz: number, sec = 1, amp = 0.05): Blob {
+    const n = Math.round(sec * SR);
+    const s = new Float32Array(n);
+    for (let i = 0; i < n; i++) s[i] = amp * Math.sin(2 * Math.PI * hz * i / SR);
+    return new Blob([s.buffer], { type: 'audio/pcm-f32' });
+  }
+
+  /** RMS sur la seconde moitié (régime établi, hors attaque du gate/compresseurs). */
+  function rms(x: Float32Array): number {
+    const half = x.subarray(Math.floor(x.length / 2));
+    let acc = 0;
+    for (const v of half) acc += v * v;
+    return Math.sqrt(acc / half.length);
+  }
+
+  const base = { volume: 1, useAutotune: false, reverbWet: 0, clarityDb: 0, lowCutHz: 150, presenceDb: 3.5 };
+
+  it('boue 220 Hz retire nettement plus de grave (100 Hz) que 80 Hz', async () => {
+    const blob = sineBlob(100);
+    const at80  = await svc.processVocalTrack({ blob, settings: { ...base, lowCutHz: 80 },  trackKey: '' });
+    const at220 = await svc.processVocalTrack({ blob, settings: { ...base, lowCutHz: 220 }, trackKey: '' });
+    expect(rms(at220)).toBeLessThan(rms(at80) * 0.5);
+  });
+
+  it('présence "Devant" (6 dB) fait ressortir 2,5 kHz par rapport à "Douce" (0 dB)', async () => {
+    const blob = sineBlob(2_500);
+    const soft  = await svc.processVocalTrack({ blob, settings: { ...base, presenceDb: 0 }, trackKey: '' });
+    const front = await svc.processVocalTrack({ blob, settings: { ...base, presenceDb: 6 }, trackKey: '' });
+    expect(rms(front)).toBeGreaterThan(rms(soft) * 1.2);
+  });
+});
+
+// ── Chaîne vocale : calage temporel et écoute en direct ───────────────────────
+
+describe('MobileAudioProcessorService — calage et chaîne temps réel', () => {
+
+  let svc: MobileAudioProcessorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [MobileAudioProcessorService, ...testProviders] });
+    svc = TestBed.inject(MobileAudioProcessorService);
+  });
+
+  const settings = { volume: 1, useAutotune: false, reverbWet: 0, clarityDb: 0, lowCutHz: 80, presenceDb: 0 };
+
+  /** Silence puis salve de 1 kHz démarrant exactement à `atSec`. */
+  function burstBlob(atSec: number, sec = 1.5): Blob {
+    const s = new Float32Array(Math.round(sec * SR));
+    for (let i = Math.round(atSec * SR); i < s.length; i++) s[i] = 0.3 * Math.sin(2 * Math.PI * 1000 * i / SR);
+    return new Blob([s.buffer], { type: 'audio/pcm-f32' });
+  }
+
+  function onset(x: Float32Array, threshold = 0.02): number {
+    for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > threshold) return i;
+    return -1;
+  }
+
+  it('la voix traitée reste calée sur la voix brute (retard des compresseurs retiré)', async () => {
+    const out = await svc.processVocalTrack({ blob: burstBlob(0.5), settings, trackKey: '' });
+    expect(out.length).toBe(Math.round(1.5 * SR));               // durée inchangée
+    const lateMs = (onset(out) - 0.5 * SR) / SR * 1000;
+    expect(Math.abs(lateMs)).toBeLessThan(3);
+  });
+
+  it('retard de la chaîne : mesuré pour la qualité fidèle, nul pour la légère', async () => {
+    const full = await svc.vocalChainLatencySec('full');
+    expect(full).toBeGreaterThanOrEqual(0);
+    expect(full).toBeLessThan(0.1);
+    expect(await svc.vocalChainLatencySec('light')).toBe(0);
+  });
+
+  it('chaîne temps réel : réglages audibles dans les deux qualités, modifiables à la volée', async () => {
+    for (const quality of ['light', 'full'] as const) {
+      const render = async (lowCutHz: number, live: boolean) => {
+        const n   = SR;
+        const ctx = new OfflineAudioContext(1, n, SR);
+        const buf = ctx.createBuffer(1, n, SR);
+        const d   = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = 0.05 * Math.sin(2 * Math.PI * 100 * i / SR);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        // `live` : la chaîne démarre à 80 Hz puis reçoit le réglage pendant le rendu.
+        const chain = svc.createLiveVoiceChain(ctx, { ...settings, lowCutHz: live ? 80 : lowCutHz }, quality);
+        src.connect(chain.input);
+        chain.dry.connect(ctx.destination);
+        chain.wet.connect(ctx.destination);
+        if (live) chain.update({ ...settings, lowCutHz });
+        src.start(0);
+        const out  = (await ctx.startRendering()).getChannelData(0).subarray(n / 2);
+        let acc = 0;
+        for (const v of out) acc += v * v;
+        return Math.sqrt(acc / out.length);
+      };
+      const at80 = await render(80, false);
+      expect(await render(220, false)).toBeLessThan(at80 * 0.5);   // réglage initial entendu
+      expect(await render(220, true)).toBeLessThan(at80 * 0.5);    // réglage changé en cours de lecture
+    }
+  });
+
+  it('réverb partagée : convolver prêt au sample rate du contexte', async () => {
+    const ctx  = new OfflineAudioContext(1, 4410, 44_100);
+    const conv = await svc.createLiveReverb(ctx);
+    expect(conv.buffer!.sampleRate).toBe(44_100);
+    expect(conv.normalize).toBe(false);
+  });
+
+  it('autotuneOnly : voix brute sans effets (aucune réverb ni compression ajoutée)', async () => {
+    const blob = burstBlob(0.2, 1);
+    const out  = await svc.autotuneOnly(blob, '');
+    const raw  = new Float32Array(await blob.arrayBuffer());
+    expect(out.length).toBe(raw.length);
+    expect(out[Math.round(0.6 * SR)]).toBeCloseTo(raw[Math.round(0.6 * SR)], 5);
   });
 });

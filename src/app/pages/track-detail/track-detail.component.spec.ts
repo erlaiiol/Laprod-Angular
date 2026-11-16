@@ -20,6 +20,7 @@ import { vi } from 'vitest';
 import { TrackDetailComponent } from './track-detail.component';
 import { TrackService } from '../../services/track.service';
 import { AuthService } from '../../services/auth.service';
+import { PlayerService } from '../../services/player.service';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ const OWNED_MP3 = {
 describe('TrackDetailComponent — licences et confirmation', () => {
 
   let component: TrackDetailComponent;
+  let fixture:   import('@angular/core/testing').ComponentFixture<TrackDetailComponent>;
   let router: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
@@ -109,8 +111,8 @@ describe('TrackDetailComponent — licences et confirmation', () => {
     // du composant devient asynchrone.
     await TestBed.compileComponents();
 
-    const fixture = TestBed.createComponent(TrackDetailComponent);
-    component     = fixture.componentInstance;
+    fixture   = TestBed.createComponent(TrackDetailComponent);
+    component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
@@ -193,4 +195,32 @@ describe('TrackDetailComponent — licences et confirmation', () => {
 
   });
 
+
+  // ── Bouton REC du player → studio ─────────────────────────────────────────
+
+  describe('recRequested (bouton « Enregistre ta topline » du player)', () => {
+
+    it('ouvre le recorder à chaque demande', () => {
+      const player = TestBed.inject(PlayerService);
+      player.recRequested.update(n => n + 1);
+      fixture.detectChanges();
+      expect(component.showRecorder()).toBe(true);
+    });
+
+    it('une demande déjà traitée ne rouvre pas le recorder quand track() change', () => {
+      const player = TestBed.inject(PlayerService);
+      player.recRequested.update(n => n + 1);
+      fixture.detectChanges();
+      component.showRecorder.set(false);   // studio fermé
+
+      // ex. rafraîchissement des toplines après publication
+      component.track.set({ ...component.track()!, toplines: [] });
+      fixture.detectChanges();
+      expect(component.showRecorder()).toBe(false);
+
+      player.recRequested.update(n => n + 1);
+      fixture.detectChanges();
+      expect(component.showRecorder()).toBe(true);
+    });
+  });
 });

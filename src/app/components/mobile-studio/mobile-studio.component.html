@@ -111,17 +111,6 @@
           (ok)="goToPremium()"/>
       }
 
-      <!-- ── Feedback BT play-ahead ──────────────────────────────────────── -->
-      @if (btPreparing()) {
-        <div class="ms-bt-preparing" aria-live="polite">
-          <span class="ms-bt-preparing__dot"></span>
-          <span>Synchronisation Bluetooth</span>
-          @if (btCountdown() > 0) {
-            <span class="ms-bt-countdown">{{ btCountdown() }}s</span>
-          }
-        </div>
-      }
-
       <!-- ════════════════════════════════════════════════════════════════
            WARM-UP — monitoring sans enregistrement
       ═══════════════════════════════════════════════════════════════════ -->
@@ -132,7 +121,7 @@
           [levelPct]="levelPct()"
           [detectedNote]="detectedNote()"
           [correctionCents]="correctionCents()"
-          [monitorAutotune]="monitorAutotune()"
+          [monitorAutotune]="monitorVoice() && monitorAutotune()"
           [trackKey]="track.key"
           (micGainChange)="micGain.set($event)"
           (stop)="stopWarmup()"/>
@@ -160,7 +149,7 @@
           <span class="ms-countdown-number">{{ countdown() }}</span>
           <p class="ms-countdown-hint">
             <i class="bi bi-music-note-beamed"></i>
-            Beat en cours · Commencez à chanter au signal
+            Le beat et l'enregistrement démarrent ensemble à la fin du décompte
           </p>
         </div>
       }
@@ -294,90 +283,180 @@
       }
 
       <!-- ════════════════════════════════════════════════════════════════
-           IDLE — mini DAW studio
+           IDLE — studio : transport · timeline multipiste · inspecteur · barre d'outils
       ═══════════════════════════════════════════════════════════════════ -->
       @if (studioState() === 'idle') {
         <div class="daw-studio">
 
-          <!-- Barre d'état de la chanson -->
-          <app-daw-status-bar
-            [hasTrack]="hasTrack()" [trackCount]="filledTrackCount()"
-            [hasExtendedBeat]="!!service.extendedBeatBlob()" [isPlayingPreview]="isPlayingPreview()"
-            (togglePreview)="isPlayingPreview() ? stopPreview() : previewMix()">
-          </app-daw-status-bar>
+          <!-- ── Transport ─────────────────────────────────────────────── -->
+          <div class="daw-transport">
+            <button class="daw-tp-start" (click)="playMixFromStart()"
+                    aria-label="Lire tout le mix depuis le début">
+              <i class="bi bi-skip-start-fill"></i>
+              <span>Début</span>
+            </button>
+            <button class="daw-tp-play"
+                    [class.daw-tp-play--on]="isPlayingPreview()"
+                    (click)="toggleMixPlayback()"
+                    [attr.aria-label]="isPlayingPreview() ? 'Mettre le mix en pause' : 'Lire le mix à la position de la tête de lecture'">
+              @if (transportLoading() && !isPlayingPreview()) {
+                <span class="daw-tp-spinner" aria-hidden="true"></span>
+              } @else {
+                <i class="bi" [class.bi-pause-fill]="isPlayingPreview()" [class.bi-play-fill]="!isPlayingPreview()"></i>
+              }
+            </button>
+            <div class="daw-tp-time" aria-live="off">
+              <strong>{{ fmtBeatTime(beatCurrentTime()) }}</strong>
+              <span>/ {{ fmtBeatTime(beatDuration()) }}</span>
+            </div>
+            <div class="daw-tp-zoom">
+              <button (click)="zoomOut()" [disabled]="!canZoomOut()" aria-label="Dézoomer la timeline">
+                <i class="bi bi-zoom-out"></i>
+              </button>
+              <button (click)="zoomIn()" [disabled]="!canZoomIn()" aria-label="Zoomer la timeline">
+                <i class="bi bi-zoom-in"></i>
+              </button>
+            </div>
+          </div>
 
-          <!-- ── Piste instrumentale ──────────────────────────────────── -->
-          <div class="daw-section">
-            <p class="daw-section-label">
-              <i class="bi bi-music-note-beamed"></i>
-              Instrumental
-            </p>
+          <!-- Permission micro -->
+          @if (permState() === 'prompt') {
+            <div class="ms-perm-banner ms-perm-banner--prompt daw-perm-banner">
+              <i class="bi bi-mic"></i>
+              <span>L'accès au micro est requis pour enregistrer</span>
+              <button class="ms-perm-banner__btn" (click)="requestMicPermission()">Autoriser</button>
+            </div>
+          }
+          @if (permState() === 'denied') {
+            <div class="ms-perm-banner ms-perm-banner--denied daw-perm-banner">
+              <i class="bi bi-mic-mute-fill"></i>
+              <span>Micro bloqué — activez-le dans Réglages › LaProd</span>
+            </div>
+          }
 
-            <div class="daw-beat-lane"
-                 [class.daw-beat-lane--selected]="selectedLane() === 'beat'"
-                 (click)="selectLane('beat')">
+          <!-- ── Timeline multipiste ───────────────────────────────────── -->
+          <div class="daw-tl">
 
-              <div class="daw-beat-lane-info">
-                <div class="daw-track-label">
-                  <span class="daw-track-label-name">{{ track.title }}</span>
+            <!-- En-têtes de pistes (fixes) : toucher = ouvrir les réglages -->
+            <div class="daw-tl-heads">
+              <div class="daw-tl-corner">
+                <i class="bi bi-hand-index-thumb"></i>
+              </div>
+              <button class="daw-tl-head daw-tl-head--beat"
+                      [class.daw-tl-head--selected]="selectedLane() === 'beat'"
+                      (click)="selectLane('beat')"
+                      aria-label="Réglages de l'instrumentale">
+                <i class="bi bi-music-note-beamed"></i>
+                <span>Instru</span>
+              </button>
+              @for (t of tracks(); track t.id) {
+                <button class="daw-tl-head"
+                        [style.--lane-color]="t.color"
+                        [class.daw-tl-head--selected]="selectedLane() === t.id"
+                        (click)="selectLane(t.id)"
+                        [attr.aria-label]="'Réglages de ' + t.name">
+                  <i class="bi bi-mic-fill"></i>
+                  <span>{{ t.name }}</span>
+                </button>
+              }
+            </div>
+
+            <!-- Zone défilante : règle, pistes, tête de lecture -->
+            <div class="daw-tl-scroll" #tlScroll
+                 (pointerdown)="onTimelineTouch()" (pointerup)="onTimelineTouch()"
+                 (pointercancel)="onTimelineTouch()">
+              <div class="daw-tl-content" #tlContent [style.width.px]="timelineWidth()">
+
+                <!-- Règle : glisser pour déplacer la tête de lecture -->
+                <div class="daw-tl-ruler"
+                     (pointerdown)="onScrubStart($event)" (pointermove)="onScrubMove($event)"
+                     (pointerup)="onScrubEnd($event)" (pointercancel)="onScrubEnd($event)"
+                     role="slider" aria-label="Position de lecture"
+                     [attr.aria-valuemin]="0" [attr.aria-valuemax]="beatDuration()"
+                     [attr.aria-valuenow]="beatCurrentTime()">
+                  @for (m of rulerMarks(); track m.x) {
+                    <span class="daw-tl-mark" [style.left.px]="m.x">{{ m.label }}</span>
+                  }
+                </div>
+
+                <!-- Piste instrumentale -->
+                <div class="daw-tl-lane daw-tl-lane--beat"
+                     [class.daw-tl-lane--selected]="selectedLane() === 'beat'"
+                     (click)="onLaneTap($event, 'beat')">
+                  <div class="daw-tl-clip daw-tl-clip--beat">
+                    <canvas #beatWaveCanvas class="daw-tl-beat-canvas"
+                            [class.daw-tl-beat-canvas--ready]="beatWaveReady()"
+                            aria-hidden="true"></canvas>
+                    @if (!beatWaveReady()) {
+                      <div class="daw-beat-wf-shimmer" aria-hidden="true"></div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Pistes vocales : chaque clip est posé là où il a été enregistré -->
+                @for (t of tracks(); track t.id) {
+                  <div class="daw-tl-lane"
+                       [style.--lane-color]="t.color"
+                       [class.daw-tl-lane--selected]="selectedLane() === t.id"
+                       (click)="onLaneTap($event, t.id)">
+                    @if (t.rawBlob) {
+                      <div class="daw-tl-clip"
+                           [style.left.px]="t.beatStartSec * pxPerSec()"
+                           [style.width.px]="t.duration * pxPerSec()">
+                        <app-daw-waveform [points]="t.waveform" [color]="t.color"/>
+                      </div>
+                    }
+                    @if (t.trackState !== 'recorded') {
+                      <span class="daw-tl-lane-note">
+                        @switch (t.trackState) {
+                          @case ('recording')  { Enregistrement… }
+                          @case ('processing') { Correction de hauteur… }
+                          @default             { Piste vide — touchez « Enregistrer » }
+                        }
+                      </span>
+                    }
+                  </div>
+                }
+
+                <!-- Tête de lecture : traverse toutes les pistes, poignée à glisser -->
+                <div class="daw-tl-playhead" [style.transform]="'translateX(' + playheadX() + 'px)'">
+                  <span class="daw-tl-playhead-grip"
+                        (pointerdown)="onScrubStart($event)" (pointermove)="onScrubMove($event)"
+                        (pointerup)="onScrubEnd($event)" (pointercancel)="onScrubEnd($event)"
+                        aria-hidden="true"></span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Inspecteur : réglages de la piste sélectionnée ─────────── -->
+          <div class="daw-inspector">
+            @if (selectedLane() === 'beat') {
+              <div class="daw-insp-card daw-insp-card--beat">
+                <div class="daw-insp-head">
+                  <span class="daw-insp-dot"></span>
+                  <span class="daw-insp-title">{{ track.title }}</span>
                   @if (service.extendedBeatBlob()) {
                     <span class="daw-track-pill daw-track-pill--green">
                       <i class="bi bi-check-circle-fill"></i> étendu
                     </span>
                   }
-                </div>
-                <div class="daw-beat-lane-btns" (click)="$event.stopPropagation()">
-                  <button class="daw-icon-btn"
-                          [class.daw-icon-btn--active]="beatIsPlaying()"
-                          (click)="toggleBeatPreview()"
-                          [attr.aria-label]="beatIsPlaying() ? 'Pause' : 'Écouter le beat'">
-                    <i class="bi" [class.bi-pause-fill]="beatIsPlaying()" [class.bi-play-fill]="!beatIsPlaying()"></i>
+                  <button class="daw-insp-close" (click)="selectLane('beat')" aria-label="Fermer les réglages de l'instrumentale">
+                    <i class="bi bi-x-lg"></i>
                   </button>
                 </div>
-              </div>
-
-              <!-- Waveform réelle du beat (dessinée après décodage du blob) -->
-              <div class="daw-beat-wf-wrap">
-                <canvas #beatWaveCanvas class="daw-beat-waveform"
-                        [class.daw-beat-waveform--ready]="beatWaveReady()"
-                        [class.daw-beat-waveform--seekable]="beatWaveReady()"
-                        (click)="onBeatWaveformClick($event)"
-                        aria-hidden="true"></canvas>
-                @if (!beatWaveReady()) {
-                  <div class="daw-beat-wf-shimmer" aria-hidden="true"></div>
-                }
-                <!-- Temps écoulé / total (incrusté sur la waveform) -->
-                @if (beatWaveReady()) {
-                  <div class="daw-beat-wf-time">
-                    <span>{{ fmtBeatTime(beatCurrentTime()) }}</span>
-                    @if (beatDuration() > 0) {
-                      <span class="daw-beat-wf-time-sep"> / {{ fmtBeatTime(beatDuration()) }}</span>
-                    }
-                  </div>
-                }
-              </div>
-
-              @if (beatIsPlaying()) {
-                <div class="daw-beat-vol-row" (click)="$event.stopPropagation()">
-                  <i class="bi"
-                     [class.bi-volume-off-fill]="beatVolume() === 0"
-                     [class.bi-volume-up-fill]="beatVolume() > 0"></i>
+                <div class="daw-insp-row">
+                  <span class="daw-insp-label"><i class="bi bi-volume-up-fill"></i> Volume</span>
                   <input type="range" class="ms-beat-vol-slider"
                          min="0" max="1" step="0.05"
                          [value]="beatVolume()"
                          (input)="onBeatVolumeInput($event)"
-                         aria-label="Volume du beat">
+                         aria-label="Volume de l'instrumentale">
                   <span class="ms-beat-vol-label">{{ (beatVolume() * 100 | number:'1.0-0') }}%</span>
                 </div>
-              }
-
-              <!-- Panneau d'extension contextuel -->
-              @if (selectedLane() === 'beat') {
-                <div class="daw-extend-panel" (click)="$event.stopPropagation()">
-                  <span class="daw-extend-panel-hint">
-                    <i class="bi bi-hand-index-fill"></i>
-                    Rallonger l'instrumentale
-                  </span>
+                <div class="daw-insp-row daw-insp-row--last">
+                  <span class="daw-insp-label"><i class="bi bi-arrows-expand-vertical"></i> Rallonger</span>
                   <div class="daw-extend-actions">
                     @if (canUndoExtend()) {
                       @if (undoConfirmPending()) {
@@ -405,94 +484,95 @@
                     </button>
                   </div>
                 </div>
-              }
-
-            </div>
-          </div>
-
-          <!-- Permission micro -->
-          @if (permState() === 'prompt') {
-            <div class="ms-perm-banner ms-perm-banner--prompt daw-perm-banner">
-              <i class="bi bi-mic"></i>
-              <span>L'accès au micro est requis pour enregistrer</span>
-              <button class="ms-perm-banner__btn" (click)="requestMicPermission()">Autoriser</button>
-            </div>
-          }
-          @if (permState() === 'denied') {
-            <div class="ms-perm-banner ms-perm-banner--denied daw-perm-banner">
-              <i class="bi bi-mic-mute-fill"></i>
-              <span>Micro bloqué — activez-le dans Réglages › LaProd</span>
-            </div>
-          }
-
-          <!-- ── Pistes vocales ────────────────────────────────────────── -->
-          <div class="daw-section daw-section--voices">
-            <p class="daw-section-label">
-              <i class="bi bi-mic-fill"></i>
-              Pistes vocales
-            </p>
-
-            <div class="daw-voices-list">
-              @for (t of tracks(); track t.id) {
-                <app-mobile-track-item
-                  [track]="t"
-                  [trackKey]="track.key"
-                  [playheadPct]="trackPlayheadPct(t)"
-                  (startRecord)="reRecord($event)"
-                  (punchIn)="openPunchIn($event)"
-                  (remove)="service.removeTrack($event)"
-                  (seekTo)="onVocalWaveformSeek(t, $event)"/>
-              }
-            </div>
-
-            @if (tracks().every(t => t.rawBlob !== null)) {
-              @if (canAdd()) {
-                <button class="daw-add-btn" (click)="addAndRecord()">
-                  <i class="bi bi-plus-circle-fill"></i>
-                  Enregistrer une 2ème voix
-                </button>
-              } @else {
-                <div class="ms-upgrade-nudge">
-                  <i class="bi bi-lock-fill"></i>
-                  <span>Limite de 2 pistes atteinte.
-                    <button class="ms-upgrade-link" (click)="showUpgradeSheet.set(true)">Passer à LaProd Pro</button> pour des pistes illimitées.
-                  </span>
-                </div>
-              }
+              </div>
+            } @else if (selectedTrack(); as st) {
+              <app-mobile-track-item
+                [track]="st"
+                [trackKey]="track.key"
+                [fxLocked]="!auth.isLoggedIn()"
+                (fxUnlock)="showFxGate.set(true)"
+                (startRecord)="reRecord($event)"
+                (punchIn)="openPunchIn($event)"
+                (remove)="service.removeTrack($event)"
+                (closed)="selectLane(st.id)"/>
+            } @else {
+              <div class="daw-insp-empty">
+                <p><i class="bi bi-hand-index-thumb"></i> Touchez une piste : le mix démarre à cet endroit et ses réglages s'ouvrent ici.</p>
+                <p><i class="bi bi-arrows-move"></i> Glissez la règle du haut pour déplacer la tête de lecture.</p>
+              </div>
             }
           </div>
 
-          <!-- ── Réglages micro & monitoring (collapsible) ──────────────── -->
-          <div class="daw-section daw-section--settings">
-            <button class="daw-settings-toggle" (click)="toggleMonitoring()">
-              <i class="bi bi-sliders"></i>
-              <span>Réglages micro & monitoring</span>
-              <i class="bi daw-chevron"
-                 [class.bi-chevron-up]="showMonitoring()"
-                 [class.bi-chevron-down]="!showMonitoring()"></i>
-            </button>
+          @if (draftSaved()) {
+            <div class="daw-local-saved" role="status">
+              <i class="bi bi-check-circle-fill"></i>
+              Enregistrement sauvegardé localement
+            </div>
+          }
 
-            @if (showMonitoring()) {
+          <!-- ── Barre d'outils ─────────────────────────────────────────── -->
+          <nav class="daw-toolbar" aria-label="Actions du studio">
+            <button class="daw-tool daw-tool--rec" (click)="onRecordPressed()">
+              <i class="bi bi-record-circle-fill"></i>
+              <span>{{ hasEmptyTrack() ? 'Enregistrer' : 'Nouvelle voix' }}</span>
+            </button>
+            <button class="daw-tool" [class.daw-tool--active]="showMonitoring()" (click)="toggleMonitoring()">
+              <i class="bi bi-sliders"></i>
+              <span>Micro &amp; monito</span>
+            </button>
+            <button class="daw-tool" [disabled]="!hasTrack()" (click)="onPublishPressed()">
+              <i class="bi bi-cloud-arrow-up-fill"></i>
+              <span>Publier</span>
+            </button>
+            <button class="daw-tool" [disabled]="!hasTrack()" (click)="exportLocal()">
+              <i class="bi bi-download"></i>
+              <span>Télécharger</span>
+            </button>
+          </nav>
+
+          <!-- ── Feuille : micro, monitoring, qualité d'écoute ─────────── -->
+          @if (showMonitoring()) {
+            <div class="daw-bsheet-backdrop" (click)="toggleMonitoring()"></div>
+            <div class="daw-bsheet" role="dialog" aria-label="Réglages micro et monitoring">
+              <div class="daw-bsheet-head">
+                <span><i class="bi bi-sliders"></i> Micro &amp; monitoring</span>
+                <button (click)="toggleMonitoring()" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
+              </div>
               <div class="daw-settings-body">
+
+                <!-- Fidélité de l'écoute : charge processeur ↔ proximité avec l'export -->
+                <div class="ms-speed-row">
+                  <span class="ms-speed-label">Qualité d'écoute</span>
+                  <div class="ms-speed-tabs">
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="previewQuality() === 'light'"
+                            (click)="setPreviewQuality('light')">Légère</button>
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="previewQuality() === 'full'"
+                            (click)="setPreviewQuality('full')">Fidèle</button>
+                  </div>
+                </div>
+                <p class="daw-quality-hint">
+                  @if (previewQuality() === 'full') {
+                    Fidèle : vous entendez la chaîne d'effets complète de l'export. Si le son craque sur votre téléphone, passez en « Légère ».
+                  } @else {
+                    Légère : volume, boue, présence, clarté et réverb s'entendent, sans la compression finale. L'export applique toujours la chaîne complète.
+                  }
+                </p>
 
                 @if (headphoneType() !== null) {
                   <div class="ms-headphone-row"
                        [class.ms-headphone-row--wired]="headphoneType() === 'wired'"
-                       [class.ms-headphone-row--bt]="headphoneType() === 'bluetooth'"
-                       [class.ms-headphone-row--bt-a2dp]="headphoneType() === 'bluetooth-a2dp'"
+                       [class.ms-headphone-row--bt]="isBluetoothHeadphone()"
                        [class.ms-headphone-row--none]="headphoneType() === 'none'">
                     <i class="bi"
                        [class.bi-headphones]="headphoneType() === 'wired' || headphoneType() === 'none'"
-                       [class.bi-bluetooth]="headphoneType() === 'bluetooth' || headphoneType() === 'bluetooth-a2dp'"></i>
+                       [class.bi-bluetooth]="isBluetoothHeadphone()"></i>
                     @switch (headphoneType()) {
                       @case ('wired')          { <span>Écouteurs filaires détectés</span> }
                       @case ('bluetooth')      { <span>Casque Bluetooth détecté</span> }
-                      @case ('bluetooth-a2dp') {
-                        <span>Casque Bluetooth — écoute directe indisponible
-                          <i class="bi bi-exclamation-triangle-fill ms-headphone-row__warn"></i>
-                        </span>
-                      }
-                      @default { <span>Branchez des écouteurs filaires pour vous entendre chanter et activer l'autotune</span> }
+                      @case ('bluetooth-a2dp') { <span>Casque Bluetooth détecté</span> }
+                      @default { <span>Branchez un casque (filaire ou Bluetooth) pour vous entendre chanter et activer l'autotune live</span> }
                     }
                   </div>
 
@@ -523,45 +603,76 @@
                   </button>
                 </div>
 
-                @if (headphoneType() === 'wired') {
+                @if (headphoneType() !== null && headphoneType() !== 'none') {
+                  <!-- Retour voix — au choix, filaire comme Bluetooth -->
                   <div class="ms-autotune-row">
                     <div class="ms-autotune-info">
-                      <span class="ms-autotune-label">Autotune live</span>
-                      <span class="ms-autotune-hint">Chantez juste, automatiquement</span>
+                      <span class="ms-autotune-label">M'entendre chanter</span>
+                      <span class="ms-autotune-hint">
+                        @if (isBluetoothHeadphone()) {
+                          Retour voix avec la latence du Bluetooth
+                        } @else {
+                          Retour voix dans le casque
+                        }
+                      </span>
                     </div>
                     <button class="ms-toggle"
-                            [class.ms-toggle--on]="monitorAutotune()"
-                            (click)="toggleMonitorAutotune()"
-                            [attr.aria-pressed]="monitorAutotune()"
-                            aria-label="Activer l'autotune live">
+                            [class.ms-toggle--on]="monitorVoice()"
+                            (click)="toggleMonitorVoice()"
+                            [attr.aria-pressed]="monitorVoice()"
+                            aria-label="M'entendre chanter dans le casque">
                       <span class="ms-toggle__thumb"></span>
                     </button>
                   </div>
 
-                  @if (monitorAutotune()) {
-                    @if (!track.key) {
-                      <p class="ms-autotune-nokey">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
-                      </p>
-                    }
-                    <div class="ms-speed-row">
-                      <span class="ms-speed-label">Effet</span>
-                      <div class="ms-speed-tabs">
-                        <button class="ms-speed-tab"
-                                [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
-                                (click)="retuneSpeed.set('natural')"
-                                title="Correction douce, voix naturelle">Doux</button>
-                        <button class="ms-speed-tab"
-                                [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
-                                (click)="retuneSpeed.set('precise')"
-                                title="Correction forte, juste mais audible">Fort</button>
-                        <button class="ms-speed-tab ms-speed-tab--robot"
-                                [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
-                                (click)="retuneSpeed.set('robot')"
-                                title="Effet maximal / voix robotique">Max</button>
+                  @if (monitorVoice() && monitoredTrack(); as mt) {
+                    <p class="ms-monitor-live" role="status">
+                      <span class="ms-monitor-live__dot"></span>
+                      Micro ouvert · vous entendez les réglages de « {{ mt.name }} »
+                      (boue, présence, clarté, réverb) — tout changement s'entend tout de suite
+                    </p>
+                  }
+
+                  @if (monitorVoice()) {
+                    <div class="ms-autotune-row">
+                      <div class="ms-autotune-info">
+                        <span class="ms-autotune-label">Autotune live</span>
+                        <span class="ms-autotune-hint">Chantez juste, automatiquement</span>
                       </div>
+                      <button class="ms-toggle"
+                              [class.ms-toggle--on]="monitorAutotune()"
+                              (click)="toggleMonitorAutotune()"
+                              [attr.aria-pressed]="monitorAutotune()"
+                              aria-label="Activer l'autotune live">
+                        <span class="ms-toggle__thumb"></span>
+                      </button>
                     </div>
+
+                    @if (monitorAutotune()) {
+                      @if (!track.key) {
+                        <p class="ms-autotune-nokey">
+                          <i class="bi bi-exclamation-triangle-fill"></i>
+                          Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
+                        </p>
+                      }
+                      <div class="ms-speed-row">
+                        <span class="ms-speed-label">Effet</span>
+                        <div class="ms-speed-tabs">
+                          <button class="ms-speed-tab"
+                                  [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
+                                  (click)="retuneSpeed.set('natural')"
+                                  title="Correction douce, voix naturelle">Doux</button>
+                          <button class="ms-speed-tab"
+                                  [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
+                                  (click)="retuneSpeed.set('precise')"
+                                  title="Correction forte, juste mais audible">Fort</button>
+                          <button class="ms-speed-tab ms-speed-tab--robot"
+                                  [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
+                                  (click)="retuneSpeed.set('robot')"
+                                  title="Effet maximal / voix robotique">Max</button>
+                        </div>
+                      </div>
+                    }
                   }
 
                   <button class="ms-warmup-btn" (click)="startWarmup()">
@@ -570,75 +681,52 @@
                   </button>
                 }
 
-                @if (headphoneType() === 'bluetooth') {
+                @if (isBluetoothHeadphone()) {
+                  <!-- Réglage de latence au métronome : recale la voix sur le beat -->
                   <div class="ms-bt-nudge">
                     <i class="bi bi-bluetooth"></i>
                     <div class="ms-bt-nudge__text">
-                      @if (monitorAutotune()) {
-                        <span>Monitoring Bluetooth actif</span>
-                        <small>Vous vous entendrez avec un léger délai ({{ calibration.latencyMs }} ms) — c'est normal, pas un bug. Pour un ressenti instantané, préférez un casque filaire.</small>
+                      @if (monitorVoice()) {
+                        <span>Retour voix Bluetooth actif</span>
+                        <small>Vous vous entendrez avec un léger délai ({{ calibration.latencyMs }} ms) — c'est normal avec le Bluetooth. Votre voix reste calée sur le beat dans la maquette.</small>
                       } @else if (calibration.hasCalibration()) {
-                        <span>Latence calibrée</span>
-                        <small>{{ calibration.latencyMs }} ms · Export synchronisé</small>
+                        <span>Latence réglée · {{ calibration.latencyMs }} ms</span>
+                        <small>Votre voix est recalée sur le beat</small>
                       } @else {
-                        <span>Latence non calibrée</span>
-                        <small>Calibrez pour synchroniser beat et vocal</small>
+                        <span>Réglage de latence</span>
+                        <small>Tapez en rythme avec le métronome pour caler parfaitement votre voix sur le beat</small>
                       }
                     </div>
                     <button class="ms-bt-nudge__btn" (click)="openCalibration()">
-                      {{ calibration.hasCalibration() ? 'Recalibrer' : 'Calibrer' }}
+                      {{ calibration.hasCalibration() ? 'Refaire' : 'Régler' }}
                     </button>
                   </div>
                 }
 
-                @if (headphoneType() === 'bluetooth-a2dp') {
-                  <div class="ms-bt-nudge ms-bt-nudge--a2dp">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <div class="ms-bt-nudge__text">
-                      <span>Monitoring indisponible</span>
-                      <small>Ce casque ne supporte pas l'écoute en direct. Utilisez des écouteurs filaires pour vous entendre chanter. L'enregistrement reste fonctionnel.</small>
-                    </div>
-                  </div>
-                }
-
               </div>
-            }
-          </div>
+            </div>
+          }
 
-          <!-- Description -->
-          <div class="daw-desc-row">
-            <input type="text" maxlength="200"
-                   [(ngModel)]="description"
-                   placeholder="Description de votre maquette (optionnel)"
-                   class="ms-desc-input">
-          </div>
-
-          <!-- Action principale -->
-          <div class="daw-cta-row">
-            @if (!hasTrack()) {
-              <button class="daw-btn-record-first" (click)="startFirstRecording()">
-                <i class="bi bi-record-circle-fill"></i>
-                Commencer à enregistrer
-              </button>
-            } @else {
-              <div class="daw-cta-actions">
-                <button class="daw-btn-export-main" (click)="exportAndPublish()">
+          <!-- ── Feuille : publication ──────────────────────────────────── -->
+          @if (showPublishSheet()) {
+            <div class="daw-bsheet-backdrop" (click)="showPublishSheet.set(false)"></div>
+            <div class="daw-bsheet" role="dialog" aria-label="Publier la maquette">
+              <div class="daw-bsheet-head">
+                <span><i class="bi bi-cloud-arrow-up-fill"></i> Publier sur LaProd</span>
+                <button (click)="showPublishSheet.set(false)" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
+              </div>
+              <div class="daw-settings-body">
+                <input type="text" maxlength="200"
+                       [(ngModel)]="description"
+                       placeholder="Description de votre maquette (optionnel)"
+                       class="ms-desc-input">
+                <button class="daw-btn-export-main" (click)="confirmPublish()">
                   <i class="bi bi-cloud-arrow-up-fill"></i>
                   Publier sur LaProd
                 </button>
-                <button class="daw-btn-save-local" (click)="exportLocal()">
-                  <i class="bi bi-download"></i>
-                  Télécharger sur mon téléphone
-                </button>
-                @if (draftSaved()) {
-                  <div class="daw-local-saved" role="status">
-                    <i class="bi bi-check-circle-fill"></i>
-                    Enregistrement sauvegardé localement
-                  </div>
-                }
               </div>
-            }
-          </div>
+            </div>
+          }
 
         </div>
       }
@@ -656,6 +744,20 @@
           (login)="goToLogin()"
           (downloadLocal)="showGuestGate.set(false); exportLocal()"
           (cancel)="showGuestGate.set(false)">
+        </app-daw-guest-gate-overlay>
+      }
+
+      <!-- ── Guest gate — compte requis pour régler les effets ─────────── -->
+      @if (showFxGate()) {
+        <app-daw-guest-gate-overlay
+          title="Compte requis pour les effets"
+          [body]="'Créez un compte gratuit pour régler les effets de votre voix : autotune, réverb, boue, présence et clarté. Le volume reste réglable sans compte.'
+                  + (hasTrack() ? ' Attention : vos prises ne sont pas conservées en quittant le studio — téléchargez-les d\'abord.' : '')"
+          [showDownload]="hasTrack()"
+          downloadLabel="Télécharger mes prises d'abord"
+          (login)="goToLogin()"
+          (downloadLocal)="showFxGate.set(false); exportLocal()"
+          (cancel)="showFxGate.set(false)">
         </app-daw-guest-gate-overlay>
       }
 

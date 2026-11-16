@@ -2,7 +2,6 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import {
   MobileAudioProcessorService,
   TrackSettings,
-  ProcessVocalTrackOptions,
   DEFAULT_TRACK_SETTINGS,
 } from './mobile-audio-processor.service';
 import { AuthService } from './auth.service';
@@ -15,13 +14,22 @@ export interface VocalTrack {
   id:           string;
   name:         string;
   rawBlob:      Blob | null;
-  processedBlob: Blob | null;  // autotune WSOLA — null jusqu'au 1er toggle ON
+  processedBlob: Blob | null;  // voix autotunée (sans effets) — null jusqu'au 1er toggle ON
   waveform:     number[];      // 120 points [0–1] pour le canvas
   duration:     number;        // secondes
-  beatStartSec: number;        // position du beat à laquelle l'enregistrement a démarré
+  /** Position du beat (s) où démarre la piste, latence casque déjà compensée :
+   *  la voix est rejouée/mixée exactement là où elle a été chantée. */
+  beatStartSec: number;
   settings:     TrackSettings;
   trackState:   'empty' | 'recording' | 'recorded' | 'processing';
+  /** Couleur de la piste dans la timeline (attribuée à la création, stable ensuite). */
+  color:        string;
 }
+
+/** Couleurs des pistes vocales — le rouge de la marque est réservé à l'instrumentale. */
+export const TRACK_COLORS: readonly string[] = [
+  '#4FC3F7', '#FFB74D', '#81C784', '#BA68C8', '#4DD0E1', '#F06292', '#FFD54F', '#9575CD',
+];
 
 const FREE_TRACK_LIMIT = 2;
 
@@ -33,6 +41,7 @@ interface UndoEntry {
   processedBlob: Blob | null;
   waveform:      number[];
   duration:      number;
+  beatStartSec:  number;
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -48,6 +57,8 @@ export class MobileMaquetteService {
   readonly exportPct        = signal(0);
   readonly exportStep       = signal('');
   readonly extendedBeatBlob = signal<Blob | null>(null);
+  /** Piste dont les réglages sont appliqués au retour casque (dernière dépliée/réglée). */
+  readonly focusedTrackId   = signal<string | null>(null);
 
   // Une seule entrée undo par piste — restaure la prise précédente après re-enregistrement
   private readonly _undoMap = new Map<string, UndoEntry>();
@@ -72,20 +83,47 @@ export class MobileMaquetteService {
       beatStartSec: 0,
       settings:     { ...DEFAULT_TRACK_SETTINGS },
       trackState:   'empty',
+      color:        this._nextColor(),
     };
     this.tracks.update(ts => [...ts, track]);
     return id;
   }
 
+  /** Première couleur de la palette non utilisée par une piste existante. */
+  private _nextColor(): string {
+    const used = new Set(this.tracks().map(t => t.color));
+    return TRACK_COLORS.find(c => !used.has(c)) ?? TRACK_COLORS[this.tracks().length % TRACK_COLORS.length];
+  }
+
   removeTrack(id: string): void {
     this.tracks.update(ts => ts.filter(t => t.id !== id));
+    if (this.focusedTrackId() === id) this.focusedTrackId.set(null);
   }
+
+  focusTrack(id: string): void { this.focusedTrackId.set(id); }
 
   setRecording(id: string): void {
     this._patchTrack(id, { trackState: 'recording' });
   }
 
-  setRecorded(id: string, rawBlob: Blob, waveform: number[], duration: number): void {
+  /**
+   * Prise avortée (erreur, arrêt immédiat) : une piste qui avait déjà une prise
+   * la garde ; une piste vide ajoutée pour l'occasion est retirée, sauf si c'est
+   * la seule (le studio garde toujours une piste prête à enregistrer).
+   */
+  cancelRecording(id: string): void {
+    const t = this.tracks().find(x => x.id === id);
+    if (!t) return;
+    if (t.rawBlob) {
+      this._patchTrack(id, { trackState: 'recorded' });
+    } else if (this.tracks().length > 1) {
+      this.removeTrack(id);
+    } else {
+      this._patchTrack(id, { trackState: 'empty' });
+    }
+  }
+
+  setRecorded(id: string, rawBlob: Blob, waveform: number[], duration: number, beatStartSec = 0): void {
     // Sauvegarde la prise actuelle avant d'écraser — permet un undo unique
     const existing = this.tracks().find(t => t.id === id);
     if (existing?.rawBlob) {
@@ -94,6 +132,7 @@ export class MobileMaquetteService {
         processedBlob: existing.processedBlob,
         waveform:      [...existing.waveform],
         duration:      existing.duration,
+        beatStartSec:  existing.beatStartSec,
       });
     }
     this._patchTrack(id, {
@@ -101,6 +140,7 @@ export class MobileMaquetteService {
       processedBlob: null,  // invalide le cache autotune après re-enregistrement
       waveform,
       duration,
+      beatStartSec,
       trackState: 'recorded',
     });
   }
@@ -123,6 +163,7 @@ export class MobileMaquetteService {
       processedBlob: prev.processedBlob,
       waveform:      prev.waveform,
       duration:      prev.duration,
+      beatStartSec:  prev.beatStartSec,
       trackState:    'recorded',
     });
     return true;
@@ -154,11 +195,10 @@ export class MobileMaquetteService {
 
     this._patchTrack(id, { trackState: 'processing' });
     try {
-      const processed = await this.processor.processVocalTrack({
-        blob:     track.rawBlob,
-        settings: { ...track.settings, useAutotune: true },
-        trackKey,
-      } satisfies ProcessVocalTrackOptions);
+      // Autotune sur la voix brute uniquement : les effets (EQ, compression, réverb)
+      // sont appliqués une seule fois, plus tard, à l'écoute et à l'export — ils
+      // restent donc réglables après coup et ne sont jamais appliqués deux fois.
+      const processed = await this.processor.autotuneOnly(track.rawBlob, trackKey);
 
       const processedBlob = new Blob([processed.buffer as ArrayBuffer], { type: 'audio/pcm-f32' });
       this._patchTrack(id, { processedBlob, trackState: 'recorded' });
@@ -194,7 +234,7 @@ export class MobileMaquetteService {
       }
 
       // 2. Traiter chaque piste (effets uniquement, l'autotune est déjà dans processedBlob ou non)
-      const processed: Array<{ samples: Float32Array; settings: TrackSettings }> = [];
+      const processed: Array<{ samples: Float32Array; settings: TrackSettings; startSec: number }> = [];
       const total = tracks.length;
 
       for (let i = 0; i < total; i++) {
@@ -223,7 +263,7 @@ export class MobileMaquetteService {
             this.exportPct.set(Math.round(base + (pct / 100) * slot));
           },
         });
-        processed.push({ samples, settings: t.settings });
+        processed.push({ samples, settings: t.settings, startSec: t.beatStartSec });
       }
 
       // 3. Mix + export MP3
@@ -260,6 +300,7 @@ export class MobileMaquetteService {
     this.exportPct.set(0);
     this.exportStep.set('');
     this.extendedBeatBlob.set(null);
+    this.focusedTrackId.set(null);
   }
 
   private _patchTrack(id: string, patch: Partial<VocalTrack>): void {
