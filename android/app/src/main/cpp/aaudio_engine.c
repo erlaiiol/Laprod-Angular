@@ -7,12 +7,13 @@
 // de négocier le chemin MMAP (3-10ms de latence, contre 10-30ms pour AudioTrack/AudioRecord
 // même en LOW_LATENCY — voir docs/roadmap.md, chantier latence, pour les sources).
 //
-// Toute la boucle chaude (capture → détection YIN → correction PSOLA → sortie) tourne
-// ENTIÈREMENT dans les callbacks natifs AAudio, sans aucune traversée JNI vers Kotlin — un
-// aller-retour JNI par bloc réintroduirait exactement la gigue/latence imprévisible qu'AAudio
-// est censé éliminer. Kotlin ne fait que : (a) démarrer/arrêter le moteur, (b) sonder
-// périodiquement (~20ms, hors du chemin chaud) le statut (niveau, hauteur détectée,
-// déconnexion) via aaudio_engine_poll_status, (c) appliquer la logique de correction
+// Toute la boucle chaude (capture → correction PSOLA → sortie) tourne ENTIÈREMENT dans les
+// callbacks natifs AAudio, sans aucune traversée JNI vers Kotlin — un aller-retour JNI par bloc
+// réintroduirait exactement la gigue/latence imprévisible qu'AAudio est censé éliminer. La
+// détection YIN, trop lourde pour un callback de 2–4 ms, n'y tourne PAS : elle est faite par
+// aaudio_engine_poll_status sur le thread Kotlin. Kotlin ne fait que : (a) démarrer/arrêter le
+// moteur, (b) sonder périodiquement (10–20 ms, hors du chemin chaud) le statut (niveau, hauteur
+// détectée, déconnexion) via aaudio_engine_poll_status, (c) appliquer la logique de correction
 // musicale existante (PitchCorrectionEngine.kt, smoothing) sur la hauteur détectée et
 // repousser le résultat via psola_set_pitch_cents (déjà thread-safe/atomic côté Rust).
 //
@@ -38,6 +39,7 @@
 
 #define YIN_FRAME_SIZE 2048u          // aligné sur YinPitchDetector.kt / YINDetector.swift
 #define MAX_CALLBACK_FRAMES 4096u     // borne défensive — AAudio ne garantit pas de max fixe
+#define PITCH_HIST_CAPACITY 4096u     // puissance de 2, ≥ YIN_FRAME_SIZE
 #define BRIDGE_RING_CAPACITY 16384u   // ~370ms @44.1kHz — large marge anti-xrun, pas la latence réelle
 #define RECORD_RING_CAPACITY 65536u   // ~1.5s @44.1kHz — marge si le polling Kotlin (~20ms) prend du retard
 
@@ -66,14 +68,23 @@ typedef struct Engine {
     SpscRing recordRing; // PCM brut → drainé périodiquement par Kotlin (enregistrement)
     float recordStorage[RECORD_RING_CAPACITY];
 
-    // Fenêtre glissante YIN — uniquement touchée par le callback d'entrée (thread unique).
-    float pitchRing[YIN_FRAME_SIZE];
-    uint64_t pitchWritePos;
+    // Historique micro pour la détection de hauteur : ÉCRIT par le callback d'entrée (copie
+    // seulement), LU par aaudio_engine_poll_status sur le thread Kotlin, qui y fait tourner YIN.
+    // YIN sur 2048 échantillons à CHAQUE callback (toutes les 2–4 ms) saturait le thread audio
+    // → callbacks en retard → craquements. Lecture sans verrou : une fenêtre copiée pendant une
+    // écriture peut contenir une discontinuité, sans conséquence pour estimer une fondamentale.
+    float pitchRing[PITCH_HIST_CAPACITY];
+    _Atomic uint64_t pitchWritePos;
+    uint64_t pitchLastDetectPos;      // thread Kotlin uniquement
+
+    // Thread de sortie uniquement — coussin anti-famine et réglage adaptatif du tampon.
+    bool    outPrimed;
+    int32_t outXRuns;
+    int32_t outBurst;
 
     // Statut exposé au polling Kotlin (aaudio_engine_poll_status) — jamais lu/écrit ailleurs
     // que via ces atomiques, aucun lock.
     _Atomic float statusLevel;
-    _Atomic float statusPitchHz;      // NAN = rien de neuf depuis le dernier poll
     _Atomic int32_t statusInterrupted; // 0/1, remis à 0 par aaudio_engine_poll_status
     _Atomic int64_t statusGeneration;
 
@@ -144,24 +155,11 @@ static aaudio_data_callback_result_t onInputData(AAudioStream *stream, void *use
     atomic_store_explicit(&e->statusLevel, sqrtf(sumSquares / (float) n), memory_order_relaxed);
     spsc_ring_write(&e->recordRing, in, n);
 
-    // Fenêtre glissante YIN (buffer circulaire, même pattern que
-    // AudioRecordingSession.appendToPitchRing côté Kotlin).
-    for (size_t i = 0; i < n; i++) {
-        e->pitchRing[e->pitchWritePos % YIN_FRAME_SIZE] = in[i];
-        e->pitchWritePos++;
-    }
-    if (e->pitchWritePos >= YIN_FRAME_SIZE) {
-        float frame[YIN_FRAME_SIZE];
-        size_t oldest = e->pitchWritePos % YIN_FRAME_SIZE;
-        for (size_t i = 0; i < YIN_FRAME_SIZE; i++) {
-            frame[i] = e->pitchRing[(oldest + i) % YIN_FRAME_SIZE];
-        }
-        float hz;
-        if (psola_yin_detect(frame, YIN_FRAME_SIZE, (float) e->sampleRate, &hz)) {
-            atomic_store_explicit(&e->statusPitchHz, hz, memory_order_relaxed);
-            atomic_fetch_add_explicit(&e->statusGeneration, 1, memory_order_relaxed);
-        }
-    }
+    // Historique pour la détection de hauteur — simple copie, YIN tourne hors du thread audio
+    // (voir aaudio_engine_poll_status).
+    uint64_t wp = atomic_load_explicit(&e->pitchWritePos, memory_order_relaxed);
+    for (size_t i = 0; i < n; i++) e->pitchRing[(wp + i) & (PITCH_HIST_CAPACITY - 1u)] = in[i];
+    atomic_store_explicit(&e->pitchWritePos, wp + n, memory_order_release);
 
     if (atomic_load_explicit(&e->useMonitor, memory_order_relaxed)) {
         float gain = atomic_load_explicit(&e->voiceGain, memory_order_relaxed);
@@ -196,10 +194,33 @@ static aaudio_data_callback_result_t onOutputData(AAudioStream *stream, void *us
     if (numFrames <= 0) return AAUDIO_CALLBACK_RESULT_CONTINUE;
     size_t n = (size_t) numFrames;
 
-    size_t got = spsc_ring_read(&e->bridgeRing, out, n);
-    // Silence si pas assez de données prêtes — préférable à un artefact de répétition
-    // (même philosophie que PsolaShifter::retrieve côté Rust).
-    for (size_t i = got; i < n; i++) out[i] = 0.0f;
+    // Réglage adaptatif (principe du LatencyTuner d'Oboe) : chaque sous-alimentation constatée
+    // par AAudio agrandit le tampon de sortie d'un burst, jusqu'à sa capacité. On part de la
+    // latence minimale et on ne paie que la marge dont CET appareil / CE casque a besoin
+    // (une sortie Bluetooth en demande beaucoup plus qu'un filaire).
+    if (e->shim.getXRunCount && e->shim.setBufferSizeInFrames && e->shim.getBufferSizeInFrames
+        && e->shim.getBufferCapacityInFrames) {
+        int32_t xr = e->shim.getXRunCount(stream);
+        if (xr > e->outXRuns) {
+            e->outXRuns = xr;
+            int32_t size = e->shim.getBufferSizeInFrames(stream);
+            int32_t cap  = e->shim.getBufferCapacityInFrames(stream);
+            int32_t step = e->outBurst > 0 ? e->outBurst : 192;
+            if (size + step <= cap) e->shim.setBufferSizeInFrames(stream, size + step);
+        }
+    }
+
+    // Coussin : combler un manque par du silence EN PLEIN signal produit un craquement. On ne
+    // (re)démarre la sortie qu'avec un callback d'avance en réserve ; une famine devient ainsi
+    // un court silence propre au lieu d'une rafale de clics.
+    size_t ready = spsc_ring_available(&e->bridgeRing);
+    if (!e->outPrimed && ready >= n * 2u) e->outPrimed = true;
+    if (e->outPrimed && ready < n)        e->outPrimed = false;
+    if (!e->outPrimed) {
+        memset(out, 0, n * sizeof(float));
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+    spsc_ring_read(&e->bridgeRing, out, n);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
 
@@ -231,7 +252,11 @@ static aaudio_result_t openStream(Engine *e, aaudio_direction_t direction,
     if (direction == AAUDIO_DIRECTION_INPUT) {
         e->shim.setInputPreset(builder, AAUDIO_INPUT_PRESET_VOICE_RECOGNITION);
     } else {
-        e->shim.setUsage(builder, AAUDIO_USAGE_VOICE_COMMUNICATION);
+        // MEDIA et non VOICE_COMMUNICATION : un flux "appel" est réglé par le volume d'appel,
+        // n'est pas éligible au chemin MMAP basse latence sur la plupart des appareils, et peut
+        // faire basculer un casque Bluetooth en profil appel (HFP/SCO, son dégradé) — le même
+        // piège que celui évité côté iOS (allowBluetoothA2DP sans HFP).
+        e->shim.setUsage(builder, AAUDIO_USAGE_MEDIA);
     }
     e->shim.setDataCallback(builder, dataCb, e);
     e->shim.setErrorCallback(builder, onError, e);
@@ -261,10 +286,10 @@ Engine *aaudio_engine_create(int32_t sampleRate, bool useMonitor, bool monitorAu
     atomic_init(&e->monitorAutotune, monitorAutotune);
     atomic_init(&e->voiceGain, voiceGain);
     atomic_init(&e->statusLevel, 0.0f);
-    atomic_init(&e->statusPitchHz, NAN);
     atomic_init(&e->statusInterrupted, 0);
     atomic_init(&e->statusGeneration, 0);
     atomic_init(&e->fxSeq, 0u);
+    atomic_init(&e->pitchWritePos, 0u);
     voiceFxIdentity(e->fxPending);
     voiceFxIdentity(e->fxActive);
 
@@ -316,6 +341,11 @@ Engine *aaudio_engine_create(int32_t sampleRate, bool useMonitor, bool monitorAu
             free(e);
             return NULL;
         }
+        // Départ du réglage adaptatif : 2 bursts (double tampon, valeur conseillée par AAudio).
+        e->outBurst = e->shim.getFramesPerBurst(e->outputStream);
+        if (e->outBurst > 0 && e->shim.setBufferSizeInFrames) {
+            e->shim.setBufferSizeInFrames(e->outputStream, e->outBurst * 2);
+        }
     }
 
     // Démarrer la SORTIE avant l'ENTRÉE : évite que le pont (bridgeRing) déborde silencieusement
@@ -353,7 +383,21 @@ void aaudio_engine_set_pitch_cents(Engine *e, float cents) {
 int32_t aaudio_engine_poll_status(Engine *e, float *out_level, float *out_pitch_hz) {
     if (!e) return 0;
     *out_level = atomic_load_explicit(&e->statusLevel, memory_order_relaxed);
-    *out_pitch_hz = atomic_exchange_explicit(&e->statusPitchHz, NAN, memory_order_relaxed);
+    *out_pitch_hz = NAN;
+
+    // Détection de hauteur sur la fenêtre la plus récente, ici (thread Kotlin) et non dans le
+    // callback audio. Rien de neuf depuis le dernier appel → NaN, comme avant.
+    uint64_t wp = atomic_load_explicit(&e->pitchWritePos, memory_order_acquire);
+    if (wp >= YIN_FRAME_SIZE && wp != e->pitchLastDetectPos) {
+        e->pitchLastDetectPos = wp;
+        float frame[YIN_FRAME_SIZE];
+        uint64_t start = wp - YIN_FRAME_SIZE;
+        for (size_t i = 0; i < YIN_FRAME_SIZE; i++) {
+            frame[i] = e->pitchRing[(start + i) & (PITCH_HIST_CAPACITY - 1u)];
+        }
+        float hz;
+        if (psola_yin_detect(frame, YIN_FRAME_SIZE, (float) e->sampleRate, &hz)) *out_pitch_hz = hz;
+    }
     return atomic_exchange_explicit(&e->statusInterrupted, 0, memory_order_relaxed);
 }
 

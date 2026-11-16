@@ -36,6 +36,10 @@ typedef aaudio_result_t (*fn_AAudioStream_close)(AAudioStream *stream);
 typedef int32_t (*fn_AAudioStream_getSampleRate)(AAudioStream *stream);
 typedef int32_t (*fn_AAudioStream_getFramesPerBurst)(AAudioStream *stream);
 typedef const char *(*fn_AAudio_convertResultToText)(aaudio_result_t result);
+typedef int32_t (*fn_AAudioStream_getXRunCount)(AAudioStream *stream);
+typedef aaudio_result_t (*fn_AAudioStream_setBufferSizeInFrames)(AAudioStream *stream, int32_t numFrames);
+typedef int32_t (*fn_AAudioStream_getBufferSizeInFrames)(AAudioStream *stream);
+typedef int32_t (*fn_AAudioStream_getBufferCapacityInFrames)(AAudioStream *stream);
 
 typedef struct {
     fn_AAudio_createStreamBuilder createStreamBuilder;
@@ -57,6 +61,12 @@ typedef struct {
     fn_AAudioStream_getSampleRate getSampleRate;
     fn_AAudioStream_getFramesPerBurst getFramesPerBurst;
     fn_AAudio_convertResultToText convertResultToText;
+    // Réglage adaptatif du tampon de sortie (anti-craquement) — OPTIONNELS : NULL si absents,
+    // le moteur fonctionne alors sans ajustement (jamais un motif de repli).
+    fn_AAudioStream_getXRunCount getXRunCount;
+    fn_AAudioStream_setBufferSizeInFrames setBufferSizeInFrames;
+    fn_AAudioStream_getBufferSizeInFrames getBufferSizeInFrames;
+    fn_AAudioStream_getBufferCapacityInFrames getBufferCapacityInFrames;
     void *handle; // dlopen handle, pour dlclose (jamais fermé en pratique : durée de vie du process)
 } AAudioShim;
 
@@ -94,6 +104,10 @@ static inline bool aaudio_shim_load(AAudioShim *shim) {
     LOAD(convertResultToText, "AAudio_convertResultToText");
 
 #undef LOAD
+    shim->getXRunCount              = (void *) dlsym(h, "AAudioStream_getXRunCount");
+    shim->setBufferSizeInFrames     = (void *) dlsym(h, "AAudioStream_setBufferSizeInFrames");
+    shim->getBufferSizeInFrames     = (void *) dlsym(h, "AAudioStream_getBufferSizeInFrames");
+    shim->getBufferCapacityInFrames = (void *) dlsym(h, "AAudioStream_getBufferCapacityInFrames");
     return true;
 }
 

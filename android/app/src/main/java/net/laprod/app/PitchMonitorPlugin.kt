@@ -231,7 +231,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     // natif gère capture+monitoring+correction en interne.
     private var aaudioEngine: PsolaAudioEngine? = null
     private val drainBuf = FloatArray(4096)
-    private val AAUDIO_POLL_INTERVAL_MS = 20L
+    // La détection de hauteur tourne dans ce sondage (hors du thread audio) : 10 ms avec
+    // l'autotune live pour que la correction suive la voix (comme iOS), 20 ms sinon.
+    private val AAUDIO_POLL_INTERVAL_MS = if (opts.monitorAutotune && opts.useMonitor) 10L else 20L
 
     private var smoothedSemitones = 0f
     private val MONITOR_CAP       = 2.5f
@@ -307,9 +309,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
 
     // ── Chemin rapide : moteur AAudio natif ───────────────────────────────────
     //
-    // Capture, détection YIN et correction PSOLA tournent entièrement côté natif
-    // (aaudio_engine.c) — cette coroutine ne fait que sonder le statut (~20ms, hors du chemin
-    // chaud), appliquer la correction musicale existante (PitchCorrectionEngine + smoothing,
+    // Capture et correction PSOLA tournent entièrement côté natif (aaudio_engine.c) ; la
+    // détection YIN tourne dans pollStatus(), donc sur CETTE coroutine (10–20 ms, hors du thread
+    // audio). La coroutine sonde aussi le statut, appliquer la correction musicale existante (PitchCorrectionEngine + smoothing,
     // inchangée) et drainer le PCM brut capturé pour l'enregistrement. Aucune reverb sur ce
     // chemin (voir docs/roadmap.md — limitation assumée, n'affecte que l'esthétique du
     // monitoring, jamais la latence ni la justesse).
@@ -376,8 +378,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            // MEDIA (pas VOICE_COMMUNICATION) : volume média, pas de bascule
+                            // d'un casque Bluetooth en profil appel — cf. aaudio_engine.c.
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build()
                     )
                     .setAudioFormat(
