@@ -49,6 +49,14 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>LaProd utilise votre microphone pour enregistrer des toplines vocales sur des beats.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LaProd utilise la caméra pour filmer des clips de tes maquettes (Mode Clip). La vidéo reste sur ton téléphone.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>LaProd enregistre tes clips dans ta photothèque quand tu le demandes.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram-stories</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

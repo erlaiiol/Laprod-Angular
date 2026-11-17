@@ -520,7 +520,29 @@
             (record)="onRecordPressed()"
             (settings)="toggleMonitoring()"
             (publish)="onPublishPressed()"
-            (download)="exportLocal()"/>
+            (download)="exportLocal()"
+            [showClip]="clipAvailable"
+            [clipDisabled]="beatDuration() <= 0"
+            [clipLocked]="clipLocked()"
+            (clip)="openClip()"/>
+
+          <!-- ── Bulle d'aide : Mode Clip réservé Premium ─────────────────── -->
+          @if (clipHint()) {
+            <div class="ms-clip-hint-backdrop" (click)="hideClipHint()"></div>
+            <div class="ms-clip-hint" role="status" aria-live="polite">
+              <i class="bi bi-camera-reels-fill ms-clip-hint__icon" aria-hidden="true"></i>
+              <p class="ms-clip-hint__text">
+                @if (auth.isLoggedIn()) {
+                  Le <strong>Mode Clip</strong> est réservé aux membres Premium : filme ta maquette et partage-la en vidéo.
+                } @else {
+                  Le <strong>Mode Clip</strong> est réservé aux membres Premium connectés.
+                }
+              </p>
+              <button type="button" class="ms-clip-hint__cta" (click)="onClipHintAction()">
+                {{ auth.isLoggedIn() ? 'Découvrir Premium' : 'Se connecter' }}
+              </button>
+            </div>
+          }
 
           <!-- ── Feuille : micro, monitoring, qualité d'écoute ─────────── -->
           @if (showMonitoring()) {
@@ -737,6 +759,11 @@
           (downloadLocal)="showGuestGate.set(false); exportLocal()"
           (cancel)="showGuestGate.set(false)">
         </app-daw-guest-gate-overlay>
+      }
+
+      <!-- ── Mode Clip — vidéo à partager (docs/roadmap.md § Chantier 4) ── -->
+      @if (studioState() === 'clip' && clipCtx()) {
+        <app-mobile-studio-clip [ctx]="clipCtx()!" (closed)="onClipClosed()"/>
       }
 
       <!-- ── Guest gate — compte requis pour régler les effets ─────────── -->

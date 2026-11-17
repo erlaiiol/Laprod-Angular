@@ -22,6 +22,7 @@ import { SoundTouch, SimpleFilter } from 'soundtouchjs';
 import { PitchDetector } from 'pitchy';
 import { Mp3Encoder } from '@breezystack/lamejs';
 import { environment } from '../../environments/environment';
+import { encodeWav16 } from '../utils/wav.utils';
 
 /**
  * Constructeur d'OfflineAudioContext, injecté plutôt que référencé en dur.
@@ -214,6 +215,17 @@ export interface MixAndExportOptions {
   /** Blob WAV du beat étendu — si fourni, il est décodé directement sans fetch. */
   beatBlob?:     Blob;
   onProgress?:   (step: string, pct: number) => void;
+  /**
+   * Mode Clip : ne rend que ce passage de la maquette (position 0 du résultat =
+   * segment.startSec). Sans segment : maquette entière, comportement historique.
+   */
+  segment?:      { startSec: number; endSec: number };
+  /** 'wav' pour le Mode Clip (pas de double encodage avec perte). Défaut 'mp3'. */
+  format?:       'mp3' | 'wav';
+  /** Secondes ajoutées après la fin, en fondu (carte de fin du clip). */
+  tailSec?:      number;
+  /** Mire de synchro (build debug) : clics courts à ces positions (s, relatives au résultat). */
+  clickMarksSec?: number[];
 }
 
 export interface QuickMixOptions {
@@ -371,15 +383,27 @@ export class MobileAudioProcessorService {
     // Durée du mix : minimum(toutes pistes vocales, beat, plafond topline) —
     // le beat n'est plus tronqué (fichier complet, cf. beatStreamUrl), donc ce
     // plafond explicite est désormais le seul verrou de durée côté client.
-    const vocalLen = vocals.length > 0
-      ? Math.max(...vocals.map(v => _startFrame(v.startSec) + v.samples.length))
-      : beatRaw.length;
-    const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
-    const totalFrames   = Math.min(vocalLen, beatRaw.length, hardCapFrames);
-    const isCapped      = vocalLen >= hardCapFrames || beatRaw.length >= hardCapFrames;
+    // Mode Clip (segment) : exactement la durée du passage choisi, voix ou pas
+    // (le plafond du clip, 45 s, est vérifié par l'appelant et par le natif).
+    const seg          = opts.segment;
+    const offsetFrames = seg ? Math.max(0, Math.round(seg.startSec * SR)) : 0;
+    let totalFrames: number;
+    let isCapped = false;
+    if (seg) {
+      totalFrames = Math.max(1, Math.min(Math.round((seg.endSec - seg.startSec) * SR), beatRaw.length - offsetFrames));
+    } else {
+      const vocalLen = vocals.length > 0
+        ? Math.max(...vocals.map(v => _startFrame(v.startSec) + v.samples.length))
+        : beatRaw.length;
+      const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
+      totalFrames = Math.min(vocalLen, beatRaw.length, hardCapFrames);
+      isCapped    = vocalLen >= hardCapFrames || beatRaw.length >= hardCapFrames;
+    }
+    const tailFrames = Math.max(0, Math.round((opts.tailSec ?? 0) * SR));
+    const renderFrames = totalFrames + tailFrames;
 
     prog('Mixage…', 30);
-    const ctx = new this.offlineCtx(2, totalFrames, SR);
+    const ctx = new this.offlineCtx(2, renderFrames, SR);
 
     // Bus de sortie commun — permet de fader l'ensemble (beat + voix +
     // watermark) d'un coup si la topline est tronquée au plafond ("topline complète").
@@ -391,22 +415,31 @@ export class MobileAudioProcessorService {
       masterGain.gain.setValueAtTime(1, fadeStart);
       masterGain.gain.linearRampToValueAtTime(0, totalFrames / SR);
     }
+    if (tailFrames > 0) {
+      // Carte de fin : le mix continue et s'éteint pendant la queue.
+      masterGain.gain.setValueAtTime(1, totalFrames / SR);
+      masterGain.gain.linearRampToValueAtTime(0, renderFrames / SR);
+    }
 
     // Beat
     const beatSrc = ctx.createBufferSource();
     beatSrc.buffer = beatRaw;
     const beatG = ctx.createGain(); beatG.gain.value = beatGain;
     beatSrc.connect(beatG).connect(masterGain);
-    beatSrc.start(0);
+    beatSrc.start(0, offsetFrames / SR);
 
     // Pistes vocales
-    // Chaque piste est posée à sa position d'enregistrement sur le beat (startSec).
+    // Chaque piste est posée à sa position d'enregistrement sur le beat (startSec),
+    // décalée du début du segment en Mode Clip (une voix entamée avant le segment
+    // est lue à partir du bon échantillon).
     for (const { samples, settings, startSec } of vocals) {
-      const at  = _startFrame(startSec);
-      const len = Math.min(samples.length, totalFrames - at);
+      let at   = _startFrame(startSec) - offsetFrames;
+      let from = 0;
+      if (at < 0) { from = -at; at = 0; }
+      const len = Math.min(samples.length - from, renderFrames - at);
       if (len <= 0) continue;
       const vBuf = ctx.createBuffer(1, len, SR);
-      vBuf.getChannelData(0).set(samples.subarray(0, len));
+      vBuf.getChannelData(0).set(samples.subarray(from, from + len));
       const vSrc = ctx.createBufferSource();
       vSrc.buffer = vBuf;
       const vGain = ctx.createGain(); vGain.gain.value = settings.volume;
@@ -421,7 +454,10 @@ export class MobileAudioProcessorService {
     // de positionnement que apply_dense_watermark() côté serveur (web).
     const wmLen          = watermarkBuf.length;
     const intervalFrames = WATERMARK_INTERVAL_S * SR;
-    for (let pos = intervalFrames; pos + wmLen <= totalFrames; pos += intervalFrames) {
+    // Mode Clip : un clip de moins de 20 s aurait sinon AUCUN watermark (beat extractible
+    // en enchaînant des clips de 15 s) — le premier tombe au plus tard à mi-segment.
+    const firstWm = seg ? Math.min(intervalFrames, Math.max(0, Math.floor((totalFrames - wmLen) / 2))) : intervalFrames;
+    for (let pos = firstWm; pos + wmLen <= totalFrames; pos += intervalFrames) {
       const wmSrc  = ctx.createBufferSource();
       wmSrc.buffer = watermarkBuf;
       const wmGain = ctx.createGain();
@@ -430,10 +466,32 @@ export class MobileAudioProcessorService {
       wmSrc.start(pos / SR);
     }
 
+    // Mire de synchro (debug) : clic de 10 ms à 2 kHz, net et facile à détecter.
+    if (opts.clickMarksSec?.length) {
+      const clickLen = Math.round(0.010 * SR);
+      const click = ctx.createBuffer(1, clickLen, SR);
+      const cd = click.getChannelData(0);
+      for (let i = 0; i < clickLen; i++) cd[i] = 0.9 * Math.sin(2 * Math.PI * 2000 * i / SR);
+      for (const t of opts.clickMarksSec) {
+        if (t < 0 || t * SR >= totalFrames) continue;
+        const c = ctx.createBufferSource();
+        c.buffer = click;
+        c.connect(masterGain);
+        c.start(t);
+      }
+    }
+
     const mixed = await ctx.startRendering();
 
     prog('Pic guard…', 80);
     const guarded = this._peakGuard(mixed);
+
+    if (opts.format === 'wav') {
+      prog('Terminé', 100);
+      const chans: Float32Array[] = [];
+      for (let c = 0; c < guarded.numberOfChannels; c++) chans.push(guarded.getChannelData(c));
+      return encodeWav16(chans, SR);
+    }
 
     prog('Encodage MP3…', 92);
     const mp3 = this._encodeToMp3(guarded);

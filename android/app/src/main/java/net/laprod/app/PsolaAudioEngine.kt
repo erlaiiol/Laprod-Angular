@@ -43,6 +43,12 @@ class PsolaAudioEngine private constructor(private val handle: Long) : AutoClose
      *  circulaire natif ne garde qu'~1.5s de marge (voir aaudio_engine.c). */
     fun drainRecorded(out: FloatArray): Int = nativeDrainRecorded(handle, out)
 
+    private val tsBuf = LongArray(2)
+
+    /** Mode Clip : (framePosition, instant CLOCK_MONOTONIC en ns) du micro, ou null. */
+    fun inputTimestamp(): Pair<Long, Long>? =
+        if (nativeGetInputTimestamp(handle, tsBuf) != 0) tsBuf[0] to tsBuf[1] else null
+
     override fun close() = nativeDestroy(handle)
 
     private external fun nativeSetPitchCents(handle: Long, cents: Float)
@@ -53,6 +59,7 @@ class PsolaAudioEngine private constructor(private val handle: Long) : AutoClose
     )
     private external fun nativeSetVoiceFx(handle: Long, coefficients: FloatArray)
     private external fun nativeDestroy(handle: Long)
+    private external fun nativeGetInputTimestamp(handle: Long, out: LongArray): Int
 
     companion object {
         init { System.loadLibrary("psola_processor") }

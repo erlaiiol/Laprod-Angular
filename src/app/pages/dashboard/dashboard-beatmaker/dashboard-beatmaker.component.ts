@@ -44,6 +44,8 @@ export interface TrackViewStat {
   track_id:    number;
   total_views:  number;
   unique_views: number | null;   // null si non-Premium (métrique réservée)
+  /** Clips vidéo (Mode Clip) faits sur ce beat — gratuit, comme le total de vues. */
+  clips?:       number;
 }
 
 type Tab = 'tracks' | 'sales' | 'playlists' | 'licenses' | 'marketing' | 'analytics';

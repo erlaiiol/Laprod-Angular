@@ -94,6 +94,17 @@
           horodatage) afin d'alimenter le moteur de recommandation musicale. Ces données ne
           permettent pas d'identifier l'Utilisateur en dehors de la Plateforme.
         </p>
+        <h3>2.6 Mode Clip (application mobile)</h3>
+        <p>
+          Le Mode Clip du studio de l'application utilise la caméra, et le cas échéant le micro,
+          pour filmer une vidéo de la maquette de l'Utilisateur. La vidéo est filmée, montée et
+          filigranée <strong>uniquement sur le téléphone</strong> : elle n'est jamais envoyée à
+          LaProd. Elle n'est enregistrée dans la galerie, ou partagée vers une autre application,
+          qu'à la demande de l'Utilisateur ; son utilisation ensuite relève de cette application.
+          LaProd conserve seulement un compteur (beat concerné, mode de tournage, durée, action
+          « enregistrée » ou « partagée » et, si le téléphone l'indique, l'application de
+          destination), qui alimente les statistiques du beatmaker et la mesure de l'audience.
+        </p>
       </section>
 
       <section id="p3">
@@ -207,6 +218,10 @@
               <tr>
                 <td>Événements d'écoute (recommandation)</td>
                 <td>12 mois glissants</td>
+              </tr>
+              <tr>
+                <td>Compteur du Mode Clip (aucune vidéo)</td>
+                <td>Durée de vie du compte (supprimé avec lui)</td>
               </tr>
               <tr>
                 <td>Tokens JWT révoqués (blocklist)</td>

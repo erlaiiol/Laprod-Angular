@@ -24,6 +24,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancelAndJoin
 import java.io.ByteArrayOutputStream
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ class PitchMonitorPlugin : Plugin() {
                     put("channels",   1)
                     put("format",     "int16")
                     put("partial",    true)
+                    result.firstSampleMonoNs?.let { put("firstSampleHostSec", it / 1e9) }
                 })
             }
         }
@@ -98,6 +101,7 @@ class PitchMonitorPlugin : Plugin() {
             put("sampleRate", result.sampleRate)
             put("channels",   1)
             put("format",     "int16")
+            result.firstSampleMonoNs?.let { put("firstSampleHostSec", it / 1e9) }
         })
     }
 
@@ -165,7 +169,12 @@ data class RecordingOptions(
 
 // ── SessionResult ─────────────────────────────────────────────────────────────
 
-data class SessionResult(val pcmBytes: ByteArray, val sampleRate: Int)
+data class SessionResult(
+    val pcmBytes: ByteArray,
+    val sampleRate: Int,
+    /** Mode Clip : instant CLOCK_MONOTONIC (ns) de capture du 1er échantillon, ou null. */
+    val firstSampleMonoNs: Long? = null,
+)
 
 // ── AudioRecordingSession ─────────────────────────────────────────────────────
 //
@@ -231,12 +240,24 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     // natif gère capture+monitoring+correction en interne.
     private var aaudioEngine: PsolaAudioEngine? = null
     private val drainBuf = FloatArray(4096)
+    private var blockCount = 0L
     // La détection de hauteur tourne dans ce sondage (hors du thread audio) : 10 ms avec
     // l'autotune live pour que la correction suive la voix (comme iOS), 20 ms sinon.
     private val AAUDIO_POLL_INTERVAL_MS = if (opts.monitorAutotune && opts.useMonitor) 10L else 20L
 
     private var smoothedSemitones = 0f
     private val MONITOR_CAP       = 2.5f
+
+    // Mode Clip : estimations successives de l'instant de capture de la frame 0 (médiane
+    // retenue à l'arrêt — la 1re mesure après démarrage est souvent imprécise).
+    private val frameZeroEstimates = mutableListOf<Long>()
+    private fun addFrameZero(ns: Long?) {
+        if (ns == null) return
+        synchronized(frameZeroEstimates) {
+            frameZeroEstimates.add(ns)
+            if (frameZeroEstimates.size > 50) frameZeroEstimates.removeAt(0)
+        }
+    }
 
     // Chaîne voix du retour casque (boue / présence / clarté / volume), cf. VoiceFx.kt.
     private val voiceFx = VoiceFx(SAMPLE_RATE).also { it.update(opts.fx) }
@@ -251,6 +272,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
     }
 
+    /** Repli si aucun horodatage matériel n'est disponible : instant de démarrage du micro
+     *  (moins précis, quelques dizaines de ms) — mieux que de perdre la prise du clip. */
+    private var startedMonoNs = 0L
+
     fun start() {
         pcmBuffer.reset()
         smoothedSemitones  = 0f
@@ -262,6 +287,7 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
             monitorAutotune = opts.monitorAutotune,
             voiceGain       = opts.voiceGain,
         )
+        startedMonoNs = System.nanoTime()
         if (engine != null) {
             aaudioEngine = engine
             engine.setVoiceFx(voiceFx.coefficients)
@@ -343,6 +369,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 }
 
                 drainInto(engine)
+                engine.inputTimestamp()?.let { (frame, timeNs) ->
+                    if (frame > SAMPLE_RATE / 20) addFrameZero(ClipSync.anchorNs(frame, timeNs, SAMPLE_RATE))
+                }
 
                 if (status.interrupted) {
                     onInterrupted?.invoke()
@@ -425,6 +454,7 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         val loop = AudioCaptureLoop(SAMPLE_RATE, bufferSize) { floats, bytes, byteCount ->
             // Enregistrer les octets bruts (audio non traité → serveur), sauf retour casque seul
             if (opts.record) pcmBuffer.write(bytes, 0, byteCount)
+            if (opts.record && (++blockCount % 8L) == 0L) addFrameZero(captureLoop?.frameZeroMonoNs())
             onLevel?.invoke(computeRms(floats))
 
             if (opts.useMonitor) {
@@ -491,7 +521,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         focusRequest = null
 
-        job?.cancel()
+        // Chemin rapide : attendre la fin de la coroutine de sondage AVANT de libérer le
+        // moteur natif (sinon pollStatus/drain/inputTimestamp sur un Engine libéré).
+        // Le repli (lecture AudioRecord bloquante) s'arrête via captureLoop.stop().
+        if (aaudioEngine != null) runBlocking { job?.cancelAndJoin() } else job?.cancel()
         captureLoop?.stop()
         psola?.close()
         psola = null
@@ -511,7 +544,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         aaudioEngine = null
 
-        return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE)
+        val firstNs = synchronized(frameZeroEstimates) { ClipSync.medianNs(frameZeroEstimates.toList()) }
+            ?: startedMonoNs.takeIf { it > 0 }
+        return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE, firstNs)
     }
 
     // ── Fenêtre glissante YIN (buffer circulaire) ─────────────────────────────

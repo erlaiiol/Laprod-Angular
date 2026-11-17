@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mire de synchro Clip</title>
+<!--
+  Mire de synchro du Mode Clip (docs/roadmap.md § 4.3) — à ouvrir sur un AUTRE
+  appareil (ordinateur, second téléphone), écran filmé par le Mode Clip.
+
+  Toutes les 2 s : éclair blanc + bip court, planifiés sur l'horloge audio
+  (AudioContext) et affichés au même instant compte tenu de la latence de sortie
+  annoncée par le navigateur. Mode Rec : poser l'appareil devant la caméra ET
+  près du micro → le clip contient l'éclair (image) et le bip (voix captée).
+  Puis : python3 scripts/clip_sync_check.py clip.mp4
+
+  Étalonner d'abord la mire elle-même : la filmer avec l'appareil photo natif
+  d'un téléphone et passer le fichier au même script (écart de référence).
+-->
+<style>
+  :root { --bg: #000; --fg: #fff; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+               font: 16px -apple-system, system-ui, sans-serif; }
+  #flash { position: fixed; inset: 0; background: var(--fg); opacity: 0; }
+  #ui { position: fixed; left: 16px; right: 16px; bottom: 16px; text-align: center; }
+  button { font: inherit; padding: 12px 20px; border-radius: 10px; border: 0; }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="ui">
+  <p id="info">Écran filmé, appareil près du micro. Volume au maximum.</p>
+  <button id="go" type="button">Démarrer la mire</button>
+</div>
+<script>
+  const INTERVAL = 2;      // s — identique à SYNC_MIRE_INTERVAL_SEC
+  const FLASH_MS = 100;
+  const flash = document.getElementById('flash');
+  const info = document.getElementById('info');
+  let ctx = null, next = 0;
+
+  function beep(at) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 2000;
+    g.gain.setValueAtTime(0.9, at);
+    g.gain.setValueAtTime(0, at + 0.01);
+    o.connect(g).connect(ctx.destination);
+    o.start(at); o.stop(at + 0.02);
+  }
+
+  function loop() {
+    // Instant de sortie réel du bip ≈ horloge audio + latence de sortie annoncée.
+    const outLat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
+    const audioNow = ctx.currentTime;
+    if (next - audioNow < 0.5) { beep(next); next += INTERVAL; }
+    const shown = next - INTERVAL + outLat;          // instant où le bip précédent est entendu
+    const d = audioNow - shown;
+    flash.style.opacity = d >= 0 && d < FLASH_MS / 1000 ? '1' : '0';
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('go').addEventListener('click', async () => {
+    ctx = new AudioContext({ latencyHint: 'interactive' });
+    await ctx.resume();
+    next = ctx.currentTime + 1;
+    info.textContent = `Mire en cours — latence de sortie annoncée ${Math.round(((ctx.outputLatency || 0) + (ctx.baseLatency || 0)) * 1000)} ms`;
+    document.getElementById('go').remove();
+    requestAnimationFrame(loop);
+  });
+</script>
+</body>
+</html>

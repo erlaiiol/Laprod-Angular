@@ -37,6 +37,8 @@ export interface PlanCapabilities {
    *  capacité et can_view_royalties sont gatées Premium+. */
   can_use_management_contract: boolean;
   can_view_royalties:          boolean;
+  /** Mode Clip du mobile studio — Premium+ (docs/roadmap.md § Chantier 4). */
+  can_make_clips?:             boolean;
 }
 
 interface LoginSuccess {
@@ -281,6 +283,7 @@ export class AuthService {
   readonly contractQuota        = computed(() => this.caps()?.contract_quota           ?? 0);
   readonly canUseManagementContract = computed(() => this.caps()?.can_use_management_contract ?? false);
   readonly canViewRoyalties         = computed(() => this.caps()?.can_view_royalties          ?? false);
+  readonly canMakeClips             = computed(() => this.caps()?.can_make_clips              ?? false);
 
   // Préférence locale pour les utilisateurs non connectés (pas persistée)
   private _localTagCategoryPref = signal<string | null>(null);

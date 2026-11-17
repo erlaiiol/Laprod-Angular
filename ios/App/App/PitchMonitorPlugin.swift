@@ -78,12 +78,14 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             let info = try sess.start()
             session = sess
-            call.resolve([
+            var payload: [String: Any] = [
                 "nativeBeat":      info.nativeBeat,
                 "startInMs":       info.startInMs,
                 "outputLatencyMs": info.outputLatencyMs,
                 "inputLatencyMs":  info.inputLatencyMs,
-            ])
+            ]
+            if let host = info.beatStartHostSec { payload["beatStartHostSec"] = host }
+            call.resolve(payload)
         } catch {
             call.reject("startSession failed: \(error.localizedDescription)")
         }
@@ -216,6 +218,8 @@ struct StartInfo {
     let startInMs:       Double
     let outputLatencyMs: Double
     let inputLatencyMs:  Double
+    /// Heure machine (s) du départ programmé du beat natif — ancre du Mode Clip.
+    let beatStartHostSec: Double?
 }
 
 // ── SessionResult ─────────────────────────────────────────────────────────────
@@ -472,7 +476,10 @@ final class AudioSession {
             nativeBeat:      beatPlayer != nil,
             startInMs:       beatPlayer != nil ? startDelaySec * 1000 : 0,
             outputLatencyMs: avSession.outputLatency * 1000,
-            inputLatencyMs:  avSession.inputLatency  * 1000
+            inputLatencyMs:  avSession.inputLatency  * 1000,
+            beatStartHostSec: beatPlayer != nil
+                ? AVAudioTime.seconds(forHostTime: lock.withLock { beatStartHost })
+                : nil
         )
     }
 

@@ -19,5 +19,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(PitchMonitorPlugin())
         bridge?.registerPluginInstance(StoreKitPurchasePlugin())
         bridge?.registerPluginInstance(WebAuthSessionPlugin())
+        bridge?.registerPluginInstance(ClipCameraPlugin())
     }
 }

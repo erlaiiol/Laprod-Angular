@@ -36,6 +36,18 @@ const FREE_TRACK_LIMIT = 2;
 let _idCounter = 0;
 function newId(): string { return `t${Date.now()}_${_idCounter++}`; }
 
+/** Options de rendu propres au Mode Clip (docs/roadmap.md § Chantier 4). */
+export interface ClipRenderOptions {
+  segment?:       { startSec: number; endSec: number };
+  format?:        'mp3' | 'wav';
+  tailSec?:       number;
+  clickMarksSec?: number[];
+  /** Backline du mode Rec : le beat seul est un rendu valide. */
+  allowEmpty?:    boolean;
+  /** Prises « clip seulement » (pas de piste libre) — cf. Passe 2. */
+  extraTakes?:    Array<{ rawBlob: Blob; settings: TrackSettings; beatStartSec: number }>;
+}
+
 interface UndoEntry {
   rawBlob:       Blob;
   processedBlob: Blob | null;
@@ -217,9 +229,10 @@ export class MobileMaquetteService {
     latencyHintMs: number;
     /** Beat pré-téléchargé localement — évite un fetch réseau lors de l'export. */
     beatBlob?:     Blob;
-  }): Promise<Blob> {
+  } & ClipRenderOptions): Promise<Blob> {
     const tracks = this.tracks().filter(t => t.rawBlob !== null);
-    if (tracks.length === 0) throw new Error('Aucune piste enregistrée');
+    const extras = opts.extraTakes ?? [];
+    if (tracks.length === 0 && extras.length === 0 && !opts.allowEmpty) throw new Error('Aucune piste enregistrée');
 
     this.isExporting.set(true);
     this.exportPct.set(0);
@@ -266,6 +279,21 @@ export class MobileMaquetteService {
         processed.push({ samples, settings: t.settings, startSec: t.beatStartSec });
       }
 
+      // Mode Clip : prise faite pendant la vidéo sans piste libre — même chaîne
+      // d'effets qu'une piste (réglages par défaut), jamais ajoutée à la maquette.
+      for (const extra of extras) {
+        const blob = extra.settings.useAutotune
+          ? new Blob([(await this.processor.autotuneOnly(extra.rawBlob, opts.trackKey)).buffer as ArrayBuffer], { type: 'audio/pcm-f32' })
+          : extra.rawBlob;
+        const samples = await this.processor.processVocalTrack({
+          blob,
+          settings:      { ...extra.settings, useAutotune: false },
+          trackKey:      opts.trackKey,
+          latencyHintMs: opts.latencyHintMs,
+        });
+        processed.push({ samples, settings: extra.settings, startSec: extra.beatStartSec });
+      }
+
       // 3. Mix + export MP3
       this.exportStep.set('Mixage final…');
       this.exportPct.set(75);
@@ -277,6 +305,10 @@ export class MobileMaquetteService {
         accessToken:   opts.accessToken,
         latencyHintMs: opts.latencyHintMs,
         beatBlob:      this.extendedBeatBlob() ?? opts.beatBlob ?? undefined,
+        segment:       opts.segment,
+        format:        opts.format,
+        tailSec:       opts.tailSec,
+        clickMarksSec: opts.clickMarksSec,
         onProgress:    (step, pct) => {
           this.exportStep.set(step);
           this.exportPct.set(75 + Math.round(pct * 0.25));

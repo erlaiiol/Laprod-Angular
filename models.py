@@ -274,6 +274,12 @@ class User(UserMixin, db.Model):
         return self.has_plan_at_least(plans.PREMIUM)
 
     @property
+    def can_make_clips(self):
+        """Mode Clip du mobile studio (vidéo filigranée à partager). Premium et +
+        (décision produit du 17/11/2026, docs/roadmap.md § Chantier 4)."""
+        return self.has_plan_at_least(plans.PREMIUM)
+
+    @property
     def can_view_royalties(self):
         """Cap-table / splits chiffrés par titre. Premium et +, même seuil que
         can_use_management_contract."""
@@ -1349,6 +1355,47 @@ class TrackView(db.Model):
 
     def __repr__(self):
         return f"<TrackView Track#{self.track_id} source={self.source}>"
+
+
+class SocialClipEvent(db.Model):
+    """Mode Clip (docs/roadmap.md § Chantier 4) : un clip vidéo enregistré dans la
+    galerie ou partagé depuis le mobile studio.
+
+    Aucune vidéo n'est envoyée au serveur (rendu 100 % sur l'appareil) : seul ce
+    comptage l'est. `clip_uid` (généré par l'app pour chaque clip monté) permet de
+    compter des CLIPS distincts même quand un clip est enregistré puis partagé.
+    """
+    __tablename__ = 'social_clip_event'
+
+    MODES   = ('playback', 'rec')
+    ACTIONS = ('saved', 'shared')
+    TARGETS = ('instagram', 'tiktok', 'youtube', 'whatsapp', 'sms', 'snapchat', 'share')
+    MAX_DURATION_S = 45   # plafond produit du clip (décision du 17/11/2026)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    track_id   = db.Column(db.Integer, db.ForeignKey('track.id', ondelete='CASCADE'), nullable=False)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    clip_uid   = db.Column(db.String(36), nullable=False)
+    mode       = db.Column(db.String(16), nullable=False)
+    action     = db.Column(db.String(16), nullable=False)
+    target     = db.Column(db.String(16), nullable=True)
+    duration_s = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # Cascades portées par les collections (R9) : jamais passive_deletes.
+    track = db.relationship('Track', backref=db.backref('clip_events', cascade='all, delete-orphan'))
+    user  = db.relationship('User',  backref=db.backref('clip_events', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        CheckConstraint("mode IN ('playback', 'rec')", name='ck_social_clip_mode'),
+        CheckConstraint("action IN ('saved', 'shared')", name='ck_social_clip_action'),
+        CheckConstraint('duration_s >= 0 AND duration_s <= 45', name='ck_social_clip_duration'),
+        db.Index('ix_social_clip_event_track', 'track_id'),
+        db.Index('ix_social_clip_event_user', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<SocialClipEvent Track#{self.track_id} {self.action}>"
 
 
 class EngineerView(db.Model):

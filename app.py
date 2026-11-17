@@ -521,6 +521,7 @@ def create_app(test_config=None):
     from routes.streaming_service import streaming_bp
     from routes.og_preview import og_preview_bp
     from routes.apple_iap_api import apple_iap_api_bp
+    from routes.clips_api import clips_api_bp
 
     app.register_blueprint(premium_api_bp)
     app.register_blueprint(tracks_api_bp)
@@ -560,6 +561,7 @@ def create_app(test_config=None):
     app.register_blueprint(structure_api_bp)
     app.register_blueprint(push_api_bp)
     app.register_blueprint(apple_iap_api_bp)
+    app.register_blueprint(clips_api_bp)
 
     if is_main_process:
         app.logger.info("Blueprints enregistres")

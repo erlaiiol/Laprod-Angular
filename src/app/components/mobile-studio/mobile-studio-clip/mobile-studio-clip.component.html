@@ -1,0 +1,184 @@
+<div class="clip-screen" [class.clip-screen--result]="clip.stage() === 'ready'" role="dialog" aria-label="Mode Clip">
+
+  <!-- Cadre 9:16 : ce qui est visible ici est exactement ce qui sera dans la vidéo. -->
+  @if (clip.stage() !== 'ready') {
+    <div class="clip-frame" aria-hidden="true">
+      <div class="clip-wm">
+        <img class="clip-wm__logo" src="assets/logo.png" alt=""
+             [style.left]="wm.logo.left" [style.top]="wm.logo.top" [style.width]="wm.logo.width">
+        <span class="clip-wm__handle" [style.left]="wm.handle.left" [style.top]="wm.handle.top"
+              [style.font-size]="wm.handle.size">{{ handleText() }}</span>
+        <span class="clip-wm__credit" [style.left]="wm.credit.left" [style.top]="wm.credit.top"
+              [style.font-size]="wm.credit.size">{{ creditText() }}</span>
+      </div>
+      @if (clip.stage() === 'framing') {
+        <div class="clip-safe clip-safe--bottom" [style.height]="wm.safeBottom"></div>
+        <div class="clip-safe clip-safe--right" [style.width]="wm.safeRight" [style.bottom]="wm.safeBottom"></div>
+      }
+    </div>
+  }
+
+  <!-- ── Barre du haut ─────────────────────────────────────────────────── -->
+  <div class="clip-top">
+    <button type="button" class="clip-icon-btn" (click)="close()" aria-label="Fermer le mode Clip"
+            [disabled]="clip.stage() === 'rendering'">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    @if (clip.stage() === 'framing') {
+      <div class="clip-modes" role="radiogroup" aria-label="Mode de tournage">
+        <button type="button" role="radio" class="clip-mode"
+                [class.clip-mode--on]="clip.mode() === 'playback'"
+                [attr.aria-checked]="clip.mode() === 'playback'"
+                (click)="clip.setMode('playback')">
+          <i class="bi bi-music-note-beamed"></i> Playback
+        </button>
+        <button type="button" role="radio" class="clip-mode"
+                [class.clip-mode--on]="clip.mode() === 'rec'"
+                [attr.aria-checked]="clip.mode() === 'rec'"
+                (click)="clip.setMode('rec')">
+          <i class="bi bi-mic-fill"></i> Rec + backline
+        </button>
+      </div>
+
+      <button type="button" class="clip-icon-btn" (click)="clip.flip()" aria-label="Changer de caméra">
+        <i class="bi bi-arrow-repeat"></i>
+      </button>
+    }
+
+    @if (clip.stage() === 'rolling') {
+      <div class="clip-rec-badge" role="status">
+        <span class="clip-rec-dot"></span>
+        {{ fmt(clip.elapsedSec()) }} / {{ fmt(clip.segmentSec()) }}
+      </div>
+    }
+  </div>
+
+  <!-- ── Message d'erreur ──────────────────────────────────────────────── -->
+  @if (clip.errorMsg()) {
+    <div class="clip-error" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>{{ clip.errorMsg() }}</span>
+    </div>
+  }
+
+  <!-- ── Décompte ──────────────────────────────────────────────────────── -->
+  @if (clip.stage() === 'countdown' && clip.countdown() !== null) {
+    <div class="clip-countdown" aria-live="assertive">{{ clip.countdown() }}</div>
+  }
+
+  <!-- ── Préparation / montage ─────────────────────────────────────────── -->
+  @if (clip.stage() === 'preparing' || clip.stage() === 'rendering') {
+    <div class="clip-progress" role="status" aria-live="polite">
+      <span class="clip-spinner" aria-hidden="true"></span>
+      <span>{{ clip.progressLabel() }}</span>
+      @if (clip.stage() === 'rendering') {
+        <div class="clip-progress__bar"><div [style.width.%]="clip.progress()"></div></div>
+      }
+    </div>
+  }
+
+  <!-- ── Cadrage : passage + mode + bouton ─────────────────────────────── -->
+  @if (clip.stage() === 'framing') {
+    <div class="clip-panel">
+      @if (clip.mode() === 'rec') {
+        @if (!hasHeadphones()) {
+          <p class="clip-note clip-note--warn"><i class="bi bi-headphones"></i>
+            Branche un casque pour chanter pendant la vidéo. Sans casque, utilise le Playback.</p>
+        } @else {
+          <p class="clip-note"><i class="bi bi-info-circle"></i>
+            Tu entends ta maquette et tu chantes une nouvelle prise : elle sera ajoutée au clip
+            @if (clip.clipOnlyTake()) { (pour le clip seulement : plus de piste libre) } @else { et à ta maquette }.</p>
+        }
+      }
+      @if (btUncalibrated()) {
+        <p class="clip-note clip-note--warn"><i class="bi bi-bluetooth"></i>
+          Casque Bluetooth non réglé : règle sa latence dans « Micro &amp; monito » pour un clip parfaitement calé.</p>
+      }
+
+      <div class="clip-seg">
+        <div class="clip-seg__head">
+          <span>Passage</span>
+          <span class="clip-seg__range">{{ fmt(clip.segment().startSec) }} → {{ fmt(clip.segment().endSec) }}</span>
+        </div>
+        <input type="range" class="clip-seg__slider" min="0" [max]="maxStart()" step="0.5"
+               [value]="clip.segment().startSec" (input)="onStartInput($event)"
+               aria-label="Début du passage filmé">
+        <div class="clip-seg__lengths" role="group" aria-label="Durée du clip">
+          @for (p of presets; track p) {
+            <button type="button" class="clip-chip"
+                    [class.clip-chip--on]="clip.segmentSec() === p"
+                    [disabled]="p > ctx.maquetteSec"
+                    (click)="setLength(p)">{{ p }} s</button>
+          }
+        </div>
+        <p class="clip-seg__hint">45 s maximum · carte de fin LaProd de {{ endCardSec }} s ajoutée</p>
+      </div>
+
+      @if (showMire) {
+        <label class="clip-mire">
+          <input type="checkbox" [checked]="clip.mire()" (change)="clip.mire.set(!clip.mire())">
+          Mire de synchro (debug) — seuils {{ mireThresholds.meanAbsMs }} ms
+        </label>
+      }
+
+      <button type="button" class="clip-shutter" (click)="clip.record()"
+              [disabled]="clip.mode() === 'rec' && !hasHeadphones()"
+              aria-label="Lancer le tournage">
+        <span class="clip-shutter__inner"></span>
+      </button>
+    </div>
+  }
+
+  <!-- ── Tournage ──────────────────────────────────────────────────────── -->
+  @if (clip.stage() === 'rolling') {
+    <div class="clip-panel clip-panel--rolling">
+      <button type="button" class="clip-shutter clip-shutter--stop" (click)="clip.stop()" aria-label="Arrêter le tournage">
+        <span class="clip-shutter__square"></span>
+      </button>
+    </div>
+  }
+
+  <!-- ── Résultat ──────────────────────────────────────────────────────── -->
+  @if (clip.stage() === 'ready' && clip.resultSrc()) {
+    <div class="clip-result">
+      <video class="clip-result__video" [src]="clip.resultSrc()" controls playsinline autoplay loop></video>
+
+      @if (clip.clipOnlyTake() && clip.mode() === 'rec') {
+        <p class="clip-note"><i class="bi bi-info-circle"></i>
+          Ta prise est dans le clip, mais pas dans la maquette : toutes les pistes sont occupées.</p>
+      }
+      @if (showMire && clip.mire() && clip.driftMs() !== null) {
+        <p class="clip-note"><i class="bi bi-activity"></i>
+          Dérive horloge mesurée : {{ clip.driftMs()!.toFixed(1) }} ms (seuil {{ mireThresholds.driftMs }} ms)</p>
+      }
+      @if (share.captionCopied()) {
+        <p class="clip-note"><i class="bi bi-clipboard-check"></i> Légende copiée : colle-la sous ta vidéo.</p>
+      }
+      @if (share.failed()) {
+        <p class="clip-note clip-note--warn"><i class="bi bi-exclamation-triangle-fill"></i> Le partage n'a pas pu s'ouvrir.</p>
+      }
+
+      <div class="clip-actions">
+        <button type="button" class="clip-btn clip-btn--primary" [disabled]="share.busy()"
+                (click)="share.shareSystem(shareParams())">
+          <i class="bi bi-share-fill"></i> Partager
+        </button>
+        @for (s of share.shortcuts(); track s) {
+          <button type="button" class="clip-btn" [disabled]="share.busy()"
+                  (click)="share.shareShortcut(s, shareParams())">
+            @if (s === 'instagram-story') { <i class="bi bi-instagram"></i> Story Instagram }
+            @else { <i class="bi bi-tiktok"></i> TikTok }
+          </button>
+        }
+        <button type="button" class="clip-btn" (click)="save()" [disabled]="saved()">
+          <i class="bi" [class.bi-download]="!saved()" [class.bi-check-lg]="saved()"></i>
+          {{ saved() ? 'Dans ta galerie' : 'Enregistrer dans la galerie' }}
+        </button>
+        <button type="button" class="clip-btn clip-btn--ghost" (click)="retake()">
+          <i class="bi bi-arrow-counterclockwise"></i> Refaire
+        </button>
+      </div>
+    </div>
+  }
+</div>

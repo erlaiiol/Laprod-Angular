@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { OfflineAudioContext, AudioBuffer } from 'node-web-audio-api';
-import { MobileAudioProcessorService, OFFLINE_AUDIO_CONTEXT } from './mobile-audio-processor.service';
+import { MobileAudioProcessorService, OFFLINE_AUDIO_CONTEXT, DEFAULT_TRACK_SETTINGS } from './mobile-audio-processor.service';
 
 // jsdom n'implémente pas le Web Audio API (OfflineAudioContext...) qu'utilise
 // MobileAudioProcessorService pour décoder/mixer le PCM natif iOS/Android.
@@ -330,5 +330,91 @@ describe('MobileAudioProcessorService — calage et chaîne temps réel', () => 
     const raw  = new Float32Array(await blob.arrayBuffer());
     expect(out.length).toBe(raw.length);
     expect(out[Math.round(0.6 * SR)]).toBeCloseTo(raw[Math.round(0.6 * SR)], 5);
+  });
+});
+
+// ── Mode Clip : mixAndExport({ segment, format: 'wav', tailSec }) ────────────
+
+describe('MobileAudioProcessorService — mixAndExport (Mode Clip)', () => {
+
+  let svc: MobileAudioProcessorService;
+
+  /** Watermark de test : 0,1 s de silence (le vrai est fetché depuis l'API). */
+  function stubWatermark(s: MobileAudioProcessorService): void {
+    const wm = new AudioBuffer({ length: Math.round(0.1 * SR), sampleRate: SR, numberOfChannels: 1 });
+    vi.spyOn(s as unknown as { _getWatermarkBuffer(): Promise<AudioBuffer> }, '_getWatermarkBuffer')
+      .mockResolvedValue(wm);
+  }
+
+  async function wavFrames(blob: Blob): Promise<{ frames: number; channels: number; rate: number }> {
+    const v = new DataView(await blob.arrayBuffer());
+    const channels = v.getUint16(22, true);
+    return { frames: v.getUint32(40, true) / (2 * channels), channels, rate: v.getUint32(24, true) };
+  }
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: testProviders });
+    svc = TestBed.inject(MobileAudioProcessorService);
+    stubWatermark(svc);
+  });
+
+  it('segment : durée exacte du passage (± 1 frame), en WAV stéréo 48 kHz', async () => {
+    const wav = await svc.mixAndExport({
+      vocals: [{ samples: new Float32Array(SR * 2).fill(0.1), settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(10),
+      segment: { startSec: 2, endSec: 7 }, format: 'wav',
+    });
+    expect(wav.type).toBe('audio/wav');
+    const info = await wavFrames(wav);
+    expect(info.channels).toBe(2);
+    expect(info.rate).toBe(SR);
+    expect(Math.abs(info.frames - 5 * SR)).toBeLessThanOrEqual(1);
+  });
+
+  it('carte de fin : la queue s\'ajoute à la durée du segment', async () => {
+    const wav = await svc.mixAndExport({
+      vocals: [], beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(10),
+      segment: { startSec: 0, endSec: 5 }, format: 'wav', tailSec: 1.5,
+    });
+    const info = await wavFrames(wav);
+    expect(Math.abs(info.frames - 6.5 * SR)).toBeLessThanOrEqual(1);
+  });
+
+  it('une voix commencée avant le segment est lue à partir du bon échantillon', async () => {
+    // Voix : 0 jusqu'à 3 s, puis 0.5 ; beat muet. Segment 2→6 : la voix démarre à 1 s du résultat.
+    const voice = new Float32Array(SR * 6);
+    voice.fill(0.5, SR * 3);
+    const wav = await svc.mixAndExport({
+      vocals: [{ samples: voice, settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0, accessToken: '', beatBlob: makeF32Blob(10, 0),
+      segment: { startSec: 2, endSec: 6 }, format: 'wav',
+    });
+    const v = new DataView(await wav.arrayBuffer());
+    const sampleAt = (sec: number) => v.getInt16(44 + Math.round(sec * SR) * 4, true);
+    expect(sampleAt(0.5)).toBe(0);
+    expect(Math.abs(sampleAt(1.5))).toBeGreaterThan(0);
+  });
+
+  it('clip de moins de 20 s : le watermark audio est quand même présent', async () => {
+    const wm = new AudioBuffer({ length: Math.round(0.1 * SR), sampleRate: SR, numberOfChannels: 1 });
+    wm.getChannelData(0).fill(0.5);
+    vi.spyOn(svc as unknown as { _getWatermarkBuffer(): Promise<AudioBuffer> }, '_getWatermarkBuffer')
+      .mockResolvedValue(wm);
+    const wav = await svc.mixAndExport({
+      vocals: [], beatStreamUrl: '', beatGain: 0, accessToken: '', beatBlob: makeF32Blob(30, 0),
+      segment: { startSec: 0, endSec: 15 }, format: 'wav',
+    });
+    const v = new DataView(await wav.arrayBuffer());
+    let nonZero = 0;
+    for (let off = 44; off < v.byteLength; off += 2) if (v.getInt16(off, true) !== 0) nonZero++;
+    expect(nonZero).toBeGreaterThan(0);
+  });
+
+  it('sans option Clip : comportement historique (MP3, durée = voix)', async () => {
+    const mp3 = await svc.mixAndExport({
+      vocals: [{ samples: new Float32Array(SR).fill(0.1), settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(4),
+    });
+    expect(mp3.type).toBe('audio/mpeg');
   });
 });

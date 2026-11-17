@@ -66,6 +66,9 @@ typedef struct Engine {
     float bridgeStorage[BRIDGE_RING_CAPACITY];
 
     SpscRing recordRing; // PCM brut → drainé périodiquement par Kotlin (enregistrement)
+    // Mode Clip : index (compteur AAudio) du 1er échantillon livré au callback. En MMAP,
+    // AAudio saute en avant au démarrage (rattrapage du serveur) : ce n'est PAS 0.
+    _Atomic int64_t firstDeliveredFrame; // -1 tant qu'aucun callback
     float recordStorage[RECORD_RING_CAPACITY];
 
     // Historique micro pour la détection de hauteur : ÉCRIT par le callback d'entrée (copie
@@ -145,6 +148,11 @@ static aaudio_data_callback_result_t onInputData(AAudioStream *stream, void *use
     Engine *e = (Engine *) userData;
     const float *in = (const float *) audioData;
     if (numFrames <= 0) return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    if (atomic_load_explicit(&e->firstDeliveredFrame, memory_order_relaxed) < 0) {
+        // framesRead inclut déjà ce bloc quand le callback est appelé.
+        int64_t first = e->shim.getFramesRead ? e->shim.getFramesRead(stream) - numFrames : 0;
+        atomic_store_explicit(&e->firstDeliveredFrame, first < 0 ? 0 : first, memory_order_relaxed);
+    }
     size_t n = (size_t) numFrames;
     if (n > MAX_CALLBACK_FRAMES) n = MAX_CALLBACK_FRAMES; // borne défensive, cf. en-tête
 
@@ -290,6 +298,7 @@ Engine *aaudio_engine_create(int32_t sampleRate, bool useMonitor, bool monitorAu
     atomic_init(&e->statusGeneration, 0);
     atomic_init(&e->fxSeq, 0u);
     atomic_init(&e->pitchWritePos, 0u);
+    atomic_init(&e->firstDeliveredFrame, -1);
     voiceFxIdentity(e->fxPending);
     voiceFxIdentity(e->fxActive);
 
@@ -426,6 +435,20 @@ void aaudio_engine_set_voice_fx(Engine *e, const float *coefs, size_t count) {
     atomic_thread_fence(memory_order_release);
     memcpy(e->fxPending, coefs, sizeof(float) * VOICE_FX_COEFS);
     atomic_store_explicit(&e->fxSeq, s + 2u, memory_order_release);   // pair : publié
+}
+
+// Horodatage du flux d'ENTRÉE (Mode Clip) : instant CLOCK_MONOTONIC où la frame
+// `*out_frame` a été captée. Le PCM enregistré commence à la frame 0 du flux (le ring
+// d'enregistrement reçoit chaque callback depuis le démarrage) : Kotlin en déduit
+// l'instant de capture du 1er échantillon. Thread Kotlin uniquement. Retourne 0 si
+// indisponible (API sans getTimestamp, flux pas encore démarré).
+int32_t aaudio_engine_get_input_timestamp(Engine *e, int64_t *out_frame, int64_t *out_time_ns) {
+    if (!e || !e->inputStream || !e->shim.getTimestamp) return 0;
+    int64_t first = atomic_load_explicit(&e->firstDeliveredFrame, memory_order_relaxed);
+    if (first < 0) return 0;
+    if (e->shim.getTimestamp(e->inputStream, CLOCK_MONOTONIC, out_frame, out_time_ns) != AAUDIO_OK) return 0;
+    *out_frame -= first;   // position relative au 1er échantillon enregistré
+    return 1;
 }
 
 // Arrête puis détruit le moteur. À appeler depuis un thread Kotlin normal (jamais depuis

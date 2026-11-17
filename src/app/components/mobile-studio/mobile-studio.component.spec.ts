@@ -113,7 +113,7 @@ class PlayerStub {
   pause = vi.fn();
 }
 
-class AuthStub   { isPremium = () => false; getToken = () => 'tok'; isLoggedIn = () => false; }
+class AuthStub   { isPremium = () => false; getToken = () => 'tok'; isLoggedIn = () => false; canMakeClips = () => false; currentUser = () => null; }
 class CalibStub  {
   entry: { latencyMs: number; deviceType: string; ts: number } | null = null;
   getEntry = () => this.entry;
@@ -190,6 +190,57 @@ describe('MobileStudioComponent', () => {
   afterEach(() => {
     vi.clearAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  // ── Mode Clip : réservé aux membres Premium connectés ─────────────────────────
+
+  describe('bouton Clip (Premium)', () => {
+    function forceNative(c: MobileStudioComponent): void {
+      Object.defineProperty(c, 'clipAvailable', { value: true });
+    }
+
+    it('invité : bulle d\'aide, le Mode Clip ne s\'ouvre pas', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      await component.openClip();
+      expect(component.clipHint()).toBe(true);
+      expect(component.studioState()).toBe('idle');
+      expect(component.clipCtx()).toBeNull();
+    });
+
+    it('connecté non Premium : verrouillé, bulle d\'aide', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      const auth = TestBed.inject(AuthService) as unknown as AuthStub;
+      auth.isLoggedIn = () => true;
+      expect(component.clipLocked()).toBe(true);
+      await component.openClip();
+      expect(component.clipHint()).toBe(true);
+      expect(component.studioState()).toBe('idle');
+    });
+
+    it('Premium connecté : déverrouillé, le Mode Clip s\'ouvre', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      const auth = TestBed.inject(AuthService) as unknown as AuthStub;
+      auth.isLoggedIn = () => true;
+      auth.canMakeClips = () => true;
+      expect(component.clipLocked()).toBe(false);
+      component.beatDuration.set(120);
+      await component.openClip();
+      expect(component.clipHint()).toBe(false);
+      expect(component.studioState()).toBe('clip');
+      expect(component.clipCtx()).not.toBeNull();
+    });
+
+    it('la bulle se ferme seule après quelques secondes', async () => {
+      vi.useFakeTimers();
+      const { component } = await createComponent();
+      component.showClipHint();
+      vi.advanceTimersByTime(6100);
+      expect(component.clipHint()).toBe(false);
+      vi.useRealTimers();
+    });
   });
 
   // ── clipWarning ─────────────────────────────────────────────────────────────

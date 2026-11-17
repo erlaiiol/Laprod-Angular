@@ -130,6 +130,16 @@
       "detail": "Un problème affectant l'envoi et la validation des emails de vérification de compte a été résolu. Si vous rencontriez des difficultés pour confirmer votre adresse email à l'inscription, ce problème n'existe plus.",
       "audience": "all",
       "sent_at": null
+    },
+    {
+      "id": "2026-11-17-mode-clip",
+      "date": "2026-11-17",
+      "category": "feature",
+      "title": "Mode Clip : filme ta maquette et partage-la en vidéo",
+      "short": "Membres Premium : filme-toi sur ta maquette et partage la vidéo sur Instagram, TikTok, YouTube ou par message.",
+      "detail": "Dans le studio de l'application, les membres Premium ont un nouveau bouton Clip : il te filme pendant que ta maquette joue, en playback ou en chantant une nouvelle prise par-dessus. Tu repars avec une vidéo verticale de 45 secondes maximum, avec tous tes effets, prête à poster en Reel, en story, en Short ou à envoyer par message. Les beatmakers voient combien de clips ont été faits sur leurs beats.",
+      "audience": "all",
+      "sent_at": null
     }
   ]
 }

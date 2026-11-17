@@ -97,6 +97,10 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion"
+    // Mode Clip : montage vidéo (Apache-2.0 — pas de FFmpeg, docs/roadmap.md § 4.1).
+    implementation "androidx.media3:media3-transformer:$media3Version"
+    implementation "androidx.media3:media3-effect:$media3Version"
+    implementation "androidx.media3:media3-common:$media3Version"
 }
 
 apply from: 'capacitor.build.gradle'

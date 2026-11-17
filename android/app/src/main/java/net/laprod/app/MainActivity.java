@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(PitchMonitorPlugin.class);
+        registerPlugin(ClipCameraPlugin.class);
         super.onCreate(savedInstanceState);
 
         if (BuildConfig.DEBUG) {

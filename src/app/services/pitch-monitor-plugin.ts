@@ -12,6 +12,9 @@ export interface SessionResult {
   /** iOS, beat natif uniquement : position du beat (s) correspondant au 1er
    *  échantillon enregistré, latences casque NON compensées. */
   firstSampleBeatSec?: number;
+  /** Android : instant de capture du 1er échantillon enregistré, CLOCK_MONOTONIC
+   *  en secondes (même horloge que ClipCamera) — Mode Clip, cf. clip-sync.ts. */
+  firstSampleHostSec?: number;
 }
 
 /**
@@ -36,6 +39,9 @@ export interface StartSessionInfo {
   /** Latences rapportées par le système (Bluetooth inclus côté sortie). */
   outputLatencyMs?: number;
   inputLatencyMs?:  number;
+  /** iOS, beat natif : heure machine (s) du départ programmé du beat, position
+   *  beatStartSec — ancre de synchro du Mode Clip (même horloge que la caméra). */
+  beatStartHostSec?: number;
 }
 
 export interface InterruptedResult extends SessionResult {

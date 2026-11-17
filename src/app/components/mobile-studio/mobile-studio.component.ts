@@ -35,7 +35,12 @@ import { DawWaveformComponent } from './daw-waveform/daw-waveform.component';
 import { StudioToolbarComponent } from '../studio-toolbar/studio-toolbar.component';
 import { DawGuestGateOverlayComponent } from './daw-guest-gate-overlay/daw-guest-gate-overlay.component';
 import { MobileMetronomeService }        from '../../services/mobile-metronome.service';
+import { MobileStudioClipComponent }     from './mobile-studio-clip/mobile-studio-clip.component';
+import { ClipStudioContext }             from '../../services/social-clip.service';
 import { computeWaveform, spliceWaveform, formatTimer } from '../../utils/waveform.utils';
+import { blobToBase64 } from '../../utils/blob.utils';
+import { cropTake } from '../../utils/take.utils';
+import { clipLatencies } from '../../utils/clip-sync';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +62,7 @@ type StudioState =
   | 'previewing'
   | 'exporting'
   | 'beat-editor'
+  | 'clip'
   | 'published';
 
 type HeadphoneType = 'wired' | 'bluetooth' | 'bluetooth-a2dp' | 'none';
@@ -87,15 +93,6 @@ function isBluetooth(t: string | null | undefined): boolean {
   return t === 'bluetooth' || t === 'bluetooth-a2dp';
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    // "data:audio/mpeg;base64,<data>" → on ne garde que <data>
-    reader.onload  = () => resolve((reader.result as string).split(',')[1] ?? '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
 
 // ── Composant ─────────────────────────────────────────────────────────────────
 
@@ -111,6 +108,7 @@ function blobToBase64(blob: Blob): Promise<string> {
     DawWaveformComponent,
     DawGuestGateOverlayComponent,
     StudioToolbarComponent,
+    MobileStudioClipComponent,
   ],
   templateUrl: './mobile-studio.component.html',
   styleUrls: ['./mobile-studio-shared.scss', './mobile-studio.component.scss', './mobile-studio-timeline.scss'],
@@ -123,6 +121,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   @Output() closed = new EventEmitter<void>();
 
   @ViewChild('liveCanvas')     liveCanvasRef?:     ElementRef<HTMLCanvasElement>;
+  @ViewChild(MobileStudioClipComponent) clipScreen?: MobileStudioClipComponent;
   @ViewChild('beatWaveCanvas') beatWaveCanvasRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('tlScroll')       tlScrollRef?:       ElementRef<HTMLElement>;
   @ViewChild('tlContent')      tlContentRef?:      ElementRef<HTMLElement>;
@@ -265,6 +264,14 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   permState        = signal<'granted' | 'prompt' | 'denied' | null>(null);
   confirmClose     = signal(false);
   showGuestGate    = signal(false);
+  /** Mode Clip (docs/roadmap.md § Chantier 4) : app native uniquement, jamais sur une topline publiée. */
+  readonly clipAvailable = Capacitor.isNativePlatform();
+  readonly clipCtx       = signal<ClipStudioContext | null>(null);
+  /** Mode Clip réservé aux membres Premium connectés (capacité serveur can_make_clips). */
+  readonly clipLocked    = computed(() => !this.auth.isLoggedIn() || !this.auth.canMakeClips());
+  /** Bulle d'aide affichée au tap sur le bouton Clip verrouillé. */
+  readonly clipHint      = signal(false);
+  private _clipHintTimer: ReturnType<typeof setTimeout> | null = null;
   /** Invité qui veut régler les effets d'une piste (seul le volume est libre sans compte). */
   showFxGate       = signal(false);
   publishedId      = signal<number | null>(null);
@@ -420,6 +427,8 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       if (this.showFxGate())            { this.showFxGate.set(false); this.cdr.markForCheck(); return true; }
       if (this.showPublishSheet())      { this.showPublishSheet.set(false); this.cdr.markForCheck(); return true; }
       if (this.showMonitoring())        { this.showMonitoring.set(false); this.cdr.markForCheck(); return true; }
+      if (this.clipHint())              { this.hideClipHint(); return true; }
+      if (this.studioState() === 'clip')        { void this.clipScreen?.onBack(); return true; }
       if (this.studioState() === 'beat-editor') { this.onBeatEditorCancelled(); return true; }
       if (this.studioState() === 'punch-in')    { this.cancelPunchIn();         return true; }
       this._closeRequested();
@@ -1668,12 +1677,17 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
    * rapporte la latence réelle de la route (Bluetooth compris).
    */
   private _takeLatencyMs(info: StartSessionInfo | null): number {
-    if (isBluetooth(this.headphoneType())) {
-      const calibrated = this._calibratedBtLatency();
-      if (calibrated !== null) return calibrated;
-    }
-    if (info) return Math.max(0, (info.outputLatencyMs ?? 0) + (info.inputLatencyMs ?? 0));
-    return 0;
+    // Source unique partagée avec le Mode Clip (clip-sync.ts) : la vidéo d'un
+    // clip reçoit exactement le même décalage que la prise (docs § 4.3).
+    const bt = isBluetooth(this.headphoneType());
+    const calibrated = bt ? this._calibratedBtLatency() : null;
+    if (!info && calibrated === null) return 0;
+    return clipLatencies({
+      bluetooth:    bt,
+      calibratedMs: calibrated,
+      outputMs:     info?.outputLatencyMs ?? 0,
+      inputMs:      info?.inputLatencyMs ?? 0,
+    }).takeCropMs;
   }
 
   /** Remet à zéro l'état d'une nouvelle prise. */
@@ -1855,9 +1869,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const take            = this._take;
 
     try {
-      const raw = Uint8Array.from(atob(result.pcmBase64), c => c.charCodeAt(0));
-      const bytesPerSample = result.format === 'float32' ? 4 : 2;
-
       // ── Alignement sur le beat ───────────────────────────────────────────
       // startSec = position du beat sous le 1er échantillon capté (iOS : mesurée
       // par le moteur natif sur l'horloge audio). On retire ensuite du début de
@@ -1866,17 +1877,11 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       const startSec = take?.nativeBeat && result.firstSampleBeatSec != null
         ? result.firstSampleBeatSec
         : (take?.beatStartSec ?? 0);
-      const cropSec     = take ? take.latencyMs / 1000 + take.leadSec : 0;
-      const cropSamples = Math.max(0, Math.round(cropSec * result.sampleRate));
-      const voice       = raw.subarray(Math.min(raw.length, cropSamples * bytesPerSample));
-      const voiceSec    = voice.length / bytesPerSample / result.sampleRate;
+      const cropSec = take ? take.latencyMs / 1000 + take.leadSec : 0;
+      const cropped = cropTake(result, cropSec);
+      const voiceSec = cropped.voiceSec;
       if (voiceSec < MIN_TAKE_SECONDS) throw new Error('take too short');
-
-      // Le sample rate natif réel (44,1 kHz Android, variable iOS) est encodé dans le MIME
-      // type — decodeBlob() s'en sert pour rééchantillonner vers le SR canonique du pipeline
-      // au lieu de supposer 48 kHz à tort (cf. MobileAudioProcessorService.decodeBlob).
-      const mime  = (result.format === 'float32' ? 'audio/pcm-f32' : 'audio/pcm-i16') + `;rate=${result.sampleRate}`;
-      let rawBlob = new Blob([voice], { type: mime });
+      let rawBlob = cropped.rawBlob;
 
       const waveform = computeWaveform(this._rmsHistory, WAVEFORM_POINTS);
       let trackStart = startSec;
@@ -1982,6 +1987,74 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     if (wasPlaying) this._stopBeatRaf();
     this.isPlayingPreview.set(false);
     this.transportLoading.set(false);
+  }
+
+  // ── Mode Clip ─────────────────────────────────────────────────────────────────
+  //
+  // Le studio libère le micro et la lecture, puis passe la main à l'écran Clip.
+  // La maquette (pistes, réglages) est partagée via MobileMaquetteService : une
+  // prise faite pendant la vidéo y apparaît comme une piste normale au retour.
+
+  async openClip(): Promise<void> {
+    if (!this.clipAvailable || this.studioState() !== 'idle') return;
+    // Réservé aux membres Premium connectés : au tap, une bulle d'aide l'explique
+    // (le serveur refuse aussi le comptage d'un clip hors Premium, cf. clips_api).
+    if (this.clipLocked()) {
+      this.showClipHint();
+      return;
+    }
+    this._stopPreviewPlayback();
+    if (this.beatIsPlaying()) { this.player.audioEl.pause(); this.beatIsPlaying.set(false); }
+    this._stopBeatRaf();
+    this.studioState.set('clip');
+    await this._stopLiveMonitor();
+    const hp = await this.pm.checkHeadphones().catch(() => null);
+    if (hp) this.headphoneType.set(hp.type as HeadphoneType);
+
+    this.clipCtx.set({
+      trackId:        this.track.id,
+      trackKey:       this.track.key,
+      beatmaker:      this.track.composer_user?.username ?? 'LaProd',
+      username:       this.auth.currentUser()?.username ?? 'laprod',
+      beatStreamUrl:  this.beatStreamUrl,
+      accessToken:    this.auth.getToken() ?? '',
+      beatBlob:       this._currentBeatBlob(),
+      maquetteSec:    this.beatDuration() || this.player.audioEl.duration || 0,
+      headphone:      this.headphoneType(),
+      calibratedBtMs: this._calibratedBtLatency(),
+      sessionOpts:    () => this._sessionOpts(),
+    });
+    this.cdr.markForCheck();
+  }
+
+  showClipHint(): void {
+    this.clipHint.set(true);
+    if (this._clipHintTimer) clearTimeout(this._clipHintTimer);
+    this._clipHintTimer = setTimeout(() => {
+      this.clipHint.set(false);
+      this._clipHintTimer = null;
+      this.cdr.markForCheck();
+    }, 6000);
+    this.cdr.markForCheck();
+  }
+
+  hideClipHint(): void {
+    this.clipHint.set(false);
+    if (this._clipHintTimer) { clearTimeout(this._clipHintTimer); this._clipHintTimer = null; }
+    this.cdr.markForCheck();
+  }
+
+  /** Bulle → connexion (invité) ou page Premium (connecté non Premium). */
+  onClipHintAction(): void {
+    this.hideClipHint();
+    if (this.auth.isLoggedIn()) this.goToPremium();
+    else this.goToLogin();
+  }
+
+  onClipClosed(): void {
+    this.clipCtx.set(null);
+    this.studioState.set('idle');
+    this.cdr.markForCheck();
   }
 
   // ── Export & Publication ──────────────────────────────────────────────────────

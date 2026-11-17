@@ -112,7 +112,7 @@ Forme unique, tous endpoints paginés confondus :
 
 ## 6. Carte des domaines
 
-37 blueprints, enregistrés dans `app.py` (imports centralisés dans `routes/__init__.py`).
+38 blueprints, enregistrés dans `app.py` (imports centralisés dans `routes/__init__.py`).
 
 | Domaine | Blueprint | Principales routes |
 |---|---|---|
@@ -142,6 +142,7 @@ Forme unique, tous endpoints paginés confondus :
 | Structures | `structure_api` | structures Pro |
 | Témoignages | `testimonials_api` | demandes et publication |
 | Jobs | `job_status_api` | suivi des tâches RQ |
+| Mode Clip | `clips_api` | `POST /api/clips/events` (JWT, Premium+ via `can_make_clips`, sinon 403 `PREMIUM_REQUIRED`) : `{ track_id, clip_uid, mode: playback\|rec, action: saved\|shared, duration_s ≤ 45, target? }` — comptage seul, aucune vidéo reçue ; alimente `clips` dans `GET /api/my/view-stats` (clips distincts par `clip_uid`) |
 | Push | `push_api` | `POST /api/push/register`, `POST /api/push/unregister`, `GET/PUT /api/push/preference` |
 | Admin | `admin_api` | modération, statistiques, support |
 | SEO | `og_preview` | cartes Open Graph |

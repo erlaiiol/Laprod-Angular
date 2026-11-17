@@ -7,7 +7,8 @@
 
 .stb {
   display:               grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-columns:     1fr;
+  grid-auto-flow:        column;   // 4 outils, 5 avec le Mode Clip (app native)
   gap:                   6px;
   padding:               8px 8px 10px;
   border-top:            1px solid rgba(255, 255, 255, 0.08);
@@ -95,3 +96,13 @@
 }
 
 @keyframes stbSpin { to { transform: rotate(360deg); } }
+
+// Cadenas du Mode Clip (réservé Premium) — superposé à l'icône.
+.stb-icon { position: relative; }
+.stb-lock {
+  position:  absolute;
+  right:     -9px;
+  bottom:    -4px;
+  font-size: 0.62rem;
+  color:     v.$gold;
+}

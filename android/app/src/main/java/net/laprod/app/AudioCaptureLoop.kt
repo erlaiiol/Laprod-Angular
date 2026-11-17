@@ -70,6 +70,18 @@ class AudioCaptureLoop(
         }
     }
 
+    /**
+     * Mode Clip : instant CLOCK_MONOTONIC (ns) de capture de la frame 0 de l'enregistrement,
+     * d'après AudioRecord.getTimestamp (API 24+). null tant qu'aucune mesure n'est disponible.
+     */
+    fun frameZeroMonoNs(): Long? {
+        val record = audioRecord ?: return null
+        val ts = android.media.AudioTimestamp()
+        if (record.getTimestamp(ts, android.media.AudioTimestamp.TIMEBASE_MONOTONIC) != AudioRecord.SUCCESS) return null
+        if (ts.framePosition <= 0) return null
+        return ClipSync.anchorNs(ts.framePosition, ts.nanoTime, sampleRate)
+    }
+
     /** Configure et démarre la capture. Ne bloque pas — la lecture se fait dans [run]. */
     fun start() {
         val bufferSizeBytes = bufferSizeSamples * 2 // 16-bit

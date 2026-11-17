@@ -23,7 +23,7 @@ import uuid as _uuid
 import json
 
 from extensions import db, limiter, csrf, redis_client
-from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist, Purchase
+from models import Track, Tag, Category, User, Topline, TrackView, SimilarArtist, Purchase, SocialClipEvent
 from helpers import generate_track_image
 from utils.image_variants import generate_variants, delete_variants
 from serializers import ok, err, track_card, track_detail, topline as ser_topline, playlist_stats_for_tracks
@@ -1305,11 +1305,21 @@ def my_view_stats(current_user):
             .all()
         )
 
+    # Mode Clip : nombre de clips distincts faits sur chaque beat (gratuit, comme
+    # le total de vues) — un clip enregistré puis partagé ne compte qu'une fois.
+    clips = dict(
+        db.session.query(SocialClipEvent.track_id, func.count(SocialClipEvent.clip_uid.distinct()))
+        .filter(SocialClipEvent.track_id.in_(track_ids))
+        .group_by(SocialClipEvent.track_id)
+        .all()
+    )
+
     stats = [
         {
             'track_id':    tid,
             'total_views':  totals.get(tid, 0),
             'unique_views': None if unique_locked else uniques.get(tid, 0),
+            'clips':        clips.get(tid, 0),
         }
         for tid in track_ids
     ]

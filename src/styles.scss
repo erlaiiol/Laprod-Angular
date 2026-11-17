@@ -381,3 +381,15 @@ img { max-width: 100%; }
 
   i { margin-right: 0.4rem; }
 }
+
+// ── Mode Clip : aperçu caméra natif SOUS la WebView ─────────────────────────
+// Pendant le cadrage (docs/roadmap.md § Chantier 4), la WebView est rendue
+// transparente côté natif et seul l'écran Clip reste visible : tout le reste
+// de l'app est masqué (visibility, pas display — l'état Angular est conservé).
+html.clip-camera-active,
+html.clip-camera-active body {
+  background: transparent !important;
+}
+html.clip-camera-active body * { visibility: hidden; }
+html.clip-camera-active app-mobile-studio-clip,
+html.clip-camera-active app-mobile-studio-clip * { visibility: visible; }

@@ -1060,3 +1060,62 @@
 
 // Transport, timeline multipiste, inspecteur, barre d'outils et feuilles du bas →
 // mobile-studio-timeline.scss
+
+// ── Bulle d'aide du Mode Clip (bouton verrouillé, réservé Premium) ──────────
+// Ancrée au-dessus du dernier outil de la barre (le bouton Clip), flèche vers lui.
+.ms-clip-hint-backdrop {
+  position: fixed;
+  inset:    0;
+  z-index:  60;
+}
+
+.ms-clip-hint {
+  position:      fixed;
+  right:         12px;
+  bottom:        calc(env(safe-area-inset-bottom) + 86px);
+  z-index:       61;
+  width:         min(280px, calc(100vw - 24px));
+  padding:       12px 14px;
+  border-radius: 14px;
+  background:    v.$bg-elevated;
+  border:        1px solid rgba(v.$gold, 0.45);
+  box-shadow:    0 10px 30px rgba(v.$black, 0.45);
+  color:         v.$text-primary;
+  display:       grid;
+  grid-template-columns: auto 1fr;
+  gap:           6px 10px;
+  animation:     ms-clip-hint-in 0.18s ease-out;
+
+  // Flèche vers le bouton Clip (dernier outil de la barre).
+  &::after {
+    content:      '';
+    position:     absolute;
+    right:        28px;
+    bottom:       -7px;
+    width:        12px;
+    height:       12px;
+    background:   v.$bg-elevated;
+    border-right: 1px solid rgba(v.$gold, 0.45);
+    border-bottom: 1px solid rgba(v.$gold, 0.45);
+    transform:    rotate(45deg);
+  }
+
+  &__icon { color: v.$gold; font-size: 1.1rem; margin-top: 1px; }
+  &__text { margin: 0; font-size: 0.85rem; line-height: 1.4; }
+  &__cta {
+    grid-column:   2;
+    justify-self:  start;
+    border:        none;
+    border-radius: 999px;
+    padding:       6px 12px;
+    font-size:     0.8rem;
+    font-weight:   700;
+    background:    v.$gold;
+    color:         v.$black;
+  }
+}
+
+@keyframes ms-clip-hint-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}

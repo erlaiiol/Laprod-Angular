@@ -21,6 +21,7 @@
 		BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000007BB000007BB000007 /* ScaleBuilder.swift */; };
 		BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB000009BB000009BB000009 /* RubberBandWrapper.mm */; };
 		CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */; };
+		DD000001DD000001DD000001 /* ClipCameraPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000003DD000003DD000003 /* ClipCameraPlugin.swift */; };
 		CC000002CC000002CC000002 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000004CC000004CC000004 /* MainViewController.swift */; };
 		CC000005CC000005CC000005 /* WebAuthSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */; };
 /* End PBXBuildFile section */
@@ -45,6 +46,7 @@
 		BB00000ABB00000ABB00000A /* RubberBandWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RubberBandWrapper.h; sourceTree = "<group>"; };
 		BB0000E1BB0000E1BB0000E1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitPurchasePlugin.swift; sourceTree = "<group>"; };
+		DD000003DD000003DD000003 /* ClipCameraPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCameraPlugin.swift; sourceTree = "<group>"; };
 		CC000004CC000004CC000004 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthSessionPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -90,6 +92,7 @@
 				BB000009BB000009BB000009 /* RubberBandWrapper.mm */,
 				BB00000ABB00000ABB00000A /* RubberBandWrapper.h */,
 				CC000003CC000003CC000003 /* StoreKitPurchasePlugin.swift */,
+				DD000003DD000003DD000003 /* ClipCameraPlugin.swift */,
 				CC000006CC000006CC000006 /* WebAuthSessionPlugin.swift */,
 				CC000004CC000004CC000004 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -216,6 +219,7 @@
 				BB000003BB000003BB000003 /* ScaleBuilder.swift in Sources */,
 				BB000004BB000004BB000004 /* RubberBandWrapper.mm in Sources */,
 				CC000001CC000001CC000001 /* StoreKitPurchasePlugin.swift in Sources */,
+				DD000001DD000001DD000001 /* ClipCameraPlugin.swift in Sources */,
 				CC000005CC000005CC000005 /* WebAuthSessionPlugin.swift in Sources */,
 				CC000002CC000002CC000002 /* MainViewController.swift in Sources */,
 			);
