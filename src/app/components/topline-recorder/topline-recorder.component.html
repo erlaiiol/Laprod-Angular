@@ -9,131 +9,211 @@
   }
 }
 
-<!-- Sur web → interface modale existante -->
+<!-- Sur web → même studio que l'app (transport · timeline · inspecteur · barre
+     d'outils), dans une modale. -->
 @if (!isNative) {
-<!-- Modal backdrop — click outside = close -->
 <div class="recorder-backdrop" (click)="closed.emit()">
-
-  <!-- Modal box -->
-  <div class="recorder-modal" (click)="$event.stopPropagation()">
+  <div class="recorder-modal" role="dialog" aria-modal="true" aria-label="Studio d'enregistrement"
+       (click)="$event.stopPropagation()">
 
     <!-- ── Header ──────────────────────────────────────────────────────────── -->
-    <div class="recorder-header">
-      <div class="recorder-header-left">
-        <h3><i class="bi bi-mic-fill"></i> Enregistrer une topline</h3>
-        @if (auth.currentUser(); as u) {
-          <div class="token-badge" [class.token-empty]="u.topline_tokens === 0">
-            <i class="bi bi-coin"></i>
-            <span>{{ u.topline_tokens }} token{{ u.topline_tokens !== 1 ? 's' : '' }}</span>
-            <span class="token-refill-hint">
-              @if (u.is_premium) { +50/sem } @else { +5/sem }
-            </span>
-          </div>
+    <div class="ws-header">
+      <div class="ws-track">
+        @if (track.image_file) {
+          <img loading="lazy" decoding="async" class="ws-cover" alt=""
+               [src]="env.apiUrl + '/db_assets/' + track.image_file">
         } @else {
-          <div class="token-badge token-guest">
-            <i class="bi bi-person-dash"></i>
-            <span>{{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }} restant{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }}</span>
-          </div>
+          <div class="ws-cover ws-cover--placeholder"><i class="bi bi-music-note-beamed"></i></div>
         }
+        <div class="ws-track-text">
+          <p class="ws-track-title">{{ track.title }}</p>
+          <p class="ws-track-meta">
+            @if (track.key) { <span>{{ track.key }}</span> · }
+            {{ track.bpm }} BPM
+          </p>
+        </div>
       </div>
-      <button class="btn-close-modal" (click)="closed.emit()" aria-label="Fermer">&#x2715;</button>
+      <div class="ws-header-right">
+        @if (auth.currentUser(); as u) {
+          <span class="ws-token" [class.ws-token--empty]="u.topline_tokens === 0"
+                [title]="u.is_premium ? '+50 tokens par semaine' : '+5 tokens par semaine'">
+            <i class="bi bi-coin"></i>
+            {{ u.topline_tokens }} token{{ u.topline_tokens !== 1 ? 's' : '' }}
+          </span>
+        } @else {
+          <span class="ws-token">
+            <i class="bi bi-person-dash"></i>
+            {{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }}
+          </span>
+        }
+        <button class="ws-close" (click)="closed.emit()" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+
+    <!-- ── Incitation à l'app ─────────────────────────────────────────────── -->
+    <div class="ws-app" [class.ws-app--open]="showAppInfo()">
+      <button class="ws-app-head" (click)="showAppInfo.update(v => !v)" [attr.aria-expanded]="showAppInfo()">
+        <i class="bi bi-phone ws-app-icon"></i>
+        <span class="ws-app-text">
+          <strong>Le studio complet est dans l'app LaProd</strong>
+          <small>Sur navigateur, certaines fonctions sont limitées</small>
+        </span>
+        <i class="bi ws-app-chevron" [class.bi-chevron-down]="!showAppInfo()" [class.bi-chevron-up]="showAppInfo()"></i>
+      </button>
+      @if (showAppInfo()) {
+        <ul class="ws-app-list">
+          <li><i class="bi bi-magic"></i><span><strong>Autotune en direct</strong> dans le casque pendant que vous chantez. Ici, il n'est appliqué qu'après l'envoi.</span></li>
+          <li><i class="bi bi-bullseye"></i><span><strong>Voix calée automatiquement sur le beat.</strong> Ici, un décalage reste possible (surtout en Bluetooth) et se corrige à la main par calibration.</span></li>
+          <li><i class="bi bi-headphones"></i><span><strong>Retour voix sans retard.</strong> Le navigateur vous renvoie votre voix avec un léger délai.</span></li>
+          <li><i class="bi bi-layers"></i><span><strong>Plusieurs voix, punch-in et effets</strong> (réverb, présence, clarté…) réglables piste par piste, audibles en direct. Ici : une seule prise, autotune seulement.</span></li>
+          <li><i class="bi bi-lightning-charge"></i><span><strong>Mix prêt tout de suite</strong>, sans attendre le traitement en ligne (jusqu'à une minute ici).</span></li>
+        </ul>
+        <div class="ws-app-stores">
+          @for (s of appDownload.suggestedStores; track s.platform) {
+            <a class="ws-store" [href]="s.url" target="_blank" rel="noopener">
+              <i class="bi" [class.bi-apple]="s.platform === 'ios'" [class.bi-google-play]="s.platform === 'android'"></i>
+              <span><small>{{ s.hint }}</small>{{ s.name }}</span>
+            </a>
+          }
+        </div>
+      }
     </div>
 
     @if (errorMsg()) {
-      <div class="recorder-error">{{ errorMsg() }}</div>
-    }
-
-    <!-- ── Bannière upsell guest post-envoi ─────────────────────────────── -->
-    @if (guestSentTopline()) {
-      <div class="guest-upsell-banner">
-        <div class="guest-upsell-banner__icon">
-          <i class="bi bi-check-circle-fill"></i>
-        </div>
-        <div class="guest-upsell-banner__content">
-          <strong>Ta topline est en cours de traitement !</strong>
-          <p>
-            Crée un compte gratuit pour la sauvegarder définitivement.
-            Sans compte, elle sera perdue dans 24h.
-          </p>
-          @if (guestSvc.remainingAttempts() > 0) {
-            <p class="guest-attempts-hint">
-              Il te reste {{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }} aujourd'hui.
-            </p>
-          }
-        </div>
-        <div class="guest-upsell-banner__actions">
-          <a routerLink="/register" class="btn-upsell-register">
-            <i class="bi bi-person-plus-fill"></i> Créer un compte
-          </a>
-          <a routerLink="/login" class="btn-upsell-login">
-            Déjà inscrit ?
-          </a>
-        </div>
+      <div class="ws-error" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>{{ errorMsg() }}</span>
       </div>
     }
 
-    <!-- ── IDLE ────────────────────────────────────────────────────────────── -->
-    @if (state() === 'idle') {
-      <div class="recorder-idle">
+    <div class="daw-studio ws-studio">
 
-        @if (!calibrating()) {
-          <div class="recorder-options">
-            <label class="option-toggle">
-              <input type="checkbox" [(ngModel)]="useAutotune">
-              <span>Auto-tune <small>({{ track.key }})</small></span>
-            </label>
-            <label class="option-toggle">
-              <input type="checkbox" [(ngModel)]="useMonitor">
-              <span>Monitoring <small>(m'entendre en direct)</small></span>
-            </label>
-          </div>
-          <div class="description-field">
-            <label>Description <small>(optionnel)</small></label>
-            <input type="text" maxlength="200" [(ngModel)]="description"
-                   placeholder="Décrivez votre topline…">
-          </div>
-          @if (auth.currentUser()?.topline_tokens === 0) {
-            <div class="token-exhausted">
-              <i class="bi bi-exclamation-triangle-fill"></i>
-              Plus de tokens disponibles. Vous en recevrez
-              @if (auth.currentUser()?.is_premium) { 50 } @else { 5 }
-              lors du prochain renouvellement hebdomadaire.
-            </div>
+      <!-- ── Transport ─────────────────────────────────────────────────── -->
+      <div class="daw-transport">
+        <button class="daw-tp-start" (click)="playFromStart()"
+                [disabled]="state() === 'recording' || state() === 'processing'"
+                aria-label="Lire depuis le début">
+          <i class="bi bi-skip-start-fill"></i>
+          <span>Début</span>
+        </button>
+        <button class="daw-tp-play"
+                [class.daw-tp-play--on]="isPlayingStudio()"
+                [disabled]="state() === 'recording' || state() === 'processing'"
+                (click)="togglePlay()"
+                [attr.aria-label]="isPlayingStudio() ? 'Pause' : (resultTopline() ? 'Écouter le mix' : 'Écouter l\'instrumentale')">
+          @if (loadingAudio() || startingRecording()) {
+            <span class="daw-tp-spinner" aria-hidden="true"></span>
+          } @else {
+            <i class="bi" [class.bi-pause-fill]="isPlayingStudio()" [class.bi-play-fill]="!isPlayingStudio()"></i>
           }
-          @if (guestSvc.remainingAttempts() === 0 && isGuest()) {
-            <div class="guest-limit-reached">
-              <i class="bi bi-lock-fill"></i>
-              Limite atteinte. Crée un compte gratuit pour continuer à enregistrer.
-              <a routerLink="/register" class="guest-limit-cta">Créer un compte</a>
+        </button>
+        <div class="daw-tp-time" aria-live="off">
+          <strong>{{ fmtSec(currentSec()) }}</strong>
+          <span>/ {{ fmtSec(spanSec()) }}</span>
+        </div>
+        @if (state() === 'recording') {
+          <span class="ws-rec-pill"><span class="ws-rec-dot"></span> REC {{ formatTimer(timer()) }} / {{ formatTimer(MAX_SECONDS) }}</span>
+        } @else if (resultTopline()) {
+          <span class="ws-src-pill">Mix voix + beat</span>
+        }
+      </div>
+
+      <!-- ── Timeline ──────────────────────────────────────────────────── -->
+      <div class="daw-tl ws-tl">
+        <div class="daw-tl-heads">
+          <div class="daw-tl-corner"><i class="bi bi-hand-index-thumb"></i></div>
+          <button class="daw-tl-head daw-tl-head--beat"
+                  [class.daw-tl-head--selected]="selectedLane() === 'beat'"
+                  (click)="selectLane('beat')" aria-label="Réglages de l'instrumentale">
+            <i class="bi bi-music-note-beamed"></i><span>Instru</span>
+          </button>
+          <button class="daw-tl-head"
+                  [style.--lane-color]="VOICE_COLOR"
+                  [class.daw-tl-head--selected]="selectedLane() === 'voice'"
+                  (click)="selectLane('voice')" aria-label="Réglages de la voix">
+            <i class="bi bi-mic-fill"></i><span>Voix</span>
+          </button>
+        </div>
+
+        <div class="daw-tl-scroll">
+          <div class="daw-tl-content" #tlContent>
+            <div class="daw-tl-ruler"
+                 (pointerdown)="onScrubStart($event)" (pointermove)="onScrubMove($event)"
+                 (pointerup)="onScrubEnd($event)" (pointercancel)="onScrubEnd($event)"
+                 role="slider" aria-label="Position de lecture"
+                 [attr.aria-valuemin]="0" [attr.aria-valuemax]="spanSec()" [attr.aria-valuenow]="currentSec()">
+              @for (m of rulerMarks(); track m.pct) {
+                <span class="daw-tl-mark" [style.left.%]="m.pct">{{ m.label }}</span>
+              }
             </div>
-          }
-          @if (showCalibNudge()) {
-            <div class="calib-nudge">
-              <i class="bi bi-soundwave calib-nudge__icon"></i>
-              <div class="calib-nudge__body">
-                <strong>
-                  @if (calibStale()) { Nouvelle sortie audio détectée } @else { Évitez le décalage voix / beat }
-                </strong>
-                <p>
-                  @if (calibStale()) {
-                    Votre calibration date d'un autre casque ou haut-parleur. Refaites-la, 20 secondes suffisent.
-                  } @else {
-                    Calibrez le métronome en 20 secondes : votre voix sera calée pile sur le beat.
-                  }
-                </p>
+
+            <div class="daw-tl-lane daw-tl-lane--beat"
+                 [class.daw-tl-lane--selected]="selectedLane() === 'beat'"
+                 (click)="onLaneClick($event, 'beat')">
+              <div class="daw-tl-clip daw-tl-clip--beat ws-beat-clip">
+                <span class="ws-clip-name">{{ track.title }}</span>
               </div>
-              <div class="calib-nudge__actions">
-                <button class="calib-nudge__cta" (click)="startCalibration()">
-                  <i class="bi bi-play-fill"></i> Lancer le métronome
-                </button>
-                <button class="calib-nudge__later" (click)="snoozeCalibNudge()">Plus tard</button>
+            </div>
+
+            <div class="daw-tl-lane"
+                 [style.--lane-color]="VOICE_COLOR"
+                 [class.daw-tl-lane--selected]="selectedLane() === 'voice'"
+                 (click)="onLaneClick($event, 'voice')">
+              @if (voiceClip(); as c) {
+                <div class="daw-tl-clip ws-voice-clip" [class.ws-voice-clip--rec]="state() === 'recording'"
+                     [style.left.%]="c.left" [style.width.%]="c.width">
+                  <span class="ws-clip-name">
+                    @switch (state()) {
+                      @case ('recording')  { Enregistrement… }
+                      @case ('processing') { Envoi… }
+                      @default { @if (resultTopline()) { Voix } @else { Traitement en ligne… } }
+                    }
+                  </span>
+                </div>
+              } @else {
+                <span class="daw-tl-lane-note">
+                  @if (state() === 'processing') { Envoi… } @else { Piste vide — cliquez sur « Enregistrer » }
+                </span>
+              }
+            </div>
+
+            <div class="daw-tl-playhead ws-playhead" [style.left.%]="playheadPct()">
+              <span class="daw-tl-playhead-grip"
+                    (pointerdown)="onScrubStart($event)" (pointermove)="onScrubMove($event)"
+                    (pointerup)="onScrubEnd($event)" (pointercancel)="onScrubEnd($event)"
+                    aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Inspecteur ────────────────────────────────────────────────── -->
+      <div class="daw-inspector ws-inspector">
+        <!-- ── Bannière guest post-envoi ─────────────────────────────────────── -->
+        @if (guestSentTopline()) {
+          <div class="ws-notice ws-notice--ok">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>
+              <strong>Ta topline est en cours de traitement !</strong>
+              <p>Crée un compte gratuit pour la sauvegarder définitivement. Sans compte, elle sera perdue dans 24h.
+                @if (guestSvc.remainingAttempts() > 0) {
+                  Il te reste {{ guestSvc.remainingAttempts() }} essai{{ guestSvc.remainingAttempts() !== 1 ? 's' : '' }} aujourd'hui.
+                }
+              </p>
+              <div class="ws-notice-actions">
+                <a routerLink="/register" class="ws-btn ws-btn--primary"><i class="bi bi-person-plus-fill"></i> Créer un compte</a>
+                <a routerLink="/login" class="ws-btn">Déjà inscrit ?</a>
               </div>
             </div>
-          }
+          </div>
+        }
+
+        <!-- Blocages / conseils avant d'enregistrer -->
+        @if (state() === 'idle') {
           @if (micBlocked()) {
-            <div class="mic-blocked" role="alert">
-              <i class="bi bi-mic-mute-fill mic-blocked__icon"></i>
-              <div class="mic-blocked__body">
+            <div class="ws-notice ws-notice--warn" role="alert">
+              <i class="bi bi-mic-mute-fill"></i>
+              <div>
                 @if (micState() === 'denied') {
                   <strong>Le micro est bloqué pour LaProd</strong>
                   <p>Cliquez sur le cadenas à gauche de l'adresse, autorisez le <strong>Microphone</strong>, puis réessayez.</p>
@@ -142,187 +222,225 @@
                   <p>Branchez un micro, vérifiez qu'aucune autre application ne l'utilise, et que la page est en HTTPS.</p>
                 }
               </div>
-              <button class="mic-blocked__retry" (click)="retryMic()">Réessayer</button>
+              <button class="ws-btn" (click)="retryMic()">Réessayer</button>
             </div>
           }
-          <button class="btn-start-rec"
-                  (click)="startRecording()"
-                  [disabled]="startingRecording() || micBlocked() || auth.currentUser()?.topline_tokens === 0 || (isGuest() && !guestSvc.hasAttemptsLeft())">
-            @if (startingRecording()) {
-              <span class="btn-spinner"></span> Préparation du beat…
-            } @else {
-              <span class="rec-dot-btn"></span> Démarrer l'enregistrement
-            }
-          </button>
-
-          <!-- Calibration row -->
-          <div class="calib-row">
-            @if (isBluetooth()) {
-              <span class="calib-device-badge">
-                <i class="bi bi-headphones"></i> Bluetooth
-              </span>
-            }
-            @if (calibResult() !== null) {
-              <span class="calib-status">
-                <i class="bi bi-check2-circle"></i> Calibré : {{ calibResult() }}ms
-              </span>
-              <button class="calib-link calib-link--muted" (click)="resetCalibration()">Réinitialiser</button>
-              <span class="calib-dot">·</span>
-            }
-            <button class="calib-link" (click)="startCalibration()">
-              {{ calibResult() !== null ? 'Recalibrer' : 'Calibrer la latence audio' }}
-            </button>
-          </div>
-
-          <div class="recorder-tips">
-            <p class="tips-title"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
-            <ul>
-              <li><strong>Beat en fond</strong> — le beat joue pendant l'enregistrement, chantez par-dessus.</li>
-              <li><strong>Démarrage</strong> — un court instant de préparation avant que le beat démarre : attendez de l'entendre avant de chanter, ne partez pas sur le clic.</li>
-              <li><strong>Connexion</strong> — une connexion stable accélère le chargement du beat et rend le point de départ plus précis.</li>
-              <li><strong>Monitoring</strong> — si activé, vous vous entendez en temps réel (~10 ms de latence). Utilisez un casque pour éviter le larsen.</li>
-              <li><strong>Auto-tune</strong> — correction de justesse appliquée après l'enregistrement selon la gamme {{ track.key }}.</li>
-              <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }}s · maximum {{ MAX_SECONDS }}s ({{ formatTimer(MAX_SECONDS) }}).</li>
-              <li><strong>Preview</strong> — écoutez le mix voix+beat avant de publier ou supprimer.</li>
-            </ul>
-          </div>
-
-        } @else {
-
-          <!-- ── Calibration sub-view ───────────────────────────────────────── -->
-          <div class="calib-overlay">
-            <div class="calib-overlay-header">
-              <p class="calib-overlay-title">
-                <i class="bi bi-soundwave"></i> Calibration latence audio
-              </p>
-              <button class="calib-cancel-btn" (click)="cancelCalibration()">Annuler</button>
+          @if (auth.currentUser()?.topline_tokens === 0) {
+            <div class="ws-notice ws-notice--warn">
+              <i class="bi bi-coin"></i>
+              <div><p>Plus de tokens disponibles. Vous en recevrez
+                @if (auth.currentUser()?.is_premium) { 50 } @else { 5 }
+                lors du prochain renouvellement hebdomadaire.</p></div>
             </div>
-            @if (calibCountdown() !== null) {
-              <p class="calib-overlay-instructions">
-                Préparez-vous, le métronome démarre dans...
-              </p>
-              <div class="calib-beat-ring calib-beat-ring--countdown">{{ calibCountdown() }}</div>
-              <p class="calib-overlay-tip">
-                Restez concentré sur le rond, le premier son arrive à la fin du décompte.
-              </p>
-            } @else {
-              <p class="calib-overlay-instructions">
-                Tapez le bouton en rythme avec les sons que vous <strong>entendez</strong>.<br>
-                <small>2 sons de préparation, puis {{ CALIB_BEATS }} sons à tapper.</small>
-              </p>
-              <div class="calib-beat-ring" [class.calib-beat-active]="calibBeat()"></div>
-              <p class="calib-counter">{{ calibTapCount() }} / {{ CALIB_BEATS }}</p>
-              <button class="calib-tap-btn" (click)="onCalibTap()">TAP</button>
-              <p class="calib-overlay-tip">
-                Tapez juste quand vous entendez le son, pas avant.<br>
-                Rater un tap n'est pas grave : l'objectif est simplement d'en enchaîner {{ CALIB_BEATS }}.
-              </p>
-            }
-          </div>
-
+          }
+          @if (guestSvc.remainingAttempts() === 0 && isGuest()) {
+            <div class="ws-notice ws-notice--warn">
+              <i class="bi bi-lock-fill"></i>
+              <div><p>Limite atteinte. Crée un compte gratuit pour continuer à enregistrer.</p></div>
+              <a routerLink="/register" class="ws-btn ws-btn--primary">Créer un compte</a>
+            </div>
+          }
+          @if (showCalibNudge() && !showSettings()) {
+            <div class="ws-notice">
+              <i class="bi bi-soundwave"></i>
+              <div>
+                <strong>@if (calibStale()) { Nouvelle sortie audio détectée } @else { Évitez le décalage voix / beat }</strong>
+                <p>@if (calibStale()) { Votre calibration date d'un autre casque ou haut-parleur. Refaites-la, 20 secondes suffisent. }
+                   @else { Calibrez le métronome en 20 secondes : votre voix sera calée pile sur le beat. }</p>
+              </div>
+              <div class="ws-notice-col">
+                <button class="ws-btn ws-btn--primary" (click)="showSettings.set(true); startCalibration()">Calibrer</button>
+                <button class="ws-btn ws-btn--ghost" (click)="snoozeCalibNudge()">Plus tard</button>
+              </div>
+            </div>
+          }
         }
-      </div>
-    }
 
-    <!-- ── RECORDING ───────────────────────────────────────────────────────── -->
-    @if (state() === 'recording') {
-      <div class="recorder-recording">
-        <div class="recording-indicator">
-          <span class="rec-dot"></span>
-          <span class="rec-label">REC</span>
-          <span class="rec-timer">{{ formatTimer(timer()) }} / {{ formatTimer(MAX_SECONDS) }}</span>
-        </div>
-        <canvas #visualizerCanvas class="visualizer" width="460" height="80"></canvas>
-        <button class="btn-stop-rec" (click)="stopRecording()">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-            <rect x="4" y="4" width="16" height="16"/>
-          </svg>
-          Terminer l'enregistrement
-        </button>
-      </div>
-    }
-
-    <!-- ── PROCESSING ──────────────────────────────────────────────────────── -->
-    @if (state() === 'processing') {
-      <div class="recorder-processing">
-        <div class="processing-dots">
-          <span></span><span></span><span></span>
-        </div>
-        <p class="processing-main">Traitement en cours…</p>
-        <p class="processing-hint">
-          Conversion, effets vocaux, fusion voix + beat.
-          <br><strong>Cette étape peut prendre jusqu'à une minute.</strong>
-        </p>
-        <p class="processing-wait">Merci de patienter sans fermer la page.</p>
-      </div>
-    }
-
-    <!-- ── RESULT ──────────────────────────────────────────────────────────── -->
-    @if (state() === 'result' && resultTopline()) {
-      <div class="recorder-result">
-        <p class="result-title">
-          <i class="bi bi-check-circle-fill"></i> Ton mix est prêt !
-        </p>
-
-        <!-- Écouter -->
-        <button class="btn-play-result" (click)="playResult()" [disabled]="loadingAudio()">
-          @if (loadingAudio()) {
-            <span class="btn-spinner"></span> Chargement…
-          } @else {
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-              <polygon points="5,3 19,12 5,21"/>
-            </svg>
-            Écouter le mix
-          }
-        </button>
-
-        @if (!isGuest()) {
-          <!-- Statut publication (connectés uniquement) -->
-          @if (isPublished()) {
-            <div class="publish-badge">
-              <i class="bi bi-globe2"></i> Publiée
+        @if (state() === 'recording') {
+          <div class="ws-rec-panel">
+            <canvas #visualizerCanvas class="ws-visualizer" width="460" height="64" aria-hidden="true"></canvas>
+            <div class="ws-time-bar">
+              <div class="ws-time-bar__fill" [style.width.%]="(timer() / MAX_SECONDS) * 100"></div>
             </div>
-          }
-
-          <!-- Actions connecté -->
-          <div class="result-actions">
-            @if (!isPublished()) {
-              <button class="btn-publish" (click)="publishResult()">
-                <i class="bi bi-cloud-upload-fill"></i> Publier
-              </button>
-            } @else {
-              <button class="btn-unpublish" (click)="unpublishResult()">
-                <i class="bi bi-eye-slash"></i> Remettre en privé
-              </button>
-            }
-            <button class="btn-delete" (click)="deleteResult()">
-              <i class="bi bi-trash3"></i> Supprimer
-            </button>
-            <button class="btn-retry" (click)="resetToIdle()">
-              <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
-            </button>
+            <p class="ws-hint">Chantez par-dessus le beat · minimum {{ MIN_SECONDS }} s · « Terminer » pour arrêter</p>
+          </div>
+        } @else if (state() === 'processing') {
+          <div class="ws-processing">
+            <div class="ws-dots"><span></span><span></span><span></span></div>
+            <p><strong>Envoi en cours…</strong></p>
+            <p class="ws-hint">Conversion, effets vocaux et fusion voix + beat se font en ligne : jusqu'à une minute. Ne fermez pas la page.</p>
+          </div>
+        } @else if (selectedLane() === 'beat') {
+          <div class="daw-insp-card daw-insp-card--beat">
+            <div class="daw-insp-head">
+              <span class="daw-insp-dot"></span>
+              <span class="daw-insp-title">{{ track.title }}</span>
+            </div>
+            <div class="daw-insp-row daw-insp-row--last">
+              <span class="daw-insp-label"><i class="bi bi-volume-up-fill"></i> Volume d'écoute</span>
+              <input type="range" class="ws-range" min="0" max="1" step="0.05"
+                     [value]="player.volume()" (input)="onBeatVolumeInput($event)"
+                     aria-label="Volume d'écoute">
+              <span class="ws-range-val">{{ (player.volume() * 100 | number:'1.0-0') }}%</span>
+            </div>
           </div>
         } @else {
-          <!-- Upsell guest post-écoute -->
-          <div class="guest-result-upsell">
-            <p class="guest-result-upsell__msg">
-              <i class="bi bi-clock-fill"></i>
-              Ce mix sera supprimé dans <strong>24 heures</strong>.<br>
-              Crée un compte gratuit pour le sauvegarder, le publier et accéder à toutes les fonctionnalités.
-            </p>
-            <div class="guest-result-upsell__actions">
-              <a routerLink="/register" class="btn-upsell-register">
-                <i class="bi bi-person-plus-fill"></i> Créer un compte — c'est gratuit
-              </a>
-              <a routerLink="/login" class="btn-upsell-login">Déjà inscrit ?</a>
+          <div class="daw-insp-card ws-voice-card">
+            <div class="daw-insp-head">
+              <span class="daw-insp-dot ws-voice-dot"></span>
+              <span class="daw-insp-title">Voix</span>
+              @if (isPublished()) {
+                <span class="ws-pill ws-pill--green"><i class="bi bi-globe2"></i> Publiée</span>
+              } @else if (resultTopline()) {
+                <span class="ws-pill"><i class="bi bi-check-circle-fill"></i> Mix prêt</span>
+              }
             </div>
-            <button class="btn-retry guest-retry" (click)="resetToIdle()">
-              <i class="bi bi-arrow-counterclockwise"></i> Réenregistrer
-            </button>
+
+            @if (resultTopline()) {
+              <div class="daw-insp-row">
+                <span class="daw-insp-label"><i class="bi bi-play-circle"></i> Écoute</span>
+                <span class="ws-hint ws-grow">Cliquez dans une piste pour écouter le mix à cet endroit.</span>
+              </div>
+              @if (!isGuest()) {
+                <div class="daw-insp-row daw-insp-row--last">
+                  <span class="daw-insp-label"><i class="bi bi-trash3"></i> Prise</span>
+                  <button class="ws-btn ws-btn--danger" (click)="deleteResult()">Supprimer</button>
+                </div>
+              } @else {
+                <div class="daw-insp-row daw-insp-row--last">
+                  <span class="ws-hint ws-grow"><i class="bi bi-clock-fill"></i> Ce mix sera supprimé dans <strong>24 heures</strong>. Crée un compte gratuit pour le garder et le publier.</span>
+                  <a routerLink="/register" class="ws-btn ws-btn--primary">Créer un compte</a>
+                </div>
+              }
+            } @else {
+              <div class="daw-insp-row">
+                <span class="daw-insp-label"><i class="bi bi-magic"></i> Auto-tune</span>
+                <span class="ws-hint ws-grow">Gamme {{ track.key || '—' }} · appliqué après l'envoi</span>
+                <button class="ws-toggle" [class.ws-toggle--on]="useAutotune"
+                        (click)="useAutotune = !useAutotune" [attr.aria-pressed]="useAutotune"
+                        aria-label="Activer l'auto-tune"><span class="ws-toggle__thumb"></span></button>
+              </div>
+              <div class="daw-insp-row">
+                <span class="daw-insp-label"><i class="bi bi-chat-left-text"></i> Description</span>
+                <input type="text" class="ws-input ws-grow" maxlength="200" [(ngModel)]="description"
+                       placeholder="Décrivez votre topline (optionnel)">
+              </div>
+              <div class="daw-insp-row daw-insp-row--last ws-locked">
+                <span class="daw-insp-label"><i class="bi bi-lock-fill"></i> Effets</span>
+                <span class="ws-hint ws-grow">Réverb, présence, clarté et autotune en direct : dans l'app LaProd.</span>
+                <button class="ws-btn ws-btn--ghost" (click)="showAppInfo.set(true)">Voir l'app</button>
+              </div>
+            }
           </div>
         }
       </div>
-    }
+
+      <!-- ── Barre d'outils (commune avec l'app) ───────────────────────── -->
+      <app-studio-toolbar
+        [recordLabel]="recordLabel()"
+        [recording]="state() === 'recording'"
+        [recordBusy]="startingRecording()"
+        [recordDisabled]="recordDisabled()"
+        [settingsActive]="showSettings()"
+        [settingsDisabled]="state() === 'recording' || state() === 'processing'"
+        [publishLabel]="publishLabel()"
+        [publishIcon]="isPublished() ? 'bi-eye-slash' : 'bi-cloud-arrow-up-fill'"
+        [publishDisabled]="!canPublish()"
+        [downloadDisabled]="!resultTopline()"
+        [downloadBusy]="downloading()"
+        (record)="onRecordPressed()"
+        (settings)="toggleSettings()"
+        (publish)="onPublishPressed()"
+        (download)="downloadResult()"/>
+
+      <!-- ── Panneau : micro & monitoring ──────────────────────────────── -->
+      @if (showSettings()) {
+        <div class="daw-bsheet-backdrop" (click)="toggleSettings()"></div>
+        <div class="daw-bsheet ws-sheet" role="dialog" aria-label="Réglages micro et monitoring">
+          <div class="daw-bsheet-head">
+            <span><i class="bi bi-sliders"></i> Micro &amp; monitoring</span>
+            <button (click)="toggleSettings()" aria-label="Fermer"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="ws-sheet-body">
+            @if (!calibrating() && calibCountdown() === null) {
+              <div class="ws-row">
+                <div class="ws-row-info">
+                  <span class="ws-row-label">M'entendre chanter</span>
+                  <span class="ws-hint">Retour voix du navigateur, avec un léger délai. Utilisez un casque pour éviter le larsen.</span>
+                </div>
+                <button class="ws-toggle" [class.ws-toggle--on]="useMonitor"
+                        (click)="useMonitor = !useMonitor" [attr.aria-pressed]="useMonitor"
+                        aria-label="M'entendre chanter"><span class="ws-toggle__thumb"></span></button>
+              </div>
+
+              <div class="ws-row">
+                <div class="ws-row-info">
+                  <span class="ws-row-label">
+                    Calage voix / beat
+                    @if (isBluetooth()) { <span class="ws-pill"><i class="bi bi-bluetooth"></i> Bluetooth</span> }
+                  </span>
+                  <span class="ws-hint">
+                    @if (calibResult() !== null) {
+                      Calibré : {{ calibResult() }} ms@if (calibStale()) { — à refaire pour cette sortie audio }
+                    } @else {
+                      Tapez en rythme avec un métronome (20 s) pour caler votre voix pile sur le beat.
+                    }
+                  </span>
+                </div>
+                <div class="ws-notice-col">
+                  <button class="ws-btn ws-btn--primary" (click)="startCalibration()">
+                    {{ calibResult() !== null ? 'Recalibrer' : 'Calibrer' }}
+                  </button>
+                  @if (calibResult() !== null) {
+                    <button class="ws-btn ws-btn--ghost" (click)="resetCalibration()">Réinitialiser</button>
+                  }
+                </div>
+              </div>
+
+              <div class="ws-tips">
+                <p class="ws-row-label"><i class="bi bi-info-circle"></i> À savoir avant d'enregistrer</p>
+                <ul>
+                  <li><strong>Beat en fond</strong> — il joue pendant l'enregistrement, chantez par-dessus.</li>
+                  <li><strong>Démarrage</strong> — attendez d'entendre le beat avant de chanter.</li>
+                  <li><strong>Connexion</strong> — une connexion stable rend le point de départ plus précis.</li>
+                  <li><strong>Durée</strong> — minimum {{ MIN_SECONDS }} s · maximum {{ formatTimer(MAX_SECONDS) }}.</li>
+                </ul>
+              </div>
+            } @else {
+              <!-- Calibration -->
+              <div class="ws-calib">
+                <div class="ws-calib-head">
+                  <span><i class="bi bi-soundwave"></i> Calibration de la latence</span>
+                  <button class="ws-btn ws-btn--ghost" (click)="cancelCalibration()">Annuler</button>
+                </div>
+                @if (calibCountdown() !== null) {
+                  <p class="ws-hint">Préparez-vous, le métronome démarre dans…</p>
+                  <div class="ws-calib-ring ws-calib-ring--count">{{ calibCountdown() }}</div>
+                  <p class="ws-hint">Le premier son arrive à la fin du décompte.</p>
+                } @else {
+                  <p class="ws-hint">Cliquez en rythme avec les sons que vous <strong>entendez</strong> — 2 sons de préparation, puis {{ CALIB_BEATS }} à taper.</p>
+                  <div class="ws-calib-ring" [class.ws-calib-ring--beat]="calibBeat()"></div>
+                  <p class="ws-calib-count">{{ calibTapCount() }} / {{ CALIB_BEATS }}</p>
+                  <button class="ws-calib-tap" (click)="onCalibTap()">TAP</button>
+                  <p class="ws-hint">Rater un tap n'est pas grave : enchaînez-en simplement {{ CALIB_BEATS }}.</p>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (showGuestGate()) {
+        <app-daw-guest-gate-overlay
+          title="Compte requis pour publier"
+          body="Crée un compte gratuit pour publier ta topline et la garder au-delà de 24 heures."
+          downloadLabel="Télécharger le mix"
+          (login)="goToRegister()"
+          (downloadLocal)="showGuestGate.set(false); downloadResult()"
+          (cancel)="showGuestGate.set(false)">
+        </app-daw-guest-gate-overlay>
+      }
+    </div>
 
   </div>
 </div>

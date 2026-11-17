@@ -1,16 +1,34 @@
 @use '../../../../styles/variables' as v;
 
 .mti-card {
+  --mti-color:   #{v.$primary};
   background:    rgba(255, 255, 255, 0.04);
   border:        1px solid rgba(255, 255, 255, 0.10);
+  border-left:   3px solid var(--mti-color);
   border-radius: 10px;
   overflow:      hidden;
-  transition:    border-color 0.2s;
+}
 
-  &--empty {
-    border-style: dashed;
-    border-color: rgba(255, 255, 255, 0.18);
-  }
+.mti-color-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  background:    var(--mti-color);
+  flex-shrink:   0;
+}
+
+.mti-live-hint {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+  margin-left: auto;
+  font-size:   0.66rem;
+  color:       rgba(255, 255, 255, 0.38);
+  white-space: nowrap;
+  overflow:    hidden;
+  min-width:   0;
+
+  i { font-size: 0.72rem; }
 }
 
 // ── En-tête ────────────────────────────────────────────────────────────────────
@@ -20,7 +38,6 @@
   align-items: center;
   gap:         8px;
   padding:     5px 6px 5px 10px;
-  cursor:      pointer;
   min-height:  40px;
 }
 
@@ -31,10 +48,8 @@
   white-space:   nowrap;
   overflow:      hidden;
   text-overflow: ellipsis;
-  max-width:     30%;
+  max-width:     38%;
   flex-shrink:   0;
-  cursor:        text;
-  user-select:   none;
 }
 
 .mti-at-badge {
@@ -64,37 +79,6 @@
   &:focus { border-color: rgba(255, 255, 255, 0.45); }
 }
 
-.mti-wf-wrap {
-  position:      relative;
-  flex:          1;
-  min-width:     0;
-  cursor:        pointer;
-  border-radius: 4px;
-  overflow:      hidden;
-
-  &:active { opacity: 0.85; }
-}
-
-.mti-waveform {
-  display:       block;
-  width:         100%;
-  height:        24px;
-  border-radius: 4px;
-  background:    rgba(255, 255, 255, 0.04);
-}
-
-.mti-playhead {
-  position:      absolute;
-  top:           0;
-  bottom:        0;
-  width:         2px;
-  margin-left:   -1px;
-  background:    rgba(255, 255, 255, 0.82);
-  pointer-events: none;
-  border-radius: 1px;
-  box-shadow:    0 0 5px rgba(0, 0, 0, 0.45);
-}
-
 .mti-actions {
   display:     flex;
   align-items: center;
@@ -114,28 +98,6 @@
   color:           rgba(255, 255, 255, 0.45);
   font-size:       0.8rem;
   cursor:          pointer;
-}
-
-.mti-icon-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  width:           30px;
-  height:          30px;
-  border:          none;
-  border-radius:   8px;
-  background:      rgba(255, 255, 255, 0.07);
-  color:           v.$text-primary;
-  cursor:          pointer;
-  font-size:       0.9rem;
-  transition:      background 0.15s;
-
-  &:active { background: rgba(255, 255, 255, 0.14); }
-
-  &--playing {
-    color:      v.$primary;
-    background: rgba(v.$primary, 0.1);
-  }
 }
 
 // Actions secondaires (panneau déplié)
@@ -242,6 +204,57 @@
 
   &--last    { border-bottom: none; }
   &--actions { justify-content: flex-start; gap: 6px; padding: 6px 0; }
+
+  // Effet verrouillé (invité) : lisible mais inactif — les contrôles sont disabled
+  &--locked {
+    .mti-row-label { opacity: 0.55; }
+    .mti-toggle,
+    .mti-preset-btn { opacity: 0.4; cursor: not-allowed; }
+  }
+}
+
+// ── Verrou des effets (invité) ─────────────────────────────────────────────────
+
+.mti-fx-lock {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  width:         100%;
+  margin:        8px 0 4px;
+  padding:       9px 10px;
+  border:        1px solid rgba(v.$primary, 0.45);
+  border-radius: 10px;
+  background:    rgba(v.$primary, 0.1);
+  color:         v.$text-primary;
+  font-family:   inherit;
+  text-align:    left;
+  cursor:        pointer;
+
+  > i { font-size: 0.95rem; color: v.$primary; flex-shrink: 0; }
+
+  &:active { background: rgba(v.$primary, 0.16); }
+}
+
+.mti-fx-lock__text {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  flex:           1;
+  min-width:      0;
+
+  strong { font-size: 0.78rem; font-weight: 700; }
+  small  { font-size: 0.7rem; line-height: 1.3; color: v.$text-secondary; }
+}
+
+.mti-fx-lock__cta {
+  flex-shrink:   0;
+  padding:       5px 10px;
+  border-radius: 20px;
+  background:    v.$primary;
+  color:         #fff;
+  font-size:     0.72rem;
+  font-weight:   700;
+  white-space:   nowrap;
 }
 
 .mti-row-label {

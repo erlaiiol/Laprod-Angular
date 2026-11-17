@@ -171,23 +171,27 @@
     </div>
   </div>
 
-  <!-- ── Confirmation modal ─────────────────────────────────────────────── -->
-  @if (showConfirmModal()) {
-    <div class="confirm-modal-backdrop" (click)="cancelModal()">
-      <div class="confirm-modal" (click)="$event.stopPropagation()">
-        <p class="confirm-msg">
-          Le player joue actuellement
-          <strong>{{ player.currentTrack()?.title }}</strong>.
-        </p>
-        <p class="confirm-sub">
-          Charger <strong>{{ player.viewingTrack()?.title }}</strong> pour continuer&nbsp;?
-        </p>
-        <div class="confirm-actions">
-          <button class="btn-confirm-yes" (click)="confirmLoadTrack()">Oui, charger</button>
-          <button class="btn-confirm-no"  (click)="cancelModal()">Annuler</button>
-        </div>
+</div>
+
+<!-- Modale hors de .bottom-player : celui-ci a overflow:hidden + backdrop-filter
+     (containing block des position:fixed) — à l'intérieur, la modale était rognée
+     et donc invisible, le bouton semblait ne rien faire. -->
+<!-- ── Confirmation modal ─────────────────────────────────────────────── -->
+@if (showConfirmModal()) {
+  <div class="confirm-modal-backdrop" (click)="cancelModal()">
+    <div class="confirm-modal" (click)="$event.stopPropagation()">
+      <p class="confirm-msg">
+        Le player joue actuellement
+        <strong>{{ player.currentTrack()?.title }}</strong>.
+      </p>
+      <p class="confirm-sub">
+        Charger <strong>{{ player.viewingTrack()?.title }}</strong> pour continuer&nbsp;?
+      </p>
+      <div class="confirm-actions">
+        <button class="btn-confirm-yes" (click)="confirmLoadTrack()">Oui, charger</button>
+        <button class="btn-confirm-no"  (click)="cancelModal()">Annuler</button>
       </div>
     </div>
-  }
+  </div>
+}
 
-</div>

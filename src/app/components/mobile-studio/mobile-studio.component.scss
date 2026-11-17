@@ -408,21 +408,6 @@
 
 // ── Vue studio (idle) ─────────────────────────────────────────────────────────
 
-.ms-upgrade-nudge {
-  display:       flex;
-  align-items:   flex-start;
-  gap:           8px;
-  padding:       11px 13px;
-  background:    rgba(255, 255, 255, 0.04);
-  border:        1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  font-size:     0.82rem;
-  color:         v.$text-secondary;
-
-  i { flex-shrink: 0; margin-top: 2px; }
-  a { color: v.$primary; text-decoration: none; font-weight: 600; }
-}
-
 .ms-desc-input {
   width:         100%;
   padding:       10px 13px;
@@ -463,17 +448,6 @@
   &--bt {
     background: rgba(77, 159, 255, 0.08);
     color:      #4d9fff;
-  }
-
-  &--bt-a2dp {
-    background: rgba(v.$warning, 0.07);
-    color:      v.$warning;
-  }
-
-  &__warn {
-    font-size:   0.8rem;
-    margin-left: 4px;
-    opacity:     0.8;
   }
 
   &--none {
@@ -631,18 +605,6 @@
   }
 }
 
-.ms-bt-nudge--a2dp {
-  background: rgba(v.$warning, 0.06);
-  border:     1px solid rgba(v.$warning, 0.2);
-
-  > i { color: v.$warning; }
-
-  .ms-bt-nudge__text {
-    span  { color: v.$warning; }
-    small { color: rgba(v.$warning, 0.7); }
-  }
-}
-
 .ms-bt-nudge__btn {
   padding:       6px 12px;
   border:        1.5px solid rgba(77, 159, 255, 0.4);
@@ -674,6 +636,33 @@
   gap:         5px;
 
   i { flex-shrink: 0; }
+}
+
+// Retour casque permanent (micro ouvert dans le studio)
+.ms-monitor-live {
+  display:     flex;
+  align-items: flex-start;
+  gap:         7px;
+  margin:      0;
+  padding:     5px 11px 8px;
+  font-size:   0.73rem;
+  line-height: 1.35;
+  color:       v.$text-secondary;
+}
+
+.ms-monitor-live__dot {
+  width:         7px;
+  height:        7px;
+  margin-top:    4px;
+  border-radius: 50%;
+  background:    v.$primary;
+  flex-shrink:   0;
+  animation:     monitorLivePulse 1.4s ease-in-out infinite;
+}
+
+@keyframes monitorLivePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
 
 // Bouton échauffement (idle view)
@@ -791,51 +780,9 @@
   &:active { color: v.$text-primary; }
 }
 
-// ── BT play-ahead feedback ────────────────────────────────────────────────────
-
-.ms-bt-preparing {
-  display:       flex;
-  align-items:   center;
-  gap:           10px;
-  padding:       10px 16px;
-  background:    rgba(77, 159, 255, 0.08);
-  border-top:    1px solid rgba(77, 159, 255, 0.18);
-  border-bottom: 1px solid rgba(77, 159, 255, 0.18);
-  color:         #4d9fff;
-  font-size:     0.84rem;
-  font-weight:   600;
-  animation:     fadeIn 0.2s ease;
-}
-
-.ms-bt-preparing__dot {
-  width:         10px;
-  height:        10px;
-  border-radius: 50%;
-  background:    #4d9fff;
-  flex-shrink:   0;
-  animation:     btPulse 1s ease-in-out infinite;
-}
-
-@keyframes btPulse {
-  0%, 100% { opacity: 1;   transform: scale(1);   }
-  50%       { opacity: 0.35; transform: scale(0.75); }
-}
-
 // ── Gain microphone ───────────────────────────────────────────────────────────
 
 // .ms-mic-gain-row / .ms-mic-gain-label → mobile-studio-shared.scss
-
-// ── Countdown BT ──────────────────────────────────────────────────────────────
-
-.ms-bt-countdown {
-  font-size:            0.85rem;
-  font-weight:          700;
-  color:                #fff;
-  min-width:            24px;
-  text-align:           center;
-  font-variant-numeric: tabular-nums;
-  margin-left:          auto;
-}
 
 // ── Bannière permission micro ─────────────────────────────────────────────────
 
@@ -921,22 +868,6 @@
 
 // ── Bouton upgrade (remplace <a href>) ────────────────────────────────────────
 
-.ms-upgrade-link {
-  display:         inline;
-  background:      none;
-  border:          none;
-  padding:         0;
-  margin:          0;
-  color:           v.$primary;
-  font-weight:     600;
-  font-size:       inherit;
-  font-family:     inherit;
-  cursor:          pointer;
-  text-decoration: none;
-
-  &:active { opacity: 0.7; }
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
 // DAW STUDIO — vue idle plein écran
 // ══════════════════════════════════════════════════════════════════════════════
@@ -946,78 +877,6 @@
   display:        flex;
   flex-direction: column;
   min-height:     0;
-}
-
-// .daw-statusbar / .daw-songstate* / .daw-badge-extended / .daw-btn-mix →
-// daw-status-bar/ (extrait).
-
-// ── Sections ─────────────────────────────────────────────────────────────────
-
-.daw-section {
-  padding:       8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-
-  &--voices   { flex: 1; }
-  &--settings { padding: 0; }
-}
-
-.daw-section-label {
-  display:        flex;
-  align-items:    center;
-  gap:            6px;
-  font-size:      0.72rem;
-  font-weight:    700;
-  color:          rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin:         0 0 5px;
-
-  i { font-size: 0.78rem; }
-}
-
-// ── Piste beat (lane) ─────────────────────────────────────────────────────────
-
-.daw-beat-lane {
-  background:    rgba(255, 255, 255, 0.03);
-  border:        1.5px solid rgba(255, 255, 255, 0.09);
-  border-radius: 10px;
-  overflow:      hidden;
-  cursor:        pointer;
-  transition:    border-color 0.18s, background 0.18s;
-
-  &--selected {
-    border-color: v.$primary;
-    background:   rgba(v.$primary, 0.06);
-  }
-
-  &:not(&--selected):active {
-    background: rgba(255, 255, 255, 0.05);
-  }
-}
-
-.daw-beat-lane-info {
-  display:         flex;
-  align-items:     center;
-  justify-content: space-between;
-  padding:         5px 6px 4px 10px;
-  gap:             8px;
-}
-
-.daw-track-label {
-  display:     flex;
-  align-items: center;
-  gap:         7px;
-  min-width:   0;
-  flex:        1;
-}
-
-.daw-track-label-name {
-  font-size:     0.8rem;
-  font-weight:   600;
-  color:         v.$text-primary;
-  white-space:   nowrap;
-  overflow:      hidden;
-  text-overflow: ellipsis;
 }
 
 .daw-track-pill {
@@ -1038,81 +897,6 @@
   }
 }
 
-.daw-beat-lane-btns {
-  display:     flex;
-  align-items: center;
-  gap:         6px;
-  flex-shrink: 0;
-}
-
-.daw-icon-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  width:           32px;
-  height:          32px;
-  border:          1.5px solid rgba(255, 255, 255, 0.14);
-  border-radius:   50%;
-  background:      rgba(255, 255, 255, 0.05);
-  color:           v.$text-secondary;
-  font-size:       0.9rem;
-  cursor:          pointer;
-  transition:      border-color 0.15s, color 0.15s, background 0.15s;
-  flex-shrink:     0;
-
-  &:active { background: rgba(255, 255, 255, 0.1); }
-
-  &--active {
-    border-color: v.$primary;
-    color:        v.$primary;
-    background:   rgba(v.$primary, 0.1);
-  }
-}
-
-// Waveform du beat — aperçu fin, le temps est incrusté en bas à droite
-.daw-beat-wf-wrap {
-  position: relative;
-  margin:   0 8px 7px;
-  height:   32px;
-}
-
-.daw-beat-waveform {
-  display:       block;
-  width:         100%;
-  height:        32px;
-  border-radius: 6px;
-  background:    rgba(v.$primary, 0.04);
-  border:        1px solid rgba(v.$primary, 0.12);
-  // Invisible jusqu'au dessin — le shimmer prend la place
-  opacity: 0;
-  transition: opacity 0.3s ease;
-
-  &--ready { opacity: 1; }
-
-  &--seekable { cursor: pointer; }
-}
-
-.daw-beat-wf-time {
-  position:      absolute;
-  right:         4px;
-  bottom:        3px;
-  display:       flex;
-  align-items:   center;
-  gap:           2px;
-  padding:       0 4px;
-  border-radius: 4px;
-  background:    rgba(0, 0, 0, 0.45);
-  font-size:     0.62rem;
-  font-weight:   600;
-  line-height:   1.4;
-  color:         rgba(255, 255, 255, 0.7);
-  pointer-events: none;
-  font-variant-numeric: tabular-nums;
-
-  .daw-beat-wf-time-sep { color: rgba(255, 255, 255, 0.3); }
-}
-
-// Shimmer pendant le chargement du blob
 .daw-beat-wf-shimmer {
   position:      absolute;
   inset:         0;
@@ -1139,43 +923,6 @@
 @keyframes bwf-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-.daw-beat-vol-row {
-  display:     flex;
-  align-items: center;
-  gap:         8px;
-  padding:     0 10px 7px;
-
-  i {
-    font-size:   0.9rem;
-    color:       rgba(255, 255, 255, 0.4);
-    flex-shrink: 0;
-  }
-}
-
-// Panneau d'extension contextuel (visible quand beat sélectionné)
-.daw-extend-panel {
-  display:         flex;
-  align-items:     center;
-  justify-content: space-between;
-  gap:             10px;
-  padding:         7px 10px;
-  border-top:      1px solid rgba(v.$primary, 0.15);
-  background:      rgba(v.$primary, 0.05);
-  animation:       fadeIn 0.15s ease;
-}
-
-.daw-extend-panel-hint {
-  display:     flex;
-  align-items: center;
-  gap:         5px;
-  font-size:   0.75rem;
-  color:       rgba(v.$primary, 0.65);
-  flex:        1;
-  min-width:   0;
-
-  i { font-size: 0.8rem; }
 }
 
 .daw-extend-actions {
@@ -1263,62 +1010,6 @@
 
 // ── Pistes vocales ────────────────────────────────────────────────────────────
 
-.daw-voices-list {
-  display:        flex;
-  flex-direction: column;
-  gap:            5px;
-  margin-bottom:  6px;
-}
-
-.daw-add-btn {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             7px;
-  width:           100%;
-  padding:         8px;
-  border:          1.5px dashed rgba(255, 255, 255, 0.2);
-  border-radius:   10px;
-  background:      none;
-  color:           v.$text-secondary;
-  font-size:       0.88rem;
-  font-weight:     500;
-  cursor:          pointer;
-  transition:      border-color 0.15s, color 0.15s;
-
-  i { font-size: 1.05rem; }
-
-  &:active {
-    border-color: v.$primary;
-    color:        v.$primary;
-  }
-}
-
-// ── Réglages collapsibles ─────────────────────────────────────────────────────
-
-.daw-settings-toggle {
-  display:     flex;
-  align-items: center;
-  gap:         8px;
-  width:       100%;
-  padding:     12px 14px;
-  border:      none;
-  background:  none;
-  color:       v.$text-secondary;
-  font-size:   0.82rem;
-  font-weight: 600;
-  cursor:      pointer;
-  text-align:  left;
-  transition:  color 0.15s;
-
-  i      { font-size: 0.85rem; flex-shrink: 0; }
-  span   { flex: 1; }
-
-  &:active { color: v.$text-primary; }
-}
-
-.daw-chevron { margin-left: auto; flex-shrink: 0; }
-
 .daw-settings-body {
   padding:        0 14px 14px;
   display:        flex;
@@ -1328,46 +1019,6 @@
 }
 
 // ── Description ────────────────────────────────────────────────────────────────
-
-.daw-desc-row {
-  padding:    10px 14px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-// ── Action principale ─────────────────────────────────────────────────────────
-
-.daw-cta-row {
-  padding:     12px 14px 20px;
-  flex-shrink: 0;
-}
-
-.daw-btn-record-first {
-  display:         flex;
-  align-items:     center;
-  justify-content: center;
-  gap:             10px;
-  width:           100%;
-  padding:         18px;
-  border:          none;
-  border-radius:   16px;
-  background:      v.$primary;
-  color:           #fff;
-  font-size:       1.05rem;
-  font-weight:     700;
-  cursor:          pointer;
-  box-shadow:      0 4px 24px rgba(v.$primary, 0.35);
-  transition:      opacity 0.15s;
-
-  i { font-size: 1.2rem; }
-
-  &:active { opacity: 0.85; }
-}
-
-.daw-cta-actions {
-  display:        flex;
-  flex-direction: column;
-  gap:            10px;
-}
 
 .daw-btn-export-main {
   display:         flex;
@@ -1406,3 +1057,6 @@
 }
 
 // .daw-guest-gate* → daw-guest-gate-overlay/ (extrait).
+
+// Transport, timeline multipiste, inspecteur, barre d'outils et feuilles du bas →
+// mobile-studio-timeline.scss

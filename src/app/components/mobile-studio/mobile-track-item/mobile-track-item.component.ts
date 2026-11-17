@@ -1,14 +1,17 @@
 import {
   Component, Input, Output, EventEmitter, signal,
-  ChangeDetectionStrategy, inject, OnDestroy, OnChanges,
-  ViewChild, ElementRef, SimpleChanges, AfterViewChecked,
+  ChangeDetectionStrategy, inject, ViewChild, ElementRef, AfterViewChecked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule }  from '@angular/forms';
 import { VocalTrack, MobileMaquetteService } from '../../../services/mobile-maquette.service';
 import type { TrackSettings } from '../../../services/mobile-maquette.service';
-import { MobileAudioProcessorService } from '../../../services/mobile-audio-processor.service';
 
+/**
+ * Inspecteur d'une piste vocale : affiché sous la timeline du studio quand la
+ * piste est sélectionnée. Nom, actions de prise, volume et effets — tout réglage
+ * s'entend immédiatement si le mix est en lecture.
+ */
 @Component({
   selector: 'app-mobile-track-item',
   standalone: true,
@@ -17,86 +20,38 @@ import { MobileAudioProcessorService } from '../../../services/mobile-audio-proc
   styleUrls: ['./mobile-track-item.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, OnDestroy {
+export class MobileTrackItemComponent implements AfterViewChecked {
 
   @Input({ required: true }) track!: VocalTrack;
   @Input() trackKey    = '';
-  /** Fraction [0–1] de la position de lecture dans cette piste, null si hors portée. */
-  @Input() playheadPct: number | null = null;
+  /**
+   * Invité (sans compte) : seuls le volume et les actions de prise restent
+   * disponibles ; autotune, réverb, boue, présence et clarté sont verrouillés.
+   */
+  @Input() fxLocked = false;
 
   @Output() startRecord = new EventEmitter<string>();
   @Output() remove      = new EventEmitter<string>();
   @Output() punchIn     = new EventEmitter<string>();
-  /** Émet la fraction [0–1] sur laquelle l'utilisateur a cliqué dans la waveform. */
-  @Output() seekTo      = new EventEmitter<number>();
+  /** L'invité demande l'accès aux effets (le parent ouvre l'invitation à créer un compte). */
+  @Output() fxUnlock    = new EventEmitter<void>();
+  @Output() closed      = new EventEmitter<void>();
 
-  @ViewChild('wfCanvas')   wfCanvasRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('nameInput')  nameInputRef?: ElementRef<HTMLInputElement>;
 
-  readonly expanded         = signal(false);
   readonly editingName      = signal(false);
-  readonly isPlayingPreview = signal(false);
   editNameValue             = '';
 
-  private _audioCtx:       AudioContext | null          = null;
-  private _sourceNode:     AudioBufferSourceNode | null = null;
-  private _lastWaveformLen = 0;
-
   private readonly service   = inject(MobileMaquetteService);
-  private readonly processor = inject(MobileAudioProcessorService);
-
-  // ── Lifecycle ────────────────────────────────────────────────────────────────
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['track']) this._lastWaveformLen = 0;
-  }
 
   ngAfterViewChecked(): void {
-    const wf = this.track.waveform;
-    if (wf.length && wf.length !== this._lastWaveformLen) {
-      this._lastWaveformLen = wf.length;
-      this._drawWaveform(wf);
-    }
     // Focus automatique sur l'input de renommage à l'ouverture
     if (this.editingName() && this.nameInputRef?.nativeElement) {
       this.nameInputRef.nativeElement.focus();
     }
   }
 
-  // ── Waveform ─────────────────────────────────────────────────────────────────
-
-  private _drawWaveform(wf: number[]): void {
-    const canvas = this.wfCanvasRef?.nativeElement;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Aperçu volontairement fin : pas de graduations temporelles, juste l'allure
-    const W    = canvas.width;
-    const H    = canvas.height;
-    const barW = W / wf.length;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#A51929' + '99';
-
-    for (let i = 0; i < wf.length; i++) {
-      const barH = Math.max(2, wf[i] * H);
-      ctx.fillRect(i * barW + 0.5, (H - barH) / 2, Math.max(1, barW - 1), barH);
-    }
-  }
-
-  // ── Seek sur clic waveform ────────────────────────────────────────────────────
-
-  onWaveformClick(event: MouseEvent): void {
-    const canvas = this.wfCanvasRef?.nativeElement;
-    if (!canvas || !this.track.rawBlob) return;
-    event.stopPropagation();
-    const rect = canvas.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    this.seekTo.emit(frac);
-  }
-
-  // ── Renommage double-tap ──────────────────────────────────────────────────────
+  // ── Renommage ─────────────────────────────────────────────────────────────────
 
   startRename(): void {
     this.editNameValue = this.track.name;
@@ -132,11 +87,41 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
     { label: 'Concert',  value: 0.20 },
   ];
 
-  setClarity(v: number): void { this.service.updateSettings(this.track.id, { clarityDb: v }); }
-  setReverb(v: number):  void { this.service.updateSettings(this.track.id, { reverbWet: v }); }
+  /** Coupe-bas : plus il est haut, plus on retire de "boue" (grave, effet de proximité). */
+  readonly lowCutPresets: ReadonlyArray<{ label: string; value: number; hint: string }> = [
+    { label: '80 Hz',  value: 80,  hint: 'Garde le corps — voix graves' },
+    { label: '150 Hz', value: 150, hint: 'Équilibré — la plupart des voix' },
+    { label: '220 Hz', value: 220, hint: 'Nettoie fort — voix proches du micro, mix chargé' },
+  ];
 
-  isActiveClarity(v: number): boolean { return Math.abs(this.track.settings.clarityDb - v) < 0.1; }
-  isActiveReverb(v: number):  boolean { return Math.abs(this.track.settings.reverbWet - v) < 0.005; }
+  readonly presencePresets: ReadonlyArray<{ label: string; value: number }> = [
+    { label: 'Douce',   value: 0 },
+    { label: 'Normale', value: 3.5 },
+    { label: 'Devant',  value: 6 },
+  ];
+
+  // Chaque réglage touché désigne aussi cette piste comme celle entendue dans le
+  // retour casque : le changement s'entend immédiatement.
+  setClarity(v: number):  void { this._updateFx({ clarityDb: v }); }
+  setReverb(v: number):   void { this._updateFx({ reverbWet: v }); }
+  setLowCut(v: number):   void { this._updateFx({ lowCutHz: v }); }
+  setPresence(v: number): void { this._updateFx({ presenceDb: v }); }
+
+  isActiveClarity(v: number):  boolean { return Math.abs(this.track.settings.clarityDb - v) < 0.1; }
+  isActiveReverb(v: number):   boolean { return Math.abs(this.track.settings.reverbWet - v) < 0.005; }
+  isActiveLowCut(v: number):   boolean { return Math.abs((this.track.settings.lowCutHz ?? 150) - v) < 1; }
+  isActivePresence(v: number): boolean { return Math.abs((this.track.settings.presenceDb ?? 3.5) - v) < 0.1; }
+
+  /** Réglage d'effet : refusé à un invité (le volume passe par _update, toujours libre). */
+  private _updateFx(partial: Partial<TrackSettings>): void {
+    if (this.fxLocked) { this.fxUnlock.emit(); return; }
+    this._update(partial);
+  }
+
+  private _update(partial: Partial<TrackSettings>): void {
+    this.service.updateSettings(this.track.id, partial);
+    this.service.focusTrack(this.track.id);
+  }
 
   // ── Labels lisibles ──────────────────────────────────────────────────────────
 
@@ -149,6 +134,7 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
   // ── Autotune toggle ──────────────────────────────────────────────────────────
 
   async toggleAutotune(): Promise<void> {
+    if (this.fxLocked) { this.fxUnlock.emit(); return; }
     const newVal = !this.track.settings.useAutotune;
     this.service.updateSettings(this.track.id, { useAutotune: newVal });
     if (newVal && !this.track.processedBlob) {
@@ -156,44 +142,9 @@ export class MobileTrackItemComponent implements OnChanges, AfterViewChecked, On
     }
   }
 
-  // ── Lecture isolée ───────────────────────────────────────────────────────────
-
-  async previewTrack(): Promise<void> {
-    if (this.isPlayingPreview()) { this._stopPreview(); return; }
-
-    const activeBlob = (this.track.settings.useAutotune && this.track.processedBlob)
-      ? this.track.processedBlob
-      : this.track.rawBlob;
-    if (!activeBlob) return;
-
-    try {
-      // Utilise processor.decodeBlob() — gère le PCM natif brut (iOS float32,
-      // Android int16) que AudioContext.decodeAudioData refuse sans container.
-      this._audioCtx = new AudioContext();
-      const buf = await this.processor.decodeBlob(activeBlob);
-      const src = this._audioCtx.createBufferSource();
-      src.buffer = buf;
-      src.connect(this._audioCtx.destination);
-      src.onended = () => this._stopPreview();
-      src.start(0);
-      this._sourceNode = src;
-      this.isPlayingPreview.set(true);
-    } catch { this._stopPreview(); }
-  }
-
-  private _stopPreview(): void {
-    try { this._sourceNode?.stop(); } catch { /* ignore */ }
-    this._sourceNode = null;
-    this._audioCtx?.close();
-    this._audioCtx = null;
-    this.isPlayingPreview.set(false);
-  }
-
   // ── Slider helpers ───────────────────────────────────────────────────────────
 
   onVolume(event: Event): void {
-    this.service.updateSettings(this.track.id, { volume: +(event.target as HTMLInputElement).value });
+    this._update({ volume: +(event.target as HTMLInputElement).value });
   }
-
-  ngOnDestroy(): void { this._stopPreview(); }
 }

@@ -22,7 +22,10 @@
   <app-youtube-bubble></app-youtube-bubble>
 }
 @defer (on idle) {
-  <app-sidebar-fabs></app-sidebar-fabs>
+  <!-- Masqués en studio : ils recouvraient les réglages de piste (plein écran). -->
+  @if (!player.studioOpen()) {
+    <app-sidebar-fabs></app-sidebar-fabs>
+  }
 }
 @defer (on idle) {
   <app-tour-overlay></app-tour-overlay>

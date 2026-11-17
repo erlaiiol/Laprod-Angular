@@ -68,6 +68,8 @@ private:
 
 } // namespace
 
+static const size_t kHistCapacity = 16384;   // puissance de 2 (~340 ms @ 48 kHz)
+
 // ── RubberBandWrapper ─────────────────────────────────────────────────────────
 
 @implementation RubberBandWrapper {
@@ -79,7 +81,18 @@ private:
 
     // Pre-allocated scratch buffer avoids heap allocation in the render thread.
     std::vector<float>          _inBuf;
+
+    // Historique circulaire des derniers échantillons micro, pour la détection de hauteur.
+    // Un seul écrivain (thread IO), lecteur sans verrou : une fenêtre lue pendant une écriture
+    // peut contenir une discontinuité, sans conséquence pour une estimation de fondamentale.
+    float                       _hist[kHistCapacity];
+    std::atomic<size_t>         _histW;
+
+    // Coussin anti-craquement : la sortie ne démarre (ou ne redémarre après une famine)
+    // qu'avec un cycle d'avance en réserve.
+    bool                        _primed;
 }
+
 
 - (instancetype)initWithSampleRate:(double)sampleRate {
     self = [super init];
@@ -97,6 +110,9 @@ private:
     _psola = psola_create(sampleRate, 1);
 
     _inBuf.reserve(8192);
+    memset(_hist, 0, sizeof(_hist));
+    _histW.store(0, std::memory_order_relaxed);
+    _primed = false;
 
     return self;
 }
@@ -122,6 +138,21 @@ private:
     // Overflows are silently discarded: if the ring is full, the render thread
     // is behind. Oldest unprocessed samples are the least relevant.
     _ring.write(input, static_cast<size_t>(count));
+
+    size_t w = _histW.load(std::memory_order_relaxed);
+    for (NSInteger i = 0; i < count; ++i) _hist[(w + static_cast<size_t>(i)) & (kHistCapacity - 1)] = input[i];
+    _histW.store(w + static_cast<size_t>(count), std::memory_order_release);
+}
+
+// ── Recent input for pitch detection (detection timer thread) ─────────────────
+
+- (BOOL)copyLatestInto:(float *)output count:(NSInteger)count {
+    const size_t n = static_cast<size_t>(count);
+    const size_t w = _histW.load(std::memory_order_acquire);
+    if (count <= 0 || n > kHistCapacity || w < n) return NO;
+    const size_t start = w - n;
+    for (size_t i = 0; i < n; ++i) output[i] = _hist[(start + i) & (kHistCapacity - 1)];
+    return YES;
 }
 
 // ── Render (AVAudioSourceNode render block — audio render thread) ─────────────
@@ -144,6 +175,18 @@ private:
     // psola_retrieve complète déjà de silence si moins de frameCount échantillons sont prêts
     // (voir PsolaShifter::retrieve côté Rust) — pas de memset préalable ni de vérification
     // d'available() à faire nous-mêmes, contrairement à la version Rubber Band.
+    //
+    // Coussin : psola_retrieve comblerait un manque par du silence EN PLEIN signal — c'est
+    // un craquement. On attend donc d'avoir un cycle complet d'avance avant de (re)démarrer
+    // la sortie : une famine devient un court silence propre au lieu d'une rafale de clics.
+    const int32_t avail = psola_available(_psola);
+    const int32_t need  = static_cast<int32_t>(frameCount);
+    if (!_primed && avail >= need * 2) _primed = true;
+    if (_primed && avail < need)       _primed = false;
+    if (!_primed) {
+        memset(output, 0, static_cast<size_t>(frameCount) * sizeof(float));
+        return frameCount;
+    }
     psola_retrieve(_psola, output, static_cast<size_t>(frameCount));
     return frameCount;
 }
@@ -153,6 +196,7 @@ private:
 - (void)reset {
     _ring.reset();
     psola_reset(_psola);
+    _primed = false;
 }
 
 // ── Latency ───────────────────────────────────────────────────────────────────

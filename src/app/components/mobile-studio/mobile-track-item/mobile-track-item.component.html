@@ -1,86 +1,51 @@
-<div class="mti-card" [class.mti-card--empty]="track.trackState === 'empty'">
+<div class="mti-card" [style.--mti-color]="track.color">
 
-  <!-- ── En-tête piste ──────────────────────────────────────────────────────── -->
-  <div class="mti-header" (click)="track.trackState === 'recorded' && !editingName() && expanded.set(!expanded())">
+  <!-- ── En-tête : couleur, nom (renommable), état ──────────────────────────── -->
+  <div class="mti-header">
+    <span class="mti-color-dot" aria-hidden="true"></span>
 
-    @if (track.trackState === 'empty') {
-      <button class="mti-rec-btn"
-              (click)="$event.stopPropagation(); startRecord.emit(track.id)">
-        <i class="bi bi-record-circle"></i>
-        Enregistrer
+    @if (editingName()) {
+      <input #nameInput class="mti-name-input"
+             [(ngModel)]="editNameValue"
+             (blur)="confirmRename()"
+             (keydown)="onNameKeydown($event)"
+             maxlength="30"
+             aria-label="Renommer la piste">
+    } @else {
+      <span class="mti-name">{{ track.name }}</span>
+      <button class="mti-chevron-btn" (click)="startRename()" aria-label="Renommer la piste">
+        <i class="bi bi-pencil"></i>
       </button>
     }
 
+    @if (track.settings.useAutotune) {
+      <span class="mti-at-badge" title="Autotune actif">AT</span>
+    }
+
     @if (track.trackState === 'recording') {
-      <div class="mti-recording-badge">
-        <span class="mti-rec-dot"></span>
-        Enregistrement…
-      </div>
+      <div class="mti-recording-badge"><span class="mti-rec-dot"></span> Enregistrement…</div>
     }
-
     @if (track.trackState === 'processing') {
-      <div class="mti-processing-badge">
-        <span class="mti-spinner"></span>
-        Correction de hauteur…
-      </div>
+      <div class="mti-processing-badge"><span class="mti-spinner"></span> Correction de hauteur…</div>
     }
 
-    @if (track.trackState === 'recorded') {
-
-      <!-- Nom — double-tap pour renommer -->
-      @if (editingName()) {
-        <input #nameInput class="mti-name-input"
-               [(ngModel)]="editNameValue"
-               (blur)="confirmRename()"
-               (keydown)="onNameKeydown($event)"
-               (click)="$event.stopPropagation()"
-               maxlength="30"
-               aria-label="Renommer la piste">
-      } @else {
-        <span class="mti-name"
-              (dblclick)="$event.stopPropagation(); startRename()"
-              title="Double-clic pour renommer">{{ track.name }}</span>
-      }
-
-      @if (track.settings.useAutotune) {
-        <span class="mti-at-badge" title="Autotune actif">AT</span>
-      }
-
-      <!-- Waveform + playhead (aperçu, volontairement fin) -->
-      <div class="mti-wf-wrap" (click)="onWaveformClick($event)">
-        <canvas #wfCanvas class="mti-waveform" width="360" height="48"
-                aria-hidden="true"></canvas>
-        @if (playheadPct !== null) {
-          <div class="mti-playhead" [style.left.%]="playheadPct * 100" aria-hidden="true"></div>
-        }
-      </div>
-
-      <!-- Actions principales — les autres sont dans le panneau déplié -->
-      <div class="mti-actions" (click)="$event.stopPropagation()">
-        <button class="mti-icon-btn"
-                [class.mti-icon-btn--playing]="isPlayingPreview()"
-                (click)="previewTrack()"
-                [attr.aria-label]="isPlayingPreview() ? 'Arrêter' : 'Écouter'">
-          <i class="bi" [class.bi-stop-fill]="isPlayingPreview()" [class.bi-play-fill]="!isPlayingPreview()"></i>
-        </button>
-        <button class="mti-chevron-btn"
-                (click)="expanded.set(!expanded())"
-                [attr.aria-expanded]="expanded()"
-                [attr.aria-label]="expanded() ? 'Replier les réglages' : 'Déplier les réglages'">
-          <i class="bi"
-             [class.bi-chevron-up]="expanded()"
-             [class.bi-chevron-down]="!expanded()"></i>
-        </button>
-      </div>
-
-    }
-
+    <span class="mti-live-hint">
+      <i class="bi bi-ear"></i> Réglages audibles en lecture
+    </span>
+    <button class="mti-chevron-btn" (click)="closed.emit()" aria-label="Fermer les réglages de la piste">
+      <i class="bi bi-x-lg"></i>
+    </button>
   </div>
 
-  <!-- ── Contrôles expandables ──────────────────────────────────────────────── -->
-  @if (track.trackState === 'empty' || (track.trackState === 'recorded' && expanded())) {
-    <div class="mti-controls">
+  <div class="mti-controls">
 
+      @if (track.trackState === 'empty') {
+        <div class="mti-row mti-row--actions">
+          <button class="mti-chip-btn" (click)="startRecord.emit(track.id)">
+            <i class="bi bi-record-circle"></i> Enregistrer cette piste
+          </button>
+        </div>
+      }
       @if (track.trackState === 'recorded') {
         <div class="mti-row mti-row--actions">
           <button class="mti-chip-btn" (click)="startRecord.emit(track.id)">
@@ -99,20 +64,6 @@
         </div>
       }
 
-      <!-- Autotune — simple ON / OFF -->
-      <div class="mti-row">
-        <div class="mti-row-label">
-          <i class="bi bi-music-note-beamed"></i>
-          <span>Autotune</span>
-          @if (trackKey) { <small class="mti-key">{{ trackKey }}</small> }
-        </div>
-        <button class="mti-toggle" [class.mti-toggle--on]="track.settings.useAutotune"
-                (click)="toggleAutotune()"
-                [attr.aria-pressed]="track.settings.useAutotune">
-          <span class="mti-toggle-knob"></span>
-        </button>
-      </div>
-
       <!-- Volume -->
       <div class="mti-row">
         <div class="mti-row-label">
@@ -129,8 +80,35 @@
         </div>
       </div>
 
+      <!-- Sans compte : seul le volume est réglable -->
+      @if (fxLocked) {
+        <button type="button" class="mti-fx-lock" (click)="fxUnlock.emit()">
+          <i class="bi bi-lock-fill"></i>
+          <span class="mti-fx-lock__text">
+            <strong>Effets réservés aux comptes LaProd</strong>
+            <small>Créez un compte gratuit pour régler l'autotune, la réverb, la boue, la présence et la clarté.</small>
+          </span>
+          <span class="mti-fx-lock__cta">Créer un compte</span>
+        </button>
+      }
+
+      <!-- Autotune — simple ON / OFF -->
+      <div class="mti-row" [class.mti-row--locked]="fxLocked">
+        <div class="mti-row-label">
+          <i class="bi bi-music-note-beamed"></i>
+          <span>Autotune</span>
+          @if (trackKey) { <small class="mti-key">{{ trackKey }}</small> }
+        </div>
+        <button class="mti-toggle" [class.mti-toggle--on]="track.settings.useAutotune"
+                [disabled]="fxLocked"
+                (click)="toggleAutotune()"
+                [attr.aria-pressed]="track.settings.useAutotune">
+          <span class="mti-toggle-knob"></span>
+        </button>
+      </div>
+
       <!-- Réverb — presets -->
-      <div class="mti-row">
+      <div class="mti-row" [class.mti-row--locked]="fxLocked">
         <div class="mti-row-label">
           <i class="bi bi-soundwave"></i>
           <span>Réverb</span>
@@ -138,6 +116,7 @@
         <div class="mti-presets" role="group" aria-label="Niveau de réverbération">
           @for (p of reverbPresets; track p.value) {
             <button class="mti-preset-btn"
+                    [disabled]="fxLocked"
                     [class.mti-preset-btn--active]="isActiveReverb(p.value)"
                     (click)="setReverb(p.value)"
                     [attr.aria-pressed]="isActiveReverb(p.value)">
@@ -147,8 +126,47 @@
         </div>
       </div>
 
+      <!-- Boue — position du coupe-bas -->
+      <div class="mti-row" [class.mti-row--locked]="fxLocked">
+        <div class="mti-row-label">
+          <i class="bi bi-funnel"></i>
+          <span>Boue</span>
+        </div>
+        <div class="mti-presets" role="group" aria-label="Coupe-bas (boue)">
+          @for (p of lowCutPresets; track p.value) {
+            <button class="mti-preset-btn"
+                    [disabled]="fxLocked"
+                    [class.mti-preset-btn--active]="isActiveLowCut(p.value)"
+                    (click)="setLowCut(p.value)"
+                    [attr.aria-pressed]="isActiveLowCut(p.value)"
+                    [title]="p.hint">
+              {{ p.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Présence — bosse 2,5 kHz -->
+      <div class="mti-row" [class.mti-row--locked]="fxLocked">
+        <div class="mti-row-label">
+          <i class="bi bi-megaphone"></i>
+          <span>Présence</span>
+        </div>
+        <div class="mti-presets" role="group" aria-label="Présence vocale">
+          @for (p of presencePresets; track p.value) {
+            <button class="mti-preset-btn"
+                    [disabled]="fxLocked"
+                    [class.mti-preset-btn--active]="isActivePresence(p.value)"
+                    (click)="setPresence(p.value)"
+                    [attr.aria-pressed]="isActivePresence(p.value)">
+              {{ p.label }}
+            </button>
+          }
+        </div>
+      </div>
+
       <!-- Clarté EQ — presets -->
-      <div class="mti-row mti-row--last">
+      <div class="mti-row mti-row--last" [class.mti-row--locked]="fxLocked">
         <div class="mti-row-label">
           <i class="bi bi-stars"></i>
           <span>Clarté</span>
@@ -156,6 +174,7 @@
         <div class="mti-presets" role="group" aria-label="Clarté vocale">
           @for (p of clarityPresets; track p.value) {
             <button class="mti-preset-btn"
+                    [disabled]="fxLocked"
                     [class.mti-preset-btn--active]="isActiveClarity(p.value)"
                     (click)="setClarity(p.value)"
                     [attr.aria-pressed]="isActiveClarity(p.value)">
@@ -165,7 +184,6 @@
         </div>
       </div>
 
-    </div>
-  }
+  </div>
 
 </div>

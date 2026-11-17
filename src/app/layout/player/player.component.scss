@@ -503,13 +503,14 @@
 // ── Modal de confirmation ────────────────────────────────────────────────────
 
 .confirm-modal-backdrop {
-  position:        absolute;
-  bottom:          100%;
-  left:            0;
-  right:           0;
+  position:        fixed;
+  inset:           0;
+  z-index:         v.$z-modal;
   display:         flex;
+  align-items:     center;
   justify-content: center;
-  padding-bottom:  8px;
+  padding:         16px;
+  background:      v.$backdrop-dim;
   pointer-events:  all;
 }
 

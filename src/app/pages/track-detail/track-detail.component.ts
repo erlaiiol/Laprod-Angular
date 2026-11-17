@@ -64,11 +64,18 @@ export class TrackDetailComponent implements OnInit, OnDestroy {
 
   // Cache blob URLs pour les toplines privées (libérés dans ngOnDestroy)
   private toplineBlobUrls = new Map<number, string>();
+  /** Dernière valeur de player.recRequested déjà traitée (bouton REC du player). */
+  private _handledRecRequest = 0;
 
   constructor() {
     // Bouton REC du player → ouvre la modale + pause
+    // track() reste suivi (le clic depuis une track-card arrive avant le chargement
+    // du track) mais chaque demande n'est consommée qu'une fois : sans ça, le
+    // rafraîchissement de track() (topline publiée) rouvrait le studio tout seul.
     effect(() => {
-      if (this.player.recRequested() > 0 && this.track()) {
+      const req = this.player.recRequested();
+      if (req > this._handledRecRequest && this.track()) {
+        this._handledRecRequest = req;
         this.player.pause();
         this.showRecorder.set(true);
         this.cdr.markForCheck();

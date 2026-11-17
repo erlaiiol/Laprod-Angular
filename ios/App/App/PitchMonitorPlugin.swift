@@ -21,6 +21,8 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "checkPermission",   returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "checkHeadphones",   returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBeatVolume",     returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setVoiceFx",        returnType: CAPPluginReturnPromise),
     ]
 
     private var session: AudioSession?
@@ -42,7 +44,14 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
             reverbWet:       call.getFloat("reverbWet")      ?? 0.15,
             trackKey:        call.getString("trackKey")      ?? "",
             monitorAutotune: call.getBool("monitorAutotune") ?? false,
-            smoothK:         smoothK
+            smoothK:         smoothK,
+            beatPath:        call.getString("beatPath"),
+            beatStartSec:    call.getDouble("beatStartSec") ?? 0,
+            beatVolume:      call.getFloat("beatVolume")   ?? 0.65,
+            startDelayMs:    call.getDouble("startDelayMs") ?? 0,
+            loopBeat:        call.getBool("loopBeat")      ?? false,
+            record:          call.getBool("record")        ?? true,
+            fx:              VoiceFx(from: call.getObject("fx").map { $0 as [String: Any] })
         )
 
         do {
@@ -57,17 +66,24 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 guard let self, let active = self.session else { return }
                 let result   = active.stop()
                 self.session = nil
-                self.notifyListeners("sessionInterrupted", data: [
+                var data: [String: Any] = [
                     "pcmBase64":  result.pcmBase64,
                     "sampleRate": result.sampleRate,
                     "channels":   1,
                     "format":     "float32",
                     "partial":    true,
-                ])
+                ]
+                if let pos = result.firstSampleBeatSec { data["firstSampleBeatSec"] = pos }
+                self.notifyListeners("sessionInterrupted", data: data)
             }
-            try sess.start()
+            let info = try sess.start()
             session = sess
-            call.resolve()
+            call.resolve([
+                "nativeBeat":      info.nativeBeat,
+                "startInMs":       info.startInMs,
+                "outputLatencyMs": info.outputLatencyMs,
+                "inputLatencyMs":  info.inputLatencyMs,
+            ])
         } catch {
             call.reject("startSession failed: \(error.localizedDescription)")
         }
@@ -82,12 +98,30 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let result = sess.stop()
         session = nil
-        call.resolve([
+        var payload: [String: Any] = [
             "pcmBase64":  result.pcmBase64,
             "sampleRate": result.sampleRate,
             "channels":   1,
             "format":     "float32",
-        ])
+        ]
+        if let pos = result.firstSampleBeatSec { payload["firstSampleBeatSec"] = pos }
+        call.resolve(payload)
+    }
+
+    // ── setBeatVolume ─────────────────────────────────────────────────────────
+
+    @objc func setBeatVolume(_ call: CAPPluginCall) {
+        session?.setBeatVolume(call.getFloat("volume") ?? 0.65)
+        call.resolve()
+    }
+
+    // ── setVoiceFx ────────────────────────────────────────────────────────────
+    // Réglages de la piste (boue, présence, clarté, réverb, volume) appliqués au
+    // retour casque en temps réel : le changement s'entend immédiatement.
+
+    @objc func setVoiceFx(_ call: CAPPluginCall) {
+        session?.applyFx(VoiceFx(from: call.options as? [String: Any]))
+        call.resolve()
     }
 
     // ── Permissions ───────────────────────────────────────────────────────────
@@ -139,6 +173,49 @@ struct SessionOptions {
     let trackKey:        String
     let monitorAutotune: Bool
     let smoothK:         Float   // 0.0=robot  0.55=precise  0.82=natural
+    // Beat joué nativement (même AVAudioEngine que le micro → même horloge).
+    let beatPath:        String? // chemin ou URI file:// du beat (nil = pas de beat natif)
+    let beatStartSec:    Double  // position du beat à laquelle démarrer la lecture
+    let beatVolume:      Float
+    let startDelayMs:    Double  // délai avant le départ du beat (décompte 3-2-1 silencieux)
+    let loopBeat:        Bool    // échauffement : le beat boucle
+    let record:          Bool    // false = retour casque seul, rien n'est stocké
+    let fx:              VoiceFx
+}
+
+// ── VoiceFx ───────────────────────────────────────────────────────────────────
+// Miroir simplifié de la chaîne d'export (mobile-audio-processor.service.ts).
+
+struct VoiceFx {
+    var lowCutHz:   Float = 150
+    var presenceDb: Float = 3.5
+    var clarityDb:  Float = 3.0
+    var reverbWet:  Float = 0.12
+    var volume:     Float = 1.0
+
+    init() {}
+
+    init(from obj: [String: Any]?) {
+        guard let obj else { return }
+        func num(_ k: String) -> Float? {
+            if let d = obj[k] as? Double { return Float(d) }
+            if let i = obj[k] as? Int    { return Float(i) }
+            if let n = obj[k] as? NSNumber { return n.floatValue }
+            return nil
+        }
+        lowCutHz   = num("lowCutHz")   ?? lowCutHz
+        presenceDb = num("presenceDb") ?? presenceDb
+        clarityDb  = num("clarityDb")  ?? clarityDb
+        reverbWet  = num("reverbWet")  ?? reverbWet
+        volume     = num("volume")     ?? volume
+    }
+}
+
+struct StartInfo {
+    let nativeBeat:      Bool
+    let startInMs:       Double
+    let outputLatencyMs: Double
+    let inputLatencyMs:  Double
 }
 
 // ── SessionResult ─────────────────────────────────────────────────────────────
@@ -146,6 +223,9 @@ struct SessionOptions {
 struct SessionResult {
     let pcmBase64:  String
     let sampleRate: Int
+    /// Position du beat (s, horloge de rendu, latences NON compensées) qui
+    /// correspond au 1er échantillon micro conservé. nil sans beat natif.
+    let firstSampleBeatSec: Double?
 }
 
 // ── AudioSession ──────────────────────────────────────────────────────────────
@@ -154,10 +234,15 @@ struct SessionResult {
 //
 // Architecture monitoring avec RubberBand :
 //
-//   [inputNode] ──tap──► ring buffer (via RubberBandWrapper.feedInput)
-//                  │
-//                  └──► pitchBuf (YIN detection)
-//                  └──► pcmData  (PCM recording brut)
+//   [inputNode] ──► AVAudioSinkNode (thread temps réel, à chaque cycle matériel)
+//        │              └──► ring buffer + historique (RubberBandWrapper.feedInput)
+//        │
+//        └──tap (~100 ms par paquet, hors temps réel)──► pcmData (enregistrement brut)
+//                                                    └──► niveau, pitchBuf sans monitoring
+//
+//   Le retour casque n'est JAMAIS alimenté par le tap : ses paquets de ~100 ms étaient
+//   traités d'un bloc dans un seul cycle de rendu (pic de calcul → craquements) et
+//   retardaient la détection de hauteur d'autant.
 //
 //   [AVAudioSourceNode] ──pull depuis RubberBand──► gainNode ──► reverbNode ──► output
 //
@@ -180,6 +265,12 @@ final class AudioSession {
     // Monitoring — nil when !useMonitor
     private var rbWrapper:  RubberBandWrapper?
     private var sourceNode: AVAudioSourceNode?
+    private var sinkNode:   AVAudioSinkNode?
+    /// Trame d'analyse réutilisée par la détection (pas d'allocation toutes les 10 ms).
+    private var analysisFrame = [Float]()
+    private var eqNode:     AVAudioUnitEQ?
+    private var gainNode:   AVAudioMixerNode?
+    private var reverbNode: AVAudioUnitReverb?
 
     // Shared between tap and detection timer
     private let lock     = NSLock()
@@ -195,6 +286,17 @@ final class AudioSession {
     private var interruptionToken: Any?
     private var routeChangeToken:  Any?
 
+    // Beat natif — nil sans beatPath
+    private var beatPlayer: AVAudioPlayerNode?
+    private var beatFile:   AVAudioFile?
+    /// Heure machine à laquelle le beat démarre ; les échantillons micro
+    /// antérieurs (décompte) sont écartés de l'enregistrement.
+    private var beatStartHost: UInt64 = 0
+    /// Heure machine du 1er échantillon micro conservé (0 = pas encore).
+    private var firstKeptHost: UInt64 = 0
+    /// Figé avant engine.start() — lu par le tap sans verrou.
+    private var hasNativeBeat = false
+
     // ── Init ──────────────────────────────────────────────────────────────────
 
     init(options: SessionOptions) throws {
@@ -205,20 +307,49 @@ final class AudioSession {
         self.detector = YINDetector(frameSize: 2048)
 
         let avSession = AVAudioSession.sharedInstance()
+        // - allowBluetoothA2DP (et PAS allowBluetoothHFP) : un casque Bluetooth reste
+        //   en A2DP haute qualité pour le beat ; le micro est celui de l'iPhone. Avec
+        //   HFP, iOS basculait le casque en profil "appel" (son 16 kHz mono) et la
+        //   bascule de route coupait la lecture du beat au début de l'enregistrement.
+        // - mixWithOthers : l'activation de la session ne coupe plus l'audio de la
+        //   WebView (métronome WebAudio, beat d'aperçu).
         try avSession.setCategory(.playAndRecord,
                                   mode: .measurement,
-                                  options: [.defaultToSpeaker, .allowBluetoothHFP])
-        let ioDuration = options.monitorAutotune ? 0.003 : 0.005
+                                  options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers])
+        // Tampon matériel : très court en filaire (latence du retour voix), mais plus large
+        // en Bluetooth — la liaison ajoute déjà ~150 ms, un tampon de 3 ms n'y gagne rien
+        // et fait rater des échéances au thread audio (craquements avec des AirPods).
+        let btPorts: Set<AVAudioSession.Port> = [.bluetoothA2DP, .bluetoothLE, .bluetoothHFP]
+        let onBluetooth = avSession.currentRoute.outputs.contains { btPorts.contains($0.portType) }
+        let ioDuration: TimeInterval = onBluetooth ? 0.010 : (options.monitorAutotune ? 0.003 : 0.005)
         try avSession.setPreferredIOBufferDuration(ioDuration)
         try avSession.setActive(true)
     }
 
     // ── Start ─────────────────────────────────────────────────────────────────
 
-    func start() throws {
+    func start() throws -> StartInfo {
         let inputNode = engine.inputNode
         let fmt       = inputNode.outputFormat(forBus: 0)
         sampleRate    = fmt.sampleRate
+
+        // ── Beat natif ──────────────────────────────────────────────────────
+        // Joué par le même moteur que la capture micro : il ne peut plus être
+        // interrompu par la session audio de la WebView, et son horloge est
+        // celle des timestamps du tap → alignement voix/beat à l'échantillon.
+        if let path = options.beatPath, !path.isEmpty {
+            let url  = path.hasPrefix("file://") ? (URL(string: path) ?? URL(fileURLWithPath: path))
+                                                 : URL(fileURLWithPath: path)
+            let file = try AVAudioFile(forReading: url)
+            let node = AVAudioPlayerNode()
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: file.processingFormat)
+            node.volume = options.beatVolume
+            beatFile      = file
+            beatPlayer    = node
+            hasNativeBeat = true
+            scheduleBeat(from: options.beatStartSec)
+        }
 
         if options.useMonitor {
             // RubberBand wrapper: real-time, formant-preserving, mono
@@ -227,10 +358,25 @@ final class AudioSession {
 
             let reverbNode  = AVAudioUnitReverb()
             reverbNode.loadFactoryPreset(.plate)
-            reverbNode.wetDryMix = options.reverbWet * 100
 
             let gainNode = AVAudioMixerNode()
-            gainNode.outputVolume = options.voiceGain
+
+            // EQ voix : 2 passe-haut cascadés (24 dB/oct, comme l'export) = "boue",
+            // bosse de présence 2,5 kHz, plateau d'air 12 kHz = "clarté".
+            let eq = AVAudioUnitEQ(numberOfBands: 4)
+            eq.bands[0].filterType = .highPass
+            eq.bands[1].filterType = .highPass
+            eq.bands[2].filterType = .parametric
+            eq.bands[2].frequency  = 2_500
+            eq.bands[2].bandwidth  = 1.39          // ≈ Q 1.0, comme l'export
+            eq.bands[3].filterType = .highShelf
+            eq.bands[3].frequency  = 12_000
+            for band in eq.bands { band.bypass = false }
+
+            self.eqNode     = eq
+            self.gainNode   = gainNode
+            self.reverbNode = reverbNode
+            applyFx(options.fx)
 
             // AVAudioSourceNode: pulls pitch-shifted audio from RubberBand.
             // Runs on the audio render thread — all operations must be RT-safe.
@@ -251,18 +397,45 @@ final class AudioSession {
             }
             sourceNode = src
 
-            for node in [src, gainNode, reverbNode] as [AVAudioNode] { engine.attach(node) }
-            engine.connect(src,        to: gainNode,           format: monoFmt)
+            for node in [src, eq, gainNode, reverbNode] as [AVAudioNode] { engine.attach(node) }
+            engine.connect(src,        to: eq,                 format: monoFmt)
+            engine.connect(eq,         to: gainNode,           format: monoFmt)
             engine.connect(gainNode,   to: reverbNode,         format: monoFmt)
             engine.connect(reverbNode, to: engine.mainMixerNode, format: monoFmt)
+
+            // Micro → moteur de hauteur, sur le thread temps réel et à chaque cycle
+            // matériel : charge constante par cycle, latence minimale. Aucun verrou,
+            // aucune allocation dans ce bloc.
+            let sink = AVAudioSinkNode { [weak rb] (_, frameCount, audioBufferList) -> OSStatus in
+                guard let rb else { return noErr }
+                let abl = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audioBufferList))
+                if abl.count > 0, let ptr = abl[0].mData?.assumingMemoryBound(to: Float.self) {
+                    rb.feedInput(ptr, count: Int(frameCount))
+                }
+                return noErr
+            }
+            sinkNode = sink
+            engine.attach(sink)
+            engine.connect(inputNode, to: sink, format: fmt)
+            analysisFrame = [Float](repeating: 0, count: detector.frameSize)
         }
 
-        // Tap: PCM recording + RMS level + pitch-detection accumulation + RubberBand feed
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: fmt) { [weak self] buf, _ in
-            self?.handleAudioBuffer(buf)
+        // Tap: PCM recording + RMS level (+ pitch-detection accumulation sans monitoring)
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: fmt) { [weak self] buf, when in
+            self?.handleAudioBuffer(buf, when: when)
         }
 
         try engine.start()
+
+        let startDelaySec = max(0.12, options.startDelayMs / 1000)
+        if let node = beatPlayer {
+            // Départ programmé à une heure machine précise (≥ 120 ms pour laisser
+            // le moteur démarrer) — c'est la référence de l'alignement. Tant
+            // qu'elle n'est pas posée, le tap n'enregistre rien (cf. handleAudioBuffer).
+            let host = mach_absolute_time() + AVAudioTime.hostTime(forSeconds: startDelaySec)
+            lock.withLock { beatStartHost = host }
+            node.play(at: AVAudioTime(hostTime: host))
+        }
 
         let intervalMs = options.monitorAutotune ? 10 : 100
         startPitchTimer(intervalMs: intervalMs)
@@ -293,6 +466,55 @@ final class AudioSession {
             else { return }
             self?.onInterrupted?()
         }
+
+        let avSession = AVAudioSession.sharedInstance()
+        return StartInfo(
+            nativeBeat:      beatPlayer != nil,
+            startInMs:       beatPlayer != nil ? startDelaySec * 1000 : 0,
+            outputLatencyMs: avSession.outputLatency * 1000,
+            inputLatencyMs:  avSession.inputLatency  * 1000
+        )
+    }
+
+    // ── Beat ──────────────────────────────────────────────────────────────────
+
+    private func scheduleBeat(from startSec: Double) {
+        guard let node = beatPlayer, let file = beatFile else { return }
+        let sr         = file.processingFormat.sampleRate
+        let startFrame = AVAudioFramePosition(max(0, startSec) * sr)
+        if startFrame < file.length {
+            node.scheduleSegment(file,
+                                 startingFrame: startFrame,
+                                 frameCount: AVAudioFrameCount(file.length - startFrame),
+                                 at: nil)
+        }
+        if options.loopBeat { scheduleLoop() }
+    }
+
+    /// Échauffement : ré-enfile le fichier complet à chaque fin de lecture
+    /// (toujours une passe d'avance pour éviter tout trou à la jointure).
+    private func scheduleLoop() {
+        guard let node = beatPlayer, let file = beatFile else { return }
+        node.scheduleFile(file, at: nil) { [weak self] in
+            guard let self, self.beatPlayer != nil else { return }
+            self.scheduleLoop()
+        }
+    }
+
+    func setBeatVolume(_ v: Float) {
+        beatPlayer?.volume = max(0, min(1, v))
+    }
+
+    /// Paramètres AU modifiables depuis n'importe quel thread : effet au bloc suivant.
+    func applyFx(_ fx: VoiceFx) {
+        guard let eq = eqNode else { return }
+        let lowCut = max(20, min(400, fx.lowCutHz))
+        eq.bands[0].frequency = lowCut
+        eq.bands[1].frequency = lowCut
+        eq.bands[2].gain      = max(-12, min(12, fx.presenceDb))
+        eq.bands[3].gain      = max(-12, min(12, fx.clarityDb))
+        reverbNode?.wetDryMix = max(0, min(1, fx.reverbWet)) * 100
+        gainNode?.outputVolume = options.voiceGain * max(0, min(2, fx.volume))
     }
 
     // ── Stop ──────────────────────────────────────────────────────────────────
@@ -307,33 +529,72 @@ final class AudioSession {
         pitchTimer = nil
 
         engine.inputNode.removeTap(onBus: 0)
+        let player = beatPlayer
+        beatPlayer = nil          // avant stop() : coupe la boucle de scheduleLoop
+        player?.stop()
         engine.stop()
+        beatFile   = nil
         rbWrapper?.reset()
         rbWrapper  = nil
         sourceNode = nil
+        sinkNode   = nil
+        eqNode     = nil
+        gainNode   = nil
+        reverbNode = nil
 
-        let base64 = lock.withLock { pcmData }.base64EncodedString()
-        return SessionResult(pcmBase64: base64, sampleRate: Int(sampleRate))
+        // Rend la main : le casque Bluetooth et la WebView retrouvent leur
+        // configuration de lecture normale.
+        let avSession = AVAudioSession.sharedInstance()
+        try? avSession.setActive(false, options: .notifyOthersOnDeactivation)
+        try? avSession.setCategory(.playback, mode: .default, options: [])
+
+        let (data, firstHost, startHost) = lock.withLock { (pcmData, firstKeptHost, beatStartHost) }
+        var firstBeatSec: Double? = nil
+        if player != nil && startHost > 0 && firstHost >= startHost {
+            firstBeatSec = options.beatStartSec
+                + AVAudioTime.seconds(forHostTime: firstHost - startHost)
+        }
+        return SessionResult(pcmBase64: data.base64EncodedString(),
+                             sampleRate: Int(sampleRate),
+                             firstSampleBeatSec: firstBeatSec)
     }
 
     // ── Tap handler ───────────────────────────────────────────────────────────
 
-    private func handleAudioBuffer(_ buf: AVAudioPCMBuffer) {
+    private func handleAudioBuffer(_ buf: AVAudioPCMBuffer, when: AVAudioTime) {
         guard let ch = buf.floatChannelData?[0] else { return }
         let count = Int(buf.frameLength)
 
+        // Avec beat natif, on n'enregistre qu'à partir du départ du beat : les
+        // échantillons du décompte sont écartés (le niveau/monitoring restent actifs).
+        var skip = 0
+        if hasNativeBeat {
+            let startHost = lock.withLock { beatStartHost }
+            if startHost == 0 || !when.isHostTimeValid {
+                skip = count   // départ pas encore programmé : rien à garder
+            } else if when.hostTime < startHost {
+                let early = AVAudioTime.seconds(forHostTime: startHost - when.hostTime)
+                skip = min(count, Int((early * sampleRate).rounded(.up)))
+            }
+            if skip < count {
+                let host = when.hostTime + AVAudioTime.hostTime(forSeconds: Double(skip) / sampleRate)
+                lock.withLock { if firstKeptHost == 0 { firstKeptHost = host } }
+            }
+        }
+
         lock.withLock {
-            pcmData.append(Data(bytes: ch, count: count * 4))
-            pitchBuf.append(contentsOf: UnsafeBufferPointer(start: ch, count: count))
+            if options.record && skip < count {
+                pcmData.append(Data(bytes: ch.advanced(by: skip), count: (count - skip) * 4))
+            }
+            // Avec monitoring, la détection lit l'historique temps réel du wrapper.
+            if rbWrapper == nil {
+                pitchBuf.append(contentsOf: UnsafeBufferPointer(start: ch, count: count))
+            }
         }
 
         var rms: Float = 0
         vDSP_measqv(ch, 1, &rms, vDSP_Length(count))
         onLevel?(sqrtf(rms))
-
-        // Feed the raw mic audio to RubberBand (monitoring path).
-        // Called on the tap IO thread; RubberBandWrapper.feedInput is SPSC-safe.
-        rbWrapper?.feedInput(ch, count: count)
     }
 
     // ── Timer de détection de hauteur ─────────────────────────────────────────
@@ -349,6 +610,18 @@ final class AudioSession {
     }
 
     private func runPitchDetection() {
+        // Monitoring : fenêtre la plus récente, lue sans verrou dans l'historique alimenté
+        // à chaque cycle matériel — la correction suit la voix au lieu d'avoir ~100 ms de retard.
+        if let rb = rbWrapper {
+            let ok = analysisFrame.withUnsafeMutableBufferPointer { buf -> Bool in
+                guard let base = buf.baseAddress else { return false }
+                return rb.copyLatest(into: base, count: buf.count)
+            }
+            guard ok else { return }
+            applyDetection(frame: analysisFrame)
+            return
+        }
+
         let frame: [Float] = lock.withLock {
             guard pitchBuf.count >= detector.frameSize else { return [] }
             let f = Array(pitchBuf.suffix(detector.frameSize))
@@ -361,7 +634,10 @@ final class AudioSession {
             return f
         }
         guard frame.count == detector.frameSize else { return }
+        applyDetection(frame: frame)
+    }
 
+    private func applyDetection(frame: [Float]) {
         guard let hz           = detector.detect(frame: frame, sampleRate: Float(sampleRate)),
               let rawCorrection = detector.correctionSemitones(detected: hz, scale: scale)
         else { return }

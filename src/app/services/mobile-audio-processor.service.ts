@@ -51,6 +51,11 @@ export const OFFLINE_AUDIO_CONTEXT = new InjectionToken<typeof OfflineAudioConte
 
 const SR = 48_000;
 
+/** Position (s) d'une piste sur le beat → frame de départ dans le mix. */
+function _startFrame(startSec: number | undefined): number {
+  return Math.max(0, Math.round((startSec ?? 0) * SR));
+}
+
 // ── Watermark à l'export (protection anti-vol) ──────────────────────────────
 // Le beat de référence (beatStreamUrl) est le fichier complet et propre — la
 // protection se fait ici, en injectant le watermark dans le mix final, avant
@@ -70,7 +75,7 @@ const GATE_RELEASE_MS   =  120;  // ms — descente lente (évite les coupures a
 // HPF ordre 4 Butterworth via deux sections 2nd-ordre en cascade (Cascaded Biquad Sections)
 // Q_k = 1 / (2·cos(π·(2k−1) / (2n))) pour n=4
 // k=1 → Q = 0.5412,  k=2 → Q = 1.3066
-const HPF_FREQ = 160;    // Hz — coupe les rumbles et proximité de micro
+const HPF_FREQ = 150;    // Hz — défaut du réglage "Boue" (lowCutHz) : rumbles, effet de proximité
 const HPF_Q1   = 0.5412;
 const HPF_Q2   = 1.3066;
 
@@ -145,8 +150,12 @@ export interface MixParameters {
   trackKey: string;
   /** Décalage en ms pour compenser la latence d'écoute casque / BT. */
   latencyHintMs: number;
-  /** Hi-shelf @ 10kHz : clarté vocale. 2–10 dB. Défaut = AIR_GAIN (2.5 dB). */
+  /** Hi-shelf @ 12kHz : clarté vocale. 0–7 dB. Défaut = AIR_GAIN. */
   clarityDb?: number;
+  /** Coupe-bas ("boue") : 80 / 150 / 220 Hz. Défaut = HPF_FREQ. */
+  lowCutHz?: number;
+  /** Bosse de présence @ 2,5 kHz (dB). Défaut = PRESENCE_GAIN. */
+  presenceDb?: number;
 }
 
 export interface ProcessToplineOptions {
@@ -163,7 +172,28 @@ export interface TrackSettings {
   volume:      number;   // 0–2 (1 = 0 dB)
   useAutotune: boolean;
   reverbWet:   number;   // 0–1
-  clarityDb:   number;   // 0–10 dB hi-shelf @ 10kHz
+  clarityDb:   number;   // 0–7 dB hi-shelf @ 12kHz
+  lowCutHz:    number;   // coupe-bas "boue" : 80 / 150 / 220 Hz
+  presenceDb:  number;   // bosse 2,5 kHz : 0 / 3,5 / 6 dB
+}
+
+/** Fidélité de l'écoute du studio par rapport à l'export (charge processeur croissante). */
+export type PreviewQuality = 'light' | 'full';
+
+/**
+ * Chaîne d'effets vocale branchée dans un contexte audio temps réel : la même
+ * que celle de l'export, mais dont les réglages se modifient pendant la lecture.
+ */
+export interface LiveVoiceChain {
+  /** Entrée : y relier la source de la piste. */
+  input: AudioNode;
+  /** Signal direct (volume appliqué) — à relier au bus principal. */
+  dry:   AudioNode;
+  /** Départ réverb (volume appliqué) — à relier à la réverb partagée. */
+  wet:   AudioNode;
+  /** Applique de nouveaux réglages sans interrompre le son. */
+  update(settings: TrackSettings): void;
+  dispose(): void;
 }
 
 export interface ProcessVocalTrackOptions {
@@ -175,7 +205,8 @@ export interface ProcessVocalTrackOptions {
 }
 
 export interface MixAndExportOptions {
-  vocals:        Array<{ samples: Float32Array; settings: TrackSettings }>;
+  /** startSec : position du beat (s) où démarre la piste — 0 par défaut. */
+  vocals:        Array<{ samples: Float32Array; settings: TrackSettings; startSec?: number }>;
   beatStreamUrl: string;
   beatGain:      number;
   accessToken:   string;
@@ -186,7 +217,8 @@ export interface MixAndExportOptions {
 }
 
 export interface QuickMixOptions {
-  vocals:        Array<{ blob: Blob; volume: number }>;
+  /** startSec : position du beat (s) où démarre la piste — 0 par défaut. */
+  vocals:        Array<{ blob: Blob; volume: number; startSec?: number }>;
   beatStreamUrl: string;
   beatGain:      number;
   accessToken:   string;
@@ -206,6 +238,8 @@ export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
   useAutotune: false,
   reverbWet:   0.12,  // preset "Réaliste"
   clarityDb:   3.0,   // preset "Medium"
+  lowCutHz:    150,   // preset "150 Hz"
+  presenceDb:  3.5,   // preset "Normale"
 };
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -307,6 +341,8 @@ export class MobileAudioProcessorService {
       trackKey,
       latencyHintMs: 0,
       clarityDb:    settings.clarityDb,
+      lowCutHz:     settings.lowCutHz,
+      presenceDb:   settings.presenceDb,
     };
     const withFx = await this._applyVocalChain(cropped, chainParams);
 
@@ -336,7 +372,7 @@ export class MobileAudioProcessorService {
     // le beat n'est plus tronqué (fichier complet, cf. beatStreamUrl), donc ce
     // plafond explicite est désormais le seul verrou de durée côté client.
     const vocalLen = vocals.length > 0
-      ? Math.max(...vocals.map(v => v.samples.length))
+      ? Math.max(...vocals.map(v => _startFrame(v.startSec) + v.samples.length))
       : beatRaw.length;
     const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
     const totalFrames   = Math.min(vocalLen, beatRaw.length, hardCapFrames);
@@ -364,15 +400,18 @@ export class MobileAudioProcessorService {
     beatSrc.start(0);
 
     // Pistes vocales
-    for (const { samples, settings } of vocals) {
-      const len = Math.min(samples.length, totalFrames);
+    // Chaque piste est posée à sa position d'enregistrement sur le beat (startSec).
+    for (const { samples, settings, startSec } of vocals) {
+      const at  = _startFrame(startSec);
+      const len = Math.min(samples.length, totalFrames - at);
+      if (len <= 0) continue;
       const vBuf = ctx.createBuffer(1, len, SR);
       vBuf.getChannelData(0).set(samples.subarray(0, len));
       const vSrc = ctx.createBufferSource();
       vSrc.buffer = vBuf;
       const vGain = ctx.createGain(); vGain.gain.value = settings.volume;
       vSrc.connect(vGain).connect(masterGain);
-      vSrc.start(0);
+      vSrc.start(at / SR);
     }
 
     // Watermark — obligatoire, quel que soit le point de sortie (téléchargement
@@ -424,7 +463,7 @@ export class MobileAudioProcessorService {
 
     // Durée du mix = min(plus long vocal, beat) — cohérent avec mixAndExport
     const vocalLen  = vocalBufs.length > 0
-      ? Math.max(...vocalBufs.map(b => b.length))
+      ? Math.max(...vocalBufs.map((b, i) => _startFrame(vocals[i].startSec) + b.length))
       : beatRaw.length;
     const totalLen  = Math.min(vocalLen, beatRaw.length);
 
@@ -439,7 +478,9 @@ export class MobileAudioProcessorService {
 
     for (let i = 0; i < vocalBufs.length; i++) {
       const mono  = this._toMono(vocalBufs[i]);
-      const len   = Math.min(mono.length, totalLen);
+      const at    = _startFrame(vocals[i].startSec);
+      const len   = Math.min(mono.length, totalLen - at);
+      if (len <= 0) continue;
       const vBuf  = ctx.createBuffer(1, len, SR);
       vBuf.getChannelData(0).set(mono.getChannelData(0).subarray(0, len));
       const vSrc  = ctx.createBufferSource();
@@ -447,7 +488,7 @@ export class MobileAudioProcessorService {
       const vGain = ctx.createGain();
       vGain.gain.value = vocals[i].volume;
       vSrc.connect(vGain).connect(ctx.destination);
-      vSrc.start(0);
+      vSrc.start(at / SR);
     }
 
     const mixed = await ctx.startRendering();
@@ -467,12 +508,14 @@ export class MobileAudioProcessorService {
       this.decodeBlob(newAudio),
     ]);
 
-    const keepSamples  = Math.min(Math.max(0, Math.floor(fromSec * SR)), existBuf.length);
-    const totalSamples = keepSamples + newBuf.length;
-    const result       = new Float32Array(totalSamples);
+    // La nouvelle prise est posée exactement à fromSec, même au-delà de la fin
+    // de l'ancienne (l'intervalle reste silencieux) — sinon elle serait décalée.
+    const fromSamples  = Math.max(0, Math.floor(fromSec * SR));
+    const keepSamples  = Math.min(fromSamples, existBuf.length);
+    const result       = new Float32Array(fromSamples + newBuf.length);
 
     result.set(existBuf.getChannelData(0).subarray(0, keepSamples), 0);
-    result.set(newBuf.getChannelData(0), keepSamples);
+    result.set(newBuf.getChannelData(0), fromSamples);
 
     return new Blob([result.buffer as ArrayBuffer], { type: 'audio/pcm-f32' });
   }
@@ -602,19 +645,62 @@ export class MobileAudioProcessorService {
 
   // ── Chaîne d'effets vocaux ────────────────────────────────────────────────────
 
+  /**
+   * Rendu hors-ligne de la chaîne (export). La sortie est recalée sur l'entrée :
+   * le retard propre des compresseurs/limiteur est mesuré puis retiré, sinon la
+   * voix sortirait quelques millisecondes en retard sur l'instrumentale.
+   */
   private async _applyVocalChain(voice: AudioBuffer, params: MixParameters): Promise<AudioBuffer> {
-    const len = voice.length;
-    const ctx = new this.offlineCtx(1, len, SR);
+    const len   = voice.length;
+    const delay = await this._chainLatencyFrames();
+    const ctx   = new this.offlineCtx(1, len + delay, SR);
 
     const src = ctx.createBufferSource();
     src.buffer = voice;
 
+    const chain = this._buildVocalChain(ctx, params);
+    src.connect(chain.input);
+
+    // ── Plate reverb ──────────────────────────────────────────────────────────────
+    const conv = ctx.createConvolver();
+    conv.normalize = false;
+    conv.buffer    = await this._plateIRAt(ctx, SR);
+
+    const dryG = ctx.createGain(); dryG.gain.value = 1 - params.reverbWet;
+    const wetG = ctx.createGain(); wetG.gain.value = params.reverbWet;
+    chain.output.connect(dryG);
+    chain.output.connect(conv); conv.connect(wetG);
+
+    const reverbOut = ctx.createGain();
+    dryG.connect(reverbOut); wetG.connect(reverbOut);
+    reverbOut.connect(ctx.destination);
+
+    src.start(0);
+    const rendered = await ctx.startRendering();
+    if (delay <= 0) return rendered;
+
+    const aligned = new this.offlineCtx(1, len, SR).createBuffer(1, len, SR);
+    aligned.getChannelData(0).set(rendered.getChannelData(0).subarray(delay, delay + len));
+    return aligned;
+  }
+
+  /**
+   * Construit la chaîne vocale (coupe-bas → LA-2A → EQ → 1176 → de-esser → gain →
+   * limiteur) dans n'importe quel contexte : hors-ligne pour l'export, temps réel
+   * pour l'écoute du studio. Une seule définition = on entend ce qu'on exporte.
+   * La réverb est branchée par l'appelant sur `output`.
+   */
+  private _buildVocalChain(
+    ctx: BaseAudioContext,
+    params: Pick<MixParameters, 'voiceGain' | 'clarityDb' | 'lowCutHz' | 'presenceDb'>,
+  ) {
     // ── HPF ordre 4 Butterworth (deux sections 2nd-ordre en cascade) ─────────────
     const hp1 = ctx.createBiquadFilter();
-    hp1.type = 'highpass'; hp1.frequency.value = HPF_FREQ; hp1.Q.value = HPF_Q1;
+    const lowCut = params.lowCutHz ?? HPF_FREQ;
+    hp1.type = 'highpass'; hp1.frequency.value = lowCut; hp1.Q.value = HPF_Q1;
     const hp2 = ctx.createBiquadFilter();
-    hp2.type = 'highpass'; hp2.frequency.value = HPF_FREQ; hp2.Q.value = HPF_Q2;
-    src.connect(hp1).connect(hp2);
+    hp2.type = 'highpass'; hp2.frequency.value = lowCut; hp2.Q.value = HPF_Q2;
+    hp1.connect(hp2);
 
     // ── LA-2A (compresseur optique) ───────────────────────────────────────────────
     // Knee très doux = caractère transparent, programme-dépendant.
@@ -631,7 +717,7 @@ export class MobileAudioProcessorService {
     // Presence : boost d'intelligibilité (consonnes, attaque des syllabes)
     const presence = ctx.createBiquadFilter();
     presence.type = 'peaking'; presence.frequency.value = PRESENCE_FREQ;
-    presence.gain.value = PRESENCE_GAIN; presence.Q.value = PRESENCE_Q;
+    presence.gain.value = params.presenceDb ?? PRESENCE_GAIN; presence.Q.value = PRESENCE_Q;
     la2a.connect(presence);
 
     // Pultec-style air shelf @12kHz : clarityDb pilote le gain (défaut = AIR_GAIN)
@@ -687,25 +773,180 @@ export class MobileAudioProcessorService {
     const limiter = this._createTanhLimiter(ctx);
     gainNode.connect(limiter);
 
-    // ── Plate reverb ──────────────────────────────────────────────────────────────
-    const ir   = await this._getPlateIR();
-    const conv = ctx.createConvolver();
-    const irBuf = ctx.createBuffer(1, ir.length, SR);
-    irBuf.getChannelData(0).set(ir.getChannelData(0));
-    conv.buffer    = irBuf;
-    conv.normalize = false;
+    return {
+      input:  hp1 as AudioNode,
+      output: limiter as AudioNode,
+      hp1, hp2, presence, air,
+      nodes:  [hp1, hp2, la2a, presence, air, c1176, dry, sib, sibComp, sibNeg, deessMerge, gainNode, limiter] as AudioNode[],
+    };
+  }
 
-    const dryG = ctx.createGain(); dryG.gain.value = 1 - params.reverbWet;
-    const wetG = ctx.createGain(); wetG.gain.value = params.reverbWet;
-    limiter.connect(dryG);
-    limiter.connect(conv); conv.connect(wetG);
+  /** Version allégée pour l'écoute : uniquement les étages pilotés par l'utilisateur. */
+  private _buildLightChain(
+    ctx: BaseAudioContext,
+    params: Pick<MixParameters, 'clarityDb' | 'lowCutHz' | 'presenceDb'>,
+  ) {
+    const lowCut = params.lowCutHz ?? HPF_FREQ;
+    const hp1 = ctx.createBiquadFilter();
+    hp1.type = 'highpass'; hp1.frequency.value = lowCut; hp1.Q.value = HPF_Q1;
+    const hp2 = ctx.createBiquadFilter();
+    hp2.type = 'highpass'; hp2.frequency.value = lowCut; hp2.Q.value = HPF_Q2;
+    const presence = ctx.createBiquadFilter();
+    presence.type = 'peaking'; presence.frequency.value = PRESENCE_FREQ;
+    presence.gain.value = params.presenceDb ?? PRESENCE_GAIN; presence.Q.value = PRESENCE_Q;
+    const air = ctx.createBiquadFilter();
+    air.type = 'highshelf'; air.frequency.value = AIR_FREQ;
+    air.gain.value = params.clarityDb ?? AIR_GAIN;
+    hp1.connect(hp2).connect(presence).connect(air);
+    return {
+      input: hp1 as AudioNode, output: air as AudioNode,
+      hp1, hp2, presence, air,
+      nodes: [hp1, hp2, presence, air] as AudioNode[],
+    };
+  }
 
-    const reverbOut = ctx.createGain();
-    dryG.connect(reverbOut); wetG.connect(reverbOut);
-    reverbOut.connect(ctx.destination);
+  // ── Retard propre de la chaîne ────────────────────────────────────────────────
+  // Les compresseurs (anticipation) et le limiteur sur-échantillonné retardent le
+  // signal de quelques ms, variable selon le moteur audio. On le mesure une fois
+  // en faisant traverser la chaîne à une impulsion, puis on le compense partout
+  // (export et lecture) pour que la voix reste exactement sur l'instrumentale.
 
+  private _chainLatencyPromise: Promise<number> | null = null;
+
+  private _chainLatencyFrames(): Promise<number> {
+    this._chainLatencyPromise ??= this._measureChainLatency().catch(() => 0);
+    return this._chainLatencyPromise;
+  }
+
+  /** Retard (s) de la chaîne vocale à l'écoute — nul en qualité 'light' (pas de compresseur). */
+  async vocalChainLatencySec(quality: PreviewQuality = 'full'): Promise<number> {
+    return quality === 'full' ? (await this._chainLatencyFrames()) / SR : 0;
+  }
+
+  private async _measureChainLatency(): Promise<number> {
+    const AT  = 2_400;                         // impulsion à 50 ms
+    const len = Math.floor(0.25 * SR);
+    const ctx = new this.offlineCtx(1, len, SR);
+    const buf = ctx.createBuffer(1, len, SR);
+    buf.getChannelData(0)[AT] = 0.01;          // sous tous les seuils : régime linéaire
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const chain = this._buildVocalChain(ctx, { voiceGain: 1, clarityDb: 0, presenceDb: 0, lowCutHz: 80 });
+    src.connect(chain.input);
+    chain.output.connect(ctx.destination);
     src.start(0);
-    return ctx.startRendering();
+    const out = (await ctx.startRendering()).getChannelData(0);
+    let peak = 0, at = AT;
+    for (let i = 0; i < out.length; i++) {
+      const v = Math.abs(out[i]);
+      if (v > peak) { peak = v; at = i; }
+    }
+    const delay = at - AT;
+    // Garde-fou : une mesure aberrante ne doit jamais décaler la voix.
+    return delay > 0 && delay < 0.1 * SR ? delay : 0;
+  }
+
+  // ── Chaîne temps réel (écoute du studio) ──────────────────────────────────────
+
+  /**
+   * Voix prête pour l'écoute en direct : décodée, mono, noise gate appliqué —
+   * exactement l'entrée que reçoit la chaîne d'effets à l'export.
+   */
+  async decodeVoiceForPlayback(blob: Blob): Promise<AudioBuffer> {
+    return this._applyNoiseGate(this._toMono(await this.decodeBlob(blob)));
+  }
+
+  /**
+   * Chaîne d'effets d'une piste dans un contexte temps réel, réglable à la volée.
+   *   - 'full'  : chaîne complète de l'export (compresseurs, de-esser, limiteur) ;
+   *   - 'light' : coupe-bas, présence, clarté, volume et réverb seulement — tous les
+   *               réglages restent audibles, pour une charge processeur minimale
+   *               et sans retard à compenser.
+   */
+  createLiveVoiceChain(
+    ctx: BaseAudioContext, settings: TrackSettings, quality: PreviewQuality = 'full',
+  ): LiveVoiceChain {
+    const params = {
+      voiceGain: 1, clarityDb: settings.clarityDb, lowCutHz: settings.lowCutHz, presenceDb: settings.presenceDb,
+    };
+    const chain = quality === 'full' ? this._buildVocalChain(ctx, params) : this._buildLightChain(ctx, params);
+    const reverb = (s: TrackSettings) => Math.max(0, Math.min(1, s.reverbWet ?? 0));
+    // Même ordre qu'à l'export : volume appliqué après la chaîne et la réverb.
+    const vol = ctx.createGain(); vol.gain.value = settings.volume ?? 1;
+    const dry = ctx.createGain(); dry.gain.value = 1 - reverb(settings);
+    const wet = ctx.createGain(); wet.gain.value = reverb(settings);
+    chain.output.connect(vol);
+    vol.connect(dry);
+    vol.connect(wet);
+
+    // Rampe courte : pas de clic quand un réglage change pendant la lecture.
+    const glide = (p: AudioParam, v: number) => p.setTargetAtTime(v, ctx.currentTime, 0.015);
+    return {
+      input: chain.input,
+      dry,
+      wet,
+      update: (s: TrackSettings) => {
+        const lowCut = s.lowCutHz ?? HPF_FREQ;
+        glide(chain.hp1.frequency, lowCut);
+        glide(chain.hp2.frequency, lowCut);
+        glide(chain.presence.gain, s.presenceDb ?? PRESENCE_GAIN);
+        glide(chain.air.gain,      s.clarityDb  ?? AIR_GAIN);
+        glide(vol.gain, s.volume ?? 1);
+        glide(dry.gain, 1 - reverb(s));
+        glide(wet.gain, reverb(s));
+      },
+      dispose: () => {
+        for (const n of [...chain.nodes, vol, dry, wet]) { try { n.disconnect(); } catch { /* déjà libéré */ } }
+      },
+    };
+  }
+
+  /**
+   * Réverb plate partagée par toutes les pistes en écoute directe. La convolution
+   * étant linéaire, une réverb commune alimentée par le départ `wet` de chaque
+   * piste donne le même résultat qu'une réverb par piste (export), pour une
+   * fraction du coût processeur.
+   */
+  async createLiveReverb(ctx: BaseAudioContext): Promise<ConvolverNode> {
+    const conv = ctx.createConvolver();
+    conv.normalize = false;
+    conv.buffer    = await this._plateIRAt(ctx, ctx.sampleRate);
+    return conv;
+  }
+
+  /** IR de la plate au sample rate demandé (un ConvolverNode exige celui de son contexte). */
+  private async _plateIRAt(ctx: BaseAudioContext, rate: number): Promise<AudioBuffer> {
+    let ir = await this._getPlateIR();
+    if (rate !== SR) {
+      const cached = this._plateIRByRate.get(rate);
+      if (cached) {
+        ir = cached;
+      } else {
+        const outLen = Math.ceil(ir.length * rate / SR);
+        const off    = new this.offlineCtx(1, outLen, rate);
+        const src    = off.createBufferSource();
+        src.buffer   = ir;
+        src.connect(off.destination);
+        src.start(0);
+        ir = await off.startRendering();
+        this._plateIRByRate.set(rate, ir);
+      }
+    }
+    const copy = ctx.createBuffer(1, ir.length, rate);
+    copy.getChannelData(0).set(ir.getChannelData(0));
+    return copy;
+  }
+
+  private readonly _plateIRByRate = new Map<number, AudioBuffer>();
+
+  /**
+   * Autotune seul, sur la voix brute (sans effets) → PCM mono 48 kHz. Les effets
+   * sont appliqués ensuite, une seule fois, à l'écoute comme à l'export.
+   */
+  async autotuneOnly(blob: Blob, trackKey: string): Promise<Float32Array> {
+    const mono  = this._toMono(await this.decodeBlob(blob));
+    const tuned = trackKey ? await this._applyAutotune(mono, trackKey) : mono;
+    return tuned.getChannelData(0).slice();
   }
 
   // ── Tanh soft limiter ─────────────────────────────────────────────────────────

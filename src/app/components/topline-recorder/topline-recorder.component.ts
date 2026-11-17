@@ -5,7 +5,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Capacitor } from '@capacitor/core';
 import { TrackDetail, PublishedTopline } from '../../services/track.service';
@@ -16,15 +16,24 @@ import { PlayerService } from '../../services/player.service';
 import { AuthService } from '../../services/auth.service';
 import { GuestToplineService } from '../../services/guest-topline.service';
 import { environment } from '../../../environments/environment';
+import { AppDownloadService } from '../../services/app-download.service';
+import { StudioToolbarComponent } from '../studio-toolbar/studio-toolbar.component';
+import { DawGuestGateOverlayComponent } from '../mobile-studio/daw-guest-gate-overlay/daw-guest-gate-overlay.component';
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'result';
+type Lane = 'beat' | 'voice';
+
+/** Couleur de la piste voix — même palette que le studio de l'app (TRACK_COLORS[0]). */
+const VOICE_COLOR = '#4FC3F7';
 
 @Component({
   selector: 'app-topline-recorder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, MobileStudioComponent],
+  imports: [CommonModule, FormsModule, RouterModule, MobileStudioComponent, StudioToolbarComponent, DawGuestGateOverlayComponent],
   templateUrl: './topline-recorder.component.html',
-  styleUrls: ['./topline-recorder.component.scss'],
+  // La feuille du studio de l'app fournit transport, timeline et inspecteur :
+  // le studio web reprend exactement le même rendu.
+  styleUrls: ['./topline-recorder.component.scss', '../mobile-studio/mobile-studio-timeline.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
@@ -34,6 +43,10 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
   @Output() closed    = new EventEmitter<void>();
 
   @ViewChild('visualizerCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('tlContent') tlContentRef?: ElementRef<HTMLElement>;
+
+  readonly VOICE_COLOR = VOICE_COLOR;
+  readonly env = environment;
 
   state         = signal<RecorderState>('idle');
   timer         = signal(0);
@@ -64,11 +77,13 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   private toplineSvc       = inject(ToplineService);
   private toplineStatusSvc = inject(ToplineStatusService);
-  private player           = inject(PlayerService);
+  readonly player          = inject(PlayerService);
   private cdr              = inject(ChangeDetectorRef);
   readonly auth            = inject(AuthService);
   readonly guestSvc        = inject(GuestToplineService);
   private http             = inject(HttpClient);
+  private router           = inject(Router);
+  readonly appDownload     = inject(AppDownloadService);
 
   readonly isNative = Capacitor.isNativePlatform();
 
@@ -77,6 +92,82 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   // Flag interne : un upload guest est en cours de traitement (polling actif)
   private _guestPolling = false;
+
+  // ── Studio : transport · timeline · panneaux ──────────────────────────────
+  readonly selectedLane   = signal<Lane>('voice');
+  readonly showSettings   = signal(false);
+  readonly showAppInfo    = signal(false);
+  readonly showGuestGate  = signal(false);
+  readonly downloading    = signal(false);
+  /** Position (s) et durée de la prise dans le beat, connues à l'enregistrement. */
+  readonly voiceStartSec  = signal(0);
+  readonly voiceDurSec    = signal(0);
+  private readonly _beatDur = signal(0);
+  private readonly _mixDur  = signal(0);
+  private _pendingSeek: number | null = null;
+  /** Position demandée en fraction de la timeline, quand la durée réelle est encore inconnue. */
+  private _pendingRatio: number | null = null;
+  private _scrubbing = false;
+
+  /** Ce que le lecteur global joue en ce moment, s'il s'agit de ce studio. */
+  readonly source = computed<'beat' | 'mix' | null>(() => {
+    const cur = this.player.currentTrack();
+    if (!cur) return null;
+    if (this._resultUrl() && cur.stream_url === this._resultUrl()) return 'mix';
+    if (cur.id === this.track?.id && this.player.isReferenceSource()) return 'beat';
+    return null;
+  });
+  readonly isPlayingStudio = computed(() => this.source() !== null && this.player.isPlaying());
+  /** Durée représentée par la timeline : celle de l'audio chargé, sinon la dernière connue. */
+  readonly spanSec = computed(() => {
+    const src = this.source();
+    const d = this.player.duration();
+    if (src && d > 0 && isFinite(d)) return d;
+    if (this.resultTopline() && this._mixDur() > 0) return this._mixDur();
+    return this._beatDur() > 0 ? this._beatDur() : this.MAX_SECONDS;
+  });
+  readonly currentSec = computed(() => this.source() ? this.player.currentTime() : 0);
+  readonly playheadPct = computed(() => Math.min(100, (this.currentSec() / this.spanSec()) * 100));
+  readonly rulerMarks = computed(() => {
+    const span = this.spanSec();
+    const step = span > 120 ? 30 : span > 50 ? 15 : 5;
+    const marks: { pct: number; label: string }[] = [];
+    for (let t = 0; t < span; t += step) {
+      marks.push({ pct: (t / span) * 100, label: this.formatTimer(t) });
+    }
+    return marks;
+  });
+  /** Clip de voix : grandit pendant la prise, posé là où le beat en était. */
+  readonly voiceClip = computed(() => {
+    const span = this.spanSec();
+    const dur = this.state() === 'recording' ? this.timer() : this.voiceDurSec();
+    if (dur <= 0) return null;
+    // Le mix serveur cale la voix sur le beat : dans le mix, elle commence au même endroit.
+    return {
+      left:  Math.min(100, (this.voiceStartSec() / span) * 100),
+      width: Math.max(0.5, Math.min(100, (dur / span) * 100)),
+    };
+  });
+  readonly canPublish = computed(() => this.state() === 'result' && !!this.resultTopline());
+  readonly publishLabel = computed(() => this.isPublished() ? 'Rendre privé' : 'Publier');
+  readonly recordLabel = computed(() => {
+    switch (this.state()) {
+      case 'recording':  return 'Terminer';
+      case 'processing': return 'Traitement…';
+      case 'result':     return 'Réenregistrer';
+      default:           return 'Enregistrer';
+    }
+  });
+  readonly recordDisabled = computed(() => {
+    const st = this.state();
+    if (st === 'processing') return true;
+    if (st === 'recording' || st === 'result') return false;
+    return this.calibrating() || this.calibCountdown() !== null || this.micBlocked()
+      || this.guestSentTopline()
+      || this.auth.currentUser()?.topline_tokens === 0
+      || (this.isGuest() && !this.guestSvc.hasAttemptsLeft());
+  });
+  private readonly _resultUrl = signal<string | null>(null);
 
   constructor() {
     // Dès que le job guest est traité, passer en state 'result' pour permettre l'écoute
@@ -87,6 +178,21 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
         this._guestPolling = false;
         untracked(() => this._onGuestPollDone(parseInt(tid, 10)));
       }
+    });
+
+    // Mémorise les durées pour garder une timeline stable quand rien ne joue,
+    // et applique une position demandée avant que l'audio soit chargé.
+    effect(() => {
+      const src = this.source();
+      const d = this.player.duration();
+      if (!src || !(d > 0) || !isFinite(d)) return;
+      untracked(() => {
+        (src === 'beat' ? this._beatDur : this._mixDur).set(d);
+        const target = this._pendingRatio !== null ? this._pendingRatio * d : this._pendingSeek;
+        if (target !== null && target > 0.05) this.player.seek(Math.min(target, d - 0.05));
+        this._pendingSeek = null;
+        this._pendingRatio = null;
+      });
     });
   }
 
@@ -217,6 +323,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   async startRecording(): Promise<void> {
     this.errorMsg.set(null);
+    this.showSettings.set(false);
+    this.selectedLane.set('voice');
     this.player.pause();
     // Feedback pendant la préparation (permission micro + attente du beat
     // audible) : sans ça, le bouton reste cliquable et silencieux pendant
@@ -347,7 +455,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
     this.state.set('recording');
     this.cdr.markForCheck();
-    this.drawVisualizer();
+    // Le canvas n'existe qu'une fois la vue « recording » rendue.
+    setTimeout(() => this.drawVisualizer());
   }
 
   /**
@@ -369,12 +478,23 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       audioEl.addEventListener('playing', onPlaying);
       setTimeout(finish, 4000);
 
-      this.player.play(this.track as any, 'home', { referenceSource: true });
+      // Beat déjà chargé (écouté dans le studio) : le lecteur ne recharge pas
+      // une piste identique, play() n'émettrait jamais 'playing'. On le relance
+      // depuis le début ; pause d'abord pour que 'playing' soit bien émis.
+      if (this.source() === 'beat') {
+        this.player.pause();
+        this.player.seek(0);
+        this.player.resume();
+      } else {
+        this.player.play(this.track as any, 'home', { referenceSource: true });
+      }
     });
   }
 
   stopRecording(auto = false): void {
     const elapsed = (Date.now() - this.recordingStartTime) / 1000;
+    this.voiceStartSec.set(this._beatOffsetMs / 1000);
+    this.voiceDurSec.set(elapsed >= this.MIN_SECONDS ? Math.min(elapsed, this.MAX_SECONDS) : 0);
     if (elapsed < this.MIN_SECONDS) {
       this.recordingTooShort = true;
       this.errorMsg.set(
@@ -470,47 +590,32 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  playResult(): void {
+  async playResult(): Promise<void> {
     const tl = this.resultTopline();
     if (!tl || this.loadingAudio()) return;
 
-    // Si déjà chargé en blob, toggle play/pause
-    if (this.resultBlobUrl && this.player.currentTrack()?.stream_url === this.resultBlobUrl) {
+    // Déjà chargé dans le lecteur : play/pause
+    if (this.source() === 'mix') {
       this.player.togglePlay();
       return;
     }
 
-    // Fetch avec JWT (connecté) ou X-Guest-Session (guest)
+    // Fetch avec JWT (connecté) ou X-Guest-Session (guest), une seule fois
     this.loadingAudio.set(true);
     this.cdr.markForCheck();
-    const authHeader: Record<string, string> = this.isGuest()
-      ? { 'X-Guest-Session': this.guestSvc.sessionId() }
-      : { 'Authorization': `Bearer ${this.auth.getToken()}` };
-    this.http.get(`${environment.apiUrl}${tl.stream_url}`, {
-      headers:      authHeader,
-      responseType: 'blob',
-    }).subscribe({
-      next: (blob) => {
-        if (this.resultBlobUrl) URL.revokeObjectURL(this.resultBlobUrl);
-        this.resultBlobUrl = URL.createObjectURL(blob);
-        this.player.play({
-          id:            tl.id,
-          title:         `Topline — aperçu`,
-          composer_user: tl.artist_user as any,
-          stream_url:      this.resultBlobUrl,
-          full_stream_url: null,
-          image_file:    this.track.image_file,
-          bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
-          playlist_count: 0, first_playlist_image: null,
-        });
-        this.loadingAudio.set(false);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.errorMsg.set('Impossible de charger l\'audio.');
-        this.loadingAudio.set(false);
-        this.cdr.markForCheck();
-      },
+    const url = this.resultBlobUrl ?? await this._fetchResultUrl();
+    this.loadingAudio.set(false);
+    this.cdr.markForCheck();
+    if (!url) return;
+    this.player.play({
+      id:            tl.id,
+      title:         `Topline — aperçu`,
+      composer_user: tl.artist_user as any,
+      stream_url:      url,
+      full_stream_url: null,
+      image_file:    this.track.image_file,
+      bpm: 0, key: '', style: '', price_mp3: 0, tags: [], is_approved: false,
+      playlist_count: 0, first_playlist_image: null,
     });
   }
 
@@ -593,6 +698,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
 
   resetToIdle(): void {
     if (this.resultBlobUrl) { URL.revokeObjectURL(this.resultBlobUrl); this.resultBlobUrl = null; }
+    this._resultUrl.set(null);
     this.resultTopline.set(null);
     this.isPublished.set(false);
     this.loadingAudio.set(false);
@@ -600,6 +706,8 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     this.timer.set(0);
     this.guestSentTopline.set(false);
     this._guestPolling = false;
+    this.voiceDurSec.set(0);
+    this.voiceStartSec.set(0);
     this.state.set('idle');
     this.cdr.markForCheck();
   }
@@ -621,7 +729,7 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
       let x = 0;
       for (let i = 0; i < bufLen; i++) {
         const h = (dataArr[i] / 255) * canvas.height;
-        ctx.fillStyle = `hsl(${260 + i * 0.5}, 80%, 60%)`;
+        ctx.fillStyle = `hsl(${355 - i * 0.25}, 78%, 56%)`;
         ctx.fillRect(x, canvas.height - h, barW, h);
         x += barW + 1;
       }
@@ -629,9 +737,160 @@ export class ToplineRecorderComponent implements AfterViewInit, OnDestroy {
     draw();
   }
 
+  fmtSec(sec: number): string {
+    return this.formatTimer(Math.floor(Math.max(0, sec || 0)));
+  }
+
   formatTimer(s: number): string {
     const m = Math.floor(s / 60);
     return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+  }
+
+  // ── Barre d'outils ───────────────────────────────────────────────────────────
+
+  onRecordPressed(): void {
+    switch (this.state()) {
+      case 'recording': this.stopRecording(); break;
+      case 'result':    this.resetToIdle(); break;
+      case 'idle':      void this.startRecording(); break;
+    }
+  }
+
+  toggleSettings(): void {
+    if (this.state() === 'recording' || this.state() === 'processing') return;
+    if (this.showSettings()) this.cancelCalibration();
+    this.showSettings.update(v => !v);
+  }
+
+  onPublishPressed(): void {
+    if (!this.canPublish()) return;
+    if (this.isGuest()) { this.showGuestGate.set(true); return; }
+    if (this.isPublished()) this.unpublishResult(); else this.publishResult();
+  }
+
+  /** Télécharge le mix voix + beat calculé par le serveur. */
+  async downloadResult(): Promise<void> {
+    if (!this.resultTopline() || this.downloading()) return;
+    this.downloading.set(true);
+    try {
+      const url = this.resultBlobUrl ?? await this._fetchResultUrl();
+      if (!url) return;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(this.track.title || 'topline').replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || 'topline'} - topline.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      this.downloading.set(false);
+      this.cdr.markForCheck();
+    }
+  }
+
+  goToRegister(): void {
+    this.showGuestGate.set(false);
+    this.closed.emit();
+    this.router.navigate(['/register']);
+  }
+
+  // ── Transport · timeline ─────────────────────────────────────────────────────
+
+  /** Lecture / pause : le mix (voix + beat) s'il existe, sinon l'instrumentale. */
+  togglePlay(): void {
+    if (this.state() === 'recording' || this.state() === 'processing') return;
+    if (this.isPlayingStudio()) { this.player.pause(); return; }
+    this._playAt(this.source() ? this.player.currentTime() : 0);
+  }
+
+  playFromStart(): void {
+    if (this.state() === 'recording' || this.state() === 'processing') return;
+    this._playAt(0);
+  }
+
+  selectLane(lane: Lane): void {
+    this.selectedLane.set(lane);
+  }
+
+  /** Clic dans une piste : sélection + lecture du mix à cet endroit. */
+  onLaneClick(event: MouseEvent, lane: Lane): void {
+    this.selectedLane.set(lane);
+    if (this.state() === 'recording' || this.state() === 'processing') return;
+    this._playAt(this._secAtClientX(event.clientX));
+  }
+
+  onScrubStart(e: PointerEvent): void {
+    if (this.state() === 'recording' || this.state() === 'processing') return;
+    this._scrubbing = true;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    this._scrubTo(e.clientX);
+  }
+
+  onScrubMove(e: PointerEvent): void {
+    if (this._scrubbing) this._scrubTo(e.clientX);
+  }
+
+  onScrubEnd(e: PointerEvent): void {
+    if (!this._scrubbing) return;
+    this._scrubbing = false;
+    (e.target as Element).releasePointerCapture?.(e.pointerId);
+    if (!this.isPlayingStudio()) this._playAt(this._secAtClientX(e.clientX));
+  }
+
+  onBeatVolumeInput(e: Event): void {
+    this.player.setVolume(+(e.target as HTMLInputElement).value);
+  }
+
+  private _scrubTo(clientX: number): void {
+    const sec = this._secAtClientX(clientX);
+    if (this.source()) this.player.seek(sec);
+  }
+
+  private _secAtClientX(clientX: number): number {
+    const el = this.tlContentRef?.nativeElement;
+    if (!el) return 0;
+    const r = el.getBoundingClientRect();
+    const ratio = r.width > 0 ? (clientX - r.left) / r.width : 0;
+    return Math.max(0, Math.min(1, ratio)) * this.spanSec();
+  }
+
+  private _playAt(sec: number): void {
+    const wanted = this.resultTopline() ? 'mix' : 'beat';
+    if (this.source() === wanted) {
+      this.player.seek(sec);
+      this.player.resume();
+      return;
+    }
+    // L'audio n'est pas encore chargé : la position est appliquée dès que sa durée est connue.
+    // Durée encore jamais vue → la timeline est provisoire : on garde la fraction cliquée.
+    const known = wanted === 'mix' ? this._mixDur() : this._beatDur();
+    this._pendingSeek  = known > 0 ? sec : null;
+    this._pendingRatio = known > 0 ? null : sec / this.spanSec();
+    if (wanted === 'mix') this.playResult();
+    else this.player.play(this.track as any, 'home', { referenceSource: true });
+  }
+
+  private _fetchResultUrl(): Promise<string | null> {
+    const tl = this.resultTopline();
+    if (!tl) return Promise.resolve(null);
+    const authHeader: Record<string, string> = this.isGuest()
+      ? { 'X-Guest-Session': this.guestSvc.sessionId() }
+      : { 'Authorization': `Bearer ${this.auth.getToken()}` };
+    return new Promise(resolve => {
+      this.http.get(`${environment.apiUrl}${tl.stream_url}`, { headers: authHeader, responseType: 'blob' })
+        .subscribe({
+          next: (blob) => {
+            if (this.resultBlobUrl) URL.revokeObjectURL(this.resultBlobUrl);
+            this.resultBlobUrl = URL.createObjectURL(blob);
+            this._resultUrl.set(this.resultBlobUrl);
+            resolve(this.resultBlobUrl);
+          },
+          error: () => {
+            this.errorMsg.set('Impossible de charger l\'audio.');
+            this.cdr.markForCheck();
+            resolve(null);
+          },
+        });
+    });
   }
 
   // ── Calibration ──────────────────────────────────────────────────────────────

@@ -31,6 +31,9 @@ class PsolaAudioEngine private constructor(private val handle: Long) : AutoClose
     /** Thread-safe côté natif (atomic) — safe à appeler depuis la coroutine de polling. */
     fun setPitchCents(cents: Float) = nativeSetPitchCents(handle, cents)
 
+    /** Coefficients de chaîne voix ([VoiceFx.coefficients]) — appliqués au bloc suivant. */
+    fun setVoiceFx(coefficients: FloatArray) = nativeSetVoiceFx(handle, coefficients)
+
     fun setMonitorOptions(useMonitor: Boolean, monitorAutotune: Boolean, voiceGain: Float) =
         nativeSetMonitorOptions(handle, useMonitor, monitorAutotune, voiceGain)
 
@@ -48,6 +51,7 @@ class PsolaAudioEngine private constructor(private val handle: Long) : AutoClose
     private external fun nativeSetMonitorOptions(
         handle: Long, useMonitor: Boolean, monitorAutotune: Boolean, voiceGain: Float,
     )
+    private external fun nativeSetVoiceFx(handle: Long, coefficients: FloatArray)
     private external fun nativeDestroy(handle: Long)
 
     companion object {
