@@ -511,24 +511,16 @@
           }
 
           <!-- ── Barre d'outils ─────────────────────────────────────────── -->
-          <nav class="daw-toolbar" aria-label="Actions du studio">
-            <button class="daw-tool daw-tool--rec" (click)="onRecordPressed()">
-              <i class="bi bi-record-circle-fill"></i>
-              <span>{{ hasEmptyTrack() ? 'Enregistrer' : 'Nouvelle voix' }}</span>
-            </button>
-            <button class="daw-tool" [class.daw-tool--active]="showMonitoring()" (click)="toggleMonitoring()">
-              <i class="bi bi-sliders"></i>
-              <span>Micro &amp; monito</span>
-            </button>
-            <button class="daw-tool" [disabled]="!hasTrack()" (click)="onPublishPressed()">
-              <i class="bi bi-cloud-arrow-up-fill"></i>
-              <span>Publier</span>
-            </button>
-            <button class="daw-tool" [disabled]="!hasTrack()" (click)="exportLocal()">
-              <i class="bi bi-download"></i>
-              <span>Télécharger</span>
-            </button>
-          </nav>
+          <app-studio-toolbar
+            class="daw-toolbar"
+            [recordLabel]="hasEmptyTrack() ? 'Enregistrer' : 'Nouvelle voix'"
+            [settingsActive]="showMonitoring()"
+            [publishDisabled]="!hasTrack()"
+            [downloadDisabled]="!hasTrack()"
+            (record)="onRecordPressed()"
+            (settings)="toggleMonitoring()"
+            (publish)="onPublishPressed()"
+            (download)="exportLocal()"/>
 
           <!-- ── Feuille : micro, monitoring, qualité d'écoute ─────────── -->
           @if (showMonitoring()) {

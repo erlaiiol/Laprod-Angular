@@ -1,0 +1,42 @@
+<nav class="stb" aria-label="Actions du studio">
+  <button type="button" class="stb-tool stb-tool--rec"
+          [class.stb-tool--recording]="recording"
+          [disabled]="recordDisabled || recordBusy"
+          (click)="record.emit()">
+    <span class="stb-icon">
+      @if (recordBusy) {
+        <span class="stb-spinner" aria-hidden="true"></span>
+      } @else if (recording) {
+        <span class="stb-stop" aria-hidden="true"></span>
+      } @else {
+        <i class="bi bi-record-circle-fill"></i>
+      }
+    </span>
+    <span class="stb-label">{{ recordLabel }}</span>
+  </button>
+
+  <button type="button" class="stb-tool"
+          [class.stb-tool--active]="settingsActive"
+          [disabled]="settingsDisabled"
+          [attr.aria-pressed]="settingsActive"
+          (click)="settings.emit()">
+    <span class="stb-icon"><i class="bi bi-sliders"></i></span>
+    <span class="stb-label">Micro &amp; monito</span>
+  </button>
+
+  <button type="button" class="stb-tool" [disabled]="publishDisabled" (click)="publish.emit()">
+    <span class="stb-icon"><i class="bi" [class]="publishIcon"></i></span>
+    <span class="stb-label">{{ publishLabel }}</span>
+  </button>
+
+  <button type="button" class="stb-tool" [disabled]="downloadDisabled || downloadBusy" (click)="download.emit()">
+    <span class="stb-icon">
+      @if (downloadBusy) {
+        <span class="stb-spinner" aria-hidden="true"></span>
+      } @else {
+        <i class="bi bi-download"></i>
+      }
+    </span>
+    <span class="stb-label">Télécharger</span>
+  </button>
+</nav>

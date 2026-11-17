@@ -32,6 +32,7 @@ import { MobileStudioWarmupComponent }   from './mobile-studio-warmup/mobile-stu
 import { MobileStudioPunchinComponent }  from './mobile-studio-punchin/mobile-studio-punchin.component';
 import { MobileStudioConfirmDialogComponent } from './mobile-studio-confirm-dialog/mobile-studio-confirm-dialog.component';
 import { DawWaveformComponent } from './daw-waveform/daw-waveform.component';
+import { StudioToolbarComponent } from '../studio-toolbar/studio-toolbar.component';
 import { DawGuestGateOverlayComponent } from './daw-guest-gate-overlay/daw-guest-gate-overlay.component';
 import { MobileMetronomeService }        from '../../services/mobile-metronome.service';
 import { computeWaveform, spliceWaveform, formatTimer } from '../../utils/waveform.utils';
@@ -109,6 +110,7 @@ function blobToBase64(blob: Blob): Promise<string> {
     MobileStudioConfirmDialogComponent,
     DawWaveformComponent,
     DawGuestGateOverlayComponent,
+    StudioToolbarComponent,
   ],
   templateUrl: './mobile-studio.component.html',
   styleUrls: ['./mobile-studio-shared.scss', './mobile-studio.component.scss', './mobile-studio-timeline.scss'],

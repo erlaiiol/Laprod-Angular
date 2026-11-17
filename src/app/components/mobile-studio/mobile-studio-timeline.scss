@@ -349,37 +349,8 @@ $tl-lane-h:  50px;
 
 // ── Barre d'outils ───────────────────────────────────────────────────────────
 
-.daw-toolbar {
-  display:               grid;
-  grid-template-columns: repeat(4, 1fr);
-  flex-shrink:           0;
-  padding:               6px 6px 8px;
-  border-top:            1px solid rgba(255, 255, 255, 0.08);
-  background:            rgba(255, 255, 255, 0.03);
-}
-
-.daw-tool {
-  display:        flex;
-  flex-direction: column;
-  align-items:    center;
-  gap:            3px;
-  min-height:     52px;
-  padding:        6px 2px;
-  border:         none;
-  border-radius:  10px;
-  background:     none;
-  color:          v.$text-secondary;
-  font-size:      0.66rem;
-  font-weight:    600;
-
-  i { font-size: 1.3rem; color: v.$text-primary; }
-
-  &:active   { background: rgba(255, 255, 255, 0.08); }
-  &:disabled { opacity: 0.35; }
-  &--active  { background: rgba(255, 255, 255, 0.08); color: v.$text-primary; }
-  &--rec i   { color: v.$primary; font-size: 1.5rem; }
-  &--rec     { color: v.$text-primary; }
-}
+// Boutons : composant partagé avec le studio web (app-studio-toolbar).
+.daw-toolbar { flex-shrink: 0; }
 
 // ── Feuilles du bas ──────────────────────────────────────────────────────────
 

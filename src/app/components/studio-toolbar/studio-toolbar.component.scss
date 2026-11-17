@@ -1,0 +1,97 @@
+@use '../../../styles/variables' as v;
+
+// Barre d'outils commune web / app. Le studio est toujours sombre (fond #0d0e12),
+// d'où les blancs translucides.
+
+:host { display: block; flex-shrink: 0; }
+
+.stb {
+  display:               grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:                   6px;
+  padding:               8px 8px 10px;
+  border-top:            1px solid rgba(255, 255, 255, 0.08);
+  background:            rgba(255, 255, 255, 0.03);
+}
+
+.stb-tool {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             4px;
+  min-height:      58px;
+  padding:         7px 4px;
+  border:          1px solid rgba(255, 255, 255, 0.10);
+  border-radius:   12px;
+  background:      rgba(255, 255, 255, 0.04);
+  color:           v.$text-secondary;
+  font-size:       0.68rem;
+  font-weight:     600;
+  cursor:          pointer;
+  transition:      background 0.15s, border-color 0.15s, transform 0.1s;
+
+  &:hover:not(:disabled)  { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.18); }
+  &:active:not(:disabled) { transform: scale(0.97); }
+  &:focus-visible         { outline: 2px solid v.$primary; outline-offset: 2px; }
+  &:disabled              { opacity: 0.35; cursor: default; }
+
+  &--active {
+    background:   rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.28);
+    color:        v.$text-primary;
+  }
+
+  // Bouton principal : plein, rouge LaProd
+  &--rec {
+    background:   v.$primary;
+    border-color: v.$primary;
+    color:        #fff;
+
+    .stb-icon i { color: #fff; }
+    &:hover:not(:disabled) { background: v.$primary; border-color: v.$primary; filter: brightness(1.1); }
+  }
+
+  // Prise en cours : bouton « arrêter », contour rouge (spécificité > --rec et son :hover)
+  &--rec.stb-tool--recording,
+  &--rec.stb-tool--recording:hover:not(:disabled) {
+    background:   rgba(v.$primary, 0.16);
+    border-color: v.$primary;
+    color:        #fff;
+    filter:       none;
+  }
+}
+
+.stb-icon {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  height:          24px;
+
+  i { font-size: 1.3rem; color: v.$text-primary; }
+}
+
+.stb-label {
+  max-width:     100%;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
+.stb-stop {
+  width:         14px;
+  height:        14px;
+  border-radius: 3px;
+  background:    v.$primary;
+}
+
+.stb-spinner {
+  width:            18px;
+  height:           18px;
+  border:           2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius:    50%;
+  animation:        stbSpin 0.7s linear infinite;
+}
+
+@keyframes stbSpin { to { transform: rotate(360deg); } }
