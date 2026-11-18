@@ -46,7 +46,10 @@ export class MobileStudioClipComponent implements OnInit {
   readonly presets   = LENGTH_PRESETS;
   readonly showMire  = !environment.production;
   readonly mireThresholds = SYNC_THRESHOLDS;
-  readonly fmt       = formatTimer;
+  /** formatTimer attend des secondes entières (chrono et bornes du passage sont flottants). */
+  readonly fmt = (s: number) => formatTimer(Math.floor(s));
+  readonly permissionError = computed(() =>
+    ['CAMERA_DENIED', 'PHOTOS_DENIED', 'MIC_DENIED'].includes(this.clip.errorCode() ?? ''));
   readonly endCardSec = CLIP_END_CARD_SECONDS;
 
   readonly saved = signal(false);

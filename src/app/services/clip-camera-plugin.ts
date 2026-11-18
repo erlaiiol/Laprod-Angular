@@ -110,6 +110,9 @@ export interface ClipCameraPlugin {
   canShareTo(opts: { target: ClipShortcut }): Promise<{ available: boolean }>;
   shareTo(opts: { target: ClipShortcut; path: string; appId?: string }): Promise<void>;
 
+  /** Ouvre les réglages de l'app (après un refus de permission). */
+  openSettings(): Promise<void>;
+
   /** Supprime les fichiers du Mode Clip du cache (vidéos brutes, WAV, PNG, MP4). */
   clearCache(): Promise<void>;
 

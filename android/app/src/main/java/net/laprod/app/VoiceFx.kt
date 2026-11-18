@@ -31,7 +31,7 @@ class VoiceFx(private val sampleRate: Int) {
         val lowCutHz:   Float = 150f,
         val presenceDb: Float = 3.5f,
         val clarityDb:  Float = 3.0f,
-        val reverbWet:  Float = 0.12f,
+        val reverbWet:  Float = 0f,      // retour casque toujours sec (cf. monitorFx côté front)
         val volume:     Float = 1.0f,
     )
 

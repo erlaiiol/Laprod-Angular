@@ -145,6 +145,17 @@
   background:    rgba(v.$danger-dark, 0.92);
   font-size:     0.9rem;
   line-height:   1.4;
+  flex-wrap:     wrap;
+
+  &__settings {
+    margin-left:   auto;
+    border:        none;
+    border-radius: 999px;
+    padding:       5px 12px;
+    font-weight:   700;
+    background:    v.$white;
+    color:         v.$black;
+  }
 }
 
 .clip-countdown {

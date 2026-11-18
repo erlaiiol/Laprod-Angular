@@ -1448,24 +1448,31 @@ Backlog **[DEV]** :
 
 Backlog **[USER]** :
 - [ ] Sur iPhone et sur un Android API 29+ : je tourne un clip de 30 s en playback, il
-      apparaît dans Photos / Galerie, lisible hors de l'app.
+      apparaît dans Photos / Galerie, lisible hors de l'app. — *Émulateur Pixel 8 (API 37), 18/11 :
+      clip de 15 s caméra arrière enregistré dans `Movies/LaProd` et relu hors de l'app ; caméra
+      frontale de l'émulateur : « Aucune image filmée » (2/2). iPhone et 30 s sur appareil à faire.*
 - [ ] Les lèvres sont synchrones avec la voix sur tout le clip, du début à la fin (pas de
       dérive progressive), caméra avant et arrière.
 - [ ] Même vérification avec un **casque Bluetooth** : le clip n'est pas décalé de ~0,2 s
       (le piège classique) ; sans calibration, un avertissement s'affiche avant de tourner.
-- [ ] Je ne peux pas choisir un passage de plus de 45 s.
-- [ ] Le bouton Clip n'apparaît que dans le mobile studio, jamais sur une topline publiée.
+- [x] Je ne peux pas choisir un passage de plus de 45 s. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
+- [x] Le bouton Clip n'apparaît que dans le mobile studio, jamais sur une topline publiée. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
 - [ ] Invité ou compte gratuit : le bouton Clip porte un cadenas ; au tap, une bulle explique
       que le Mode Clip est réservé aux membres Premium (« Se connecter » / « Découvrir
-      Premium »). Compte Premium : pas de cadenas, le Mode Clip s'ouvre.
+      Premium »). Compte Premium : pas de cadenas, le Mode Clip s'ouvre. — *Émulateur, 18/11 :
+      cadenas, bulles invité/gratuit, « Découvrir Premium » → /premium et compte Premium OK ;
+      **« Se connecter » mène à une 404** (`goToLogin` navigue vers `/auth/login`, la route est `/login`). → Corrigé (§ 4.6.22), à revérifier.*
 - [ ] J'entends dans le clip **exactement** ce que j'entends dans le studio : mêmes effets,
       autotune, volumes, toutes les pistes.
 - [ ] Le filigrane LaProd, mon pseudo et le crédit du beatmaker sont lisibles et ne sont pas
       cachés une fois le clip posté (vérifier sur au moins TikTok et Reels).
-- [ ] Je peux choisir le passage de ma maquette à filmer (début/fin) avant de tourner.
+- [x] Je peux choisir le passage de ma maquette à filmer (début/fin) avant de tourner. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
 - [ ] Refus de la permission caméra ou photos : message clair + lien vers les réglages, le
       studio reste utilisable.
-- [ ] Un appel entrant pendant le tournage ne fait pas planter l'app ni perdre ma maquette.
+      — *Émulateur, 18/11 : refus caméra → message clair, studio utilisable ; **aucun lien vers les
+      réglages** (texte seul). Galerie Android ≥ 10 sans permission : cas photos à vérifier sur iPhone.*
+- [x] Un appel entrant pendant le tournage ne fait pas planter l'app ni perdre ma maquette. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
+      (appel ignoré : tournage mené à terme ; appel décroché : « Tournage interrompu », maquette intacte)
 - [ ] Sur un Android d'entrée de gamme : rendu d'un clip de 45 s en moins de ~2× sa durée,
       sans surchauffe bloquante.
 
@@ -1512,7 +1519,7 @@ Backlog **[USER]** :
 - [ ] Après le clip, la nouvelle prise apparaît dans ma maquette comme une piste normale,
       modifiable (volume, effets, suppression).
 - [ ] Avec un casque Bluetooth calibré, le résultat est aussi bien calé qu'avec un filaire.
-- [ ] Sans casque, on m'explique pourquoi le mode est indisponible, et le Playback reste possible.
+- [x] Sans casque, on m'explique pourquoi le mode est indisponible, et le Playback reste possible. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
 - [ ] Je fais 5 clips d'affilée : la synchro lèvres/voix est aussi bonne à chaque fois.
 
 ### Passe 3 — Partage direct (réseaux, story, SMS) + mesure
@@ -1565,9 +1572,15 @@ Backlog **[USER]** :
 - [ ] Depuis l'aperçu du clip, « Partager » ouvre la feuille du téléphone ; je poste en
       **story Instagram**, en **Reel**, sur **TikTok**, en **Short YouTube** et je l'envoie
       par **SMS/WhatsApp** — la vidéo arrive complète (image + son), sans recadrage gênant.
-- [ ] La légende proposée est dans mon presse-papiers et je peux la coller.
-- [ ] Le lien de la légende ouvre le beat sur LaProd (app si installée, sinon web).
-- [ ] En tant que beatmaker, je vois combien de clips ont été faits sur mon beat.
+      — *Émulateur, 18/11 : feuille système ouverte avec le fichier MP4, acceptée par Messages (non envoyé) ;
+      réseaux sociaux non testables sur émulateur.*
+- [ ] La légende proposée est dans mon presse-papiers et je peux la coller. — *Non vérifiable avec le
+      build mobile-dev (origine http non sécurisée : `navigator.clipboard` indéfini) ; à refaire en build https.*
+- [ ] Le lien de la légende ouvre le beat sur LaProd (app si installée, sinon web). — *Émulateur, 18/11 :
+      `/track/1?utm_source=clip&utm_medium=share` s'ouvre dans l'app ; ouverture depuis un lien externe à faire.*
+- [ ] En tant que beatmaker, je vois combien de clips ont été faits sur mon beat. — *Émulateur, 18/11 :
+      **échoue** : `POST /api/clips/events` répond 201 mais n'appelle jamais `db.session.commit()`, rien
+      n'est enregistré (compteur toujours à 0). L'affichage « 1 clip » marche avec une ligne insérée à la main. → Corrigé (§ 4.6.20, test pytest renforcé), à revérifier.*
 - [ ] Le clip posté sur chaque réseau a une qualité d'image et de son correcte après
       recompression par la plateforme.
 
@@ -1635,6 +1648,31 @@ Backlog **[USER]** :
     en mode segment, le premier est posé au plus tard à mi-clip.
 19. **Une prise posée puis un montage raté** laissaient la « Prise clip » dans la maquette :
     retirée dans tous les cas d'échec, pas seulement sur « Refaire ».
+
+*Bugs trouvés par la recette sur émulateur (18/11/2026), corrigés :*
+
+20. **Le compteur de clips n'était jamais enregistré** : `@commit_or_rollback` ne commite
+    pas, la route doit le faire. Le test pytest ne le voyait pas (session jamais
+    rollbackée) : il fait désormais un `rollback()` avant de relire.
+21. **Chaque prise Android coupée à ~0,4 s** (studio, pas seulement le Clip) : le `<audio>`
+    du beat fait prendre le focus audio par la WebView ~130 ms après le micro, et la perte
+    de focus DÉFINITIVE était traitée comme une interruption. Seule une perte temporaire
+    (appel, assistant) interrompt désormais une prise.
+22. **« Se connecter » (bulle et barrière invité du studio) menait à une 404** : `/login`, pas
+    `/auth/login`.
+23. **MP4 Android sans faststart** (`moov` en fin, MediaMuxer) : muxer Media3 intégré
+    (`InAppMp4Muxer`) + passe `Mp4FastStart` qui garantit `moov` avant `mdat` (testée JVM).
+24. Chrono non arrondi (`0:14.0006`), refus de permission sans lien vers les réglages
+    (bouton « Ouvrir les réglages » ajouté, iOS + Android), partage vers Messages Android
+    compté `share` au lieu de `sms`, `clip_sync_check.py` affichant « SEUILS RESPECTÉS »
+    sans aucune mesure.
+
+*Observés sur émulateur, à confirmer sur appareil (non corrigés) :* caméra frontale qui ne
+livre aucune image (« Aucune image filmée », délai HAL de l'émulateur probable) ; clip final
+plus court que le passage (l'émulateur rapporte 4 s de dérive d'horloge audio) ; aperçu du
+filigrane qui chevauche le panneau du cadrage (l'export n'est pas concerné). Le bouton Clip
+est actif dès que le beat est chargé (le mode Rec fonctionne sans piste) ; en Playback sans
+voix, le garde `NEED_TRACK` prend le relais.
 
 *Limites connues, laissées de côté volontairement :*
 

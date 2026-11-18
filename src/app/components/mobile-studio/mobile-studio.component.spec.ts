@@ -78,15 +78,15 @@ class ProcessorStub {
   async quickMix()          { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async decodeBlob()        { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async spliceAudio(a: Blob) { return a; }
-  // Écoute en direct : chaîne d'effets factice par piste + réverb partagée.
-  chains: Array<{ settings: any; quality: string; update: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }> = [];
+  // Écoute en direct : chaîne d'effets factice par piste (+ réverb partagée si activée).
+  chains: Array<{ settings: any; quality: string; withReverb: boolean; update: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }> = [];
+  createLiveReverb = vi.fn(async () => ({ connect: vi.fn(), disconnect: vi.fn() }));
   latencySec = 0;
   async decodeVoiceForPlayback() { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async vocalChainLatencySec(q: string) { return q === 'full' ? this.latencySec : 0; }
-  async createLiveReverb() { return { connect: vi.fn() }; }
-  createLiveVoiceChain(_ctx: unknown, settings: any, quality: string) {
+  createLiveVoiceChain(_ctx: unknown, settings: any, quality: string, withReverb = false) {
     const node = () => ({ connect: vi.fn() });
-    const chain = { input: node(), dry: node(), wet: node(), settings, quality, update: vi.fn(), dispose: vi.fn() };
+    const chain = { input: node(), dry: node(), wet: withReverb ? node() : null, settings, quality, withReverb, update: vi.fn(), dispose: vi.fn() };
     this.chains.push(chain);
     return chain;
   }
@@ -633,7 +633,7 @@ describe('MobileStudioComponent', () => {
       const opts = (pm.startSession as any).mock.calls[0][0];
       expect(opts.record).toBe(false);
       expect(opts.useMonitor).toBe(true);
-      expect(opts.fx).toEqual({ lowCutHz: 150, presenceDb: 3.5, clarityDb: 3, reverbWet: 0.12, volume: 1 });
+      expect(opts.fx).toEqual({ lowCutHz: 150, presenceDb: 3.5, clarityDb: 3, reverbWet: 0, volume: 1 });
     });
 
     it('un réglage de piste est poussé immédiatement au natif', async () => {
@@ -646,7 +646,7 @@ describe('MobileStudioComponent', () => {
       await flush(fixture);
 
       expect((pm.setVoiceFx as any).mock.calls.at(-1)[0])
-        .toEqual({ lowCutHz: 220, presenceDb: 6, clarityDb: 7, reverbWet: 0.2, volume: 1 });
+        .toEqual({ lowCutHz: 220, presenceDb: 6, clarityDb: 7, reverbWet: 0, volume: 1 });   // retour casque toujours sec
     });
 
     it('le micro se referme en quittant l\'écran principal et se rouvre au retour', async () => {
@@ -791,6 +791,33 @@ describe('MobileStudioComponent', () => {
       expect(processor.chains.length).toBe(2);
       expect(processor.chains[0].settings.volume).toBe(0.5);
       expect(processor.chains[0].quality).toBe('full');
+    });
+
+    it('écoute sans réverb par défaut : aucune réverb créée, chaînes sèches', async () => {
+      try { localStorage.removeItem('laprod_studio_preview_reverb'); } catch { /* jsdom */ }
+      const { component, processor } = await setup([{ start: 0, dur: 20 }]);
+      expect(component.previewReverb()).toBe(false);
+      await (component as any)._playMixAt(0);
+      expect(processor.createLiveReverb).not.toHaveBeenCalled();
+      expect(processor.chains[0].withReverb).toBe(false);
+    });
+
+    it('« Écouter avec la réverb » : mémorisé, mix relancé avec la réverb partagée', async () => {
+      try { localStorage.removeItem('laprod_studio_preview_reverb'); } catch { /* jsdom */ }
+      const { component, processor } = await setup([{ start: 0, dur: 20 }]);
+      await (component as any)._playMixAt(0);
+      component.togglePreviewReverb();
+      await vi.waitFor(() => expect(processor.chains.length).toBe(2));
+      expect(component.previewReverb()).toBe(true);
+      expect(localStorage.getItem('laprod_studio_preview_reverb')).toBe('1');
+      expect(processor.createLiveReverb).toHaveBeenCalledTimes(1);
+      expect(processor.chains[1].withReverb).toBe(true);
+
+      component.togglePreviewReverb();   // ça craque : on la coupe
+      await vi.waitFor(() => expect(processor.chains.length).toBe(3));
+      expect(processor.chains[2].withReverb).toBe(false);
+      expect(localStorage.getItem('laprod_studio_preview_reverb')).toBe('0');
+      localStorage.removeItem('laprod_studio_preview_reverb');
     });
 
     it('un réglage modifié pendant la lecture s\'applique en direct, sans relancer le mix', async () => {

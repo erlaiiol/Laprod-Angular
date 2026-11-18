@@ -47,6 +47,7 @@ public class ClipCameraPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "canShareTo",         returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shareTo",            returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCache",         returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings",       returnType: CAPPluginReturnPromise),
     ]
 
     private let recorder = ClipRecorder()
@@ -295,6 +296,13 @@ public class ClipCameraPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // ── Cache ─────────────────────────────────────────────────────────────────
+
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString) else { call.resolve(); return }
+            UIApplication.shared.open(url) { _ in call.resolve() }
+        }
+    }
 
     @objc func clearCache(_ call: CAPPluginCall) {
         ClipFiles.clear()

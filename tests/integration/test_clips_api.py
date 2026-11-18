@@ -35,6 +35,8 @@ class TestRecordClipEvent:
     def test_utilisateur_connecte_enregistre_un_evenement(self, client, db, user, track, auth_headers):
         res = client.post('/api/clips/events', json=_payload(track.id), headers=auth_headers)
         assert res.status_code == 201
+        # Ce qui n'est pas commité disparaît au rollback : la route DOIT valider elle-même.
+        db.session.rollback()
         ev = SocialClipEvent.query.filter_by(track_id=track.id).one()
         assert ev.user_id == user.id
         assert ev.action == 'shared'

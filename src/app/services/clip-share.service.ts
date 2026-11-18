@@ -48,7 +48,7 @@ export function shareMedium(target: string | undefined): string {
   if (t.includes('musically') || t.includes('tiktok') || t.includes('ugc.aweme')) return 'tiktok';
   if (t.includes('youtube')) return 'youtube';
   if (t.includes('whatsapp')) return 'whatsapp';
-  if (t.includes('sms') || t.includes('message') || t.includes('mms')) return 'sms';
+  if (t.includes('sms') || t.includes('message') || t.includes('messaging') || t.includes('mms')) return 'sms';
   if (t.includes('snapchat')) return 'snapchat';
   return 'share';
 }

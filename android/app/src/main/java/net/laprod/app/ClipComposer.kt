@@ -19,6 +19,7 @@ import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.InAppMp4Muxer
 import androidx.media3.transformer.Transformer
 import com.google.common.collect.ImmutableList
 import java.io.File
@@ -105,20 +106,26 @@ class ClipComposer(private val context: Context) {
         p.output.delete()
         // Transformer doit être créé et démarré sur un thread avec Looper.
         Handler(Looper.getMainLooper()).post {
+            val raw = File(p.output.parentFile, p.output.name + ".raw")
             val transformer = Transformer.Builder(context)
+                // Muxer Media3 intégré : tente d'écrire moov en tête (MediaMuxer le met à la fin).
+                .setMuxerFactory(InAppMp4Muxer.Factory())
                 .setVideoMimeType(MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                        // Garantie faststart (sans effet si moov est déjà en tête).
+                        val moved = runCatching { Mp4FastStart.apply(raw, p.output) }.getOrDefault(false)
+                        if (moved) raw.delete() else { p.output.delete(); raw.renameTo(p.output) }
                         done(Result.success(p.output))
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                        p.output.delete()
+                        p.output.delete(); raw.delete()
                         done(Result.failure(exportException))
                     }
                 })
                 .build()
-            transformer.start(composition, p.output.absolutePath)
+            transformer.start(composition, raw.absolutePath)
         }
     }
 }

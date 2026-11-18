@@ -303,7 +303,6 @@ describe('MobileAudioProcessorService — calage et chaîne temps réel', () => 
         const chain = svc.createLiveVoiceChain(ctx, { ...settings, lowCutHz: live ? 80 : lowCutHz }, quality);
         src.connect(chain.input);
         chain.dry.connect(ctx.destination);
-        chain.wet.connect(ctx.destination);
         if (live) chain.update({ ...settings, lowCutHz });
         src.start(0);
         const out  = (await ctx.startRendering()).getChannelData(0).subarray(n / 2);
@@ -315,13 +314,6 @@ describe('MobileAudioProcessorService — calage et chaîne temps réel', () => 
       expect(await render(220, false)).toBeLessThan(at80 * 0.5);   // réglage initial entendu
       expect(await render(220, true)).toBeLessThan(at80 * 0.5);    // réglage changé en cours de lecture
     }
-  });
-
-  it('réverb partagée : convolver prêt au sample rate du contexte', async () => {
-    const ctx  = new OfflineAudioContext(1, 4410, 44_100);
-    const conv = await svc.createLiveReverb(ctx);
-    expect(conv.buffer!.sampleRate).toBe(44_100);
-    expect(conv.normalize).toBe(false);
   });
 
   it('autotuneOnly : voix brute sans effets (aucune réverb ni compression ajoutée)', async () => {
@@ -416,5 +408,70 @@ describe('MobileAudioProcessorService — mixAndExport (Mode Clip)', () => {
       beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(4),
     });
     expect(mp3.type).toBe('audio/mpeg');
+  });
+});
+
+
+// ── Réverb : rendu final seulement, jamais en direct (18/11/2026) ─────────
+
+describe('MobileAudioProcessorService — réverb', () => {
+  let svc: MobileAudioProcessorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: testProviders });
+    svc = TestBed.inject(MobileAudioProcessorService);
+  });
+
+  it('réglages par défaut inchangés (Réaliste, 12 %)', () => {
+    expect(DEFAULT_TRACK_SETTINGS.reverbWet).toBe(0.12);
+  });
+
+  it('IR de la plate normalisée : énergie unitaire (plus de +30 dB sur la queue)', async () => {
+    const ir = await (svc as unknown as { _getPlateIR(): Promise<AudioBuffer> })._getPlateIR();
+    const d = ir.getChannelData(0);
+    let e = 0;
+    for (let i = 0; i < d.length; i++) e += d[i] * d[i];
+    expect(e).toBeCloseTo(1, 3);
+  });
+
+  it('écoute du studio par défaut : aucune réverb, même réglée à 20 % (sortie sèche)', async () => {
+    const n = SR;
+    const render = async (reverbWet: number) => {
+      const ctx = new OfflineAudioContext(1, n, SR);
+      const buf = ctx.createBuffer(1, n, SR);
+      buf.getChannelData(0).fill(0, 0);
+      buf.getChannelData(0).set(new Float32Array(480).fill(0.5), 0);   // impulsion de 10 ms
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const chain = svc.createLiveVoiceChain(ctx as unknown as BaseAudioContext,
+        { ...DEFAULT_TRACK_SETTINGS, reverbWet }, 'light');
+      expect(chain.wet).toBeNull();   // sans l'option : aucun départ réverb
+      src.connect(chain.input); chain.dry.connect(ctx.destination); src.start(0);
+      return (await ctx.startRendering()).getChannelData(0);
+    };
+    const dry = await render(0);
+    const wet = await render(0.2);
+    // Identiques : la queue de réverb n'existe pas à l'écoute.
+    let diff = 0;
+    for (let i = 0; i < n; i++) diff = Math.max(diff, Math.abs(dry[i] - wet[i]));
+    expect(diff).toBeLessThan(1e-6);
+  });
+
+  it('écoute « avec la réverb » : départ wet au réglage de la piste', () => {
+    const ctx = new OfflineAudioContext(1, 4800, SR);
+    const chain = svc.createLiveVoiceChain(ctx as unknown as BaseAudioContext,
+      { ...DEFAULT_TRACK_SETTINGS, reverbWet: 0.2 }, 'light', true);
+    expect((chain.wet as GainNode).gain.value).toBeCloseTo(0.2, 6);
+    expect((chain.dry as GainNode).gain.value).toBeCloseTo(0.8, 6);
+  });
+
+  it('export : la réverb réglée s\'applique bien (queue audible après la voix)', async () => {
+    const voice = new Float32Array(SR).fill(0);
+    voice.fill(0.3, 0, SR / 10);
+    const blob = new Blob([voice.buffer], { type: 'audio/pcm-f32' });
+    const base = { ...DEFAULT_TRACK_SETTINGS, useAutotune: false };
+    const tailEnergy = (a: Float32Array) => { let e = 0; for (let i = SR / 2; i < a.length; i++) e += a[i] * a[i]; return e; };
+    const sec = await svc.processVocalTrack({ blob, settings: { ...base, reverbWet: 0 }, trackKey: '' });
+    const conc = await svc.processVocalTrack({ blob, settings: { ...base, reverbWet: 0.2 }, trackKey: '' });
+    expect(tailEnergy(conc)).toBeGreaterThan(tailEnergy(sec));
   });
 });

@@ -126,6 +126,16 @@ const PLATE_DECAY_S = 1.8;    // s — durée de la queue de réverb
 const PLATE_HP_HZ   =  400;   // Hz
 const PLATE_LP_HZ   = 6_000;  // Hz
 
+/**
+ * Réverb : toujours appliquée au rendu final (export, Mode Clip). En direct,
+ * jamais au retour casque ni pendant un tournage ; à l'écoute passive du studio
+ * seulement si l'utilisateur l'active (« Écouter avec la réverb ») — la
+ * convolution d'une IR de 1,8 s coûte cher et peut faire craquer (18/11/2026).
+ */
+export function clampReverbWet(v: number | undefined): number {
+  return Math.max(0, Math.min(1, v ?? 0));
+}
+
 // Autotune (correction de hauteur globale + lissage)
 const PITCH_FRAME    = 2048;  // samples — fenêtre YIN (~43 ms @ 48kHz)
 const PITCH_HOP      =  256;  // samples — pas d'analyse (~5 ms)
@@ -190,8 +200,8 @@ export interface LiveVoiceChain {
   input: AudioNode;
   /** Signal direct (volume appliqué) — à relier au bus principal. */
   dry:   AudioNode;
-  /** Départ réverb (volume appliqué) — à relier à la réverb partagée. */
-  wet:   AudioNode;
+  /** Départ réverb — null sauf écoute « avec la réverb » ; à relier à createLiveReverb(). */
+  wet:   AudioNode | null;
   /** Applique de nouveaux réglages sans interrompre le son. */
   update(settings: TrackSettings): void;
   dispose(): void;
@@ -724,8 +734,9 @@ export class MobileAudioProcessorService {
     conv.normalize = false;
     conv.buffer    = await this._plateIRAt(ctx, SR);
 
-    const dryG = ctx.createGain(); dryG.gain.value = 1 - params.reverbWet;
-    const wetG = ctx.createGain(); wetG.gain.value = params.reverbWet;
+    const wetAmt = clampReverbWet(params.reverbWet);
+    const dryG = ctx.createGain(); dryG.gain.value = 1 - wetAmt;
+    const wetG = ctx.createGain(); wetG.gain.value = wetAmt;
     chain.output.connect(dryG);
     chain.output.connect(conv); conv.connect(wetG);
 
@@ -923,19 +934,22 @@ export class MobileAudioProcessorService {
    */
   createLiveVoiceChain(
     ctx: BaseAudioContext, settings: TrackSettings, quality: PreviewQuality = 'full',
+    withReverb = false,
   ): LiveVoiceChain {
     const params = {
       voiceGain: 1, clarityDb: settings.clarityDb, lowCutHz: settings.lowCutHz, presenceDb: settings.presenceDb,
     };
     const chain = quality === 'full' ? this._buildVocalChain(ctx, params) : this._buildLightChain(ctx, params);
-    const reverb = (s: TrackSettings) => Math.max(0, Math.min(1, s.reverbWet ?? 0));
     // Même ordre qu'à l'export : volume appliqué après la chaîne et la réverb.
+    // Sans réverb (par défaut) : sortie sèche, aucune convolution temps réel.
+    const reverb = (s: TrackSettings) => (withReverb ? clampReverbWet(s.reverbWet) : 0);
     const vol = ctx.createGain(); vol.gain.value = settings.volume ?? 1;
     const dry = ctx.createGain(); dry.gain.value = 1 - reverb(settings);
-    const wet = ctx.createGain(); wet.gain.value = reverb(settings);
+    const wet = withReverb ? ctx.createGain() : null;
+    if (wet) wet.gain.value = reverb(settings);
     chain.output.connect(vol);
     vol.connect(dry);
-    vol.connect(wet);
+    if (wet) vol.connect(wet);
 
     // Rampe courte : pas de clic quand un réglage change pendant la lecture.
     const glide = (p: AudioParam, v: number) => p.setTargetAtTime(v, ctx.currentTime, 0.015);
@@ -944,26 +958,25 @@ export class MobileAudioProcessorService {
       dry,
       wet,
       update: (s: TrackSettings) => {
+        glide(dry.gain, 1 - reverb(s));
+        if (wet) glide(wet.gain, reverb(s));
         const lowCut = s.lowCutHz ?? HPF_FREQ;
         glide(chain.hp1.frequency, lowCut);
         glide(chain.hp2.frequency, lowCut);
         glide(chain.presence.gain, s.presenceDb ?? PRESENCE_GAIN);
         glide(chain.air.gain,      s.clarityDb  ?? AIR_GAIN);
         glide(vol.gain, s.volume ?? 1);
-        glide(dry.gain, 1 - reverb(s));
-        glide(wet.gain, reverb(s));
       },
       dispose: () => {
-        for (const n of [...chain.nodes, vol, dry, wet]) { try { n.disconnect(); } catch { /* déjà libéré */ } }
+        for (const n of [...chain.nodes, vol, dry, ...(wet ? [wet] : [])]) { try { n.disconnect(); } catch { /* déjà libéré */ } }
       },
     };
   }
 
   /**
-   * Réverb plate partagée par toutes les pistes en écoute directe. La convolution
-   * étant linéaire, une réverb commune alimentée par le départ `wet` de chaque
-   * piste donne le même résultat qu'une réverb par piste (export), pour une
-   * fraction du coût processeur.
+   * Réverb plate partagée par toutes les pistes, pour l'écoute « avec la réverb ».
+   * La convolution étant linéaire, une réverb commune alimentée par le départ `wet`
+   * de chaque piste donne le même résultat qu'une réverb par piste (export).
    */
   async createLiveReverb(ctx: BaseAudioContext): Promise<ConvolverNode> {
     const conv = ctx.createConvolver();
@@ -1057,7 +1070,16 @@ export class MobileAudioProcessorService {
 
     src.connect(hp).connect(lp).connect(offline.destination);
     src.start(0);
-    return offline.startRendering();
+    const ir = await offline.startRendering();
+
+    // Énergie unitaire : sans ça, l'IR (1,8 s de bruit, ConvolverNode.normalize = false)
+    // amplifiait d'environ +30 dB — même 12 % de wet sortait bien plus fort que la voix.
+    const data = ir.getChannelData(0);
+    let energy = 0;
+    for (let i = 0; i < data.length; i++) energy += data[i] * data[i];
+    const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0;
+    for (let i = 0; i < data.length; i++) data[i] *= scale;
+    return ir;
   }
 
   // ── Autotune ──────────────────────────────────────────────────────────────────

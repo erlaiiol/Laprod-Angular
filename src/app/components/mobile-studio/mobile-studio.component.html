@@ -309,6 +309,15 @@
               <strong>{{ fmtBeatTime(beatCurrentTime()) }}</strong>
               <span>/ {{ fmtBeatTime(beatDuration()) }}</span>
             </div>
+            <button type="button" class="daw-tp-reverb"
+                    [class.daw-tp-reverb--on]="previewReverb()"
+                    [attr.aria-pressed]="previewReverb()"
+                    aria-label="Écouter avec la réverb"
+                    title="Écouter avec la réverb — à couper si le son craque"
+                    (click)="togglePreviewReverb()">
+              <i class="bi bi-soundwave" aria-hidden="true"></i>
+              <span>Réverb</span>
+            </button>
             <div class="daw-tp-zoom">
               <button (click)="zoomOut()" [disabled]="!canZoomOut()" aria-label="Dézoomer la timeline">
                 <i class="bi bi-zoom-out"></i>
@@ -570,8 +579,25 @@
                   @if (previewQuality() === 'full') {
                     Fidèle : vous entendez la chaîne d'effets complète de l'export. Si le son craque sur votre téléphone, passez en « Légère ».
                   } @else {
-                    Légère : volume, boue, présence, clarté et réverb s'entendent, sans la compression finale. L'export applique toujours la chaîne complète.
+                    Légère : volume, boue, présence et clarté s'entendent, sans la compression finale. L'export applique toujours la chaîne complète.
                   }
+                </p>
+
+                <!-- Réverb à l'écoute passive du mix (jamais pendant un enregistrement ni un clip) -->
+                <div class="ms-speed-row">
+                  <span class="ms-speed-label">Écouter avec la réverb</span>
+                  <div class="ms-speed-tabs">
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="!previewReverb()"
+                            (click)="previewReverb() && togglePreviewReverb()">Non</button>
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="previewReverb()"
+                            (click)="!previewReverb() && togglePreviewReverb()">Oui</button>
+                  </div>
+                </div>
+                <p class="daw-quality-hint">
+                  À l'écoute de ta maquette seulement : jamais pendant que tu chantes ni pendant un clip.
+                  Si le son craque, coupe-la : la réverb réglée sur tes pistes reste appliquée à l'export.
                 </p>
 
                 @if (headphoneType() !== null) {

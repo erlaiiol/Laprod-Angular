@@ -23,6 +23,7 @@ describe('clip-share — légende et attribution', () => {
     expect(shareMedium('com.zhiliaoapp.musically')).toBe('tiktok');
     expect(shareMedium('com.google.ios.youtube.ShareExtension')).toBe('youtube');
     expect(shareMedium('com.apple.UIKit.activity.Message')).toBe('sms');
+    expect(shareMedium('com.google.android.apps.messaging')).toBe('sms');
     expect(shareMedium(undefined)).toBe('share');
   });
 });

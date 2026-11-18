@@ -80,6 +80,30 @@ $tl-lane-h:  50px;
   span   { font-size: 0.74rem; color: v.$text-secondary; }
 }
 
+// « Écouter avec la réverb » : bascule de l'écoute passive du mix (désactivée par défaut).
+.daw-tp-reverb {
+  display:       flex;
+  align-items:   center;
+  gap:           4px;
+  flex-shrink:   0;
+  height:        34px;
+  padding:       0 10px;
+  border:        1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background:    rgba(255, 255, 255, 0.06);
+  color:         v.$text-secondary;
+  font-size:     0.75rem;
+  font-weight:   600;
+
+  i { font-size: 0.95rem; }
+
+  &--on {
+    border-color: rgba(v.$primary, 0.6);
+    background:   rgba(v.$primary, 0.15);
+    color:        v.$primary;
+  }
+}
+
 .daw-tp-zoom {
   display:     flex;
   gap:         4px;

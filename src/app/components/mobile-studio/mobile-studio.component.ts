@@ -84,6 +84,8 @@ const TRANSPORT_LEAD_SEC = 0.08;
 /** Niveaux de zoom de la timeline (pixels par seconde). */
 const ZOOM_LEVELS = [5, 8, 14, 24, 40] as const;
 const PREVIEW_QUALITY_KEY = 'laprod_studio_preview_quality';
+/** « Écouter avec la réverb » (écoute passive du mix uniquement) — désactivé par défaut. */
+const PREVIEW_REVERB_KEY  = 'laprod_studio_preview_reverb';
 /** Après un geste sur la timeline, le suivi automatique de la tête de lecture attend (ms). */
 const FOLLOW_RESUME_MS = 2500;
 
@@ -255,6 +257,16 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
 
   // ── Qualité de l'écoute (charge processeur ↔ fidélité à l'export) ─────────────
 
+  /**
+   * Réverb à l'écoute passive du mix (lecture du studio, hors enregistrement et hors
+   * Mode Clip). Désactivée par défaut : la convolution temps réel peut faire craquer
+   * les téléphones modestes — l'utilisateur l'active s'il le souhaite et la coupe si
+   * ça craque. L'export et le clip final appliquent toujours la réverb réglée.
+   */
+  previewReverb = signal<boolean>(
+    (() => { try { return localStorage.getItem(PREVIEW_REVERB_KEY) === '1'; } catch { return false; } })(),
+  );
+
   previewQuality = signal<PreviewQuality>(
     (() => { try { return localStorage.getItem(PREVIEW_QUALITY_KEY) === 'light' ? 'light' : 'full'; } catch { return 'full'; } })(),
   );
@@ -332,7 +344,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   // position d'enregistrement (beatStartSec), quel que soit le point de départ.
   private _mixCtx:            AudioContext | null                   = null;
   /** Bus de sortie du contexte courant : limiteur de sécurité + réverb partagée. */
-  private _mixBus: { ctx: AudioContext; master: AudioNode; reverb: AudioNode } | null = null;
+  private _mixBus: { ctx: AudioContext; master: AudioNode; reverb: AudioNode | null } | null = null;
   private _transport: {
     seq:          number;
     beatSrc:      AudioBufferSourceNode;
@@ -861,6 +873,15 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     });
   }
 
+  togglePreviewReverb(): void {
+    const on = !this.previewReverb();
+    this.previewReverb.set(on);
+    try { localStorage.setItem(PREVIEW_REVERB_KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ }
+    // Lecture en cours : le mix est reconstruit à la position courante, avec ou sans réverb.
+    if (this._transport) void this._playMixAt(this._transportPos());
+    this.cdr.markForCheck();
+  }
+
   setPreviewQuality(q: PreviewQuality): void {
     if (q === this.previewQuality()) return;
     this.previewQuality.set(q);
@@ -971,9 +992,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       const voices = new Map<string, { blob: Blob; src: AudioBufferSourceNode | null; chain: LiveVoiceChain }>();
       voiceTracks.forEach(({ t, blob }, i) => {
         const buf   = voiceBufs[i];
-        const chain = this.processor.createLiveVoiceChain(ctx, t.settings, quality);
+        const chain = this.processor.createLiveVoiceChain(ctx, t.settings, quality, reverb !== null);
         chain.dry.connect(master);
-        chain.wet.connect(reverb);
+        if (chain.wet && reverb) chain.wet.connect(reverb);
         // La chaîne retarde le son de chainDelay : la source part d'autant plus tôt.
         const into = pos - t.beatStartSec + chainDelay;   // > 0 : la voix a déjà commencé
         let src: AudioBufferSourceNode | null = null;
@@ -1010,7 +1031,16 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   private async _ensureMixBus(ctx: AudioContext) {
-    if (this._mixBus?.ctx === ctx) return this._mixBus;
+    const wantReverb = this.previewReverb();
+    if (this._mixBus?.ctx === ctx && (this._mixBus.reverb !== null) === wantReverb) return this._mixBus;
+    if (this._mixBus?.ctx === ctx) {
+      // Bascule de l'option : on garde le limiteur, on ajoute/retire la réverb partagée.
+      if (this._mixBus.reverb) { try { this._mixBus.reverb.disconnect(); } catch { /* déjà libérée */ } }
+      const reverb = wantReverb ? await this.processor.createLiveReverb(ctx) : null;
+      reverb?.connect(this._mixBus.master);
+      this._mixBus = { ...this._mixBus, reverb };
+      return this._mixBus;
+    }
     // Limiteur de sécurité : la somme beat + voix ne doit pas saturer la sortie.
     const master = ctx.createDynamicsCompressor();
     master.threshold.value = -1;
@@ -1019,8 +1049,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     master.attack.value    = 0.003;
     master.release.value   = 0.1;
     master.connect(ctx.destination);
-    const reverb = await this.processor.createLiveReverb(ctx);
-    reverb.connect(master);
+    // Réverb partagée seulement si l'utilisateur écoute « avec la réverb ».
+    const reverb = wantReverb ? await this.processor.createLiveReverb(ctx) : null;
+    reverb?.connect(master);
     this._mixBus = { ctx, master, reverb };
     return this._mixBus;
   }
@@ -1339,7 +1370,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       lowCutHz:   st?.lowCutHz   ?? 150,
       presenceDb: st?.presenceDb ?? 3.5,
       clarityDb:  st?.clarityDb  ?? 3.0,
-      reverbWet:  st?.reverbWet  ?? 0.12,
+      // Jamais de réverb dans le retour casque (prise, échauffement, Mode Clip) : on
+      // s'entend sec pour chanter juste ; la réverb (≤ 3 %) n'existe qu'à l'écoute/export.
+      reverbWet:  0,
       volume:     (st?.volume ?? 1) * this.micGain(),
     };
   });
@@ -2210,7 +2243,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.showGuestGate.set(false);
     this.showFxGate.set(false);
     this.closed.emit();
-    this.router.navigate(['/auth/login']);
+    this.router.navigate(['/login']);   // route réelle (app.routes.ts) — '/auth/login' menait à une 404
   }
 
   // ── Beat editor ───────────────────────────────────────────────────────────────

@@ -43,6 +43,7 @@ function makeCam() {
     canShareTo:      vi.fn(async () => ({ available: false })),
     shareTo:         vi.fn(async () => {}),
     clearCache:      vi.fn(async () => {}),
+    openSettings:    vi.fn(async () => {}),
     addListener:     vi.fn(async (_e: string, _h: () => void) => ({ remove: () => {} })),
     removeAllListeners: vi.fn(async () => {}),
   };
@@ -134,6 +135,16 @@ describe('SocialClipService', () => {
     expect(opts['beatStartSec']).toBe(0);
     expect(opts['startDelayMs']).toBe(3000);
     expect(String(opts['beatPath'])).toContain('clip-tour-');
+  });
+
+  it('son du tournage sans réverb, rendu final avec la réverb réglée', async () => {
+    const { svc, maquette } = setup('ios');
+    await svc.open(CTX);
+    await roll(svc);
+    await svc.stop();
+    const calls = (maquette.exportMaquette as unknown as Mocked).mock.calls.map(c => c[0] as Record<string, unknown>);
+    expect(calls[0]['noReverb']).toBe(true);                // son joué pendant le tournage
+    expect(calls[calls.length - 1]['noReverb']).toBe(false); // clip final
   });
 
   it('iOS Playback : la vidéo est rognée de (son entendu − 1re frame)', async () => {

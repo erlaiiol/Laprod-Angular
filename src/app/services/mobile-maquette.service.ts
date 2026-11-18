@@ -44,6 +44,8 @@ export interface ClipRenderOptions {
   clickMarksSec?: number[];
   /** Backline du mode Rec : le beat seul est un rendu valide. */
   allowEmpty?:    boolean;
+  /** Son joué PENDANT un tournage du Mode Clip : sans réverb (le rendu final la garde). */
+  noReverb?:      boolean;
   /** Prises « clip seulement » (pas de piste libre) — cf. Passe 2. */
   extraTakes?:    Array<{ rawBlob: Blob; settings: TrackSettings; beatStartSec: number }>;
 }
@@ -260,7 +262,9 @@ export class MobileMaquetteService {
           : t.rawBlob!;
 
         // Effets sans autotune (déjà appliqué si processedBlob)
-        const settingsNoTune: TrackSettings = { ...t.settings, useAutotune: false };
+        const settingsNoTune: TrackSettings = {
+          ...t.settings, useAutotune: false, ...(opts.noReverb ? { reverbWet: 0 } : {}),
+        };
         const blobToProcess = (t.settings.useAutotune && t.processedBlob)
           ? t.processedBlob
           : t.rawBlob!;
@@ -287,7 +291,7 @@ export class MobileMaquetteService {
           : extra.rawBlob;
         const samples = await this.processor.processVocalTrack({
           blob,
-          settings:      { ...extra.settings, useAutotune: false },
+          settings:      { ...extra.settings, useAutotune: false, ...(opts.noReverb ? { reverbWet: 0 } : {}) },
           trackKey:      opts.trackKey,
           latencyHintMs: opts.latencyHintMs,
         });

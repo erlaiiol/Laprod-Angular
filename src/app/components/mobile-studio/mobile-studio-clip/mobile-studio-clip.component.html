@@ -59,6 +59,9 @@
     <div class="clip-error" role="alert">
       <i class="bi bi-exclamation-triangle-fill"></i>
       <span>{{ clip.errorMsg() }}</span>
+      @if (permissionError()) {
+        <button type="button" class="clip-error__settings" (click)="clip.openSettings()">Ouvrir les réglages</button>
+      }
     </div>
   }
 

@@ -434,6 +434,15 @@ class ClipCameraPlugin : Plugin() {
     // ── Cache ─────────────────────────────────────────────────────────────────
 
     @PluginMethod
+    fun openSettings(call: PluginCall) {
+        runCatching {
+            activity.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)))
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
     fun clearCache(call: PluginCall) {
         cacheDir.listFiles()?.filter { it.name.startsWith("clip-") }?.forEach { it.delete() }
         call.resolve()

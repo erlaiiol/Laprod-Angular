@@ -165,7 +165,10 @@ def main() -> int:
             print(f"{r['file']}: {r['events']} événements, moyen {r['mean_ms']:+.1f} ms, "
                   f"|moyen| {r['mean_abs_ms']:.1f} ms, avance son max {r['audio_lead_ms']:.1f} ms, "
                   f"dérive {r['drift_ms']:+.1f} ms")
-        print('SEUILS RESPECTÉS' if passed else 'ÉCHEC :\n  ' + '\n  '.join(fails))
+        if any('error' in r for r in results):
+            print('MESURE IMPOSSIBLE : au moins un fichier sans événements appariés (voir ci-dessus).')
+        else:
+            print('SEUILS RESPECTÉS' if passed else 'ÉCHEC :\n  ' + '\n  '.join(fails))
     if any('error' in r for r in results):
         return 2
     return 0 if passed else 1

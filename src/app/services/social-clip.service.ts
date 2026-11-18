@@ -289,7 +289,7 @@ export class SocialClipService {
       // Son du tournage : mix complet (Playback) ou backline sans la future prise (Rec).
       const text: OverlayText = { username: ctx.username, beatmaker: ctx.beatmaker };
       const [tourWav, overlay, endCard] = await Promise.all([
-        this.renderMix(this.segment(), 0),
+        this.renderMix(this.segment(), 0, [], true),
         this.overlays.overlay(text),
         this.overlays.endCard(text),
       ]);
@@ -542,8 +542,13 @@ export class SocialClipService {
     return [{ rawBlob: take.rawBlob, settings: { ...DEFAULT_TRACK_SETTINGS }, beatStartSec }];
   }
 
+  /**
+   * `tour` : son joué PENDANT le tournage (Playback ou backline) — toujours sans
+   * réverb, comme le retour casque. Le rendu final du clip, lui, la garde.
+   */
   private renderMix(seg: ClipSegment, tailSec: number,
-                    extraTakes: Array<{ rawBlob: Blob; settings: TrackSettings; beatStartSec: number }> = []): Promise<Blob> {
+                    extraTakes: Array<{ rawBlob: Blob; settings: TrackSettings; beatStartSec: number }> = [],
+                    tour = false): Promise<Blob> {
     const ctx = this.ctx!;
     return this.maquette.exportMaquette({
       beatStreamUrl: ctx.beatStreamUrl,
@@ -557,8 +562,14 @@ export class SocialClipService {
       tailSec,
       allowEmpty:    true,
       extraTakes,
+      noReverb:      tour,
       clickMarksSec: this.mire() ? syncMirePositions(segmentLength(seg)) : undefined,
     });
+  }
+
+  /** Réglages de l'app (permission refusée) — le studio reste utilisable. */
+  openSettings(): void {
+    void this.cam.openSettings().catch(() => {});
   }
 
   // ── Résultat ───────────────────────────────────────────────────────────────

@@ -65,5 +65,8 @@ def record_clip_event(current_user):
         track_id=track.id, user_id=current_user.id, clip_uid=uid,
         mode=mode, action=action, target=target, duration_s=duration,
     ))
+    # @commit_or_rollback ne valide PAS : sans ce commit, la ligne était perdue en
+    # production (201 renvoyé, compteur toujours à 0 — recette du 18/11/2026).
+    db.session.commit()
     current_app.logger.info('clip %s track=%s mode=%s target=%s', action, track.id, mode, target)
     return ok({'recorded': True}, status=201)

@@ -41,7 +41,7 @@ public class PitchMonitorPlugin: CAPPlugin, CAPBridgedPlugin {
         let opts = SessionOptions(
             useMonitor:      call.getBool("useMonitor")      ?? false,
             voiceGain:       call.getFloat("voiceGain")      ?? 1.0,
-            reverbWet:       call.getFloat("reverbWet")      ?? 0.15,
+            reverbWet:       call.getFloat("reverbWet")      ?? 0,
             trackKey:        call.getString("trackKey")      ?? "",
             monitorAutotune: call.getBool("monitorAutotune") ?? false,
             smoothK:         smoothK,
@@ -192,7 +192,7 @@ struct VoiceFx {
     var lowCutHz:   Float = 150
     var presenceDb: Float = 3.5
     var clarityDb:  Float = 3.0
-    var reverbWet:  Float = 0.12
+    var reverbWet:  Float = 0      // retour casque toujours sec (cf. monitorFx côté front)
     var volume:     Float = 1.0
 
     init() {}
@@ -248,7 +248,11 @@ struct SessionResult {
 //   traités d'un bloc dans un seul cycle de rendu (pic de calcul → craquements) et
 //   retardaient la détection de hauteur d'autant.
 //
-//   [AVAudioSourceNode] ──pull depuis RubberBand──► gainNode ──► reverbNode ──► output
+//   [AVAudioSourceNode] ──pull depuis RubberBand──► eq ──► gainNode ──► output
+//
+//   AUCUNE réverb dans le retour casque (18/11/2026) : l'AVAudioUnitReverb tournait sur le
+//   thread temps réel à chaque cycle (charge → craquements possibles) même à 0 % de wet.
+//   La réverb n'existe qu'au rendu final (export / Mode Clip, côté WebAudio).
 //
 // Le chemin de monitoring est entièrement piloté par l'AVAudioSourceNode :
 // son render block lit le ring buffer, passe par RubberBand (formant preservé)
@@ -274,7 +278,6 @@ final class AudioSession {
     private var analysisFrame = [Float]()
     private var eqNode:     AVAudioUnitEQ?
     private var gainNode:   AVAudioMixerNode?
-    private var reverbNode: AVAudioUnitReverb?
 
     // Shared between tap and detection timer
     private let lock     = NSLock()
@@ -360,9 +363,6 @@ final class AudioSession {
             let rb        = RubberBandWrapper(sampleRate: sampleRate)
             rbWrapper     = rb
 
-            let reverbNode  = AVAudioUnitReverb()
-            reverbNode.loadFactoryPreset(.plate)
-
             let gainNode = AVAudioMixerNode()
 
             // EQ voix : 2 passe-haut cascadés (24 dB/oct, comme l'export) = "boue",
@@ -379,7 +379,6 @@ final class AudioSession {
 
             self.eqNode     = eq
             self.gainNode   = gainNode
-            self.reverbNode = reverbNode
             applyFx(options.fx)
 
             // AVAudioSourceNode: pulls pitch-shifted audio from RubberBand.
@@ -401,11 +400,10 @@ final class AudioSession {
             }
             sourceNode = src
 
-            for node in [src, eq, gainNode, reverbNode] as [AVAudioNode] { engine.attach(node) }
-            engine.connect(src,        to: eq,                 format: monoFmt)
-            engine.connect(eq,         to: gainNode,           format: monoFmt)
-            engine.connect(gainNode,   to: reverbNode,         format: monoFmt)
-            engine.connect(reverbNode, to: engine.mainMixerNode, format: monoFmt)
+            for node in [src, eq, gainNode] as [AVAudioNode] { engine.attach(node) }
+            engine.connect(src,      to: eq,                   format: monoFmt)
+            engine.connect(eq,       to: gainNode,             format: monoFmt)
+            engine.connect(gainNode, to: engine.mainMixerNode, format: monoFmt)
 
             // Micro → moteur de hauteur, sur le thread temps réel et à chaque cycle
             // matériel : charge constante par cycle, latence minimale. Aucun verrou,
@@ -520,7 +518,6 @@ final class AudioSession {
         eq.bands[1].frequency = lowCut
         eq.bands[2].gain      = max(-12, min(12, fx.presenceDb))
         eq.bands[3].gain      = max(-12, min(12, fx.clarityDb))
-        reverbNode?.wetDryMix = max(0, min(1, fx.reverbWet)) * 100
         gainNode?.outputVolume = options.voiceGain * max(0, min(2, fx.volume))
     }
 
@@ -547,7 +544,6 @@ final class AudioSession {
         sinkNode   = nil
         eqNode     = nil
         gainNode   = nil
-        reverbNode = nil
 
         // Rend la main : le casque Bluetooth et la WebView retrouvent leur
         // configuration de lecture normale.

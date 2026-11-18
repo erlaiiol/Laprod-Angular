@@ -10,7 +10,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.audiofx.PresetReverb
 import android.os.Build
 import android.util.Base64
 import com.getcapacitor.JSObject
@@ -52,7 +51,7 @@ class PitchMonitorPlugin : Plugin() {
         val opts = RecordingOptions(
             useMonitor      = call.getBoolean("useMonitor")      ?: false,
             voiceGain       = call.getFloat("voiceGain")         ?: 1.0f,
-            reverbWet       = call.getFloat("reverbWet")         ?: 0.15f,
+            reverbWet       = call.getFloat("reverbWet")         ?: 0f,
             trackKey        = call.getString("trackKey")         ?: "",
             monitorAutotune = call.getBoolean("monitorAutotune") ?: false,
             smoothK         = smoothK,
@@ -198,8 +197,10 @@ data class SessionResult(
 //                         DÉCOUPLÉE de la taille de bloc de capture — voir plus bas)
 //      La correction s'applique AU BLOC SUIVANT (1 frame de délai = 23 ms @ 44.1 kHz).
 //
-// Le chemin rapide n'a PAS de reverb câblée (limitation assumée, voir docs/roadmap.md) — le
-// chemin de repli conserve la reverb PresetReverb existante.
+// AUCUNE réverb dans le retour casque, sur les deux chemins (18/11/2026) : la réverb
+// n'existe qu'au rendu final (export / Mode Clip, côté WebAudio). Le PresetReverb du
+// chemin de repli est supprimé — un AudioEffect attaché à la piste, même désactivé,
+// est une source de charge et de craquements inutile.
 
 class AudioRecordingSession(private val opts: RecordingOptions, private val context: Context) {
 
@@ -232,11 +233,10 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private var captureLoop: AudioCaptureLoop? = null
     private var outputTrack: AudioTrack?       = null
     private var psola: PsolaProcessor?         = null
-    private var reverb: PresetReverb?          = null
     private var job: Job?                      = null
 
     // Chemin rapide (voir PsolaAudioEngine.kt) — non-null seulement si `PsolaAudioEngine.create`
-    // a réussi ; dans ce cas captureLoop/outputTrack/psola/reverb restent tous null, le moteur
+    // a réussi ; dans ce cas captureLoop/outputTrack/psola restent tous null, le moteur
     // natif gère capture+monitoring+correction en interne.
     private var aaudioEngine: PsolaAudioEngine? = null
     private val drainBuf = FloatArray(4096)
@@ -266,8 +266,12 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private var noisyReceiver: BroadcastReceiver? = null
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        if (change == AudioManager.AUDIOFOCUS_LOSS ||
-            change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+        // Seule une perte TEMPORAIRE interrompt la prise (appel, assistant vocal). Une perte
+        // définitive (AUDIOFOCUS_LOSS) est aussi ce que provoque la WebView de l'app
+        // elle-même quand le beat <audio> démarre ~130 ms après le micro (Chromium
+        // AudioFocusDelegate) : la prendre pour une interruption coupait chaque prise
+        // Android à ~0,4 s (recette Mode Clip sur émulateur, 18/11/2026).
+        if (change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
             onInterrupted?.invoke()
         }
     }
@@ -330,7 +334,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     fun setVoiceFx(p: VoiceFx.Params) {
         voiceFx.update(p)
         aaudioEngine?.setVoiceFx(voiceFx.coefficients)
-        reverb?.let { r -> runCatching { r.enabled = p.reverbWet > 0.01f } }
     }
 
     // ── Chemin rapide : moteur AAudio natif ───────────────────────────────────
@@ -439,15 +442,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 psola = PsolaProcessor(SAMPLE_RATE)
             }
 
-            // Reverb plate sur le retour monitoring (miroir du chemin iOS) — toujours créée,
-            // activée/désactivée en direct selon le réglage de piste (setVoiceFx).
-            // runCatching : AudioEffect peut échouer sur certains appareils / émulateurs.
-            runCatching {
-                reverb = PresetReverb(0, outputTrack!!.audioSessionId).apply {
-                    preset  = PresetReverb.PRESET_PLATE
-                    enabled = opts.fx.reverbWet > 0.01f
-                }
-            }
         }
 
         // ── Boucle de capture ──────────────────────────────────────────────────
@@ -528,8 +522,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         captureLoop?.stop()
         psola?.close()
         psola = null
-        reverb?.release()
-        reverb = null
         outputTrack?.stop()
         outputTrack?.release()
         outputTrack = null
