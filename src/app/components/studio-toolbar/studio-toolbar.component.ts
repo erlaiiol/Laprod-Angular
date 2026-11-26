@@ -36,4 +36,11 @@ export class StudioToolbarComponent {
   @Output() settings = new EventEmitter<void>();
   @Output() publish = new EventEmitter<void>();
   @Output() download = new EventEmitter<void>();
+
+  /** Mode Clip (app native uniquement) : bouton masqué par défaut. */
+  @Input() showClip = false;
+  @Input() clipDisabled = true;
+  /** Réservé Premium : le bouton reste tapable (bulle d'aide), avec un cadenas. */
+  @Input() clipLocked = false;
+  @Output() clip = new EventEmitter<void>();
 }

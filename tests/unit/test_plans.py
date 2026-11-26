@@ -104,6 +104,13 @@ class TestMatriceDesCapacites:
         assert u.can_view_royalties          is royalties
 
 
+@pytest.mark.parametrize('plan, allowed', [
+    (plans.FREE, False), (plans.PREMIUM, True), (plans.SEMI_PRO, True), (plans.PRO_STRUCTURE, True),
+])
+def test_mode_clip_reserve_premium(plan, allowed):
+    assert _user(plan).can_make_clips is allowed
+
+
 class TestExpiration:
     """Un abonnement expiré ne donne AUCUN droit : payer hier ne donne pas de
     droits aujourd'hui. C'est le test qui empêche la fuite la plus coûteuse."""

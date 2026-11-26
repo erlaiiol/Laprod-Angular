@@ -130,6 +130,26 @@
       "detail": "Un problème affectant l'envoi et la validation des emails de vérification de compte a été résolu. Si vous rencontriez des difficultés pour confirmer votre adresse email à l'inscription, ce problème n'existe plus.",
       "audience": "all",
       "sent_at": null
+    },
+    {
+      "id": "2026-11-17-mode-clip",
+      "date": "2026-11-17",
+      "category": "feature",
+      "title": "Mode Clip : filme ta maquette et partage-la en vidéo",
+      "short": "Membres Premium : filme-toi sur ta maquette et partage la vidéo sur Instagram, TikTok, YouTube ou par message.",
+      "detail": "Dans le studio de l'application, les membres Premium ont un nouveau bouton Clip : il te filme pendant que ta maquette joue, en playback ou en chantant une nouvelle prise par-dessus. Tu repars avec une vidéo verticale de 45 secondes maximum, avec tous tes effets, prête à poster en Reel, en story, en Short ou à envoyer par message. Les beatmakers voient combien de clips ont été faits sur leurs beats.",
+      "audience": "all",
+      "sent_at": null
+    },
+    {
+      "id": "2026-11-18-reverb-studio",
+      "date": "2026-11-18",
+      "category": "improvement",
+      "title": "Réverb du studio mobile corrigée",
+      "short": "La réverb du studio mobile ne sature plus et ne craque plus : tu chantes sans réverb, et tu choisis si tu l'écoutes.",
+      "detail": "La réverb pouvait sortir bien plus fort que ta voix et faire craquer le son. Tu t'entends maintenant sans réverb quand tu chantes ou que tu tournes un clip. À la réécoute de ta maquette, le bouton « Réverb » te permet de l'entendre si tu veux, et de la couper si le son craque. Ton réglage (Discret, Réaliste, Concert) est toujours appliqué à l'export et dans tes clips.",
+      "audience": "all",
+      "sent_at": null
     }
   ]
 }

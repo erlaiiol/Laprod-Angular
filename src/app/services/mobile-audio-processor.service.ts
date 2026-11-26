@@ -22,6 +22,7 @@ import { SoundTouch, SimpleFilter } from 'soundtouchjs';
 import { PitchDetector } from 'pitchy';
 import { Mp3Encoder } from '@breezystack/lamejs';
 import { environment } from '../../environments/environment';
+import { encodeWav16 } from '../utils/wav.utils';
 
 /**
  * Constructeur d'OfflineAudioContext, injecté plutôt que référencé en dur.
@@ -125,6 +126,16 @@ const PLATE_DECAY_S = 1.8;    // s — durée de la queue de réverb
 const PLATE_HP_HZ   =  400;   // Hz
 const PLATE_LP_HZ   = 6_000;  // Hz
 
+/**
+ * Réverb : toujours appliquée au rendu final (export, Mode Clip). En direct,
+ * jamais au retour casque ni pendant un tournage ; à l'écoute passive du studio
+ * seulement si l'utilisateur l'active (« Écouter avec la réverb ») — la
+ * convolution d'une IR de 1,8 s coûte cher et peut faire craquer (18/11/2026).
+ */
+export function clampReverbWet(v: number | undefined): number {
+  return Math.max(0, Math.min(1, v ?? 0));
+}
+
 // Autotune (correction de hauteur globale + lissage)
 const PITCH_FRAME    = 2048;  // samples — fenêtre YIN (~43 ms @ 48kHz)
 const PITCH_HOP      =  256;  // samples — pas d'analyse (~5 ms)
@@ -189,8 +200,8 @@ export interface LiveVoiceChain {
   input: AudioNode;
   /** Signal direct (volume appliqué) — à relier au bus principal. */
   dry:   AudioNode;
-  /** Départ réverb (volume appliqué) — à relier à la réverb partagée. */
-  wet:   AudioNode;
+  /** Départ réverb — null sauf écoute « avec la réverb » ; à relier à createLiveReverb(). */
+  wet:   AudioNode | null;
   /** Applique de nouveaux réglages sans interrompre le son. */
   update(settings: TrackSettings): void;
   dispose(): void;
@@ -214,6 +225,17 @@ export interface MixAndExportOptions {
   /** Blob WAV du beat étendu — si fourni, il est décodé directement sans fetch. */
   beatBlob?:     Blob;
   onProgress?:   (step: string, pct: number) => void;
+  /**
+   * Mode Clip : ne rend que ce passage de la maquette (position 0 du résultat =
+   * segment.startSec). Sans segment : maquette entière, comportement historique.
+   */
+  segment?:      { startSec: number; endSec: number };
+  /** 'wav' pour le Mode Clip (pas de double encodage avec perte). Défaut 'mp3'. */
+  format?:       'mp3' | 'wav';
+  /** Secondes ajoutées après la fin, en fondu (carte de fin du clip). */
+  tailSec?:      number;
+  /** Mire de synchro (build debug) : clics courts à ces positions (s, relatives au résultat). */
+  clickMarksSec?: number[];
 }
 
 export interface QuickMixOptions {
@@ -371,15 +393,27 @@ export class MobileAudioProcessorService {
     // Durée du mix : minimum(toutes pistes vocales, beat, plafond topline) —
     // le beat n'est plus tronqué (fichier complet, cf. beatStreamUrl), donc ce
     // plafond explicite est désormais le seul verrou de durée côté client.
-    const vocalLen = vocals.length > 0
-      ? Math.max(...vocals.map(v => _startFrame(v.startSec) + v.samples.length))
-      : beatRaw.length;
-    const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
-    const totalFrames   = Math.min(vocalLen, beatRaw.length, hardCapFrames);
-    const isCapped      = vocalLen >= hardCapFrames || beatRaw.length >= hardCapFrames;
+    // Mode Clip (segment) : exactement la durée du passage choisi, voix ou pas
+    // (le plafond du clip, 45 s, est vérifié par l'appelant et par le natif).
+    const seg          = opts.segment;
+    const offsetFrames = seg ? Math.max(0, Math.round(seg.startSec * SR)) : 0;
+    let totalFrames: number;
+    let isCapped = false;
+    if (seg) {
+      totalFrames = Math.max(1, Math.min(Math.round((seg.endSec - seg.startSec) * SR), beatRaw.length - offsetFrames));
+    } else {
+      const vocalLen = vocals.length > 0
+        ? Math.max(...vocals.map(v => _startFrame(v.startSec) + v.samples.length))
+        : beatRaw.length;
+      const hardCapFrames = Math.floor(TOPLINE_MAX_DURATION_S * SR);
+      totalFrames = Math.min(vocalLen, beatRaw.length, hardCapFrames);
+      isCapped    = vocalLen >= hardCapFrames || beatRaw.length >= hardCapFrames;
+    }
+    const tailFrames = Math.max(0, Math.round((opts.tailSec ?? 0) * SR));
+    const renderFrames = totalFrames + tailFrames;
 
     prog('Mixage…', 30);
-    const ctx = new this.offlineCtx(2, totalFrames, SR);
+    const ctx = new this.offlineCtx(2, renderFrames, SR);
 
     // Bus de sortie commun — permet de fader l'ensemble (beat + voix +
     // watermark) d'un coup si la topline est tronquée au plafond ("topline complète").
@@ -391,22 +425,31 @@ export class MobileAudioProcessorService {
       masterGain.gain.setValueAtTime(1, fadeStart);
       masterGain.gain.linearRampToValueAtTime(0, totalFrames / SR);
     }
+    if (tailFrames > 0) {
+      // Carte de fin : le mix continue et s'éteint pendant la queue.
+      masterGain.gain.setValueAtTime(1, totalFrames / SR);
+      masterGain.gain.linearRampToValueAtTime(0, renderFrames / SR);
+    }
 
     // Beat
     const beatSrc = ctx.createBufferSource();
     beatSrc.buffer = beatRaw;
     const beatG = ctx.createGain(); beatG.gain.value = beatGain;
     beatSrc.connect(beatG).connect(masterGain);
-    beatSrc.start(0);
+    beatSrc.start(0, offsetFrames / SR);
 
     // Pistes vocales
-    // Chaque piste est posée à sa position d'enregistrement sur le beat (startSec).
+    // Chaque piste est posée à sa position d'enregistrement sur le beat (startSec),
+    // décalée du début du segment en Mode Clip (une voix entamée avant le segment
+    // est lue à partir du bon échantillon).
     for (const { samples, settings, startSec } of vocals) {
-      const at  = _startFrame(startSec);
-      const len = Math.min(samples.length, totalFrames - at);
+      let at   = _startFrame(startSec) - offsetFrames;
+      let from = 0;
+      if (at < 0) { from = -at; at = 0; }
+      const len = Math.min(samples.length - from, renderFrames - at);
       if (len <= 0) continue;
       const vBuf = ctx.createBuffer(1, len, SR);
-      vBuf.getChannelData(0).set(samples.subarray(0, len));
+      vBuf.getChannelData(0).set(samples.subarray(from, from + len));
       const vSrc = ctx.createBufferSource();
       vSrc.buffer = vBuf;
       const vGain = ctx.createGain(); vGain.gain.value = settings.volume;
@@ -421,7 +464,10 @@ export class MobileAudioProcessorService {
     // de positionnement que apply_dense_watermark() côté serveur (web).
     const wmLen          = watermarkBuf.length;
     const intervalFrames = WATERMARK_INTERVAL_S * SR;
-    for (let pos = intervalFrames; pos + wmLen <= totalFrames; pos += intervalFrames) {
+    // Mode Clip : un clip de moins de 20 s aurait sinon AUCUN watermark (beat extractible
+    // en enchaînant des clips de 15 s) — le premier tombe au plus tard à mi-segment.
+    const firstWm = seg ? Math.min(intervalFrames, Math.max(0, Math.floor((totalFrames - wmLen) / 2))) : intervalFrames;
+    for (let pos = firstWm; pos + wmLen <= totalFrames; pos += intervalFrames) {
       const wmSrc  = ctx.createBufferSource();
       wmSrc.buffer = watermarkBuf;
       const wmGain = ctx.createGain();
@@ -430,10 +476,32 @@ export class MobileAudioProcessorService {
       wmSrc.start(pos / SR);
     }
 
+    // Mire de synchro (debug) : clic de 10 ms à 2 kHz, net et facile à détecter.
+    if (opts.clickMarksSec?.length) {
+      const clickLen = Math.round(0.010 * SR);
+      const click = ctx.createBuffer(1, clickLen, SR);
+      const cd = click.getChannelData(0);
+      for (let i = 0; i < clickLen; i++) cd[i] = 0.9 * Math.sin(2 * Math.PI * 2000 * i / SR);
+      for (const t of opts.clickMarksSec) {
+        if (t < 0 || t * SR >= totalFrames) continue;
+        const c = ctx.createBufferSource();
+        c.buffer = click;
+        c.connect(masterGain);
+        c.start(t);
+      }
+    }
+
     const mixed = await ctx.startRendering();
 
     prog('Pic guard…', 80);
     const guarded = this._peakGuard(mixed);
+
+    if (opts.format === 'wav') {
+      prog('Terminé', 100);
+      const chans: Float32Array[] = [];
+      for (let c = 0; c < guarded.numberOfChannels; c++) chans.push(guarded.getChannelData(c));
+      return encodeWav16(chans, SR);
+    }
 
     prog('Encodage MP3…', 92);
     const mp3 = this._encodeToMp3(guarded);
@@ -666,8 +734,9 @@ export class MobileAudioProcessorService {
     conv.normalize = false;
     conv.buffer    = await this._plateIRAt(ctx, SR);
 
-    const dryG = ctx.createGain(); dryG.gain.value = 1 - params.reverbWet;
-    const wetG = ctx.createGain(); wetG.gain.value = params.reverbWet;
+    const wetAmt = clampReverbWet(params.reverbWet);
+    const dryG = ctx.createGain(); dryG.gain.value = 1 - wetAmt;
+    const wetG = ctx.createGain(); wetG.gain.value = wetAmt;
     chain.output.connect(dryG);
     chain.output.connect(conv); conv.connect(wetG);
 
@@ -865,19 +934,22 @@ export class MobileAudioProcessorService {
    */
   createLiveVoiceChain(
     ctx: BaseAudioContext, settings: TrackSettings, quality: PreviewQuality = 'full',
+    withReverb = false,
   ): LiveVoiceChain {
     const params = {
       voiceGain: 1, clarityDb: settings.clarityDb, lowCutHz: settings.lowCutHz, presenceDb: settings.presenceDb,
     };
     const chain = quality === 'full' ? this._buildVocalChain(ctx, params) : this._buildLightChain(ctx, params);
-    const reverb = (s: TrackSettings) => Math.max(0, Math.min(1, s.reverbWet ?? 0));
     // Même ordre qu'à l'export : volume appliqué après la chaîne et la réverb.
+    // Sans réverb (par défaut) : sortie sèche, aucune convolution temps réel.
+    const reverb = (s: TrackSettings) => (withReverb ? clampReverbWet(s.reverbWet) : 0);
     const vol = ctx.createGain(); vol.gain.value = settings.volume ?? 1;
     const dry = ctx.createGain(); dry.gain.value = 1 - reverb(settings);
-    const wet = ctx.createGain(); wet.gain.value = reverb(settings);
+    const wet = withReverb ? ctx.createGain() : null;
+    if (wet) wet.gain.value = reverb(settings);
     chain.output.connect(vol);
     vol.connect(dry);
-    vol.connect(wet);
+    if (wet) vol.connect(wet);
 
     // Rampe courte : pas de clic quand un réglage change pendant la lecture.
     const glide = (p: AudioParam, v: number) => p.setTargetAtTime(v, ctx.currentTime, 0.015);
@@ -886,26 +958,25 @@ export class MobileAudioProcessorService {
       dry,
       wet,
       update: (s: TrackSettings) => {
+        glide(dry.gain, 1 - reverb(s));
+        if (wet) glide(wet.gain, reverb(s));
         const lowCut = s.lowCutHz ?? HPF_FREQ;
         glide(chain.hp1.frequency, lowCut);
         glide(chain.hp2.frequency, lowCut);
         glide(chain.presence.gain, s.presenceDb ?? PRESENCE_GAIN);
         glide(chain.air.gain,      s.clarityDb  ?? AIR_GAIN);
         glide(vol.gain, s.volume ?? 1);
-        glide(dry.gain, 1 - reverb(s));
-        glide(wet.gain, reverb(s));
       },
       dispose: () => {
-        for (const n of [...chain.nodes, vol, dry, wet]) { try { n.disconnect(); } catch { /* déjà libéré */ } }
+        for (const n of [...chain.nodes, vol, dry, ...(wet ? [wet] : [])]) { try { n.disconnect(); } catch { /* déjà libéré */ } }
       },
     };
   }
 
   /**
-   * Réverb plate partagée par toutes les pistes en écoute directe. La convolution
-   * étant linéaire, une réverb commune alimentée par le départ `wet` de chaque
-   * piste donne le même résultat qu'une réverb par piste (export), pour une
-   * fraction du coût processeur.
+   * Réverb plate partagée par toutes les pistes, pour l'écoute « avec la réverb ».
+   * La convolution étant linéaire, une réverb commune alimentée par le départ `wet`
+   * de chaque piste donne le même résultat qu'une réverb par piste (export).
    */
   async createLiveReverb(ctx: BaseAudioContext): Promise<ConvolverNode> {
     const conv = ctx.createConvolver();
@@ -999,7 +1070,16 @@ export class MobileAudioProcessorService {
 
     src.connect(hp).connect(lp).connect(offline.destination);
     src.start(0);
-    return offline.startRendering();
+    const ir = await offline.startRendering();
+
+    // Énergie unitaire : sans ça, l'IR (1,8 s de bruit, ConvolverNode.normalize = false)
+    // amplifiait d'environ +30 dB — même 12 % de wet sortait bien plus fort que la voix.
+    const data = ir.getChannelData(0);
+    let energy = 0;
+    for (let i = 0; i < data.length; i++) energy += data[i] * data[i];
+    const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0;
+    for (let i = 0; i < data.length; i++) data[i] *= scale;
+    return ir;
   }
 
   // ── Autotune ──────────────────────────────────────────────────────────────────

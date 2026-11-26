@@ -78,15 +78,15 @@ class ProcessorStub {
   async quickMix()          { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async decodeBlob()        { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async spliceAudio(a: Blob) { return a; }
-  // Écoute en direct : chaîne d'effets factice par piste + réverb partagée.
-  chains: Array<{ settings: any; quality: string; update: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }> = [];
+  // Écoute en direct : chaîne d'effets factice par piste (+ réverb partagée si activée).
+  chains: Array<{ settings: any; quality: string; withReverb: boolean; update: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }> = [];
+  createLiveReverb = vi.fn(async () => ({ connect: vi.fn(), disconnect: vi.fn() }));
   latencySec = 0;
   async decodeVoiceForPlayback() { return new AudioBuffer({ numberOfChannels: 1, length: 100, sampleRate: 48000 }); }
   async vocalChainLatencySec(q: string) { return q === 'full' ? this.latencySec : 0; }
-  async createLiveReverb() { return { connect: vi.fn() }; }
-  createLiveVoiceChain(_ctx: unknown, settings: any, quality: string) {
+  createLiveVoiceChain(_ctx: unknown, settings: any, quality: string, withReverb = false) {
     const node = () => ({ connect: vi.fn() });
-    const chain = { input: node(), dry: node(), wet: node(), settings, quality, update: vi.fn(), dispose: vi.fn() };
+    const chain = { input: node(), dry: node(), wet: withReverb ? node() : null, settings, quality, withReverb, update: vi.fn(), dispose: vi.fn() };
     this.chains.push(chain);
     return chain;
   }
@@ -113,7 +113,7 @@ class PlayerStub {
   pause = vi.fn();
 }
 
-class AuthStub   { isPremium = () => false; getToken = () => 'tok'; isLoggedIn = () => false; }
+class AuthStub   { isPremium = () => false; getToken = () => 'tok'; isLoggedIn = () => false; canMakeClips = () => false; currentUser = () => null; }
 class CalibStub  {
   entry: { latencyMs: number; deviceType: string; ts: number } | null = null;
   getEntry = () => this.entry;
@@ -190,6 +190,57 @@ describe('MobileStudioComponent', () => {
   afterEach(() => {
     vi.clearAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  // ── Mode Clip : réservé aux membres Premium connectés ─────────────────────────
+
+  describe('bouton Clip (Premium)', () => {
+    function forceNative(c: MobileStudioComponent): void {
+      Object.defineProperty(c, 'clipAvailable', { value: true });
+    }
+
+    it('invité : bulle d\'aide, le Mode Clip ne s\'ouvre pas', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      await component.openClip();
+      expect(component.clipHint()).toBe(true);
+      expect(component.studioState()).toBe('idle');
+      expect(component.clipCtx()).toBeNull();
+    });
+
+    it('connecté non Premium : verrouillé, bulle d\'aide', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      const auth = TestBed.inject(AuthService) as unknown as AuthStub;
+      auth.isLoggedIn = () => true;
+      expect(component.clipLocked()).toBe(true);
+      await component.openClip();
+      expect(component.clipHint()).toBe(true);
+      expect(component.studioState()).toBe('idle');
+    });
+
+    it('Premium connecté : déverrouillé, le Mode Clip s\'ouvre', async () => {
+      const { component } = await createComponent();
+      forceNative(component);
+      const auth = TestBed.inject(AuthService) as unknown as AuthStub;
+      auth.isLoggedIn = () => true;
+      auth.canMakeClips = () => true;
+      expect(component.clipLocked()).toBe(false);
+      component.beatDuration.set(120);
+      await component.openClip();
+      expect(component.clipHint()).toBe(false);
+      expect(component.studioState()).toBe('clip');
+      expect(component.clipCtx()).not.toBeNull();
+    });
+
+    it('la bulle se ferme seule après quelques secondes', async () => {
+      vi.useFakeTimers();
+      const { component } = await createComponent();
+      component.showClipHint();
+      vi.advanceTimersByTime(6100);
+      expect(component.clipHint()).toBe(false);
+      vi.useRealTimers();
+    });
   });
 
   // ── clipWarning ─────────────────────────────────────────────────────────────
@@ -399,14 +450,18 @@ describe('MobileStudioComponent', () => {
       expect((pm.checkHeadphones as any).mock.calls.length).toBe(callsBeforeToggle);
     });
 
-    it('autotune live : sans effet tant que le retour voix est éteint', async () => {
+    it('autotune live : disponible même retour voix éteint, mais jamais envoyé au casque sans lui', async () => {
       const { component } = await createComponent();
       component.toggleMonitorAutotune();
-      expect(component.monitorAutotune()).toBe(false);
-
-      component.monitorVoice.set(true);
-      component.toggleMonitorAutotune();
       expect(component.monitorAutotune()).toBe(true);
+      expect((component as any)._sessionOpts().monitorAutotune).toBe(false);
+
+      component.headphoneType.set('wired');
+      component.monitorVoice.set(true);
+      expect((component as any)._sessionOpts().monitorAutotune).toBe(true);
+
+      component.toggleMonitorAutotune();
+      expect(component.monitorAutotune()).toBe(false);
     });
   });
 
@@ -433,12 +488,20 @@ describe('MobileStudioComponent', () => {
 
   describe('_takeLatencyMs', () => {
 
-    it('Bluetooth réglé au métronome : la mesure de l\'utilisateur', async () => {
+    it('Bluetooth : la latence rapportée par iOS l\'emporte sur le réglage au métronome', async () => {
       const { component } = await createComponent();
       component.headphoneType.set('bluetooth-a2dp');
       (component.calibration as any).entry = { latencyMs: 190, deviceType: 'bluetooth', ts: 0 };
 
-      expect((component as any)._takeLatencyMs({ outputLatencyMs: 140, inputLatencyMs: 5 })).toBe(190);
+      expect((component as any)._takeLatencyMs({ outputLatencyMs: 140, inputLatencyMs: 5 })).toBe(145);
+    });
+
+    it('Bluetooth sans latence rapportée (Android) : la mesure de l\'utilisateur', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth-a2dp');
+      (component.calibration as any).entry = { latencyMs: 190, deviceType: 'bluetooth', ts: 0 };
+
+      expect((component as any)._takeLatencyMs(null)).toBe(190);
     });
 
     it('sinon : latences rapportées par le système (sortie + entrée)', async () => {
@@ -457,6 +520,44 @@ describe('MobileStudioComponent', () => {
   });
 
   // ── _finalizeRecording — la voix est posée là où elle a été chantée ───────────
+
+  describe('départ de la prise depuis la tête de lecture', () => {
+
+    async function startIosTake(headSec: number, punchSec = 0) {
+      const pm = makePmMock();
+      (pm.startSession as any).mockResolvedValue({ nativeBeat: true, startInMs: 0, outputLatencyMs: 0, inputLatencyMs: 0 });
+      const env = await createComponent(pm);
+      const c = env.component as any;
+      c._isIos = true;
+      c._ensureNativeBeatFile = vi.fn().mockResolvedValue('file:///beat.mp3');
+      c._runCountdown = vi.fn().mockResolvedValue(undefined);
+      c._startRecordingUi = vi.fn();
+      env.component.permState.set('granted');
+      env.component.beatDuration.set(120);
+      env.component.beatCurrentTime.set(headSec);
+      const id = env.maquette.addTrack();
+      if (punchSec) env.component.punchInSec.set(punchSec);
+      await c._beginCountdownInner(id);
+      return { ...env, pm, opts: (pm.startSession as any).mock.calls[0][0] };
+    }
+
+    it('le beat natif démarre à la position de la tête de lecture', async () => {
+      const { opts, component } = await startIosTake(37.5);
+      expect(opts.beatStartSec).toBe(37.5);
+      expect((component as any)._take.beatStartSec).toBe(37.5);
+    });
+
+    it('tête au début ou dans la dernière seconde du beat : la prise part de 0', async () => {
+      expect((await startIosTake(0)).opts.beatStartSec).toBe(0);
+      TestBed.resetTestingModule();
+      expect((await startIosTake(119.5)).opts.beatStartSec).toBe(0);
+    });
+
+    it('punch-in : le point de punch l\'emporte sur la tête de lecture', async () => {
+      const { opts } = await startIosTake(80, 3);
+      expect(opts.beatStartSec).toBe(3);
+    });
+  });
 
   describe('_finalizeRecording (alignement)', () => {
 
@@ -521,6 +622,18 @@ describe('MobileStudioComponent', () => {
       expect(duration).toBeCloseTo(3.002, 6);
     });
 
+    it('après la prise, la tête de lecture revient à son point de départ', async () => {
+      const { component } = await setupTake({ beatStartSec: 42, nativeBeat: true, latencyMs: 0, leadSec: 0 });
+      component.beatCurrentTime.set(60);
+
+      await (component as any)._finalizeRecording({
+        pcmBase64: pcmF32Base64(1), sampleRate: 48000, channels: 1, format: 'float32',
+        firstSampleBeatSec: 42,
+      });
+
+      expect(component.beatCurrentTime()).toBe(42);
+    });
+
     it('prise vide (arrêt immédiat) : pas de piste fantôme, état restauré', async () => {
       const { component, maquette, id } = await setupTake({ beatStartSec: 0, nativeBeat: true, latencyMs: 0, leadSec: 0 });
 
@@ -582,7 +695,7 @@ describe('MobileStudioComponent', () => {
       const opts = (pm.startSession as any).mock.calls[0][0];
       expect(opts.record).toBe(false);
       expect(opts.useMonitor).toBe(true);
-      expect(opts.fx).toEqual({ lowCutHz: 150, presenceDb: 3.5, clarityDb: 3, reverbWet: 0.12, volume: 1 });
+      expect(opts.fx).toEqual({ lowCutHz: 150, presenceDb: 3.5, clarityDb: 3, reverbWet: 0, volume: 1 });
     });
 
     it('un réglage de piste est poussé immédiatement au natif', async () => {
@@ -595,7 +708,7 @@ describe('MobileStudioComponent', () => {
       await flush(fixture);
 
       expect((pm.setVoiceFx as any).mock.calls.at(-1)[0])
-        .toEqual({ lowCutHz: 220, presenceDb: 6, clarityDb: 7, reverbWet: 0.2, volume: 1 });
+        .toEqual({ lowCutHz: 220, presenceDb: 6, clarityDb: 7, reverbWet: 0, volume: 1 });   // retour casque toujours sec
     });
 
     it('le micro se referme en quittant l\'écran principal et se rouvre au retour', async () => {
@@ -742,6 +855,33 @@ describe('MobileStudioComponent', () => {
       expect(processor.chains[0].quality).toBe('full');
     });
 
+    it('écoute sans réverb par défaut : aucune réverb créée, chaînes sèches', async () => {
+      try { localStorage.removeItem('laprod_studio_preview_reverb'); } catch { /* jsdom */ }
+      const { component, processor } = await setup([{ start: 0, dur: 20 }]);
+      expect(component.previewReverb()).toBe(false);
+      await (component as any)._playMixAt(0);
+      expect(processor.createLiveReverb).not.toHaveBeenCalled();
+      expect(processor.chains[0].withReverb).toBe(false);
+    });
+
+    it('« Écouter avec la réverb » : mémorisé, mix relancé avec la réverb partagée', async () => {
+      try { localStorage.removeItem('laprod_studio_preview_reverb'); } catch { /* jsdom */ }
+      const { component, processor } = await setup([{ start: 0, dur: 20 }]);
+      await (component as any)._playMixAt(0);
+      component.togglePreviewReverb();
+      await vi.waitFor(() => expect(processor.chains.length).toBe(2));
+      expect(component.previewReverb()).toBe(true);
+      expect(localStorage.getItem('laprod_studio_preview_reverb')).toBe('1');
+      expect(processor.createLiveReverb).toHaveBeenCalledTimes(1);
+      expect(processor.chains[1].withReverb).toBe(true);
+
+      component.togglePreviewReverb();   // ça craque : on la coupe
+      await vi.waitFor(() => expect(processor.chains.length).toBe(3));
+      expect(processor.chains[2].withReverb).toBe(false);
+      expect(localStorage.getItem('laprod_studio_preview_reverb')).toBe('0');
+      localStorage.removeItem('laprod_studio_preview_reverb');
+    });
+
     it('un réglage modifié pendant la lecture s\'applique en direct, sans relancer le mix', async () => {
       const { component, fixture, maquette, processor } = await setup([{ start: 0, dur: 20 }]);
       await (component as any)._playMixAt(0);
@@ -781,17 +921,19 @@ describe('MobileStudioComponent', () => {
       expect(sources()[1].start).toHaveBeenCalledWith(10 + LEAD, 3);
     });
 
-    it('toucher une piste la sélectionne et lance le mix à l\'instant touché', async () => {
+    it('toucher une piste ouvre ses réglages sans lancer la lecture ni bouger la tête', async () => {
       const { component } = await setup([{ start: 0, dur: 20 }]);
       component.beatDuration.set(BEAT_SEC);
       component.pxPerSec.set(10);
+      component.beatCurrentTime.set(4);
       (component as any).tlContentRef = { nativeElement: { getBoundingClientRect: () => ({ left: -200 }) } };
       const play = vi.spyOn(component as any, '_playMixAt');
 
-      component.onLaneTap({ clientX: 100 } as MouseEvent, 'v0');   // (100 + 200) px / 10 px·s⁻¹ = 30 s
+      component.onLaneTap({ clientX: 100 } as MouseEvent, 'v0');
 
       expect(component.selectedLane()).toBe('v0');
-      expect(play).toHaveBeenCalledWith(30);
+      expect(play).not.toHaveBeenCalled();
+      expect(component.beatCurrentTime()).toBe(4);
     });
 
     it('glisser la tête de lecture : son coupé pendant le geste, reprise à la position relâchée', async () => {

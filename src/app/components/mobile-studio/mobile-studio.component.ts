@@ -35,7 +35,12 @@ import { DawWaveformComponent } from './daw-waveform/daw-waveform.component';
 import { StudioToolbarComponent } from '../studio-toolbar/studio-toolbar.component';
 import { DawGuestGateOverlayComponent } from './daw-guest-gate-overlay/daw-guest-gate-overlay.component';
 import { MobileMetronomeService }        from '../../services/mobile-metronome.service';
+import { MobileStudioClipComponent }     from './mobile-studio-clip/mobile-studio-clip.component';
+import { ClipStudioContext }             from '../../services/social-clip.service';
 import { computeWaveform, spliceWaveform, formatTimer } from '../../utils/waveform.utils';
+import { blobToBase64 } from '../../utils/blob.utils';
+import { cropTake } from '../../utils/take.utils';
+import { clipLatencies } from '../../utils/clip-sync';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +62,7 @@ type StudioState =
   | 'previewing'
   | 'exporting'
   | 'beat-editor'
+  | 'clip'
   | 'published';
 
 type HeadphoneType = 'wired' | 'bluetooth' | 'bluetooth-a2dp' | 'none';
@@ -69,6 +75,8 @@ const LIVE_WAVE_POINTS = 80;
 const COUNTDOWN_START     = 3;
 /** En dessous, la prise est considérée vide (arrêt immédiat, interruption). */
 const MIN_TAKE_SECONDS    = 0.2;
+/** Tête de lecture à moins de cette durée de la fin du beat : la prise repart du début. */
+const RECORD_TAIL_SEC     = 1;
 const BT_CALIB_SHOWN_KEY  = 'laprod_bt_calib_v1';
 const DEFAULT_BEAT_VOL = 0.65;
 /** Gain du beat dans le mix exporté — la lecture du studio reprend la même balance. */
@@ -78,6 +86,8 @@ const TRANSPORT_LEAD_SEC = 0.08;
 /** Niveaux de zoom de la timeline (pixels par seconde). */
 const ZOOM_LEVELS = [5, 8, 14, 24, 40] as const;
 const PREVIEW_QUALITY_KEY = 'laprod_studio_preview_quality';
+/** « Écouter avec la réverb » (écoute passive du mix uniquement) — désactivé par défaut. */
+const PREVIEW_REVERB_KEY  = 'laprod_studio_preview_reverb';
 /** Après un geste sur la timeline, le suivi automatique de la tête de lecture attend (ms). */
 const FOLLOW_RESUME_MS = 2500;
 
@@ -87,15 +97,6 @@ function isBluetooth(t: string | null | undefined): boolean {
   return t === 'bluetooth' || t === 'bluetooth-a2dp';
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    // "data:audio/mpeg;base64,<data>" → on ne garde que <data>
-    reader.onload  = () => resolve((reader.result as string).split(',')[1] ?? '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
 
 // ── Composant ─────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ function blobToBase64(blob: Blob): Promise<string> {
     DawWaveformComponent,
     DawGuestGateOverlayComponent,
     StudioToolbarComponent,
+    MobileStudioClipComponent,
   ],
   templateUrl: './mobile-studio.component.html',
   styleUrls: ['./mobile-studio-shared.scss', './mobile-studio.component.scss', './mobile-studio-timeline.scss'],
@@ -123,6 +125,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   @Output() closed = new EventEmitter<void>();
 
   @ViewChild('liveCanvas')     liveCanvasRef?:     ElementRef<HTMLCanvasElement>;
+  @ViewChild(MobileStudioClipComponent) clipScreen?: MobileStudioClipComponent;
   @ViewChild('beatWaveCanvas') beatWaveCanvasRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('tlScroll')       tlScrollRef?:       ElementRef<HTMLElement>;
   @ViewChild('tlContent')      tlContentRef?:      ElementRef<HTMLElement>;
@@ -256,6 +259,16 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
 
   // ── Qualité de l'écoute (charge processeur ↔ fidélité à l'export) ─────────────
 
+  /**
+   * Réverb à l'écoute passive du mix (lecture du studio, hors enregistrement et hors
+   * Mode Clip). Désactivée par défaut : la convolution temps réel peut faire craquer
+   * les téléphones modestes — l'utilisateur l'active s'il le souhaite et la coupe si
+   * ça craque. L'export et le clip final appliquent toujours la réverb réglée.
+   */
+  previewReverb = signal<boolean>(
+    (() => { try { return localStorage.getItem(PREVIEW_REVERB_KEY) === '1'; } catch { return false; } })(),
+  );
+
   previewQuality = signal<PreviewQuality>(
     (() => { try { return localStorage.getItem(PREVIEW_QUALITY_KEY) === 'light' ? 'light' : 'full'; } catch { return 'full'; } })(),
   );
@@ -265,6 +278,14 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   permState        = signal<'granted' | 'prompt' | 'denied' | null>(null);
   confirmClose     = signal(false);
   showGuestGate    = signal(false);
+  /** Mode Clip (docs/roadmap.md § Chantier 4) : app native uniquement, jamais sur une topline publiée. */
+  readonly clipAvailable = Capacitor.isNativePlatform();
+  readonly clipCtx       = signal<ClipStudioContext | null>(null);
+  /** Mode Clip réservé aux membres Premium connectés (capacité serveur can_make_clips). */
+  readonly clipLocked    = computed(() => !this.auth.isLoggedIn() || !this.auth.canMakeClips());
+  /** Bulle d'aide affichée au tap sur le bouton Clip verrouillé. */
+  readonly clipHint      = signal(false);
+  private _clipHintTimer: ReturnType<typeof setTimeout> | null = null;
   /** Invité qui veut régler les effets d'une piste (seul le volume est libre sans compte). */
   showFxGate       = signal(false);
   publishedId      = signal<number | null>(null);
@@ -325,7 +346,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   // position d'enregistrement (beatStartSec), quel que soit le point de départ.
   private _mixCtx:            AudioContext | null                   = null;
   /** Bus de sortie du contexte courant : limiteur de sécurité + réverb partagée. */
-  private _mixBus: { ctx: AudioContext; master: AudioNode; reverb: AudioNode } | null = null;
+  private _mixBus: { ctx: AudioContext; master: AudioNode; reverb: AudioNode | null } | null = null;
   private _transport: {
     seq:          number;
     beatSrc:      AudioBufferSourceNode;
@@ -420,6 +441,8 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       if (this.showFxGate())            { this.showFxGate.set(false); this.cdr.markForCheck(); return true; }
       if (this.showPublishSheet())      { this.showPublishSheet.set(false); this.cdr.markForCheck(); return true; }
       if (this.showMonitoring())        { this.showMonitoring.set(false); this.cdr.markForCheck(); return true; }
+      if (this.clipHint())              { this.hideClipHint(); return true; }
+      if (this.studioState() === 'clip')        { void this.clipScreen?.onBack(); return true; }
       if (this.studioState() === 'beat-editor') { this.onBeatEditorCancelled(); return true; }
       if (this.studioState() === 'punch-in')    { this.cancelPunchIn();         return true; }
       this._closeRequested();
@@ -753,13 +776,13 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Toucher une piste (instrumentale ou voix) : la sélectionne pour ses réglages
-   * et lance TOUT le mix à l'instant touché.
+   * Toucher une piste (instrumentale ou voix) : ouvre seulement ses réglages
+   * (menu d'effets). Ne lance JAMAIS la lecture : l'écoute se pilote par la tête
+   * de lecture (règle/poignée) et le bouton play (choix produit du 20/11/2026).
    */
-  onLaneTap(event: MouseEvent, lane: string): void {
+  onLaneTap(_event: MouseEvent, lane: string): void {
     this._selectLane(lane);
-    if (this.beatDuration() <= 0) return;
-    void this._playMixAt(this._timeAtClientX(event.clientX));
+    this.cdr.markForCheck();
   }
 
   /** Toucher l'en-tête d'une piste : ouvre/ferme ses réglages sans toucher à la lecture. */
@@ -850,6 +873,15 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       if (scroller) scroller.scrollLeft = Math.max(0, this.playheadX() - offset);
       this._drawBeatWaveform();
     });
+  }
+
+  togglePreviewReverb(): void {
+    const on = !this.previewReverb();
+    this.previewReverb.set(on);
+    try { localStorage.setItem(PREVIEW_REVERB_KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ }
+    // Lecture en cours : le mix est reconstruit à la position courante, avec ou sans réverb.
+    if (this._transport) void this._playMixAt(this._transportPos());
+    this.cdr.markForCheck();
   }
 
   setPreviewQuality(q: PreviewQuality): void {
@@ -962,9 +994,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       const voices = new Map<string, { blob: Blob; src: AudioBufferSourceNode | null; chain: LiveVoiceChain }>();
       voiceTracks.forEach(({ t, blob }, i) => {
         const buf   = voiceBufs[i];
-        const chain = this.processor.createLiveVoiceChain(ctx, t.settings, quality);
+        const chain = this.processor.createLiveVoiceChain(ctx, t.settings, quality, reverb !== null);
         chain.dry.connect(master);
-        chain.wet.connect(reverb);
+        if (chain.wet && reverb) chain.wet.connect(reverb);
         // La chaîne retarde le son de chainDelay : la source part d'autant plus tôt.
         const into = pos - t.beatStartSec + chainDelay;   // > 0 : la voix a déjà commencé
         let src: AudioBufferSourceNode | null = null;
@@ -1001,7 +1033,16 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   private async _ensureMixBus(ctx: AudioContext) {
-    if (this._mixBus?.ctx === ctx) return this._mixBus;
+    const wantReverb = this.previewReverb();
+    if (this._mixBus?.ctx === ctx && (this._mixBus.reverb !== null) === wantReverb) return this._mixBus;
+    if (this._mixBus?.ctx === ctx) {
+      // Bascule de l'option : on garde le limiteur, on ajoute/retire la réverb partagée.
+      if (this._mixBus.reverb) { try { this._mixBus.reverb.disconnect(); } catch { /* déjà libérée */ } }
+      const reverb = wantReverb ? await this.processor.createLiveReverb(ctx) : null;
+      reverb?.connect(this._mixBus.master);
+      this._mixBus = { ...this._mixBus, reverb };
+      return this._mixBus;
+    }
     // Limiteur de sécurité : la somme beat + voix ne doit pas saturer la sortie.
     const master = ctx.createDynamicsCompressor();
     master.threshold.value = -1;
@@ -1010,8 +1051,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     master.attack.value    = 0.003;
     master.release.value   = 0.1;
     master.connect(ctx.destination);
-    const reverb = await this.processor.createLiveReverb(ctx);
-    reverb.connect(master);
+    // Réverb partagée seulement si l'utilisateur écoute « avec la réverb ».
+    const reverb = wantReverb ? await this.processor.createLiveReverb(ctx) : null;
+    reverb?.connect(master);
     this._mixBus = { ctx, master, reverb };
     return this._mixBus;
   }
@@ -1297,9 +1339,12 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Autotune live sur le retour voix — n'a de sens que si le retour est actif. */
+  /**
+   * Autotune live — toujours disponible. Avec « M'entendre chanter », il s'entend
+   * dans le casque pendant la prise ; dans tous les cas il est appliqué à la piste
+   * dès la fin de l'enregistrement (cf. _finalizeRecording).
+   */
   toggleMonitorAutotune(): void {
-    if (!this.monitorVoice()) return;
     this.monitorAutotune.update(v => !v);
     this.cdr.markForCheck();
   }
@@ -1330,7 +1375,9 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       lowCutHz:   st?.lowCutHz   ?? 150,
       presenceDb: st?.presenceDb ?? 3.5,
       clarityDb:  st?.clarityDb  ?? 3.0,
-      reverbWet:  st?.reverbWet  ?? 0.12,
+      // Jamais de réverb dans le retour casque (prise, échauffement, Mode Clip) : on
+      // s'entend sec pour chanter juste ; la réverb (≤ 3 %) n'existe qu'à l'écoute/export.
+      reverbWet:  0,
       volume:     (st?.volume ?? 1) * this.micGain(),
     };
   });
@@ -1570,6 +1617,10 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   private async _beginCountdownInner(id: string): Promise<void> {
     this.errorMsg.set(null);
 
+    // Position de la tête de lecture AVANT d'arrêter l'écoute (pendant la lecture,
+    // elle est lue sur l'horloge du mix, plus précise que le dernier rafraîchissement).
+    const headSec = this._transport ? this._transportPos() : this.beatCurrentTime();
+
     this._stopPreviewPlayback();
     if (this.beatIsPlaying()) { this.player.audioEl.pause(); this.beatIsPlaying.set(false); }
     this._stopBeatRaf();
@@ -1580,11 +1631,13 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const hp = await this.pm.checkHeadphones().catch(() => null);
     if (hp) this.headphoneType.set(hp.type as HeadphoneType);
 
-    // Position du beat où démarre la prise : début du beat, ou point de punch-in
-    // (punchInSec est relatif au début de la piste existante).
+    // Position du beat où démarre la prise : la tête de lecture (comme un DAW,
+    // demande du 20/11/2026), ou le point de punch-in (punchInSec est relatif au
+    // début de la piste existante). Beat ET voix partent de là.
     const punchSec     = this.punchInSec();
     const punchBase    = punchSec > 0 ? (this.tracks().find(t => t.id === id)?.beatStartSec ?? 0) : 0;
-    const beatStartSec = punchBase + punchSec;
+    const beatStartSec = punchSec > 0 ? punchBase + punchSec : this._recordStartSec(headSec);
+    this.beatCurrentTime.set(beatStartSec);
 
     this._prepareTake(id);
     this.countdown.set(COUNTDOWN_START);
@@ -1662,18 +1715,34 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Point de départ d'une prise à partir de la tête de lecture. Tête invalide ou
+   * dans la dernière seconde du beat (rien à chanter dessus) → début du beat.
+   */
+  private _recordStartSec(headSec: number): number {
+    const d = this.beatDuration();
+    if (!isFinite(headSec) || headSec <= 0) return 0;
+    if (d > 0 && headSec >= d - RECORD_TAIL_SEC) return 0;
+    return headSec;
+  }
+
+  /**
    * Latence casque (ms) à retirer du début de la voix : le chanteur entend le
    * beat en retard de cette durée et chante donc en retard d'autant.
    * Bluetooth réglé au métronome → la mesure de l'utilisateur ; sinon, iOS
    * rapporte la latence réelle de la route (Bluetooth compris).
    */
   private _takeLatencyMs(info: StartSessionInfo | null): number {
-    if (isBluetooth(this.headphoneType())) {
-      const calibrated = this._calibratedBtLatency();
-      if (calibrated !== null) return calibrated;
-    }
-    if (info) return Math.max(0, (info.outputLatencyMs ?? 0) + (info.inputLatencyMs ?? 0));
-    return 0;
+    // Source unique partagée avec le Mode Clip (clip-sync.ts) : la vidéo d'un
+    // clip reçoit exactement le même décalage que la prise (docs § 4.3).
+    const bt = isBluetooth(this.headphoneType());
+    const calibrated = bt ? this._calibratedBtLatency() : null;
+    if (!info && calibrated === null) return 0;
+    return clipLatencies({
+      bluetooth:    bt,
+      calibratedMs: calibrated,
+      outputMs:     info?.outputLatencyMs ?? 0,
+      inputMs:      info?.inputLatencyMs ?? 0,
+    }).takeCropMs;
   }
 
   /** Remet à zéro l'état d'une nouvelle prise. */
@@ -1855,9 +1924,6 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const take            = this._take;
 
     try {
-      const raw = Uint8Array.from(atob(result.pcmBase64), c => c.charCodeAt(0));
-      const bytesPerSample = result.format === 'float32' ? 4 : 2;
-
       // ── Alignement sur le beat ───────────────────────────────────────────
       // startSec = position du beat sous le 1er échantillon capté (iOS : mesurée
       // par le moteur natif sur l'horloge audio). On retire ensuite du début de
@@ -1866,17 +1932,11 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       const startSec = take?.nativeBeat && result.firstSampleBeatSec != null
         ? result.firstSampleBeatSec
         : (take?.beatStartSec ?? 0);
-      const cropSec     = take ? take.latencyMs / 1000 + take.leadSec : 0;
-      const cropSamples = Math.max(0, Math.round(cropSec * result.sampleRate));
-      const voice       = raw.subarray(Math.min(raw.length, cropSamples * bytesPerSample));
-      const voiceSec    = voice.length / bytesPerSample / result.sampleRate;
+      const cropSec = take ? take.latencyMs / 1000 + take.leadSec : 0;
+      const cropped = cropTake(result, cropSec);
+      const voiceSec = cropped.voiceSec;
       if (voiceSec < MIN_TAKE_SECONDS) throw new Error('take too short');
-
-      // Le sample rate natif réel (44,1 kHz Android, variable iOS) est encodé dans le MIME
-      // type — decodeBlob() s'en sert pour rééchantillonner vers le SR canonique du pipeline
-      // au lieu de supposer 48 kHz à tort (cf. MobileAudioProcessorService.decodeBlob).
-      const mime  = (result.format === 'float32' ? 'audio/pcm-f32' : 'audio/pcm-i16') + `;rate=${result.sampleRate}`;
-      let rawBlob = new Blob([voice], { type: mime });
+      let rawBlob = cropped.rawBlob;
 
       const waveform = computeWaveform(this._rmsHistory, WAVEFORM_POINTS);
       let trackStart = startSec;
@@ -1895,6 +1955,19 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       this.service.setRecorded(id, rawBlob, finalWaveform, duration, trackStart);
       // La nouvelle prise est sélectionnée : ses réglages s'ouvrent sous la timeline.
       this._selectLane(id);
+      // La tête de lecture revient là où la prise a commencé : play = réécoute directe.
+      this.beatCurrentTime.set(startSec);
+      this._drawBeatWaveform();
+
+      // Autotune live activé (entendu ou non pendant la prise) → appliqué à la piste
+      // tout de suite. setRecorded invalide processedBlob : on le recalcule aussi pour
+      // une piste déjà réglée en autotune, sinon elle rejouerait la voix brute.
+      const wantsAutotune = this.monitorAutotune()
+        || (this.tracks().find(t => t.id === id)?.settings.useAutotune ?? false);
+      if (wantsAutotune && this.track.key) {
+        this.service.updateSettings(id, { useAutotune: true });
+        void this.service.ensureAutotune(id, this.track.key);
+      }
 
       if (interrupted) {
         this.errorMsg.set('Enregistrement interrompu (appel entrant). La prise partielle a été conservée.');
@@ -1956,7 +2029,8 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
         : el.currentTime;
       this.beatCurrentTime.set(t);
       if (d > 0) this.beatDuration.set(d);
-      if (tr) this._followPlayhead();
+      // Écoute ou prise (qui peut partir du milieu du beat) : la timeline suit la tête.
+      if (tr || clock || !el.paused) this._followPlayhead();
       this._rafId = (tr || clock || (!el.paused && !el.ended))
         ? requestAnimationFrame(tick)
         : null;
@@ -1982,6 +2056,74 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     if (wasPlaying) this._stopBeatRaf();
     this.isPlayingPreview.set(false);
     this.transportLoading.set(false);
+  }
+
+  // ── Mode Clip ─────────────────────────────────────────────────────────────────
+  //
+  // Le studio libère le micro et la lecture, puis passe la main à l'écran Clip.
+  // La maquette (pistes, réglages) est partagée via MobileMaquetteService : une
+  // prise faite pendant la vidéo y apparaît comme une piste normale au retour.
+
+  async openClip(): Promise<void> {
+    if (!this.clipAvailable || this.studioState() !== 'idle') return;
+    // Réservé aux membres Premium connectés : au tap, une bulle d'aide l'explique
+    // (le serveur refuse aussi le comptage d'un clip hors Premium, cf. clips_api).
+    if (this.clipLocked()) {
+      this.showClipHint();
+      return;
+    }
+    this._stopPreviewPlayback();
+    if (this.beatIsPlaying()) { this.player.audioEl.pause(); this.beatIsPlaying.set(false); }
+    this._stopBeatRaf();
+    this.studioState.set('clip');
+    await this._stopLiveMonitor();
+    const hp = await this.pm.checkHeadphones().catch(() => null);
+    if (hp) this.headphoneType.set(hp.type as HeadphoneType);
+
+    this.clipCtx.set({
+      trackId:        this.track.id,
+      trackKey:       this.track.key,
+      beatmaker:      this.track.composer_user?.username ?? 'LaProd',
+      username:       this.auth.currentUser()?.username ?? 'laprod',
+      beatStreamUrl:  this.beatStreamUrl,
+      accessToken:    this.auth.getToken() ?? '',
+      beatBlob:       this._currentBeatBlob(),
+      maquetteSec:    this.beatDuration() || this.player.audioEl.duration || 0,
+      headphone:      this.headphoneType(),
+      calibratedBtMs: this._calibratedBtLatency(),
+      sessionOpts:    () => this._sessionOpts(),
+    });
+    this.cdr.markForCheck();
+  }
+
+  showClipHint(): void {
+    this.clipHint.set(true);
+    if (this._clipHintTimer) clearTimeout(this._clipHintTimer);
+    this._clipHintTimer = setTimeout(() => {
+      this.clipHint.set(false);
+      this._clipHintTimer = null;
+      this.cdr.markForCheck();
+    }, 6000);
+    this.cdr.markForCheck();
+  }
+
+  hideClipHint(): void {
+    this.clipHint.set(false);
+    if (this._clipHintTimer) { clearTimeout(this._clipHintTimer); this._clipHintTimer = null; }
+    this.cdr.markForCheck();
+  }
+
+  /** Bulle → connexion (invité) ou page Premium (connecté non Premium). */
+  onClipHintAction(): void {
+    this.hideClipHint();
+    if (this.auth.isLoggedIn()) this.goToPremium();
+    else this.goToLogin();
+  }
+
+  onClipClosed(): void {
+    this.clipCtx.set(null);
+    this.studioState.set('idle');
+    this.cdr.markForCheck();
   }
 
   // ── Export & Publication ──────────────────────────────────────────────────────
@@ -2137,7 +2279,7 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.showGuestGate.set(false);
     this.showFxGate.set(false);
     this.closed.emit();
-    this.router.navigate(['/auth/login']);
+    this.router.navigate(['/login']);   // route réelle (app.routes.ts) — '/auth/login' menait à une 404
   }
 
   // ── Beat editor ───────────────────────────────────────────────────────────────

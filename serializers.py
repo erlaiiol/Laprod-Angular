@@ -93,6 +93,7 @@ def capabilities_dict(u) -> dict:
         'uploads_per_day':             u.uploads_per_day,
         'can_use_management_contract': u.can_use_management_contract,
         'can_view_royalties':          u.can_view_royalties,
+        'can_make_clips':              u.can_make_clips,
     }
 
 

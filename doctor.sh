@@ -535,10 +535,20 @@ if [ "$PROD" = true ]; then
   # — même mécanisme que `make certbot-renew`, donc garanti disponible sur ce serveur.
   if command -v docker >/dev/null 2>&1 && docker compose -f docker-compose.yml version >/dev/null 2>&1; then
     CERT_OUT=$(docker compose -f docker-compose.yml run --rm certbot certificates 2>/dev/null)
-    CERT_BLOCK=$(echo "$CERT_OUT" | grep -A5 "Certificate Name: laprod.net")
+    CERT_BLOCK=$(echo "$CERT_OUT" | grep -A5 "Certificate Name: laprod.net$")
     if [ -z "$CERT_BLOCK" ]; then
       warn "Certificat non vérifiable (certbot injoignable, ou aucun certificat nommé 'laprod.net')"
     else
+      # Incident 11/2026 : le lineage ne couvrait plus que laprod.net → www.laprod.net
+      # en erreur « connexion non privée ». Réparation : make certbot-init.
+      DOMAINS_LINE=$(echo "$CERT_BLOCK" | grep "Domains:")
+      for d in laprod.net www.laprod.net; do
+        if echo " $DOMAINS_LINE " | grep -q " $d "; then
+          pass "Certificat couvre $d"
+        else
+          crit "Certificat ne couvre PAS $d ($DOMAINS_LINE) — lancer make certbot-init"
+        fi
+      done
       EXPIRY_LINE=$(echo "$CERT_BLOCK" | grep "Expiry Date:")
       DAYS_LEFT=$(echo "$EXPIRY_LINE" | grep -oE 'VALID: [0-9]+ days' | grep -oE '[0-9]+')
       if echo "$EXPIRY_LINE" | grep -qi "INVALID: EXPIRED"; then

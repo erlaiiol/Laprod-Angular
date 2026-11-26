@@ -1203,8 +1203,11 @@ Deux modes de tournage :
 | **Playback pur** | La maquette complète (beat + toutes les pistes, effets appliqués) | Le mix de la maquette, à l'identique — le micro n'est **pas** enregistré |
 | **Rec + backline** | Beat + pistes existantes (la « backline »), monitoring voix comme en studio | Beat + pistes existantes + **une nouvelle prise enregistrée pendant la vidéo**, passée dans la même chaîne d'effets |
 
-> Statut : **spécifié, non implémenté** (17/11/2026). Les cases ci-dessous sont le backlog
-> de suivi : **[DEV]** = vérifiable mécaniquement (test, build, inspection de fichier),
+> Statut : **implémenté — Passes 1, 2 et 3 (17/11/2026), recette sur appareil à faire.**
+> Code, tests et builds (Vitest, pytest, JVM, `xcodebuild` simulateur, `assembleDebug`)
+> sont verts ; **aucun tournage réel n'a encore eu lieu** : toutes les cases **[USER]**
+> et les cases **[DEV]** de mesure sur appareil (mire) restent ouvertes.
+> **[DEV]** = vérifiable mécaniquement (test, build, inspection de fichier),
 > **[USER]** = recette manuelle sur appareil physique, à cocher par un humain.
 
 ## 4.1 Décisions actées
@@ -1214,8 +1217,13 @@ Deux modes de tournage :
    AAudio Android, cf. Chantier 3 et la passe « beat natif » du 12/11). Une capture caméra
    côté WebView ouvrirait une seconde session audio concurrente, avec un format vidéo
    (WebM/fragmenté) que les réseaux acceptent mal. Nouveau plugin Capacitor **`ClipCamera`**
-   (iOS : `AVCaptureSession` + `AVAssetWriter` ; Android : CameraX `VideoCapture` +
-   Media3 `Transformer`), à côté de `PitchMonitor`, pas fusionné avec lui.
+   (iOS : `AVCaptureSession` + `AVAssetWriter` ; Android : **Camera2 + `MediaCodec` (surface)
+   + `MediaMuxer`** pour le tournage, Media3 `Transformer` 1.8 pour le montage), à côté de
+   `PitchMonitor`, pas fusionné avec lui. *Ajusté à l'implémentation :* CameraX
+   `VideoCapture` écarté — son `Recorder` ne dit pas quel instant capteur correspond à la
+   1re frame du fichier, or toute la synchro repose dessus.
+   L'aperçu est une couche native **sous** la WebView, rendue transparente le temps du
+   Mode Clip (`html.clip-camera-active`, cadre 9:16 en aspect fit des deux côtés).
 2. **La caméra ne capte jamais d'audio.** Piste vidéo seule ; l'audio du MP4 vient
    exclusivement du mix rendu par `MobileAudioProcessorService.mixAndExport` (seul point de
    sortie audio de l'app — invariant conservé). Conséquence : tous les effets du studio
@@ -1225,17 +1233,22 @@ Deux modes de tournage :
    vidéo est rattaché à une position du beat (`beatSec`) via les timestamps matériels :
    - iOS : PTS des `CMSampleBuffer` caméra (horloge hôte) ↔ horloge hôte d'AVAudioEngine
      (`firstSampleBeatSec` déjà exposé par `stopSession`) — même horloge, mapping exact.
-   - Android : timestamp capteur (`SENSOR_INFO_TIMESTAMP_SOURCE`, REALTIME = `elapsedRealtimeNanos`)
-     ↔ `AAudioStream_getTimestamp(CLOCK_BOOTTIME)` sur le flux de sortie. Le beat Android étant
-     aujourd'hui sur l'`<audio>` partagé, **le mode Clip le joue en natif** (sortie AAudio du
-     moteur existant) — un `<audio>` WebView n'expose aucun timestamp exploitable.
+   - Android : tout en `CLOCK_MONOTONIC`. Vidéo : PTS de l'encodeur (= timestamps capteur
+     transmis par la surface), base déduite des données (`ClipSync.encoderPtsToMonoNs`,
+     cf. piège § 4.6.11). Son du tournage : **joué en natif** par `AudioTrack`
+     (`ClipAudioPlayer`), ancre = `AudioTrack.getTimestamp()` (instant de présentation) —
+     un `<audio>` WebView n'expose aucun timestamp exploitable. Micro (Rec) :
+     `AAudioStream_getTimestamp` sur le flux d'entrée (chemin rapide) ou
+     `AudioRecord.getTimestamp` (repli) → `firstSampleHostSec`.
    - Le calcul de l'offset vidéo↔audio est une **fonction pure extraite** (testable JVM/XCTest/
      Vitest), pas du code inline dans un callback.
    - Cible : désynchronisation lèvres/son **≤ 40 ms** sur le MP4 final (sous le seuil de
      perception courant ~45 ms d'avance du son). Règles détaillées en § 4.3, exigence
      bloquante de chaque passe.
-4. **Format de sortie unique** : MP4, H.264 High, 1080×1920 (9:16), 30 fps, AAC-LC 48 kHz
-   stéréo 192 kbps, `moov` en tête (faststart). Accepté tel quel par Reels/TikTok/Shorts/stories.
+4. **Format de sortie unique** : MP4, H.264, 1080×1920 (9:16), 30 fps, AAC stéréo, `moov`
+   en tête (faststart). Accepté tel quel par Reels/TikTok/Shorts/stories. *Ajusté :* le
+   débit AAC est celui des encodeurs système (`AVAssetExportPresetHighestQuality` iOS,
+   défaut Media3 Android), pas un 192 kbps imposé — à vérifier au `ffprobe` en recette.
 5. **Durée : segment choisi par l'utilisateur, 45 s max** (décision produit 17/11), défaut
    30 s. Constante unique `CLIP_MAX_SECONDS = 45` côté front, reprise côté natif (le plugin
    refuse un `compose` plus long — double verrou). Le plafond studio (150 s,
@@ -1258,10 +1271,13 @@ Deux modes de tournage :
 9. **Uniquement depuis une maquette ouverte dans le mobile studio.** Pas de clip depuis une
    topline déjà publiée (décision produit 17/11) : le bouton Clip n'existe que dans le
    studio, aucune route ni entrée UI ailleurs (page track, profil, dashboard).
-10. **Connexion obligatoire** (le `@pseudo` du filigrane et l'attribution en dépendent) :
-   réutilise `DawGuestGateOverlayComponent`. Disponible **pour tous les paliers**, Free
-   compris : c'est un outil d'acquisition, pas une fonctionnalité premium. Gating éventuel
-   via `utils/plans.py` uniquement, jamais par comparaison littérale de `subscription_plan`.
+10. **Réservé aux membres Premium connectés** (décision produit du 17/11, remplace « tous
+   paliers ») : capacité serveur unique `can_make_clips` (Premium+, `utils/plans.py` via
+   `has_plan_at_least`), exposée dans `capabilities` et dans la grille tarifaire. Le bouton
+   Clip reste visible avec un cadenas ; au tap, une **bulle d'aide** explique la règle
+   (« Se connecter » pour un invité, « Découvrir Premium » sinon) — même parcours que la
+   feuille d'upgrade existante du studio. `POST /api/clips/events` refuse hors Premium
+   (403 `PREMIUM_REQUIRED`) ; tests autorisé/refusé (R1).
 11. **Aucun envoi serveur de la vidéo.** Rendu, filigrane et mux 100 % sur l'appareil ; le
    serveur ne reçoit qu'un événement de comptage (§ 4.4, Passe 3). Pas de stockage vidéo
    côté OVH (cf. fragilité `db_assets/` mono-VPS).
@@ -1272,17 +1288,28 @@ Deux modes de tournage :
 ## 4.2 Architecture
 
 ```
+src/app/utils/
+  clip-sync.ts                     ← fonctions pures : segment, latences, positionHeardAt, alignement
+  clip-overlay.ts                  ← zones sûres + rendu canvas du filigrane et de la carte de fin (PNG)
+  take.utils.ts / wav.utils.ts / blob.utils.ts ← recadrage de prise (partagé avec le studio), WAV 16 bits
 src/app/services/
-  clip-camera-plugin.ts            ← interface + registerPlugin('ClipCamera') + token DI (miroir pitch-monitor-plugin.ts)
-  social-clip.service.ts           ← machine à états du clip (idle→framing→countdown→rolling→rendering→ready)
-  clip-sync.ts                     ← fonctions pures : offset vidéo/beat, bornes de segment
+  clip-camera-plugin.ts            ← interface + registerPlugin('ClipCamera') + token DI
+  social-clip.service.ts           ← machine à états (framing→preparing→countdown→rolling→rendering→ready)
+  clip-share.service.ts            ← partage, raccourcis, légende, comptage (Passe 3)
 src/app/components/mobile-studio/
-  mobile-studio-clip/              ← écran plein écran caméra + aperçu final + actions
+  mobile-studio-clip/              ← écran plein écran (cadrage, tournage, résultat)
 ios/App/App/
-  ClipCameraPlugin.swift           ← AVCaptureSession (vidéo seule), AVAssetWriter, compositing overlay, export
+  ClipCameraPlugin.swift           ← AVCaptureSession (vidéo seule), AVAssetWriter, montage, galerie, partage
+  PitchMonitorPlugin.swift         ← + beatStartHostSec (ancre du beat natif)
 android/app/src/main/java/net/laprod/app/
-  ClipCameraPlugin.kt              ← CameraX VideoCapture (sans audio), Media3 Transformer + OverlayEffect, MediaStore
+  ClipCameraPlugin.kt              ← aperçu, galerie (MediaStore), partage (FileProvider), raccourcis
+  ClipRecorder.kt                  ← Camera2 → MediaCodec → MediaMuxer, PTS réels
+  ClipAudioPlayer.kt               ← AudioTrack + ancre getTimestamp (+ latence rapportée, dérive)
+  ClipComposer.kt                  ← Media3 Transformer : rognage, filigrane, carte de fin, WAV
+  ClipSync.kt                      ← miroir JVM-testable de clip-sync.ts + conversion d'horloges
+  PitchMonitorPlugin.kt / PsolaAudioEngine.kt / aaudio_*.c ← + firstSampleHostSec (micro)
 routes/clips_api.py                ← POST /api/clips/events (Passe 3)
+scripts/clip_sync_check.py         ← mesure de synchro d'un MP4 (+ scripts/clip_sync_mire.html)
 ```
 
 Flux de rendu (identique pour les deux modes, seule la source audio change) :
@@ -1292,13 +1319,15 @@ tournage ──► vidéo brute .mp4 (cache, sans audio) + videoStartBeatSec
                                    │
 mixAndExport(segment, format WAV) ─┤   ← WAV, pas MP3 : éviter un double encodage avec perte avant l'AAC
                                    ▼
-             ClipCamera.compose({ videoPath, audioPath, offsetMs, overlay })
+             ClipCamera.compose({ videoPath, audioPath, videoTrimStartSec, audioSkipSec, overlay })
                                    ▼
              clip final .mp4 (cache) ──► saveToGallery() / share()
 ```
 
-`mixAndExport` gagne deux options : `segment: { startSec, endSec }` et `format: 'wav'`
-(défaut inchangé `'mp3'` — aucun appelant existant ne doit voir de différence).
+`mixAndExport` gagne quatre options : `segment: { startSec, endSec }`, `format: 'wav'`,
+`tailSec` (carte de fin, en fondu) et `clickMarksSec` (mire) — défaut inchangé (`'mp3'`,
+maquette entière), testé. L'audio final est **re-rendu après le tournage** sur le passage
+réellement filmé (un arrêt anticipé garde ainsi un fondu propre).
 
 ## 4.3 Synchronisation audio/vidéo — exigence bloquante
 
@@ -1315,7 +1344,11 @@ ne sont pas cochées.
   `beatSec(frame) = beatSecRendu(frame.pts) − latenceSortie`. Sans cette correction, avec un
   casque Bluetooth, les lèvres retardent de ~200 ms sur le son dans le MP4.
   Latence de sortie Bluetooth : valeur calibrée du studio (`_calibratedBtLatency`) en
-  priorité, sinon latence rapportée par le système, sinon **avertissement** avant tournage.
+  priorité, sinon latence rapportée par le système, et **avertissement** avant tournage si
+  le casque Bluetooth n'est pas réglé. Le réglage au métronome mesure des tapes sur un clic
+  entendu (sortie + réaction, sans micro) : c'est directement `heardMs`. Android : l'ancre
+  AudioTrack inclut déjà la latence rapportée par l'appareil ; seule la part manquante du
+  réglage est ajoutée (`androidHeardMs`).
 - **Rec + backline** : la voix et les lèvres sont physiquement simultanées. La prise est
   recalée dans la maquette par `_finalizeRecording` (latence retirée une seule fois, cf.
   passe « beat natif » du 12/11) : la vidéo reçoit **exactement le même décalage** que la
@@ -1331,11 +1364,23 @@ ne sont pas cochées.
 - **Dérive** : sur 45 s, l'écart entre l'horloge de l'échantillonneur audio et l'horloge
   hôte reste typiquement < 5 ms, mais il est **mesuré** (fin vs début de clip), pas supposé.
 
-**Mesure objective (outil de recette, build debug uniquement)** : mode « mire de synchro »
-dans l'écran Clip — l'écran clignote en blanc et un clic est injecté dans le mix aux mêmes
-positions de beat (toutes les 2 s). On filme l'écran d'un second téléphone (ou un miroir)
-puis un script (`scripts/clip_sync_check.py`, numpy + `ffprobe`/décodage frames) mesure, sur
-le MP4 produit, l'écart flash ↔ clic au début, au milieu et à la fin du clip.
+**Mesure objective (outil de recette)** — *ajusté à l'implémentation* : un éclair généré
+par l'app elle-même serait daté par la WebView (gigue de plusieurs dizaines de ms) et ne
+mesurerait rien. La mire est donc **externe** :
+
+1. Ouvrir `scripts/clip_sync_mire.html` sur un autre appareil : éclair blanc + bip toutes les
+   2 s, calés sur l'horloge audio du navigateur. **L'étalonner d'abord** : la filmer avec
+   l'appareil photo natif d'un téléphone et passer ce fichier au script (écart de référence,
+   à retrancher).
+2. **Rec + backline** : mire devant la caméra et près du micro → le clip contient l'éclair
+   (image) et le bip (voix captée) : mesure exacte de lèvres ↔ voix.
+3. **Playback** : clap test — dans un build de dev, la case « Mire de synchro » ajoute des
+   clics au mix (`clickMarksSec`) ; l'opérateur frappe dans ses mains sur les clics entendus,
+   devant la caméra. Mesure entachée du biais humain (~±20 ms) : à lire en tendance, sur
+   plusieurs clips. La dérive mesurée par Android (`driftMs`) s'affiche dans l'écran résultat.
+4. `python3 scripts/clip_sync_check.py clip1.mp4 … clip5.mp4` : détecte éclairs (luminance,
+   PTS réels) et attaques audio, vérifie les seuils ci-dessous (code de sortie 0/1). Outil
+   auto-testé sur vidéos synthétiques à décalage connu (`tests/unit/test_clip_sync_check.py`).
 
 Seuils (identiques pour les deux modes et les deux plateformes) :
 
@@ -1365,50 +1410,69 @@ pas de lecture de la photothèque) ; Android `CAMERA`, et `WRITE_EXTERNAL_STORAG
 **uniquement `maxSdkVersion="28"`** (MediaStore sans permission à partir de l'API 29).
 
 Backlog **[DEV]** :
-- [ ] Plugin `ClipCamera` iOS + Android, interface TS typée, token DI `CLIP_CAMERA` (mock en test).
-- [ ] La session de capture iOS a `automaticallyConfiguresApplicationAudioSession = false` et
-      **aucun** `AVCaptureDeviceInput` audio ; CameraX `VideoCapture` sans `withAudioEnabled()`.
-- [ ] `clip-sync.ts` : calcul d'offset + bornes de segment, couverts par Vitest (cas : segment
+- [x] Plugin `ClipCamera` iOS + Android, interface TS typée, token DI `CLIP_CAMERA` (mock en test).
+- [x] La session de capture iOS a `automaticallyConfiguresApplicationAudioSession = false` et
+      **aucun** `AVCaptureDeviceInput` audio ; Android : Camera2 → encodeur vidéo seul, aucune
+      capture audio.
+- [x] `clip-sync.ts` : calcul d'offset + bornes de segment, couverts par Vitest (cas : segment
       en début, en fin de maquette, segment > 45 s refusé, offset négatif, latence de
       sortie filaire / Bluetooth calibré / Bluetooth non calibré).
 - [ ] Le plugin natif refuse un `compose` de plus de 45 s (test natif), même si le front est
-      contourné.
-- [ ] Mire de synchro (§ 4.3) disponible en build debug + `scripts/clip_sync_check.py` ;
-      seuils § 4.3 respectés en Playback sur iOS et Android, casque filaire **et** Bluetooth.
-- [ ] Aucun appel à `Date.now()`/`performance.now()` dans la chaîne de calcul d'offset
-      (relecture + test qui injecte des timestamps natifs fixes).
-- [ ] Équivalents natifs de la fonction d'offset testés (XCTest / JUnit JVM) avec les mêmes
-      vecteurs d'entrée que le test Vitest.
-- [ ] `mixAndExport({ segment, format: 'wav' })` : test Vitest de la durée exacte du segment
-      rendu (± 1 frame audio) et non-régression de l'export MP3 existant.
-- [ ] MP4 produit vérifié par `ffprobe` dans un test d'intégration (fichier de test) :
-      1080×1920, 30 fps, H.264, AAC 48 kHz, `moov` avant `mdat`, durée = segment ± 50 ms.
-- [ ] Filigrane : rendu dans les zones sûres définies en constantes (une seule source),
-      vérifié sur une frame extraite (test snapshot).
-- [ ] Caméra frontale : aperçu en miroir, **export non miroir** (texte lisible).
-- [ ] Interruption (appel, mise en arrière-plan, verrouillage) pendant le tournage : arrêt
-      propre, fichiers temporaires supprimés, retour à l'écran Clip sans crash.
-- [ ] Fichiers cache du clip nettoyés à la fermeture de l'écran et via `pruneOld()`.
+      contourné. — *Refus implémenté sur les deux plateformes (code `TOO_LONG`) ; pas de test
+      natif (le projet iOS n'a pas de cible XCTest exécutée par le build).*
+- [ ] Mire de synchro (§ 4.3) disponible + `scripts/clip_sync_check.py` ; seuils § 4.3
+      respectés en Playback sur iOS et Android, casque filaire **et** Bluetooth. — *Outils
+      livrés et auto-testés ; la mesure sur appareil reste à faire.*
+- [x] Aucun appel à `Date.now()`/`performance.now()` dans la chaîne de calcul d'offset
+      (test qui espionne les deux horloges, timestamps natifs fixes injectés).
+- [x] Équivalents natifs de la fonction d'offset testés avec les mêmes vecteurs que le test
+      Vitest : JUnit JVM (`ClipSyncTest.kt`). iOS ne calcule pas d'offset côté natif (seule
+      la conversion d'horloge `CMSyncConvertTime`, sans logique à tester hors appareil).
+- [x] `mixAndExport({ segment, format: 'wav', tailSec })` : durée exacte du segment (± 1 frame),
+      voix entamée avant le segment, carte de fin, non-régression de l'export MP3.
+- [ ] MP4 produit vérifié par `ffprobe` : 1080×1920, 30 fps, H.264, AAC, `moov` avant `mdat`,
+      durée = segment + carte de fin ± 50 ms. — *Nécessite un MP4 sorti d'un appareil.*
+- [x] Filigrane : zones sûres en constantes uniques (`CLIP_SAFE_ZONES`), lues par l'aperçu et
+      l'export ; placement testé (Vitest). *Contrôle sur une frame extraite : en recette.*
+- [ ] Caméra frontale : aperçu en miroir, **export non miroir** (texte lisible). — *Codé
+      (connexion iOS `isVideoMirrored = false`, capteur frontal brut côté Android) ; à vérifier.*
+- [x] Interruption (appel, mise en arrière-plan, caméra coupée) pendant le tournage : arrêt
+      propre de la caméra, du son et du micro, retour au cadrage (Vitest, y compris abandon
+      pendant un démarrage natif en cours). *Comportement réel : recette.*
+- [x] Fichiers cache du clip (préfixe `clip-`) nettoyés à l'ouverture et à la fermeture de
+      l'écran (`ClipCamera.clearCache`, plutôt que `pruneOld()` qui ne gère que les brouillons MP3).
 - [ ] `./gradlew :app:assembleDebug`, `xcodebuild` Release/device, suite Vitest complète verts.
-- [ ] Entrée `updates.json`.
+      — *Faits : `assembleDebug`, `xcodebuild` Debug simulateur, Vitest (888), `ng build`.
+      Reste : `xcodebuild` Release/device (signature).*
+- [x] Entrée `updates.json`.
 
 Backlog **[USER]** :
 - [ ] Sur iPhone et sur un Android API 29+ : je tourne un clip de 30 s en playback, il
-      apparaît dans Photos / Galerie, lisible hors de l'app.
+      apparaît dans Photos / Galerie, lisible hors de l'app. — *Émulateur Pixel 8 (API 37), 18/11 :
+      clip de 15 s caméra arrière enregistré dans `Movies/LaProd` et relu hors de l'app ; caméra
+      frontale de l'émulateur : « Aucune image filmée » (2/2). iPhone et 30 s sur appareil à faire.*
 - [ ] Les lèvres sont synchrones avec la voix sur tout le clip, du début à la fin (pas de
       dérive progressive), caméra avant et arrière.
 - [ ] Même vérification avec un **casque Bluetooth** : le clip n'est pas décalé de ~0,2 s
       (le piège classique) ; sans calibration, un avertissement s'affiche avant de tourner.
-- [ ] Je ne peux pas choisir un passage de plus de 45 s.
-- [ ] Le bouton Clip n'apparaît que dans le mobile studio, jamais sur une topline publiée.
+- [x] Je ne peux pas choisir un passage de plus de 45 s. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
+- [x] Le bouton Clip n'apparaît que dans le mobile studio, jamais sur une topline publiée. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
+- [ ] Invité ou compte gratuit : le bouton Clip porte un cadenas ; au tap, une bulle explique
+      que le Mode Clip est réservé aux membres Premium (« Se connecter » / « Découvrir
+      Premium »). Compte Premium : pas de cadenas, le Mode Clip s'ouvre. — *Émulateur, 18/11 :
+      cadenas, bulles invité/gratuit, « Découvrir Premium » → /premium et compte Premium OK ;
+      **« Se connecter » mène à une 404** (`goToLogin` navigue vers `/auth/login`, la route est `/login`). → Corrigé (§ 4.6.22), à revérifier.*
 - [ ] J'entends dans le clip **exactement** ce que j'entends dans le studio : mêmes effets,
       autotune, volumes, toutes les pistes.
 - [ ] Le filigrane LaProd, mon pseudo et le crédit du beatmaker sont lisibles et ne sont pas
       cachés une fois le clip posté (vérifier sur au moins TikTok et Reels).
-- [ ] Je peux choisir le passage de ma maquette à filmer (début/fin) avant de tourner.
+- [x] Je peux choisir le passage de ma maquette à filmer (début/fin) avant de tourner. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
 - [ ] Refus de la permission caméra ou photos : message clair + lien vers les réglages, le
       studio reste utilisable.
-- [ ] Un appel entrant pendant le tournage ne fait pas planter l'app ni perdre ma maquette.
+      — *Émulateur, 18/11 : refus caméra → message clair, studio utilisable ; **aucun lien vers les
+      réglages** (texte seul). Galerie Android ≥ 10 sans permission : cas photos à vérifier sur iPhone.*
+- [x] Un appel entrant pendant le tournage ne fait pas planter l'app ni perdre ma maquette. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
+      (appel ignoré : tournage mené à terme ; appel décroché : « Tournage interrompu », maquette intacte)
 - [ ] Sur un Android d'entrée de gamme : rendu d'un clip de 45 s en moins de ~2× sa durée,
       sans surchauffe bloquante.
 
@@ -1430,20 +1494,22 @@ Backlog **[DEV]** :
 - [ ] La caméra et `PitchMonitor` tournent simultanément sans que l'un reconfigure la
       session audio de l'autre (test manuel instrumenté : catégorie `AVAudioSession` et
       route inchangées avant/après démarrage caméra ; Android : flux AAudio non interrompu).
-- [ ] Le `videoStartBeatSec` et le `firstSampleBeatSec` de la prise sont exprimés dans la
-      même horloge ; test unitaire de bout en bout de la chaîne d'offsets avec latence
-      casque simulée (filaire, BT calibré).
-- [ ] Le décalage appliqué à la vidéo est calculé par **la même fonction** que celui de la
-      prise dans `_finalizeRecording` (§ 4.3) — test qui vérifie l'égalité des deux offsets.
+      — *Garanti par construction côté iOS (§ 4.6.1) ; vérification instrumentée à faire.*
+- [x] Vidéo et prise exprimées dans la même horloge ; chaîne d'offsets testée de bout en bout
+      (Vitest : iOS Rec, Android Rec, Bluetooth réglé).
+- [x] Le décalage de la vidéo est celui de la prise : `clipLatencies().recVideoMs` et
+      `voiceTapToPosition` — test d'égalité pour un même instant physique ; Android pose la
+      voix ET la vidéo avec la même fonction `positionHeardAt`.
 - [ ] Mire de synchro (§ 4.3) rejouée en mode Rec + backline : seuils § 4.3 respectés sur
-      iOS et Android, filaire et Bluetooth calibré.
-- [ ] La prise est ajoutée via `MobileMaquetteService.setRecorded` (pas de chemin parallèle) ;
-      annulable via le undo existant.
-- [ ] Cas « plus de piste disponible » : prise conservée en mémoire pour le clip uniquement,
+      iOS et Android, filaire et Bluetooth calibré. — *Sur appareil.*
+- [x] La prise est ajoutée via `MobileMaquetteService.setRecorded` (pas de chemin parallèle,
+      recadrage partagé `cropTake`) ; supprimable comme toute piste, et retirée si l'on
+      recommence le clip (sinon elle s'empilait dans la backline suivante).
+- [x] Cas « plus de piste disponible » : prise conservée pour le clip uniquement (`extraTakes`),
       jamais persistée dans la maquette — test Vitest.
-- [ ] Mode bloqué sans casque, avec message ; test Vitest du garde.
-- [ ] Interruption pendant la prise : comportement `sessionInterrupted` existant réutilisé
-      (prise partielle proposée), vidéo tronquée de manière cohérente.
+- [x] Mode bloqué sans casque, avec message ; test Vitest du garde.
+- [ ] Interruption pendant la prise : prise partielle conservée (`sessionInterrupted`), clip
+      monté sur ce qui a été filmé. — *Implémenté, sans test dédié.*
 
 Backlog **[USER]** :
 - [ ] Je me filme en chantant une nouvelle prise par-dessus ma maquette : dans le clip, on
@@ -1453,7 +1519,7 @@ Backlog **[USER]** :
 - [ ] Après le clip, la nouvelle prise apparaît dans ma maquette comme une piste normale,
       modifiable (volume, effets, suppression).
 - [ ] Avec un casque Bluetooth calibré, le résultat est aussi bien calé qu'avec un filaire.
-- [ ] Sans casque, on m'explique pourquoi le mode est indisponible, et le Playback reste possible.
+- [x] Sans casque, on m'explique pourquoi le mode est indisponible, et le Playback reste possible. — *vérifié sur émulateur Pixel 8 (API 37), 18/11*
 - [ ] Je fais 5 clips d'affilée : la synchro lèvres/voix est aussi bonne à chaque fois.
 
 ### Passe 3 — Partage direct (réseaux, story, SMS) + mesure
@@ -1482,24 +1548,39 @@ Backlog **[USER]** :
   stats vendeur du beatmaker (à côté de `TrackView`) et onglet admin.
 
 Backlog **[DEV]** :
-- [ ] Partage via feuille système avec le **fichier MP4** (pas une URL) sur iOS et Android
-      (`FileProvider` Android déclaré, URI `content://`).
-- [ ] Détection d'app installée + déclarations `LSApplicationQueriesSchemes` / `<queries>`.
-- [ ] Raccourcis Instagram Story / TikTok derrière flag, désactivés par défaut ; absence de
-      clés = bouton masqué, jamais d'erreur.
-- [ ] `routes/clips_api.py` + modèle + migration ; tests pytest (auth requise, validation
-      des champs, track inexistant, rate-limit) ; ordre des décorateurs vérifié.
-- [ ] Stats vendeur : compteur de clips par beat (gratuit, comme le total de vues).
-- [ ] Liens UTM résolus par la page track, test du paramètre préservé.
-- [ ] `docs/api.md` mis à jour, entrée `updates.json`.
+- [x] Partage via feuille système avec le **fichier MP4** (pas une URL) sur iOS
+      (`UIActivityViewController`) et Android (`FileProvider`, URI `content://`, cible choisie
+      remontée par `EXTRA_CHOSEN_COMPONENT`).
+- [x] Détection d'app installée + déclarations `LSApplicationQueriesSchemes` / `<queries>`.
+- [x] Raccourcis Instagram Story (iOS + Android) / TikTok (Android, intent ciblé — iOS passe par
+      la feuille système, le Share Kit n'est pas intégré) derrière `environment.clipShortcuts`,
+      désactivés par défaut ; non configurés = boutons masqués (test Vitest).
+- [x] `routes/clips_api.py` + modèle `SocialClipEvent` + migration `d7a3c91e5f20` ; pytest :
+      auth requise, validation, 45 s, beat inexistant, cascade de suppression de compte,
+      ordre `@csrf.exempt`. *Le rate-limit (`120 per hour`) n'est pas testé (limiter
+      désactivé en test).*
+- [x] Stats vendeur : compteur de **clips distincts** par beat (`clip_uid` : un clip enregistré
+      puis partagé compte une fois), gratuit, affiché dans le dashboard beatmaker.
+- [ ] Liens UTM résolus par la page track, test du paramètre préservé. — *Format du lien testé
+      (Vitest) ; la page `/track/:id` ignore la query string, ouverture à vérifier en recette.*
+- [x] `docs/api.md` mis à jour, entrée `updates.json`, politique de confidentialité (§ 2.6 et
+      durée de conservation) mise à jour (R17).
+- [ ] Onglet admin « clips » — *non fait, laissé de côté : les données sont en base, la vue
+      admin peut venir avec un besoin précis.*
 
 Backlog **[USER]** :
 - [ ] Depuis l'aperçu du clip, « Partager » ouvre la feuille du téléphone ; je poste en
       **story Instagram**, en **Reel**, sur **TikTok**, en **Short YouTube** et je l'envoie
       par **SMS/WhatsApp** — la vidéo arrive complète (image + son), sans recadrage gênant.
-- [ ] La légende proposée est dans mon presse-papiers et je peux la coller.
-- [ ] Le lien de la légende ouvre le beat sur LaProd (app si installée, sinon web).
-- [ ] En tant que beatmaker, je vois combien de clips ont été faits sur mon beat.
+      — *Émulateur, 18/11 : feuille système ouverte avec le fichier MP4, acceptée par Messages (non envoyé) ;
+      réseaux sociaux non testables sur émulateur.*
+- [ ] La légende proposée est dans mon presse-papiers et je peux la coller. — *Non vérifiable avec le
+      build mobile-dev (origine http non sécurisée : `navigator.clipboard` indéfini) ; à refaire en build https.*
+- [ ] Le lien de la légende ouvre le beat sur LaProd (app si installée, sinon web). — *Émulateur, 18/11 :
+      `/track/1?utm_source=clip&utm_medium=share` s'ouvre dans l'app ; ouverture depuis un lien externe à faire.*
+- [ ] En tant que beatmaker, je vois combien de clips ont été faits sur mon beat. — *Émulateur, 18/11 :
+      **échoue** : `POST /api/clips/events` répond 201 mais n'appelle jamais `db.session.commit()`, rien
+      n'est enregistré (compteur toujours à 0). L'affichage « 1 clip » marche avec une ligne insérée à la main. → Corrigé (§ 4.6.20, test pytest renforcé), à revérifier.*
 - [ ] Le clip posté sur chaque réseau a une qualité d'image et de son correcte après
       recompression par la plateforme.
 
@@ -1509,7 +1590,8 @@ Backlog **[USER]** :
 - [ ] Toutes les cases **[USER]** cochées sur **au moins** : un iPhone récent, un iPhone
       ancien supporté, un Android récent, un Android d'entrée de gamme API 26+.
 - [ ] Aucune régression du studio : suite Vitest complète, `./gradlew test`,
-      `cargo test --workspace` verts ; export MP3 et publication inchangés.
+      `cargo test --workspace` verts ; export MP3 et publication inchangés. — *Vitest 888/888
+      et `./gradlew test` verts ; `cargo test` non relancé (aucun fichier Rust touché).*
 - [ ] Review App Store passée avec les nouvelles chaînes de permission (caméra, photos).
 
 ## 4.6 Pièges connus
@@ -1521,8 +1603,8 @@ Backlog **[USER]** :
    capteur (exposition, autofocus) prend 300 ms à 1 s. Ouvrir l'aperçu à l'entrée de l'écran
    Clip, démarrer l'écriture vidéo pendant le décompte, puis rogner au `videoStartBeatSec`.
 3. **Source de timestamp caméra Android non garantie** : `SENSOR_INFO_TIMESTAMP_SOURCE` peut
-   valoir `UNKNOWN` sur certains appareils. Repli : mesurer l'offset au premier frame avec
-   `elapsedRealtimeNanos()` et le documenter comme moins précis — ne jamais supposer REALTIME.
+   valoir `UNKNOWN` sur certains appareils — et même REALTIME ne dit pas la base des PTS de
+   l'encodeur (cf. 11). La base est déduite des données, jamais supposée.
 4. **Dérive sur la durée** : 45 s à 30 fps « nominaux » ne font pas 1350 frames exactes. Le
    mux utilise les PTS réels, jamais `frameIndex / 30`.
 5. **Miroir caméra frontale** : l'aperçu doit être miroir (sinon l'utilisateur se trouve
@@ -1538,6 +1620,72 @@ Backlog **[USER]** :
    l'enregistrement échoue silencieusement sur ces versions.
 10. **Ordre `@csrf.exempt`** sur `POST /api/clips/events` : outermost, sinon le CSRF passe en
     prod (cf. incident déjà rencontré).
+
+*Pièges trouvés pendant l'implémentation (revue par agent, corrigés) :*
+
+11. **Double conversion d'horloge Android** : le service caméra AOSP rebase déjà en MONOTONIC
+    les timestamps REALTIME envoyés à un encodeur vidéo. Les reconvertir décalait la vidéo
+    du temps de veille cumulé du téléphone (clip systématiquement « trop court »).
+    `ClipSync.encoderPtsToMonoNs` choisit la base la plus proche au moment du drain.
+12. **Le réglage Bluetooth du studio n'est pas un aller-retour** : tapes sur un clic entendu,
+    sans micro. En Playback, c'est la latence entendue telle quelle ; en Rec, la vidéo suit
+    le recadrage de la prise (`recVideoMs`). Confondre les deux avance le son de la latence
+    d'entrée.
+13. **Recommencer en Rec empilait les prises** : la « Prise clip » de l'essai précédent
+    entrait dans la backline du suivant et consommait une piste à chaque essai.
+14. **Abandon pendant un `await` natif** : les drapeaux « caméra / son / micro ouverts »
+    doivent être posés AVANT l'appel, sinon l'abandon ne coupe rien et la ressource reste
+    ouverte après la fermeture de l'écran. Idem pour une fermeture pendant `open()`.
+15. **Pause Android ≠ interruption** : une boîte de permission met l'activité en pause ;
+    seule une pause pendant l'écriture interrompt le tournage. La caméra se rouvre côté
+    natif (`surfaceCreated`) au retour d'arrière-plan, jamais en double depuis le JS.
+16. **`lockForConfiguration` + 30 fps hors plage = crash iOS** (NSException) : vérifier la
+    plage du format actif et le verrou avant de fixer la durée de frame.
+17. **AAudio MMAP ne commence pas à la frame 0** : au démarrage, le flux d'entrée saute en
+    avant (rattrapage du serveur). L'horodatage micro est donc rapporté au 1er échantillon
+    réellement livré au callback (`firstDeliveredFrame`), pas à la frame 0 du compteur.
+18. **Un clip de moins de 20 s n'avait aucun watermark audio** (le premier tombait à 20 s) :
+    en mode segment, le premier est posé au plus tard à mi-clip.
+19. **Une prise posée puis un montage raté** laissaient la « Prise clip » dans la maquette :
+    retirée dans tous les cas d'échec, pas seulement sur « Refaire ».
+
+*Bugs trouvés par la recette sur émulateur (18/11/2026), corrigés :*
+
+20. **Le compteur de clips n'était jamais enregistré** : `@commit_or_rollback` ne commite
+    pas, la route doit le faire. Le test pytest ne le voyait pas (session jamais
+    rollbackée) : il fait désormais un `rollback()` avant de relire.
+21. **Chaque prise Android coupée à ~0,4 s** (studio, pas seulement le Clip) : le `<audio>`
+    du beat fait prendre le focus audio par la WebView ~130 ms après le micro, et la perte
+    de focus DÉFINITIVE était traitée comme une interruption. Seule une perte temporaire
+    (appel, assistant) interrompt désormais une prise.
+22. **« Se connecter » (bulle et barrière invité du studio) menait à une 404** : `/login`, pas
+    `/auth/login`.
+23. **MP4 Android sans faststart** (`moov` en fin, MediaMuxer) : muxer Media3 intégré
+    (`InAppMp4Muxer`) + passe `Mp4FastStart` qui garantit `moov` avant `mdat` (testée JVM).
+24. Chrono non arrondi (`0:14.0006`), refus de permission sans lien vers les réglages
+    (bouton « Ouvrir les réglages » ajouté, iOS + Android), partage vers Messages Android
+    compté `share` au lieu de `sms`, `clip_sync_check.py` affichant « SEUILS RESPECTÉS »
+    sans aucune mesure.
+
+*Observés sur émulateur, à confirmer sur appareil (non corrigés) :* caméra frontale qui ne
+livre aucune image (« Aucune image filmée », délai HAL de l'émulateur probable) ; clip final
+plus court que le passage (l'émulateur rapporte 4 s de dérive d'horloge audio) ; aperçu du
+filigrane qui chevauche le panneau du cadrage (l'export n'est pas concerné). Le bouton Clip
+est actif dès que le beat est chargé (le mode Rec fonctionne sans piste) ; en Playback sans
+voix, le garde `NEED_TRACK` prend le relais.
+
+*Limites connues, laissées de côté volontairement :*
+
+- **Compteur de clips gonflable** : `/api/clips/events` accepte n'importe quel `clip_uid` pour
+  n'importe quel beat (limité à 120/h par compte). Acceptable tant que le compteur reste
+  informatif ; à durcir s'il devient un critère de classement ou de rémunération.
+- **Android Playback ne demande pas le focus audio** : la musique d'une autre app peut
+  continuer pendant le tournage (à vérifier en recette, à ajouter si gênant).
+- **Android sans horodatage micro** (rare, API 26–27) : la prise est posée sur l'instant de
+  démarrage du micro (estimation, quelques dizaines de ms) plutôt que perdue.
+- **Bluetooth Android** : la latence rapportée vient de `AudioTrack.getLatency()` (API cachée,
+  lue par réflexion), avec repli sur (ancre − appel à `play()`) qui inclut le démarrage.
+  À valider à la mire sur au moins deux casques.
 
 ## 4.7 Décisions produit du 17/11 (ex-questions ouvertes)
 

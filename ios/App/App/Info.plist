@@ -35,20 +35,25 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>LaProd utilise votre microphone pour enregistrer des toplines vocales sur des beats.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LaProd utilise la caméra pour filmer des clips de tes maquettes (Mode Clip). La vidéo reste sur ton téléphone.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>LaProd enregistre tes clips dans ta photothèque quand tu le demandes.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram-stories</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -20,6 +20,7 @@ void aaudio_engine_set_monitor_options(Engine *e, bool useMonitor, bool monitorA
                                         float voiceGain);
 void aaudio_engine_set_voice_fx(Engine *e, const float *coefs, size_t count);
 void aaudio_engine_destroy(Engine *e);
+int32_t aaudio_engine_get_input_timestamp(Engine *e, int64_t *out_frame, int64_t *out_time_ns);
 
 JNIEXPORT jlong JNICALL
 Java_net_laprod_app_PsolaAudioEngine_nativeCreate(JNIEnv *env, jobject thiz, jint sampleRate,
@@ -91,6 +92,18 @@ Java_net_laprod_app_PsolaAudioEngine_nativeSetVoiceFx(JNIEnv *env, jobject thiz,
     if (!buf) return;
     aaudio_engine_set_voice_fx((Engine *) (intptr_t) handle, buf, (size_t) n);
     (*env)->ReleaseFloatArrayElements(env, coefs, buf, JNI_ABORT);
+}
+
+// `out` : [framePosition, timeNanoseconds] (CLOCK_MONOTONIC). Retourne 0 si indisponible.
+JNIEXPORT jint JNICALL
+Java_net_laprod_app_PsolaAudioEngine_nativeGetInputTimestamp(JNIEnv *env, jobject thiz, jlong handle,
+                                                              jlongArray out) {
+    (void) thiz;
+    int64_t frame = 0, timeNs = 0;
+    if (!aaudio_engine_get_input_timestamp((Engine *) (intptr_t) handle, &frame, &timeNs)) return 0;
+    jlong vals[2] = { (jlong) frame, (jlong) timeNs };
+    (*env)->SetLongArrayRegion(env, out, 0, 2, vals);
+    return 1;
 }
 
 JNIEXPORT void JNICALL

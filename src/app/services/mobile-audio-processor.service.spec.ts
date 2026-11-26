@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { OfflineAudioContext, AudioBuffer } from 'node-web-audio-api';
-import { MobileAudioProcessorService, OFFLINE_AUDIO_CONTEXT } from './mobile-audio-processor.service';
+import { MobileAudioProcessorService, OFFLINE_AUDIO_CONTEXT, DEFAULT_TRACK_SETTINGS } from './mobile-audio-processor.service';
 
 // jsdom n'implémente pas le Web Audio API (OfflineAudioContext...) qu'utilise
 // MobileAudioProcessorService pour décoder/mixer le PCM natif iOS/Android.
@@ -303,7 +303,6 @@ describe('MobileAudioProcessorService — calage et chaîne temps réel', () => 
         const chain = svc.createLiveVoiceChain(ctx, { ...settings, lowCutHz: live ? 80 : lowCutHz }, quality);
         src.connect(chain.input);
         chain.dry.connect(ctx.destination);
-        chain.wet.connect(ctx.destination);
         if (live) chain.update({ ...settings, lowCutHz });
         src.start(0);
         const out  = (await ctx.startRendering()).getChannelData(0).subarray(n / 2);
@@ -317,18 +316,162 @@ describe('MobileAudioProcessorService — calage et chaîne temps réel', () => 
     }
   });
 
-  it('réverb partagée : convolver prêt au sample rate du contexte', async () => {
-    const ctx  = new OfflineAudioContext(1, 4410, 44_100);
-    const conv = await svc.createLiveReverb(ctx);
-    expect(conv.buffer!.sampleRate).toBe(44_100);
-    expect(conv.normalize).toBe(false);
-  });
-
   it('autotuneOnly : voix brute sans effets (aucune réverb ni compression ajoutée)', async () => {
     const blob = burstBlob(0.2, 1);
     const out  = await svc.autotuneOnly(blob, '');
     const raw  = new Float32Array(await blob.arrayBuffer());
     expect(out.length).toBe(raw.length);
     expect(out[Math.round(0.6 * SR)]).toBeCloseTo(raw[Math.round(0.6 * SR)], 5);
+  });
+});
+
+// ── Mode Clip : mixAndExport({ segment, format: 'wav', tailSec }) ────────────
+
+describe('MobileAudioProcessorService — mixAndExport (Mode Clip)', () => {
+
+  let svc: MobileAudioProcessorService;
+
+  /** Watermark de test : 0,1 s de silence (le vrai est fetché depuis l'API). */
+  function stubWatermark(s: MobileAudioProcessorService): void {
+    const wm = new AudioBuffer({ length: Math.round(0.1 * SR), sampleRate: SR, numberOfChannels: 1 });
+    vi.spyOn(s as unknown as { _getWatermarkBuffer(): Promise<AudioBuffer> }, '_getWatermarkBuffer')
+      .mockResolvedValue(wm);
+  }
+
+  async function wavFrames(blob: Blob): Promise<{ frames: number; channels: number; rate: number }> {
+    const v = new DataView(await blob.arrayBuffer());
+    const channels = v.getUint16(22, true);
+    return { frames: v.getUint32(40, true) / (2 * channels), channels, rate: v.getUint32(24, true) };
+  }
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: testProviders });
+    svc = TestBed.inject(MobileAudioProcessorService);
+    stubWatermark(svc);
+  });
+
+  it('segment : durée exacte du passage (± 1 frame), en WAV stéréo 48 kHz', async () => {
+    const wav = await svc.mixAndExport({
+      vocals: [{ samples: new Float32Array(SR * 2).fill(0.1), settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(10),
+      segment: { startSec: 2, endSec: 7 }, format: 'wav',
+    });
+    expect(wav.type).toBe('audio/wav');
+    const info = await wavFrames(wav);
+    expect(info.channels).toBe(2);
+    expect(info.rate).toBe(SR);
+    expect(Math.abs(info.frames - 5 * SR)).toBeLessThanOrEqual(1);
+  });
+
+  it('carte de fin : la queue s\'ajoute à la durée du segment', async () => {
+    const wav = await svc.mixAndExport({
+      vocals: [], beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(10),
+      segment: { startSec: 0, endSec: 5 }, format: 'wav', tailSec: 1.5,
+    });
+    const info = await wavFrames(wav);
+    expect(Math.abs(info.frames - 6.5 * SR)).toBeLessThanOrEqual(1);
+  });
+
+  it('une voix commencée avant le segment est lue à partir du bon échantillon', async () => {
+    // Voix : 0 jusqu'à 3 s, puis 0.5 ; beat muet. Segment 2→6 : la voix démarre à 1 s du résultat.
+    const voice = new Float32Array(SR * 6);
+    voice.fill(0.5, SR * 3);
+    const wav = await svc.mixAndExport({
+      vocals: [{ samples: voice, settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0, accessToken: '', beatBlob: makeF32Blob(10, 0),
+      segment: { startSec: 2, endSec: 6 }, format: 'wav',
+    });
+    const v = new DataView(await wav.arrayBuffer());
+    const sampleAt = (sec: number) => v.getInt16(44 + Math.round(sec * SR) * 4, true);
+    expect(sampleAt(0.5)).toBe(0);
+    expect(Math.abs(sampleAt(1.5))).toBeGreaterThan(0);
+  });
+
+  it('clip de moins de 20 s : le watermark audio est quand même présent', async () => {
+    const wm = new AudioBuffer({ length: Math.round(0.1 * SR), sampleRate: SR, numberOfChannels: 1 });
+    wm.getChannelData(0).fill(0.5);
+    vi.spyOn(svc as unknown as { _getWatermarkBuffer(): Promise<AudioBuffer> }, '_getWatermarkBuffer')
+      .mockResolvedValue(wm);
+    const wav = await svc.mixAndExport({
+      vocals: [], beatStreamUrl: '', beatGain: 0, accessToken: '', beatBlob: makeF32Blob(30, 0),
+      segment: { startSec: 0, endSec: 15 }, format: 'wav',
+    });
+    const v = new DataView(await wav.arrayBuffer());
+    let nonZero = 0;
+    for (let off = 44; off < v.byteLength; off += 2) if (v.getInt16(off, true) !== 0) nonZero++;
+    expect(nonZero).toBeGreaterThan(0);
+  });
+
+  it('sans option Clip : comportement historique (MP3, durée = voix)', async () => {
+    const mp3 = await svc.mixAndExport({
+      vocals: [{ samples: new Float32Array(SR).fill(0.1), settings: { ...DEFAULT_TRACK_SETTINGS }, startSec: 0 }],
+      beatStreamUrl: '', beatGain: 0.5, accessToken: '', beatBlob: makeF32Blob(4),
+    });
+    expect(mp3.type).toBe('audio/mpeg');
+  });
+});
+
+
+// ── Réverb : rendu final seulement, jamais en direct (18/11/2026) ─────────
+
+describe('MobileAudioProcessorService — réverb', () => {
+  let svc: MobileAudioProcessorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: testProviders });
+    svc = TestBed.inject(MobileAudioProcessorService);
+  });
+
+  it('réglages par défaut inchangés (Réaliste, 12 %)', () => {
+    expect(DEFAULT_TRACK_SETTINGS.reverbWet).toBe(0.12);
+  });
+
+  it('IR de la plate normalisée : énergie unitaire (plus de +30 dB sur la queue)', async () => {
+    const ir = await (svc as unknown as { _getPlateIR(): Promise<AudioBuffer> })._getPlateIR();
+    const d = ir.getChannelData(0);
+    let e = 0;
+    for (let i = 0; i < d.length; i++) e += d[i] * d[i];
+    expect(e).toBeCloseTo(1, 3);
+  });
+
+  it('écoute du studio par défaut : aucune réverb, même réglée à 20 % (sortie sèche)', async () => {
+    const n = SR;
+    const render = async (reverbWet: number) => {
+      const ctx = new OfflineAudioContext(1, n, SR);
+      const buf = ctx.createBuffer(1, n, SR);
+      buf.getChannelData(0).fill(0, 0);
+      buf.getChannelData(0).set(new Float32Array(480).fill(0.5), 0);   // impulsion de 10 ms
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const chain = svc.createLiveVoiceChain(ctx as unknown as BaseAudioContext,
+        { ...DEFAULT_TRACK_SETTINGS, reverbWet }, 'light');
+      expect(chain.wet).toBeNull();   // sans l'option : aucun départ réverb
+      src.connect(chain.input); chain.dry.connect(ctx.destination); src.start(0);
+      return (await ctx.startRendering()).getChannelData(0);
+    };
+    const dry = await render(0);
+    const wet = await render(0.2);
+    // Identiques : la queue de réverb n'existe pas à l'écoute.
+    let diff = 0;
+    for (let i = 0; i < n; i++) diff = Math.max(diff, Math.abs(dry[i] - wet[i]));
+    expect(diff).toBeLessThan(1e-6);
+  });
+
+  it('écoute « avec la réverb » : départ wet au réglage de la piste', () => {
+    const ctx = new OfflineAudioContext(1, 4800, SR);
+    const chain = svc.createLiveVoiceChain(ctx as unknown as BaseAudioContext,
+      { ...DEFAULT_TRACK_SETTINGS, reverbWet: 0.2 }, 'light', true);
+    expect((chain.wet as GainNode).gain.value).toBeCloseTo(0.2, 6);
+    expect((chain.dry as GainNode).gain.value).toBeCloseTo(0.8, 6);
+  });
+
+  it('export : la réverb réglée s\'applique bien (queue audible après la voix)', async () => {
+    const voice = new Float32Array(SR).fill(0);
+    voice.fill(0.3, 0, SR / 10);
+    const blob = new Blob([voice.buffer], { type: 'audio/pcm-f32' });
+    const base = { ...DEFAULT_TRACK_SETTINGS, useAutotune: false };
+    const tailEnergy = (a: Float32Array) => { let e = 0; for (let i = SR / 2; i < a.length; i++) e += a[i] * a[i]; return e; };
+    const sec = await svc.processVocalTrack({ blob, settings: { ...base, reverbWet: 0 }, trackKey: '' });
+    const conc = await svc.processVocalTrack({ blob, settings: { ...base, reverbWet: 0.2 }, trackKey: '' });
+    expect(tailEnergy(conc)).toBeGreaterThan(tailEnergy(sec));
   });
 });

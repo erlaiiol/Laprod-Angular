@@ -157,6 +157,12 @@
                       <span class="view-unique">({{ viewStatFor(track.id).unique_views }} uniq.)</span>
                     }
                   </span>
+                  @if (viewStatFor(track.id).clips) {
+                    <span class="view-count view-count--clips" title="Clips vidéo faits sur ce beat">
+                      <i class="bi bi-camera-reels"></i> {{ viewStatFor(track.id).clips }}
+                      clip{{ viewStatFor(track.id).clips! > 1 ? 's' : '' }}
+                    </span>
+                  }
                 }
                 @if (track.is_ai_suggested) {
                   <div class="ai-suggestion-row">

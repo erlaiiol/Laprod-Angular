@@ -1,0 +1,327 @@
+@use 'variables' as v;
+@use 'tokens' as t;
+
+// Écran du Mode Clip. Pendant le cadrage, il est TRANSPARENT : l'aperçu caméra
+// est une couche native sous la WebView (cf. html.clip-camera-active dans
+// styles.scss). Aucun fond opaque ici hors résultat.
+
+:host {
+  position: fixed;
+  inset:    0;
+  z-index:  t.$z-modal + 10;
+  display:  block;
+}
+
+.clip-screen {
+  position:   absolute;
+  inset:      0;
+  color:      v.$white;
+  background: transparent;
+  overflow:   hidden;
+  padding:    env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+
+  &--result { background: v.$black; }
+}
+
+// Cadre 9:16 centré — miroir exact du cadrage natif (aspect fit).
+.clip-frame {
+  position:       absolute;
+  left:           0;
+  right:          0;
+  top:            50%;
+  transform:      translateY(-50%);
+  width:          100%;
+  aspect-ratio:   9 / 16;
+  max-height:     100%;
+  margin:         0 auto;
+  container-type: inline-size;
+  pointer-events: none;
+}
+
+.clip-wm {
+  position: absolute;
+  inset:    0;
+
+  &__logo   { position: absolute; opacity: 0.92; }
+  &__handle,
+  &__credit {
+    position:    absolute;
+    transform:   translateY(-100%);   // le texte est ancré par sa base, comme à l'export
+    color:       v.$white;
+    white-space: nowrap;
+    text-shadow: 0 1px 6px rgba(v.$black, 0.65);
+    line-height: 1.1;
+  }
+  &__handle { font-weight: 700; }
+  &__credit { font-weight: 500; }
+}
+
+// Zones masquées par les interfaces des réseaux — visibles au cadrage uniquement.
+.clip-safe {
+  position:   absolute;
+  border:     1px dashed rgba(v.$white, 0.35);
+  background: rgba(v.$black, 0.12);
+
+  &--bottom { left: 0; right: 0; bottom: 0; }
+  &--right  { right: 0; top: 10%; }
+}
+
+.clip-top {
+  position:        absolute;
+  top:             calc(env(safe-area-inset-top) + 12px);
+  left:            16px;
+  right:           16px;
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             8px;
+}
+
+.clip-icon-btn {
+  width:         44px;
+  height:        44px;
+  border-radius: 50%;
+  border:        none;
+  background:    rgba(v.$black, 0.45);
+  color:         v.$white;
+  font-size:     1.2rem;
+  display:       grid;
+  place-items:   center;
+
+  &:disabled { opacity: 0.4; }
+}
+
+.clip-modes {
+  display:       flex;
+  background:    rgba(v.$black, 0.45);
+  border-radius: 999px;
+  padding:       3px;
+}
+
+.clip-mode {
+  border:        none;
+  background:    transparent;
+  color:         rgba(v.$white, 0.75);
+  border-radius: 999px;
+  padding:       8px 12px;
+  font-size:     0.85rem;
+  font-weight:   600;
+  white-space:   nowrap;
+
+  &--on { background: v.$primary; color: v.$white; }
+}
+
+.clip-rec-badge {
+  margin:        0 auto;
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       6px 14px;
+  border-radius: 999px;
+  background:    rgba(v.$black, 0.55);
+  font-variant-numeric: tabular-nums;
+  font-weight:   600;
+}
+
+.clip-rec-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  background:    v.$primary;
+  animation:     clip-blink 1s ease-in-out infinite;
+}
+
+@keyframes clip-blink { 50% { opacity: 0.3; } }
+
+.clip-error {
+  position:      absolute;
+  top:           calc(env(safe-area-inset-top) + 68px);
+  left:          16px;
+  right:         16px;
+  display:       flex;
+  gap:           8px;
+  padding:       10px 12px;
+  border-radius: 10px;
+  background:    rgba(v.$danger-dark, 0.92);
+  font-size:     0.9rem;
+  line-height:   1.4;
+  flex-wrap:     wrap;
+
+  &__settings {
+    margin-left:   auto;
+    border:        none;
+    border-radius: 999px;
+    padding:       5px 12px;
+    font-weight:   700;
+    background:    v.$white;
+    color:         v.$black;
+  }
+}
+
+.clip-countdown {
+  position:    absolute;
+  inset:       0;
+  display:     grid;
+  place-items: center;
+  font-size:   7rem;
+  font-weight: 800;
+  text-shadow: 0 4px 24px rgba(v.$black, 0.6);
+}
+
+.clip-progress {
+  position:        absolute;
+  inset:           0;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             14px;
+  background:      rgba(v.$black, 0.6);
+  font-weight:     600;
+
+  &__bar {
+    width:         60%;
+    height:        6px;
+    border-radius: 3px;
+    background:    rgba(v.$white, 0.2);
+    overflow:      hidden;
+
+    div { height: 100%; background: v.$primary; transition: width 0.3s; }
+  }
+}
+
+.clip-spinner {
+  width:         36px;
+  height:        36px;
+  border:        3px solid rgba(v.$white, 0.25);
+  border-top-color: v.$white;
+  border-radius: 50%;
+  animation:     clip-spin 0.8s linear infinite;
+}
+
+@keyframes clip-spin { to { transform: rotate(360deg); } }
+
+.clip-panel {
+  position:       absolute;
+  left:           0;
+  right:          0;
+  bottom:         0;
+  padding:        16px 16px calc(env(safe-area-inset-bottom) + 20px);
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            12px;
+  background:     linear-gradient(to top, rgba(v.$black, 0.75), transparent);
+
+  &--rolling { background: none; }
+}
+
+.clip-note {
+  margin:        0;
+  width:         100%;
+  display:       flex;
+  gap:           8px;
+  padding:       8px 10px;
+  border-radius: 10px;
+  background:    rgba(v.$black, 0.5);
+  font-size:     0.85rem;
+  line-height:   1.4;
+
+  &--warn { background: rgba(v.$warning-dark, 0.85); }
+}
+
+.clip-seg {
+  width: 100%;
+
+  &__head {
+    display:         flex;
+    justify-content: space-between;
+    font-size:       0.85rem;
+    font-weight:     600;
+  }
+  &__range  { font-variant-numeric: tabular-nums; }
+  &__slider { width: 100%; accent-color: v.$primary; }
+  &__lengths { display: flex; gap: 8px; justify-content: center; }
+  &__hint {
+    margin:     6px 0 0;
+    text-align: center;
+    font-size:  0.75rem;
+    color:      rgba(v.$white, 0.7);
+  }
+}
+
+.clip-chip {
+  border:        1px solid rgba(v.$white, 0.5);
+  background:    transparent;
+  color:         v.$white;
+  border-radius: 999px;
+  padding:       5px 14px;
+  font-size:     0.85rem;
+
+  &--on      { background: v.$white; color: v.$black; }
+  &:disabled { opacity: 0.35; }
+}
+
+.clip-mire {
+  font-size: 0.75rem;
+  color:     rgba(v.$white, 0.8);
+  display:   flex;
+  gap:       6px;
+}
+
+.clip-shutter {
+  width:         78px;
+  height:        78px;
+  border-radius: 50%;
+  border:        4px solid v.$white;
+  background:    transparent;
+  display:       grid;
+  place-items:   center;
+  padding:       0;
+
+  &__inner  { width: 62px; height: 62px; border-radius: 50%; background: v.$primary; }
+  &__square { width: 30px; height: 30px; border-radius: 6px; background: v.$primary; }
+  &:disabled { opacity: 0.4; }
+}
+
+.clip-result {
+  position:       absolute;
+  inset:          0;
+  padding:        calc(env(safe-area-inset-top) + 68px) 16px calc(env(safe-area-inset-bottom) + 16px);
+  display:        flex;
+  flex-direction: column;
+  gap:            12px;
+
+  &__video {
+    flex:          1;
+    min-height:    0;
+    width:         100%;
+    object-fit:    contain;
+    border-radius: 12px;
+    background:    v.$black;
+  }
+}
+
+.clip-actions {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   8px;
+}
+
+.clip-btn {
+  border:        none;
+  border-radius: 12px;
+  padding:       12px;
+  font-weight:   600;
+  font-size:     0.9rem;
+  background:    rgba(v.$white, 0.12);
+  color:         v.$white;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           6px;
+
+  &--primary { grid-column: 1 / -1; background: v.$primary; }
+  &--ghost   { background: transparent; border: 1px solid rgba(v.$white, 0.3); }
+  &:disabled { opacity: 0.55; }
+}

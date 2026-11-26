@@ -16,6 +16,7 @@
 #include <aaudio/AAudio.h>
 #include <dlfcn.h>
 #include <stdbool.h>
+#include <time.h>
 
 typedef aaudio_result_t (*fn_AAudio_createStreamBuilder)(AAudioStreamBuilder **builder);
 typedef void (*fn_AAudioStreamBuilder_setSampleRate)(AAudioStreamBuilder *builder, int32_t sampleRate);
@@ -40,6 +41,9 @@ typedef int32_t (*fn_AAudioStream_getXRunCount)(AAudioStream *stream);
 typedef aaudio_result_t (*fn_AAudioStream_setBufferSizeInFrames)(AAudioStream *stream, int32_t numFrames);
 typedef int32_t (*fn_AAudioStream_getBufferSizeInFrames)(AAudioStream *stream);
 typedef int32_t (*fn_AAudioStream_getBufferCapacityInFrames)(AAudioStream *stream);
+typedef int64_t (*fn_AAudioStream_getFramesRead)(AAudioStream *stream);
+typedef aaudio_result_t (*fn_AAudioStream_getTimestamp)(AAudioStream *stream, clockid_t clockid,
+                                                        int64_t *framePosition, int64_t *timeNanoseconds);
 
 typedef struct {
     fn_AAudio_createStreamBuilder createStreamBuilder;
@@ -67,6 +71,9 @@ typedef struct {
     fn_AAudioStream_setBufferSizeInFrames setBufferSizeInFrames;
     fn_AAudioStream_getBufferSizeInFrames getBufferSizeInFrames;
     fn_AAudioStream_getBufferCapacityInFrames getBufferCapacityInFrames;
+    // Horodatage matériel du micro (Mode Clip, docs/roadmap.md § Chantier 4) — OPTIONNEL.
+    fn_AAudioStream_getTimestamp getTimestamp;
+    fn_AAudioStream_getFramesRead getFramesRead;   // OPTIONNEL (Mode Clip)
     void *handle; // dlopen handle, pour dlclose (jamais fermé en pratique : durée de vie du process)
 } AAudioShim;
 
@@ -108,6 +115,8 @@ static inline bool aaudio_shim_load(AAudioShim *shim) {
     shim->setBufferSizeInFrames     = (void *) dlsym(h, "AAudioStream_setBufferSizeInFrames");
     shim->getBufferSizeInFrames     = (void *) dlsym(h, "AAudioStream_getBufferSizeInFrames");
     shim->getBufferCapacityInFrames = (void *) dlsym(h, "AAudioStream_getBufferCapacityInFrames");
+    shim->getTimestamp              = (void *) dlsym(h, "AAudioStream_getTimestamp");
+    shim->getFramesRead             = (void *) dlsym(h, "AAudioStream_getFramesRead");
     return true;
 }
 

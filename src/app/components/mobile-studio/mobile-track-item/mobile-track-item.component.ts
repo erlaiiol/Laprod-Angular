@@ -81,6 +81,7 @@ export class MobileTrackItemComponent implements AfterViewChecked {
     { label: 'Voix claire', value: 7 },
   ];
 
+  /** Réverb appliquée au rendu final seulement (export, clip) — jamais à l'écoute ni au casque. */
   readonly reverbPresets: ReadonlyArray<{ label: string; value: number }> = [
     { label: 'Discret',  value: 0.05 },
     { label: 'Réaliste', value: 0.12 },

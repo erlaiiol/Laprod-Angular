@@ -39,4 +39,15 @@
     </span>
     <span class="stb-label">Télécharger</span>
   </button>
+
+  @if (showClip) {
+    <button type="button" class="stb-tool" [disabled]="clipDisabled" (click)="clip.emit()"
+            [attr.aria-label]="clipLocked ? 'Clip — réservé aux membres Premium' : 'Clip'">
+      <span class="stb-icon">
+        <i class="bi bi-camera-reels-fill"></i>
+        @if (clipLocked) { <i class="bi bi-lock-fill stb-lock" aria-hidden="true"></i> }
+      </span>
+      <span class="stb-label">Clip</span>
+    </button>
+  }
 </nav>

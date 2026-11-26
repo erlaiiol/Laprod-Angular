@@ -8,4 +8,8 @@ export const environment = {
   isNative: true,
   // CAPTCHA web uniquement : jamais rendu en natif (isNative), clé laissée vide.
   turnstileSiteKey: '',
+  // Mode Clip — raccourcis de partage direct (docs/roadmap.md § Chantier 4, Passe 3).
+  // Désactivés par défaut : la feuille de partage système reste la voie principale.
+  // instagramAppId : App ID Meta (obligatoire pour instagram-stories://share).
+  clipShortcuts: { instagramAppId: '', tiktok: false },
 };

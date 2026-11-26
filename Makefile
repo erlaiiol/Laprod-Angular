@@ -92,11 +92,15 @@ prod-cleanup: ## Supprime les images Docker inutilisées + le cache de build (li
 	docker builder prune -a -f
 	docker system df
 
-certbot-init: ## Premier certificat Let's Encrypt (laprod.net + www.laprod.net)
+certbot-init: ## Certificat Let's Encrypt laprod.net + www.laprod.net (1er émission OU réparation si www manque)
+	# --cert-name fige le lineage (live/laprod.net, lu par nginx) ; --expand ajoute les
+	# domaines manquants au lieu de créer un lineage laprod.net-0001 que nginx ignorerait.
 	$(COMPOSE_PROD) run --rm certbot certonly --webroot \
 		--webroot-path=/var/www/certbot \
+		--cert-name laprod.net --expand --non-interactive \
 		-d laprod.net -d www.laprod.net \
 		--email contact@laprod.net --agree-tos --no-eff-email
+	$(COMPOSE_PROD) exec -T frontend nginx -s reload
 
 certbot-renew: ## Renouvelle le certificat Let's Encrypt + recharge nginx
 	$(COMPOSE_PROD) run --rm certbot renew

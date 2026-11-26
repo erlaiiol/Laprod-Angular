@@ -10,7 +10,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.audiofx.PresetReverb
 import android.os.Build
 import android.util.Base64
 import com.getcapacitor.JSObject
@@ -24,6 +23,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancelAndJoin
 import java.io.ByteArrayOutputStream
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ class PitchMonitorPlugin : Plugin() {
         val opts = RecordingOptions(
             useMonitor      = call.getBoolean("useMonitor")      ?: false,
             voiceGain       = call.getFloat("voiceGain")         ?: 1.0f,
-            reverbWet       = call.getFloat("reverbWet")         ?: 0.15f,
+            reverbWet       = call.getFloat("reverbWet")         ?: 0f,
             trackKey        = call.getString("trackKey")         ?: "",
             monitorAutotune = call.getBoolean("monitorAutotune") ?: false,
             smoothK         = smoothK,
@@ -77,6 +78,7 @@ class PitchMonitorPlugin : Plugin() {
                     put("channels",   1)
                     put("format",     "int16")
                     put("partial",    true)
+                    result.firstSampleMonoNs?.let { put("firstSampleHostSec", it / 1e9) }
                 })
             }
         }
@@ -98,6 +100,7 @@ class PitchMonitorPlugin : Plugin() {
             put("sampleRate", result.sampleRate)
             put("channels",   1)
             put("format",     "int16")
+            result.firstSampleMonoNs?.let { put("firstSampleHostSec", it / 1e9) }
         })
     }
 
@@ -165,7 +168,12 @@ data class RecordingOptions(
 
 // ── SessionResult ─────────────────────────────────────────────────────────────
 
-data class SessionResult(val pcmBytes: ByteArray, val sampleRate: Int)
+data class SessionResult(
+    val pcmBytes: ByteArray,
+    val sampleRate: Int,
+    /** Mode Clip : instant CLOCK_MONOTONIC (ns) de capture du 1er échantillon, ou null. */
+    val firstSampleMonoNs: Long? = null,
+)
 
 // ── AudioRecordingSession ─────────────────────────────────────────────────────
 //
@@ -189,8 +197,10 @@ data class SessionResult(val pcmBytes: ByteArray, val sampleRate: Int)
 //                         DÉCOUPLÉE de la taille de bloc de capture — voir plus bas)
 //      La correction s'applique AU BLOC SUIVANT (1 frame de délai = 23 ms @ 44.1 kHz).
 //
-// Le chemin rapide n'a PAS de reverb câblée (limitation assumée, voir docs/roadmap.md) — le
-// chemin de repli conserve la reverb PresetReverb existante.
+// AUCUNE réverb dans le retour casque, sur les deux chemins (18/11/2026) : la réverb
+// n'existe qu'au rendu final (export / Mode Clip, côté WebAudio). Le PresetReverb du
+// chemin de repli est supprimé — un AudioEffect attaché à la piste, même désactivé,
+// est une source de charge et de craquements inutile.
 
 class AudioRecordingSession(private val opts: RecordingOptions, private val context: Context) {
 
@@ -223,20 +233,31 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private var captureLoop: AudioCaptureLoop? = null
     private var outputTrack: AudioTrack?       = null
     private var psola: PsolaProcessor?         = null
-    private var reverb: PresetReverb?          = null
     private var job: Job?                      = null
 
     // Chemin rapide (voir PsolaAudioEngine.kt) — non-null seulement si `PsolaAudioEngine.create`
-    // a réussi ; dans ce cas captureLoop/outputTrack/psola/reverb restent tous null, le moteur
+    // a réussi ; dans ce cas captureLoop/outputTrack/psola restent tous null, le moteur
     // natif gère capture+monitoring+correction en interne.
     private var aaudioEngine: PsolaAudioEngine? = null
     private val drainBuf = FloatArray(4096)
+    private var blockCount = 0L
     // La détection de hauteur tourne dans ce sondage (hors du thread audio) : 10 ms avec
     // l'autotune live pour que la correction suive la voix (comme iOS), 20 ms sinon.
     private val AAUDIO_POLL_INTERVAL_MS = if (opts.monitorAutotune && opts.useMonitor) 10L else 20L
 
     private var smoothedSemitones = 0f
     private val MONITOR_CAP       = 2.5f
+
+    // Mode Clip : estimations successives de l'instant de capture de la frame 0 (médiane
+    // retenue à l'arrêt — la 1re mesure après démarrage est souvent imprécise).
+    private val frameZeroEstimates = mutableListOf<Long>()
+    private fun addFrameZero(ns: Long?) {
+        if (ns == null) return
+        synchronized(frameZeroEstimates) {
+            frameZeroEstimates.add(ns)
+            if (frameZeroEstimates.size > 50) frameZeroEstimates.removeAt(0)
+        }
+    }
 
     // Chaîne voix du retour casque (boue / présence / clarté / volume), cf. VoiceFx.kt.
     private val voiceFx = VoiceFx(SAMPLE_RATE).also { it.update(opts.fx) }
@@ -245,11 +266,19 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     private var noisyReceiver: BroadcastReceiver? = null
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        if (change == AudioManager.AUDIOFOCUS_LOSS ||
-            change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+        // Seule une perte TEMPORAIRE interrompt la prise (appel, assistant vocal). Une perte
+        // définitive (AUDIOFOCUS_LOSS) est aussi ce que provoque la WebView de l'app
+        // elle-même quand le beat <audio> démarre ~130 ms après le micro (Chromium
+        // AudioFocusDelegate) : la prendre pour une interruption coupait chaque prise
+        // Android à ~0,4 s (recette Mode Clip sur émulateur, 18/11/2026).
+        if (change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
             onInterrupted?.invoke()
         }
     }
+
+    /** Repli si aucun horodatage matériel n'est disponible : instant de démarrage du micro
+     *  (moins précis, quelques dizaines de ms) — mieux que de perdre la prise du clip. */
+    private var startedMonoNs = 0L
 
     fun start() {
         pcmBuffer.reset()
@@ -262,6 +291,7 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
             monitorAutotune = opts.monitorAutotune,
             voiceGain       = opts.voiceGain,
         )
+        startedMonoNs = System.nanoTime()
         if (engine != null) {
             aaudioEngine = engine
             engine.setVoiceFx(voiceFx.coefficients)
@@ -304,7 +334,6 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
     fun setVoiceFx(p: VoiceFx.Params) {
         voiceFx.update(p)
         aaudioEngine?.setVoiceFx(voiceFx.coefficients)
-        reverb?.let { r -> runCatching { r.enabled = p.reverbWet > 0.01f } }
     }
 
     // ── Chemin rapide : moteur AAudio natif ───────────────────────────────────
@@ -343,6 +372,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 }
 
                 drainInto(engine)
+                engine.inputTimestamp()?.let { (frame, timeNs) ->
+                    if (frame > SAMPLE_RATE / 20) addFrameZero(ClipSync.anchorNs(frame, timeNs, SAMPLE_RATE))
+                }
 
                 if (status.interrupted) {
                     onInterrupted?.invoke()
@@ -410,21 +442,13 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
                 psola = PsolaProcessor(SAMPLE_RATE)
             }
 
-            // Reverb plate sur le retour monitoring (miroir du chemin iOS) — toujours créée,
-            // activée/désactivée en direct selon le réglage de piste (setVoiceFx).
-            // runCatching : AudioEffect peut échouer sur certains appareils / émulateurs.
-            runCatching {
-                reverb = PresetReverb(0, outputTrack!!.audioSessionId).apply {
-                    preset  = PresetReverb.PRESET_PLATE
-                    enabled = opts.fx.reverbWet > 0.01f
-                }
-            }
         }
 
         // ── Boucle de capture ──────────────────────────────────────────────────
         val loop = AudioCaptureLoop(SAMPLE_RATE, bufferSize) { floats, bytes, byteCount ->
             // Enregistrer les octets bruts (audio non traité → serveur), sauf retour casque seul
             if (opts.record) pcmBuffer.write(bytes, 0, byteCount)
+            if (opts.record && (++blockCount % 8L) == 0L) addFrameZero(captureLoop?.frameZeroMonoNs())
             onLevel?.invoke(computeRms(floats))
 
             if (opts.useMonitor) {
@@ -491,12 +515,13 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         focusRequest = null
 
-        job?.cancel()
+        // Chemin rapide : attendre la fin de la coroutine de sondage AVANT de libérer le
+        // moteur natif (sinon pollStatus/drain/inputTimestamp sur un Engine libéré).
+        // Le repli (lecture AudioRecord bloquante) s'arrête via captureLoop.stop().
+        if (aaudioEngine != null) runBlocking { job?.cancelAndJoin() } else job?.cancel()
         captureLoop?.stop()
         psola?.close()
         psola = null
-        reverb?.release()
-        reverb = null
         outputTrack?.stop()
         outputTrack?.release()
         outputTrack = null
@@ -511,7 +536,9 @@ class AudioRecordingSession(private val opts: RecordingOptions, private val cont
         }
         aaudioEngine = null
 
-        return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE)
+        val firstNs = synchronized(frameZeroEstimates) { ClipSync.medianNs(frameZeroEstimates.toList()) }
+            ?: startedMonoNs.takeIf { it > 0 }
+        return SessionResult(pcmBuffer.toByteArray(), SAMPLE_RATE, firstNs)
     }
 
     // ── Fenêtre glissante YIN (buffer circulaire) ─────────────────────────────

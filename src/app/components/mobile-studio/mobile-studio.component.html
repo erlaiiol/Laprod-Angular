@@ -309,6 +309,15 @@
               <strong>{{ fmtBeatTime(beatCurrentTime()) }}</strong>
               <span>/ {{ fmtBeatTime(beatDuration()) }}</span>
             </div>
+            <button type="button" class="daw-tp-reverb"
+                    [class.daw-tp-reverb--on]="previewReverb()"
+                    [attr.aria-pressed]="previewReverb()"
+                    aria-label="Écouter avec la réverb"
+                    title="Écouter avec la réverb — à couper si le son craque"
+                    (click)="togglePreviewReverb()">
+              <i class="bi bi-soundwave" aria-hidden="true"></i>
+              <span>Réverb</span>
+            </button>
             <div class="daw-tp-zoom">
               <button (click)="zoomOut()" [disabled]="!canZoomOut()" aria-label="Dézoomer la timeline">
                 <i class="bi bi-zoom-out"></i>
@@ -520,7 +529,29 @@
             (record)="onRecordPressed()"
             (settings)="toggleMonitoring()"
             (publish)="onPublishPressed()"
-            (download)="exportLocal()"/>
+            (download)="exportLocal()"
+            [showClip]="clipAvailable"
+            [clipDisabled]="beatDuration() <= 0"
+            [clipLocked]="clipLocked()"
+            (clip)="openClip()"/>
+
+          <!-- ── Bulle d'aide : Mode Clip réservé Premium ─────────────────── -->
+          @if (clipHint()) {
+            <div class="ms-clip-hint-backdrop" (click)="hideClipHint()"></div>
+            <div class="ms-clip-hint" role="status" aria-live="polite">
+              <i class="bi bi-camera-reels-fill ms-clip-hint__icon" aria-hidden="true"></i>
+              <p class="ms-clip-hint__text">
+                @if (auth.isLoggedIn()) {
+                  Le <strong>Mode Clip</strong> est réservé aux membres Premium : filme ta maquette et partage-la en vidéo.
+                } @else {
+                  Le <strong>Mode Clip</strong> est réservé aux membres Premium connectés.
+                }
+              </p>
+              <button type="button" class="ms-clip-hint__cta" (click)="onClipHintAction()">
+                {{ auth.isLoggedIn() ? 'Découvrir Premium' : 'Se connecter' }}
+              </button>
+            </div>
+          }
 
           <!-- ── Feuille : micro, monitoring, qualité d'écoute ─────────── -->
           @if (showMonitoring()) {
@@ -548,8 +579,25 @@
                   @if (previewQuality() === 'full') {
                     Fidèle : vous entendez la chaîne d'effets complète de l'export. Si le son craque sur votre téléphone, passez en « Légère ».
                   } @else {
-                    Légère : volume, boue, présence, clarté et réverb s'entendent, sans la compression finale. L'export applique toujours la chaîne complète.
+                    Légère : volume, boue, présence et clarté s'entendent, sans la compression finale. L'export applique toujours la chaîne complète.
                   }
+                </p>
+
+                <!-- Réverb à l'écoute passive du mix (jamais pendant un enregistrement ni un clip) -->
+                <div class="ms-speed-row">
+                  <span class="ms-speed-label">Écouter avec la réverb</span>
+                  <div class="ms-speed-tabs">
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="!previewReverb()"
+                            (click)="previewReverb() && togglePreviewReverb()">Non</button>
+                    <button class="ms-speed-tab"
+                            [class.ms-speed-tab--active]="previewReverb()"
+                            (click)="!previewReverb() && togglePreviewReverb()">Oui</button>
+                  </div>
+                </div>
+                <p class="daw-quality-hint">
+                  À l'écoute de ta maquette seulement : jamais pendant que tu chantes ni pendant un clip.
+                  Si le son craque, coupe-la : la réverb réglée sur tes pistes reste appliquée à l'export.
                 </p>
 
                 @if (headphoneType() !== null) {
@@ -625,48 +673,60 @@
                     </p>
                   }
 
-                  @if (monitorVoice()) {
-                    <div class="ms-autotune-row">
-                      <div class="ms-autotune-info">
-                        <span class="ms-autotune-label">Autotune live</span>
-                        <span class="ms-autotune-hint">Chantez juste, automatiquement</span>
-                      </div>
-                      <button class="ms-toggle"
-                              [class.ms-toggle--on]="monitorAutotune()"
-                              (click)="toggleMonitorAutotune()"
-                              [attr.aria-pressed]="monitorAutotune()"
-                              aria-label="Activer l'autotune live">
-                        <span class="ms-toggle__thumb"></span>
-                      </button>
-                    </div>
+                }
 
-                    @if (monitorAutotune()) {
-                      @if (!track.key) {
-                        <p class="ms-autotune-nokey">
-                          <i class="bi bi-exclamation-triangle-fill"></i>
-                          Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
-                        </p>
+                <!-- Autotune live — toujours disponible : entendu dans le casque si
+                     « M'entendre chanter » est actif, appliqué à la piste en fin de prise. -->
+                <div class="ms-autotune-row">
+                  <div class="ms-autotune-info">
+                    <span class="ms-autotune-label">Autotune live</span>
+                    <span class="ms-autotune-hint">
+                      @if (monitorVoice()) {
+                        Entendu dans le casque, appliqué à la piste
+                      } @else {
+                        Appliqué à la piste dès la fin de la prise
                       }
-                      <div class="ms-speed-row">
-                        <span class="ms-speed-label">Effet</span>
-                        <div class="ms-speed-tabs">
-                          <button class="ms-speed-tab"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
-                                  (click)="retuneSpeed.set('natural')"
-                                  title="Correction douce, voix naturelle">Doux</button>
-                          <button class="ms-speed-tab"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
-                                  (click)="retuneSpeed.set('precise')"
-                                  title="Correction forte, juste mais audible">Fort</button>
-                          <button class="ms-speed-tab ms-speed-tab--robot"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
-                                  (click)="retuneSpeed.set('robot')"
-                                  title="Effet maximal / voix robotique">Max</button>
-                        </div>
-                      </div>
-                    }
-                  }
+                    </span>
+                  </div>
+                  <button class="ms-toggle"
+                          [class.ms-toggle--on]="monitorAutotune()"
+                          (click)="toggleMonitorAutotune()"
+                          [attr.aria-pressed]="monitorAutotune()"
+                          aria-label="Activer l'autotune live">
+                    <span class="ms-toggle__thumb"></span>
+                  </button>
+                </div>
 
+                @if (monitorAutotune()) {
+                  @if (!track.key) {
+                    <p class="ms-autotune-nokey">
+                      <i class="bi bi-exclamation-triangle-fill"></i>
+                      Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
+                    </p>
+                  }
+                  <!-- Vitesse de correction : ne règle que ce qu'on entend dans le casque. -->
+                  @if (monitorVoice()) {
+                    <div class="ms-speed-row">
+                      <span class="ms-speed-label">Effet</span>
+                      <div class="ms-speed-tabs">
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
+                                (click)="retuneSpeed.set('natural')"
+                                title="Correction douce, voix naturelle">Doux</button>
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
+                                (click)="retuneSpeed.set('precise')"
+                                title="Correction forte, juste mais audible">Fort</button>
+                        <button class="ms-speed-tab ms-speed-tab--robot"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
+                                (click)="retuneSpeed.set('robot')"
+                                title="Effet maximal / voix robotique">Max</button>
+                      </div>
+                    </div>
+                  }
+                }
+
+                @if (headphoneType() !== null && headphoneType() !== 'none') {
                   <button class="ms-warmup-btn" (click)="startWarmup()">
                     <i class="bi bi-activity"></i>
                     Tester mon micro
@@ -737,6 +797,11 @@
           (downloadLocal)="showGuestGate.set(false); exportLocal()"
           (cancel)="showGuestGate.set(false)">
         </app-daw-guest-gate-overlay>
+      }
+
+      <!-- ── Mode Clip — vidéo à partager (docs/roadmap.md § Chantier 4) ── -->
+      @if (studioState() === 'clip' && clipCtx()) {
+        <app-mobile-studio-clip [ctx]="clipCtx()!" (closed)="onClipClosed()"/>
       }
 
       <!-- ── Guest gate — compte requis pour régler les effets ─────────── -->

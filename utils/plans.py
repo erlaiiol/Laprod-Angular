@@ -320,6 +320,9 @@ def comparison_matrix() -> dict:
                          'Adresser les auditeurs dont les goûts collent à ton style, '
                          'même s’ils ne te connaissent pas encore.'),
                 bool_row('Badge Mastering Pro', SEMI_PRO),
+                bool_row('Mode Clip (vidéo de ta maquette à partager)', PREMIUM,
+                         'Filmer ta maquette dans l’app et la partager en Reel, '
+                         'TikTok, Short ou story, avec filigrane LaProd.'),
             ],
         },
         {
