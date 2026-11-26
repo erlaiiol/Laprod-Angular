@@ -75,6 +75,8 @@ const LIVE_WAVE_POINTS = 80;
 const COUNTDOWN_START     = 3;
 /** En dessous, la prise est considérée vide (arrêt immédiat, interruption). */
 const MIN_TAKE_SECONDS    = 0.2;
+/** Tête de lecture à moins de cette durée de la fin du beat : la prise repart du début. */
+const RECORD_TAIL_SEC     = 1;
 const BT_CALIB_SHOWN_KEY  = 'laprod_bt_calib_v1';
 const DEFAULT_BEAT_VOL = 0.65;
 /** Gain du beat dans le mix exporté — la lecture du studio reprend la même balance. */
@@ -774,13 +776,13 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Toucher une piste (instrumentale ou voix) : la sélectionne pour ses réglages
-   * et lance TOUT le mix à l'instant touché.
+   * Toucher une piste (instrumentale ou voix) : ouvre seulement ses réglages
+   * (menu d'effets). Ne lance JAMAIS la lecture : l'écoute se pilote par la tête
+   * de lecture (règle/poignée) et le bouton play (choix produit du 20/11/2026).
    */
-  onLaneTap(event: MouseEvent, lane: string): void {
+  onLaneTap(_event: MouseEvent, lane: string): void {
     this._selectLane(lane);
-    if (this.beatDuration() <= 0) return;
-    void this._playMixAt(this._timeAtClientX(event.clientX));
+    this.cdr.markForCheck();
   }
 
   /** Toucher l'en-tête d'une piste : ouvre/ferme ses réglages sans toucher à la lecture. */
@@ -1337,9 +1339,12 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Autotune live sur le retour voix — n'a de sens que si le retour est actif. */
+  /**
+   * Autotune live — toujours disponible. Avec « M'entendre chanter », il s'entend
+   * dans le casque pendant la prise ; dans tous les cas il est appliqué à la piste
+   * dès la fin de l'enregistrement (cf. _finalizeRecording).
+   */
   toggleMonitorAutotune(): void {
-    if (!this.monitorVoice()) return;
     this.monitorAutotune.update(v => !v);
     this.cdr.markForCheck();
   }
@@ -1612,6 +1617,10 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
   private async _beginCountdownInner(id: string): Promise<void> {
     this.errorMsg.set(null);
 
+    // Position de la tête de lecture AVANT d'arrêter l'écoute (pendant la lecture,
+    // elle est lue sur l'horloge du mix, plus précise que le dernier rafraîchissement).
+    const headSec = this._transport ? this._transportPos() : this.beatCurrentTime();
+
     this._stopPreviewPlayback();
     if (this.beatIsPlaying()) { this.player.audioEl.pause(); this.beatIsPlaying.set(false); }
     this._stopBeatRaf();
@@ -1622,11 +1631,13 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     const hp = await this.pm.checkHeadphones().catch(() => null);
     if (hp) this.headphoneType.set(hp.type as HeadphoneType);
 
-    // Position du beat où démarre la prise : début du beat, ou point de punch-in
-    // (punchInSec est relatif au début de la piste existante).
+    // Position du beat où démarre la prise : la tête de lecture (comme un DAW,
+    // demande du 20/11/2026), ou le point de punch-in (punchInSec est relatif au
+    // début de la piste existante). Beat ET voix partent de là.
     const punchSec     = this.punchInSec();
     const punchBase    = punchSec > 0 ? (this.tracks().find(t => t.id === id)?.beatStartSec ?? 0) : 0;
-    const beatStartSec = punchBase + punchSec;
+    const beatStartSec = punchSec > 0 ? punchBase + punchSec : this._recordStartSec(headSec);
+    this.beatCurrentTime.set(beatStartSec);
 
     this._prepareTake(id);
     this.countdown.set(COUNTDOWN_START);
@@ -1701,6 +1712,17 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
     this._startBeatRaf();
     if (this.metronome.active()) this.metronome.restart(this.track.bpm, beatStartSec);
     this._startRecordingUi();
+  }
+
+  /**
+   * Point de départ d'une prise à partir de la tête de lecture. Tête invalide ou
+   * dans la dernière seconde du beat (rien à chanter dessus) → début du beat.
+   */
+  private _recordStartSec(headSec: number): number {
+    const d = this.beatDuration();
+    if (!isFinite(headSec) || headSec <= 0) return 0;
+    if (d > 0 && headSec >= d - RECORD_TAIL_SEC) return 0;
+    return headSec;
   }
 
   /**
@@ -1933,6 +1955,19 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
       this.service.setRecorded(id, rawBlob, finalWaveform, duration, trackStart);
       // La nouvelle prise est sélectionnée : ses réglages s'ouvrent sous la timeline.
       this._selectLane(id);
+      // La tête de lecture revient là où la prise a commencé : play = réécoute directe.
+      this.beatCurrentTime.set(startSec);
+      this._drawBeatWaveform();
+
+      // Autotune live activé (entendu ou non pendant la prise) → appliqué à la piste
+      // tout de suite. setRecorded invalide processedBlob : on le recalcule aussi pour
+      // une piste déjà réglée en autotune, sinon elle rejouerait la voix brute.
+      const wantsAutotune = this.monitorAutotune()
+        || (this.tracks().find(t => t.id === id)?.settings.useAutotune ?? false);
+      if (wantsAutotune && this.track.key) {
+        this.service.updateSettings(id, { useAutotune: true });
+        void this.service.ensureAutotune(id, this.track.key);
+      }
 
       if (interrupted) {
         this.errorMsg.set('Enregistrement interrompu (appel entrant). La prise partielle a été conservée.');
@@ -1994,7 +2029,8 @@ export class MobileStudioComponent implements OnInit, OnDestroy {
         : el.currentTime;
       this.beatCurrentTime.set(t);
       if (d > 0) this.beatDuration.set(d);
-      if (tr) this._followPlayhead();
+      // Écoute ou prise (qui peut partir du milieu du beat) : la timeline suit la tête.
+      if (tr || clock || !el.paused) this._followPlayhead();
       this._rafId = (tr || clock || (!el.paused && !el.ended))
         ? requestAnimationFrame(tick)
         : null;

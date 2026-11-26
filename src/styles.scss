@@ -145,6 +145,10 @@ html {
   // (sur les deux axes : en X, la page glissait latéralement sous le doigt) —
   // sans ça, l'app trahit immédiatement son origine web sur iOS/Android.
   overscroll-behavior: none;
+  // Supprime le zoom au double-tap (iOS/Android, web compris) tout en gardant
+  // le pinch-zoom sur le web pour l'accessibilité. Le zoom est entièrement
+  // coupé en natif via le viewport (main.ts) et WebSettings (MainActivity).
+  touch-action: manipulation;
 }
 
 body {

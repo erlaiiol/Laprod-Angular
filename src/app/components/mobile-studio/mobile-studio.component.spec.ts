@@ -450,14 +450,18 @@ describe('MobileStudioComponent', () => {
       expect((pm.checkHeadphones as any).mock.calls.length).toBe(callsBeforeToggle);
     });
 
-    it('autotune live : sans effet tant que le retour voix est éteint', async () => {
+    it('autotune live : disponible même retour voix éteint, mais jamais envoyé au casque sans lui', async () => {
       const { component } = await createComponent();
       component.toggleMonitorAutotune();
-      expect(component.monitorAutotune()).toBe(false);
-
-      component.monitorVoice.set(true);
-      component.toggleMonitorAutotune();
       expect(component.monitorAutotune()).toBe(true);
+      expect((component as any)._sessionOpts().monitorAutotune).toBe(false);
+
+      component.headphoneType.set('wired');
+      component.monitorVoice.set(true);
+      expect((component as any)._sessionOpts().monitorAutotune).toBe(true);
+
+      component.toggleMonitorAutotune();
+      expect(component.monitorAutotune()).toBe(false);
     });
   });
 
@@ -484,12 +488,20 @@ describe('MobileStudioComponent', () => {
 
   describe('_takeLatencyMs', () => {
 
-    it('Bluetooth réglé au métronome : la mesure de l\'utilisateur', async () => {
+    it('Bluetooth : la latence rapportée par iOS l\'emporte sur le réglage au métronome', async () => {
       const { component } = await createComponent();
       component.headphoneType.set('bluetooth-a2dp');
       (component.calibration as any).entry = { latencyMs: 190, deviceType: 'bluetooth', ts: 0 };
 
-      expect((component as any)._takeLatencyMs({ outputLatencyMs: 140, inputLatencyMs: 5 })).toBe(190);
+      expect((component as any)._takeLatencyMs({ outputLatencyMs: 140, inputLatencyMs: 5 })).toBe(145);
+    });
+
+    it('Bluetooth sans latence rapportée (Android) : la mesure de l\'utilisateur', async () => {
+      const { component } = await createComponent();
+      component.headphoneType.set('bluetooth-a2dp');
+      (component.calibration as any).entry = { latencyMs: 190, deviceType: 'bluetooth', ts: 0 };
+
+      expect((component as any)._takeLatencyMs(null)).toBe(190);
     });
 
     it('sinon : latences rapportées par le système (sortie + entrée)', async () => {
@@ -508,6 +520,44 @@ describe('MobileStudioComponent', () => {
   });
 
   // ── _finalizeRecording — la voix est posée là où elle a été chantée ───────────
+
+  describe('départ de la prise depuis la tête de lecture', () => {
+
+    async function startIosTake(headSec: number, punchSec = 0) {
+      const pm = makePmMock();
+      (pm.startSession as any).mockResolvedValue({ nativeBeat: true, startInMs: 0, outputLatencyMs: 0, inputLatencyMs: 0 });
+      const env = await createComponent(pm);
+      const c = env.component as any;
+      c._isIos = true;
+      c._ensureNativeBeatFile = vi.fn().mockResolvedValue('file:///beat.mp3');
+      c._runCountdown = vi.fn().mockResolvedValue(undefined);
+      c._startRecordingUi = vi.fn();
+      env.component.permState.set('granted');
+      env.component.beatDuration.set(120);
+      env.component.beatCurrentTime.set(headSec);
+      const id = env.maquette.addTrack();
+      if (punchSec) env.component.punchInSec.set(punchSec);
+      await c._beginCountdownInner(id);
+      return { ...env, pm, opts: (pm.startSession as any).mock.calls[0][0] };
+    }
+
+    it('le beat natif démarre à la position de la tête de lecture', async () => {
+      const { opts, component } = await startIosTake(37.5);
+      expect(opts.beatStartSec).toBe(37.5);
+      expect((component as any)._take.beatStartSec).toBe(37.5);
+    });
+
+    it('tête au début ou dans la dernière seconde du beat : la prise part de 0', async () => {
+      expect((await startIosTake(0)).opts.beatStartSec).toBe(0);
+      TestBed.resetTestingModule();
+      expect((await startIosTake(119.5)).opts.beatStartSec).toBe(0);
+    });
+
+    it('punch-in : le point de punch l\'emporte sur la tête de lecture', async () => {
+      const { opts } = await startIosTake(80, 3);
+      expect(opts.beatStartSec).toBe(3);
+    });
+  });
 
   describe('_finalizeRecording (alignement)', () => {
 
@@ -570,6 +620,18 @@ describe('MobileStudioComponent', () => {
       const [, , , duration, beatStartSec] = maquette.setRecorded.mock.calls[0];
       expect(beatStartSec).toBe(0.01);                          // la piste ne bouge pas
       expect(duration).toBeCloseTo(3.002, 6);
+    });
+
+    it('après la prise, la tête de lecture revient à son point de départ', async () => {
+      const { component } = await setupTake({ beatStartSec: 42, nativeBeat: true, latencyMs: 0, leadSec: 0 });
+      component.beatCurrentTime.set(60);
+
+      await (component as any)._finalizeRecording({
+        pcmBase64: pcmF32Base64(1), sampleRate: 48000, channels: 1, format: 'float32',
+        firstSampleBeatSec: 42,
+      });
+
+      expect(component.beatCurrentTime()).toBe(42);
     });
 
     it('prise vide (arrêt immédiat) : pas de piste fantôme, état restauré', async () => {
@@ -859,17 +921,19 @@ describe('MobileStudioComponent', () => {
       expect(sources()[1].start).toHaveBeenCalledWith(10 + LEAD, 3);
     });
 
-    it('toucher une piste la sélectionne et lance le mix à l\'instant touché', async () => {
+    it('toucher une piste ouvre ses réglages sans lancer la lecture ni bouger la tête', async () => {
       const { component } = await setup([{ start: 0, dur: 20 }]);
       component.beatDuration.set(BEAT_SEC);
       component.pxPerSec.set(10);
+      component.beatCurrentTime.set(4);
       (component as any).tlContentRef = { nativeElement: { getBoundingClientRect: () => ({ left: -200 }) } };
       const play = vi.spyOn(component as any, '_playMixAt');
 
-      component.onLaneTap({ clientX: 100 } as MouseEvent, 'v0');   // (100 + 200) px / 10 px·s⁻¹ = 30 s
+      component.onLaneTap({ clientX: 100 } as MouseEvent, 'v0');
 
       expect(component.selectedLane()).toBe('v0');
-      expect(play).toHaveBeenCalledWith(30);
+      expect(play).not.toHaveBeenCalled();
+      expect(component.beatCurrentTime()).toBe(4);
     });
 
     it('glisser la tête de lecture : son coupé pendant le geste, reprise à la position relâchée', async () => {

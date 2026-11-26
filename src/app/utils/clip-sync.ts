@@ -99,10 +99,22 @@ export interface ClipLatencies {
  *   métronome mesure des tapes sur un clic ENTENDU (sortie + réaction, sans
  *   micro dans la boucle) : c'est directement la latence entendue.
  * Hors Bluetooth calibré, heardMs = recVideoMs = sortie.
+ *
+ * Priorité (20/11/2026) : en Bluetooth, la latence de sortie RAPPORTÉE par le
+ * système l'emporte sur le réglage au métronome dès qu'elle est plausible
+ * (≥ BT_REPORTED_MIN_MS). iOS la mesure sur la route réelle et sur le moteur
+ * même qui joue le beat et capte la voix ; le réglage au métronome, lui, passe
+ * par le WebAudio de la WebView (autre chemin, autre tampon) et retranche une
+ * réaction humaine forfaitaire de 150 ms — d'où des prises mal recalées avec
+ * des AirPods. Le réglage ne sert plus qu'en repli (Android, route muette).
  */
+export const BT_REPORTED_MIN_MS = 40;
+
 export function clipLatencies(i: HeadphoneLatencyInput): ClipLatencies {
   const input = Math.max(0, i.inputMs || 0);
-  const calibrated = i.bluetooth && i.calibratedMs !== null ? Math.max(0, i.calibratedMs) : null;
+  const reportedBt = i.bluetooth && (i.outputMs || 0) >= BT_REPORTED_MIN_MS;
+  const calibrated = i.bluetooth && !reportedBt && i.calibratedMs !== null
+    ? Math.max(0, i.calibratedMs) : null;
   const takeCropMs = calibrated ?? Math.max(0, (i.outputMs || 0) + input);
   return {
     takeCropMs,

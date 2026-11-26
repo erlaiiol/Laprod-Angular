@@ -358,25 +358,30 @@ final class AudioSession {
             scheduleBeat(from: options.beatStartSec)
         }
 
-        if options.useMonitor {
+        if options.useMonitor && !options.monitorAutotune {
+            // « M'entendre chanter » sans autotune : micro → EQ → volume, branchés en
+            // direct dans le graphe. Aucun moteur de hauteur, aucun ring, aucun coussin :
+            // même horloge que la sortie, donc aucune famine ni coupure possible — zéro
+            // artefact par construction (20/11/2026). Ne pas repasser par le PSOLA ici.
+            let gainNode = AVAudioMixerNode()
+            let eq = makeVoiceEQ()
+            self.eqNode   = eq
+            self.gainNode = gainNode
+            applyFx(options.fx)
+            for node in [eq, gainNode] as [AVAudioNode] { engine.attach(node) }
+            engine.connect(inputNode, to: eq,                   format: fmt)
+            engine.connect(eq,        to: gainNode,             format: fmt)
+            engine.connect(gainNode,  to: engine.mainMixerNode, format: fmt)
+        }
+
+        if options.useMonitor && options.monitorAutotune {
             // RubberBand wrapper: real-time, formant-preserving, mono
             let rb        = RubberBandWrapper(sampleRate: sampleRate)
             rbWrapper     = rb
 
             let gainNode = AVAudioMixerNode()
 
-            // EQ voix : 2 passe-haut cascadés (24 dB/oct, comme l'export) = "boue",
-            // bosse de présence 2,5 kHz, plateau d'air 12 kHz = "clarté".
-            let eq = AVAudioUnitEQ(numberOfBands: 4)
-            eq.bands[0].filterType = .highPass
-            eq.bands[1].filterType = .highPass
-            eq.bands[2].filterType = .parametric
-            eq.bands[2].frequency  = 2_500
-            eq.bands[2].bandwidth  = 1.39          // ≈ Q 1.0, comme l'export
-            eq.bands[3].filterType = .highShelf
-            eq.bands[3].frequency  = 12_000
-            for band in eq.bands { band.bypass = false }
-
+            let eq = makeVoiceEQ()
             self.eqNode     = eq
             self.gainNode   = gainNode
             applyFx(options.fx)
@@ -479,6 +484,21 @@ final class AudioSession {
                 ? AVAudioTime.seconds(forHostTime: lock.withLock { beatStartHost })
                 : nil
         )
+    }
+
+    /// EQ voix du retour casque : 2 passe-haut cascadés (24 dB/oct, comme l'export)
+    /// = "boue", bosse de présence 2,5 kHz, plateau d'air 12 kHz = "clarté".
+    private func makeVoiceEQ() -> AVAudioUnitEQ {
+        let eq = AVAudioUnitEQ(numberOfBands: 4)
+        eq.bands[0].filterType = .highPass
+        eq.bands[1].filterType = .highPass
+        eq.bands[2].filterType = .parametric
+        eq.bands[2].frequency  = 2_500
+        eq.bands[2].bandwidth  = 1.39          // ≈ Q 1.0, comme l'export
+        eq.bands[3].filterType = .highShelf
+        eq.bands[3].frequency  = 12_000
+        for band in eq.bands { band.bypass = false }
+        return eq
     }
 
     // ── Beat ──────────────────────────────────────────────────────────────────

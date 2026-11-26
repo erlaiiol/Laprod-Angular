@@ -673,48 +673,60 @@
                     </p>
                   }
 
-                  @if (monitorVoice()) {
-                    <div class="ms-autotune-row">
-                      <div class="ms-autotune-info">
-                        <span class="ms-autotune-label">Autotune live</span>
-                        <span class="ms-autotune-hint">Chantez juste, automatiquement</span>
-                      </div>
-                      <button class="ms-toggle"
-                              [class.ms-toggle--on]="monitorAutotune()"
-                              (click)="toggleMonitorAutotune()"
-                              [attr.aria-pressed]="monitorAutotune()"
-                              aria-label="Activer l'autotune live">
-                        <span class="ms-toggle__thumb"></span>
-                      </button>
-                    </div>
+                }
 
-                    @if (monitorAutotune()) {
-                      @if (!track.key) {
-                        <p class="ms-autotune-nokey">
-                          <i class="bi bi-exclamation-triangle-fill"></i>
-                          Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
-                        </p>
+                <!-- Autotune live — toujours disponible : entendu dans le casque si
+                     « M'entendre chanter » est actif, appliqué à la piste en fin de prise. -->
+                <div class="ms-autotune-row">
+                  <div class="ms-autotune-info">
+                    <span class="ms-autotune-label">Autotune live</span>
+                    <span class="ms-autotune-hint">
+                      @if (monitorVoice()) {
+                        Entendu dans le casque, appliqué à la piste
+                      } @else {
+                        Appliqué à la piste dès la fin de la prise
                       }
-                      <div class="ms-speed-row">
-                        <span class="ms-speed-label">Effet</span>
-                        <div class="ms-speed-tabs">
-                          <button class="ms-speed-tab"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
-                                  (click)="retuneSpeed.set('natural')"
-                                  title="Correction douce, voix naturelle">Doux</button>
-                          <button class="ms-speed-tab"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
-                                  (click)="retuneSpeed.set('precise')"
-                                  title="Correction forte, juste mais audible">Fort</button>
-                          <button class="ms-speed-tab ms-speed-tab--robot"
-                                  [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
-                                  (click)="retuneSpeed.set('robot')"
-                                  title="Effet maximal / voix robotique">Max</button>
-                        </div>
-                      </div>
-                    }
-                  }
+                    </span>
+                  </div>
+                  <button class="ms-toggle"
+                          [class.ms-toggle--on]="monitorAutotune()"
+                          (click)="toggleMonitorAutotune()"
+                          [attr.aria-pressed]="monitorAutotune()"
+                          aria-label="Activer l'autotune live">
+                    <span class="ms-toggle__thumb"></span>
+                  </button>
+                </div>
 
+                @if (monitorAutotune()) {
+                  @if (!track.key) {
+                    <p class="ms-autotune-nokey">
+                      <i class="bi bi-exclamation-triangle-fill"></i>
+                      Ce beat n'a pas de tonalité — l'autotune ne peut pas s'activer.
+                    </p>
+                  }
+                  <!-- Vitesse de correction : ne règle que ce qu'on entend dans le casque. -->
+                  @if (monitorVoice()) {
+                    <div class="ms-speed-row">
+                      <span class="ms-speed-label">Effet</span>
+                      <div class="ms-speed-tabs">
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'natural'"
+                                (click)="retuneSpeed.set('natural')"
+                                title="Correction douce, voix naturelle">Doux</button>
+                        <button class="ms-speed-tab"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'precise'"
+                                (click)="retuneSpeed.set('precise')"
+                                title="Correction forte, juste mais audible">Fort</button>
+                        <button class="ms-speed-tab ms-speed-tab--robot"
+                                [class.ms-speed-tab--active]="retuneSpeed() === 'robot'"
+                                (click)="retuneSpeed.set('robot')"
+                                title="Effet maximal / voix robotique">Max</button>
+                      </div>
+                    </div>
+                  }
+                }
+
+                @if (headphoneType() !== null && headphoneType() !== 'none') {
                   <button class="ms-warmup-btn" (click)="startWarmup()">
                     <i class="bi bi-activity"></i>
                     Tester mon micro

@@ -69,6 +69,7 @@ private:
 } // namespace
 
 static const size_t kHistCapacity = 16384;   // puissance de 2 (~340 ms @ 48 kHz)
+static const size_t kFadeFrames   = 96;      // ~2 ms : fondu des (re)démarrages / famines
 
 // ── RubberBandWrapper ─────────────────────────────────────────────────────────
 
@@ -179,15 +180,34 @@ static const size_t kHistCapacity = 16384;   // puissance de 2 (~340 ms @ 48 kHz
     // Coussin : psola_retrieve comblerait un manque par du silence EN PLEIN signal — c'est
     // un craquement. On attend donc d'avoir un cycle complet d'avance avant de (re)démarrer
     // la sortie : une famine devient un court silence propre au lieu d'une rafale de clics.
+    //
+    // Aucune transition n'est franche (20/11/2026) : un démarrage part d'un fondu entrant,
+    // une famine se termine par un fondu sortant des derniers échantillons disponibles —
+    // jamais un saut du signal à zéro (= clic).
     const int32_t avail = psola_available(_psola);
     const int32_t need  = static_cast<int32_t>(frameCount);
-    if (!_primed && avail >= need * 2) _primed = true;
-    if (_primed && avail < need)       _primed = false;
+    const size_t  n     = static_cast<size_t>(frameCount);
     if (!_primed) {
-        memset(output, 0, static_cast<size_t>(frameCount) * sizeof(float));
+        if (avail < need * 2) {
+            memset(output, 0, n * sizeof(float));
+            return frameCount;
+        }
+        _primed = true;
+        psola_retrieve(_psola, output, n);
+        const size_t f = std::min<size_t>(n, kFadeFrames);
+        for (size_t i = 0; i < f; ++i) output[i] *= static_cast<float>(i + 1) / static_cast<float>(f + 1);
         return frameCount;
     }
-    psola_retrieve(_psola, output, static_cast<size_t>(frameCount));
+    if (avail < need) {
+        _primed = false;
+        const size_t k = static_cast<size_t>(std::max<int32_t>(0, avail));
+        psola_retrieve(_psola, output, k);
+        const size_t f = std::min<size_t>(k, kFadeFrames);
+        for (size_t i = 0; i < f; ++i) output[k - f + i] *= static_cast<float>(f - i) / static_cast<float>(f + 1);
+        memset(output + k, 0, (n - k) * sizeof(float));
+        return frameCount;
+    }
+    psola_retrieve(_psola, output, n);
     return frameCount;
 }
 

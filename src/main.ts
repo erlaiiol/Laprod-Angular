@@ -6,6 +6,17 @@ import { Capacitor } from '@capacitor/core';
 
 document.title = environment.appTitle;
 
+// App native : pas de zoom du tout. Un double-tap accidentel zoomait la page
+// et le WebView ne permettait plus de revenir à l'échelle 1. maximum-scale=1
+// empêche aussi l'auto-zoom iOS au focus d'un champ < 16px. Sur le web on garde
+// le zoom (accessibilité), seul le double-tap est neutralisé en CSS.
+if (Capacitor.isNativePlatform()) {
+  document.querySelector('meta[name="viewport"]')?.setAttribute(
+    'content',
+    'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+  );
+}
+
 bootstrapApplication(App, appConfig)
   .catch(async (err) => {
     console.error(err);

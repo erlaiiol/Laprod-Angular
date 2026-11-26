@@ -48,9 +48,14 @@ describe('clip-sync — latences', () => {
       .toEqual({ takeCropMs: 12, heardMs: 8, recVideoMs: 8 });
   });
 
-  it('Bluetooth calibré : la mesure (clic entendu) est la latence entendue', () => {
-    expect(clipLatencies({ bluetooth: true, calibratedMs: 210, outputMs: 150, inputMs: 5 }))
+  it('Bluetooth calibré, route muette : la mesure (clic entendu) est la latence entendue', () => {
+    expect(clipLatencies({ bluetooth: true, calibratedMs: 210, outputMs: 0, inputMs: 5 }))
       .toEqual({ takeCropMs: 210, heardMs: 210, recVideoMs: 205 });
+  });
+
+  it('Bluetooth calibré mais latence rapportée plausible : le système l\'emporte', () => {
+    expect(clipLatencies({ bluetooth: true, calibratedMs: 320, outputMs: 150, inputMs: 5 }))
+      .toEqual({ takeCropMs: 155, heardMs: 150, recVideoMs: 150 });
   });
 
   it('Android : on n\'ajoute que la part de latence Bluetooth non rapportée', () => {

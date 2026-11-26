@@ -194,6 +194,18 @@ static aaudio_data_callback_result_t onInputData(AAudioStream *stream, void *use
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
 
+#define FADE_FRAMES 96u   // ~2 ms : fondu des (re)démarrages / famines du retour casque
+
+static void fadeIn(float *buf, size_t n) {
+    const size_t f = n < FADE_FRAMES ? n : FADE_FRAMES;
+    for (size_t i = 0; i < f; i++) buf[i] *= (float) (i + 1) / (float) (f + 1);
+}
+
+static void fadeOutTail(float *buf, size_t n) {
+    const size_t f = n < FADE_FRAMES ? n : FADE_FRAMES;
+    for (size_t i = 0; i < f; i++) buf[n - f + i] *= (float) (f - i) / (float) (f + 1);
+}
+
 static aaudio_data_callback_result_t onOutputData(AAudioStream *stream, void *userData,
                                                    void *audioData, int32_t numFrames) {
     (void) stream;
@@ -221,13 +233,50 @@ static aaudio_data_callback_result_t onOutputData(AAudioStream *stream, void *us
     // Coussin : combler un manque par du silence EN PLEIN signal produit un craquement. On ne
     // (re)démarre la sortie qu'avec un callback d'avance en réserve ; une famine devient ainsi
     // un court silence propre au lieu d'une rafale de clics.
+    //
+    // 20/11/2026 — aucune transition franche : démarrage en fondu entrant, famine terminée par
+    // un fondu sortant des derniers échantillons. Et les flux d'entrée et de sortie ont deux
+    // horloges indépendantes : sans correction, la réserve dérive (famines répétées dans un
+    // sens, ring saturé = échantillons perdus et retard qui grimpe dans l'autre). Au-delà d'une
+    // réserve maximale, on saute au plus récent en fondu enchaîné sur tout le bloc.
     size_t ready = spsc_ring_available(&e->bridgeRing);
-    if (!e->outPrimed && ready >= n * 2u) e->outPrimed = true;
-    if (e->outPrimed && ready < n)        e->outPrimed = false;
     if (!e->outPrimed) {
-        memset(out, 0, n * sizeof(float));
+        if (ready < n * 2u) {
+            memset(out, 0, n * sizeof(float));
+            return AAUDIO_CALLBACK_RESULT_CONTINUE;
+        }
+        e->outPrimed = true;
+        spsc_ring_read(&e->bridgeRing, out, n);
+        fadeIn(out, n);
         return AAUDIO_CALLBACK_RESULT_CONTINUE;
     }
+    if (ready < n) {
+        e->outPrimed = false;
+        size_t k = spsc_ring_read(&e->bridgeRing, out, ready);
+        fadeOutTail(out, k);
+        memset(out + k, 0, (n - k) * sizeof(float));
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
+    const size_t target   = n * 2u;
+    const size_t maxReady = target + n * 2u + (size_t) (e->sampleRate / 50); // + 20 ms
+    if (ready > maxReady && n <= MAX_CALLBACK_FRAMES) {
+        float fresh[MAX_CALLBACK_FRAMES];
+        spsc_ring_read(&e->bridgeRing, out, n);              // suite immédiate de l'ancien
+        size_t skip = ready - n - (target + n);              // il restera target après `fresh`
+        while (skip > 0) {
+            size_t k = skip < MAX_CALLBACK_FRAMES ? skip : MAX_CALLBACK_FRAMES;
+            spsc_ring_read(&e->bridgeRing, fresh, k);
+            skip -= k;
+        }
+        spsc_ring_read(&e->bridgeRing, fresh, n);            // le plus récent
+        for (size_t i = 0; i < n; i++) {
+            const float t = (float) (i + 1) / (float) (n + 1);
+            out[i] = out[i] * (1.0f - t) + fresh[i] * t;
+        }
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+
     spsc_ring_read(&e->bridgeRing, out, n);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }

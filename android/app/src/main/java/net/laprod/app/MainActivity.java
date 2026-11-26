@@ -21,6 +21,13 @@ public class MainActivity extends BridgeActivity {
             this.bridge.getWebView().getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
 
+        // Pas de zoom dans l'app : avec setSupportZoom(true) (défaut) et sans contrôles
+        // intégrés, un double-tap zoomait le WebView sans moyen de dézoomer.
+        WebSettings settings = this.bridge.getWebView().getSettings();
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
+
         // targetSdk 36 (Android 15+) impose l'edge-to-edge : @capacitor-community/safe-area
         // gère le padding/insets correspondant côté WebView (voir native-shell.service.ts).
         EdgeToEdge.enable(this);
